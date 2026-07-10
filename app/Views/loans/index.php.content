@@ -1,0 +1,74 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Loans</h4>
+      <a href="<?= url('/loans/create') ?>" class="btn btn-info waves-effect waves-light">
+        <i class="mdi mdi-plus"></i> New Loan
+      </a>
+    </div>
+
+    <form method="get" action="<?= url('/loans') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search loan no or borrower..." value="<?= e($search ?? '') ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Draft','Pending Approval','Approved','Active','Current','Completed','Denied','Written Off','Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Loan No</th>
+            <th>Borrower</th>
+            <th>Product</th>
+            <th>Principal</th>
+            <th>Installment</th>
+            <th>Term</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No loans found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $loan): ?>
+            <?php
+              $badge = match ($loan['loan_status']) {
+                'Active', 'Current', 'Released' => 'success',
+                'Completed' => 'primary',
+                'Denied', 'Written Off', 'Cancelled' => 'danger',
+                'Approved' => 'info',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['borrower_name']) ?></td>
+              <td><?= e($loan['product_name']) ?></td>
+              <td><?= format_money($loan['principal_amount']) ?></td>
+              <td><?= format_money($loan['installment_amount']) ?></td>
+              <td><?= (int) $loan['term_months'] ?> mo</td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

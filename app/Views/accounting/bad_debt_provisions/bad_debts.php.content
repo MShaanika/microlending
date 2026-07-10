@@ -1,0 +1,44 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Bad Debts</h4>
+      <form method="get" class="d-flex gap-2">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All statuses</option>
+          <?php foreach (['Open','Under Recovery','Provisioned','Written Off','Recovered','Closed'] as $s): ?>
+            <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Bad Debt No.</th><th>Loan</th><th>Borrower</th><th class="text-end">Days Overdue</th><th>Bucket</th><th class="text-end">Outstanding</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($badDebts)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No bad debts identified yet &mdash; run <a href="<?= url('/accounting/bad-debt-provisions') ?>">provisioning</a> first.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($badDebts as $bd): ?>
+            <tr>
+              <td><?= e($bd['bad_debt_no']) ?></td>
+              <td><a href="<?= url('/loans/' . $bd['loan_id']) ?>"><?= e($bd['loan_no']) ?></a></td>
+              <td><?= e($bd['borrower_name']) ?></td>
+              <td class="text-end"><?= (int) $bd['days_in_arrears'] ?></td>
+              <td><span class="badge bg-warning text-dark"><?= e($bd['aging_bucket']) ?></span></td>
+              <td class="text-end"><?= e(format_money($bd['outstanding_balance'])) ?></td>
+              <td><span class="badge bg-<?= $bd['status'] === 'Provisioned' ? 'warning text-dark' : ($bd['status'] === 'Written Off' ? 'dark' : ($bd['status'] === 'Recovered' ? 'success' : 'secondary')) ?>"><?= e($bd['status']) ?></span></td>
+              <td class="text-end">
+                <?php if ($bd['status'] === 'Provisioned'): ?>
+                  <a href="<?= url('/accounting/bad-debts/' . $bd['id'] . '/write-off/create') ?>" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-file-remove"></i> Write Off</a>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

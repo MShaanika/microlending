@@ -1,0 +1,31 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Documents for <?= e($request['request_no']) ?></h4>
+    <p class="text-muted mb-3">Submitted by <?= e($request['borrower_name']) ?></p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Document</th><th>Type</th><th>Uploaded</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($documents)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-4">No documents attached.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($documents as $doc): ?>
+            <tr>
+              <td><?= e($doc['document_name'] ?: $doc['document_type']) ?></td>
+              <td><?= e($doc['document_type']) ?></td>
+              <td><?= e(date('d M Y', strtotime($doc['uploaded_at']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/loan-requests/' . $request['id'] . '/documents/' . $doc['id']) ?>" target="_blank" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <a href="<?= url('/loan-requests') ?>" class="btn btn-outline-secondary">Back to Requests</a>
+  </div>
+</div>

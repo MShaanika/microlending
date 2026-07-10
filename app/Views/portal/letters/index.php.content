@@ -1,0 +1,42 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="card-title mb-0">My Letters</h4>
+      <a href="<?= url('/portal/letters/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> Request a Letter</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Letter</th><th>Type</th><th>Requested</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($documents)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No letters requested yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($documents as $d): ?>
+            <?php
+              $badge = match ($d['status']) {
+                'Generated', 'Sent', 'Signed' => 'success',
+                'Cancelled' => 'danger',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($d['document_title']) ?></td>
+              <td><?= e($d['template_type']) ?></td>
+              <td><?= e(date('d M Y', strtotime($d['generated_at']))) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= $d['status'] === 'Draft' ? 'Pending' : e($d['status']) ?></span></td>
+              <td class="text-end">
+                <?php if ($d['status'] !== 'Draft' && $d['file_path']): ?>
+                  <a href="<?= url('/portal/letters/' . $d['id'] . '/download') ?>" target="_blank" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i></a>
+                <?php else: ?>
+                  <span class="text-muted small">Being prepared</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,63 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Borrower Letter Requests</h4>
+    <p class="text-muted small">Consolidation and completion letters requested via the portal. Prepare the letter on official letterhead outside the system, then upload the final PDF here &mdash; the borrower can then download it from their portal.</p>
+
+    <form method="get" action="<?= url('/letters') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Draft','Generated','Sent','Signed','Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s === 'Draft' ? 'Pending' : $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Document No</th><th>Borrower</th><th>Title</th><th>Type</th><th>Status</th><th>Requested</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($documents)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No letter requests yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($documents as $d): ?>
+            <?php
+              $badge = match ($d['status']) {
+                'Generated', 'Sent', 'Signed' => 'success',
+                'Cancelled' => 'danger',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($d['document_no']) ?></td>
+              <td><a href="<?= url('/borrowers/' . $d['borrower_id']) ?>"><?= e($d['borrower_name']) ?></a></td>
+              <td><?= e($d['document_title']) ?></td>
+              <td><?= e($d['template_type']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= $d['status'] === 'Draft' ? 'Pending' : e($d['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($d['generated_at']))) ?></td>
+              <td class="text-end">
+                <?php if ($d['status'] === 'Draft'): ?>
+                  <form method="post" action="<?= url('/letters/' . $d['id'] . '/fulfill') ?>" enctype="multipart/form-data" class="d-flex gap-1 justify-content-end">
+                    <?= csrf_field() ?>
+                    <input type="file" name="letter_file" accept=".pdf" class="form-control form-control-sm" style="max-width:200px;" required>
+                    <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-upload"></i> Upload</button>
+                  </form>
+                <?php elseif ($d['file_path']): ?>
+                  <span class="text-success small"><i class="mdi mdi-check"></i> Fulfilled</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

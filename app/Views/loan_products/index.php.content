@@ -1,0 +1,82 @@
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="mb-0">Loan Products & Plans</h4>
+  <a href="<?= url('/loan-products/create') ?>" class="btn btn-info waves-effect waves-light">
+    <i class="mdi mdi-plus"></i> Add Loan Product
+  </a>
+</div>
+
+<?php if (empty($products)): ?>
+  <div class="card"><div class="card-body text-center text-muted py-5">No loan products yet. Create one to start issuing loans.</div></div>
+<?php endif; ?>
+
+<?php foreach ($products as $product): ?>
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex justify-content-between flex-wrap">
+        <div>
+          <h4 class="card-title mb-0"><?= e($product['product_name']) ?> <span class="badge bg-secondary"><?= e($product['product_code']) ?></span></h4>
+          <p class="text-muted mb-2"><?= e($product['description']) ?></p>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-info"><?= e($product['interest_method']) ?></span>
+          <span class="badge bg-<?= $product['is_active'] ? 'success' : 'secondary' ?>"><?= $product['is_active'] ? 'Active' : 'Inactive' ?></span>
+        </div>
+      </div>
+
+      <div class="row small text-muted mb-3">
+        <div class="col-md-3">Amount: <?= format_money($product['min_amount']) ?> - <?= format_money($product['max_amount']) ?></div>
+        <div class="col-md-3">Term: <?= (int) $product['min_term_months'] ?> - <?= (int) $product['max_term_months'] ?> months</div>
+        <div class="col-md-3">Base Rate: <?= e($product['interest_rate']) ?>%</div>
+        <div class="col-md-3">Penalty: <?= e($product['penalty_rate']) ?>%</div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead>
+            <tr><th>Plan</th><th>Months</th><th>Rate</th><th>Admin Fee</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach ($product['plans'] as $plan): ?>
+              <tr>
+                <td><?= e($plan['plan_name']) ?></td>
+                <td><?= (int) $plan['months'] ?></td>
+                <td><?= e($plan['interest_rate']) ?>%</td>
+                <td><?= format_money($plan['admin_fee']) ?></td>
+                <td><span class="badge bg-<?= $plan['is_active'] ? 'success' : 'secondary' ?>"><?= $plan['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+
+      <form method="post" action="<?= url('/loan-products/' . $product['id'] . '/plans') ?>" class="row g-2 align-items-end">
+        <?= csrf_field() ?>
+        <div class="col-md-3">
+          <label class="form-label small mb-0">Plan Name</label>
+          <input type="text" name="plan_name" class="form-control form-control-sm" placeholder="e.g. 12 Month Plan">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-0">Months</label>
+          <input type="number" name="months" min="1" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-0">Rate %</label>
+          <input type="number" step="0.01" name="interest_rate" class="form-control form-control-sm" value="<?= e($product['interest_rate']) ?>" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-0">Admin Fee</label>
+          <input type="number" step="0.01" name="admin_fee" class="form-control form-control-sm" value="0">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-0">Penalty %</label>
+          <input type="number" step="0.01" name="penalty_rate" class="form-control form-control-sm" value="<?= e($product['penalty_rate']) ?>">
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-sm btn-outline-info w-100" type="submit"><i class="mdi mdi-plus"></i></button>
+        </div>
+      </form>
+    </div>
+  </div>
+<?php endforeach; ?>

@@ -1,0 +1,69 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Preview: Provisioning as at <?= e($asOfDate) ?></h4>
+    <p class="text-muted small">Nothing is posted yet. Review the totals below, then post to raise (or release) the provision.</p>
+
+    <div class="row text-center my-3">
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Currently Held Provision</div>
+          <div class="fs-4 fw-bold"><?= e(format_money($currentBalance)) ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Required Provision (this run)</div>
+          <div class="fs-4 fw-bold"><?= e(format_money($totalRequired)) ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded <?= $delta > 0 ? 'border-danger' : ($delta < 0 ? 'border-success' : '') ?>">
+          <div class="text-muted small"><?= $delta >= 0 ? 'Provision to Raise' : 'Provision to Release' ?></div>
+          <div class="fs-4 fw-bold"><?= e(format_money(abs($delta))) ?></div>
+        </div>
+      </div>
+    </div>
+
+    <?php if (abs($delta) < 0.01): ?>
+      <div class="alert alert-info">No adjustment needed &mdash; the provision already matches the required level.</div>
+    <?php else: ?>
+      <form method="post" action="<?= url('/accounting/bad-debt-provisions') ?>" onsubmit="return confirm('Post this provisioning run? This will create a journal entry.');">
+        <?= csrf_field() ?>
+        <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Provisioning</button>
+        <a href="<?= url('/accounting/bad-debt-provisions') ?>" class="btn btn-outline-secondary">Cancel</a>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Loans in Arrears (31+ days)</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Borrower</th><th class="text-end">Days Overdue</th><th>Bucket</th><th class="text-end">Outstanding</th><th class="text-end">Rate</th><th class="text-end">Provision</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No loans 31+ days in arrears as at this date.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $loan): ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['borrower_name']) ?></td>
+              <td class="text-end"><?= (int) $loan['days_in_arrears'] ?></td>
+              <td><span class="badge bg-warning text-dark"><?= e($loan['aging_bucket']) ?></span></td>
+              <td class="text-end"><?= e(format_money($loan['outstanding_balance'])) ?></td>
+              <td class="text-end"><?= e(number_format((float) $loan['provision_rate'], 0)) ?>%</td>
+              <td class="text-end"><?= e(format_money($loan['provision_amount'])) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

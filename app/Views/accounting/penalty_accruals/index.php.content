@@ -1,0 +1,45 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Penalty Accruals</h4>
+        <p class="text-muted small mb-0">Charges a one-off penalty on each installment the first day it's overdue, using the loan's own penalty rate. Raised as a Penalty Receivable against Deferred Penalty Income &mdash; not recognized as income until actually collected.</p>
+      </div>
+      <form method="get" action="<?= url('/accounting/penalty-accruals/preview') ?>" class="d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label small mb-0">As of date</label>
+          <input type="date" name="as_of_date" class="form-control form-control-sm" value="<?= e(date('Y-m-d')) ?>">
+        </div>
+        <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-calculator"></i> Run Accrual</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Past Accrual Runs</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Date</th><th>Installments Charged</th><th class="text-end">Total Penalty</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($runs)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-4">No penalty accrual runs posted yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($runs as $run): ?>
+            <tr>
+              <td><?= e($run['penalty_date']) ?></td>
+              <td><?= (int) $run['installment_count'] ?></td>
+              <td class="text-end"><?= e(format_money($run['total_penalty'])) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/accounting/penalty-accruals/runs/' . $run['penalty_date']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

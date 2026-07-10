@@ -1,0 +1,41 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Chart of Accounts</h4>
+      <a href="<?= url('/accounting/accounts/create') ?>" class="btn btn-info waves-effect waves-light">
+        <i class="mdi mdi-plus"></i> Add Account
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Code</th><th>Name</th><th>Type</th><th>Normal Balance</th><th>Parent</th><th class="text-end">Balance</th><th>Status</th><th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($accounts)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No accounts yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($accounts as $a): ?>
+            <tr>
+              <td><code><?= e($a['account_code']) ?></code></td>
+              <td><?= e($a['account_name']) ?> <?= $a['is_control_account'] ? '<span class="badge bg-light text-dark border">Control</span>' : '' ?> <?= $a['is_cash_bank_account'] ? '<span class="badge bg-info">Cash/Bank</span>' : '' ?></td>
+              <td><?= e($a['account_type']) ?></td>
+              <td><?= e($a['normal_balance']) ?></td>
+              <td><?= e($a['parent_account_name'] ?: '&mdash;') ?></td>
+              <td class="text-end"><?= format_money($a['balance']) ?></td>
+              <td><span class="badge bg-<?= $a['is_active'] ? 'success' : 'secondary' ?>"><?= $a['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/accounting/accounts/' . $a['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

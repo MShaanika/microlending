@@ -1,0 +1,67 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Log a Payment</h4>
+    <p class="text-muted mb-3">Already paid via bank transfer or EFT? Let us know the reference so we can confirm it against your loan. This does not move money &mdash; it's a notification for our team to verify and apply your payment.</p>
+
+    <?php if (empty($loans)): ?>
+      <p class="text-muted">You don't have any loans to log a payment against.</p>
+    <?php else: ?>
+      <form method="post" action="<?= url('/portal/payments') ?>">
+        <?= csrf_field() ?>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Loan <span class="text-danger">*</span></label>
+            <select name="loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
+              <option value="">Select loan</option>
+              <?php foreach ($loans as $loan): ?>
+                <option value="<?= $loan['id'] ?>" <?= (($old['loan_id'] ?? '') == $loan['id']) ? 'selected' : '' ?>><?= e($loan['loan_no']) ?> &mdash; <?= e($loan['product_name']) ?> (<?= e($loan['loan_status']) ?>)</option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (isset($errors['loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_id']) ?></div><?php endif; ?>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Amount Paid <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" name="amount_received" class="form-control <?= isset($errors['amount_received']) ? 'is-invalid' : '' ?>" value="<?= old('amount_received', $old) ?>">
+            <?php if (isset($errors['amount_received'])): ?><div class="invalid-feedback d-block"><?= e($errors['amount_received']) ?></div><?php endif; ?>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Payment Date</label>
+            <input type="date" name="payment_date" class="form-control" value="<?= old('payment_date', $old, date('Y-m-d')) ?>">
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Payment Method</label>
+            <select name="payment_source" class="form-select">
+              <?php foreach (['Bank Transfer','EFT','Cash Deposit','Mobile Money','Other'] as $m): ?>
+                <option value="<?= $m ?>" <?= (($old['payment_source'] ?? '') === $m) ? 'selected' : '' ?>><?= $m ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Reference No</label>
+            <input type="text" name="reference_no" class="form-control" value="<?= old('reference_no', $old) ?>" placeholder="Bank transaction reference">
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Payer Name</label>
+            <input type="text" name="payer_name" class="form-control" value="<?= old('payer_name', $old) ?>">
+          </div>
+
+          <div class="col-md-12 mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"><?= old('notes', $old) ?></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Submit for Confirmation</button>
+        <a href="<?= url('/portal/dashboard') ?>" class="btn btn-outline-secondary">Cancel</a>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>

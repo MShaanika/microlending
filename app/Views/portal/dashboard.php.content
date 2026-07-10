@@ -1,0 +1,67 @@
+<?= flash_messages() ?>
+
+<?php
+  $activeLoans = array_filter($loans, fn ($l) => in_array($l['loan_status'], ['Active', 'Current'], true));
+  $outstanding = 0.0;
+  foreach ($activeLoans as $l) {
+      $outstanding += (float) $l['total_payable'];
+  }
+?>
+
+<div class="row mb-3">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash-multiple display-6 text-info"></i></div>
+        <div><h3 class="mb-0"><?= count($loans) ?></h3><span>Total Loans</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-progress-check display-6 text-success"></i></div>
+        <div><h3 class="mb-0"><?= count($activeLoans) ?></h3><span>Active Loans</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-bank-outline display-6 text-warning"></i></div>
+        <div><h3 class="mb-0"><?= format_money($outstanding) ?></h3><span>Outstanding (Active Loans)</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">My Loans</h4>
+      <div>
+        <a href="<?= url('/portal/loan-requests/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> Request a Loan</a>
+        <a href="<?= url('/portal/payments/create') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-cash-plus"></i> Log a Payment</a>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Loan No</th><th>Product</th><th>Principal</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">You don't have any loans yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $loan): ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['product_name']) ?></td>
+              <td><?= format_money($loan['principal_amount']) ?></td>
+              <td><span class="badge bg-info"><?= e($loan['loan_status']) ?></span></td>
+              <td class="text-end"><a href="<?= url('/portal/loans/' . $loan['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

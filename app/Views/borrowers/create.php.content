@@ -1,0 +1,350 @@
+<?= flash_messages() ?>
+
+<?php if (!empty($errors)): ?>
+  <div class="alert alert-danger">
+    <strong>Please fix the following before saving:</strong>
+    <ul class="mb-0">
+      <?php foreach ($errors as $field => $message): ?>
+        <li><?= e($message) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Register Borrower</h4>
+    
+    <form method="post" action="<?= url('/borrowers') ?>" enctype="multipart/form-data" id="borrower-form">
+      <?= csrf_field() ?>
+
+      <ul class="nav nav-tabs" id="borrowerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-personal-btn" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
+            <i class="mdi mdi-account"></i> Personal
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-address-btn" data-bs-toggle="tab" data-bs-target="#tab-address" type="button" role="tab">
+            <i class="mdi mdi-map-marker"></i> Address &amp; Contact
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-employment-btn" data-bs-toggle="tab" data-bs-target="#tab-employment" type="button" role="tab">
+            <i class="mdi mdi-briefcase"></i> Employment
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-banking-btn" data-bs-toggle="tab" data-bs-target="#tab-banking" type="button" role="tab">
+            <i class="mdi mdi-bank"></i> Banking
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-contacts-btn" data-bs-toggle="tab" data-bs-target="#tab-contacts" type="button" role="tab">
+            <i class="mdi mdi-account-multiple"></i> Next of Kin
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button" role="tab">
+            <i class="mdi mdi-file-document"></i> Documents
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content border border-top-0 p-3 mb-3" id="borrowerTabsContent">
+
+        <!-- Personal -->
+        <div class="tab-pane fade show active" id="tab-personal" role="tabpanel">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Branch <span class="text-danger">*</span></label>
+              <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>">
+                <option value="">Select branch</option>
+                <?php foreach ($branches as $branch): ?>
+                  <option value="<?= $branch['id'] ?>" <?= (($old['branch_id'] ?? '') == $branch['id']) ? 'selected' : '' ?>><?= e($branch['branch_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <?php if (isset($errors['branch_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['branch_id']) ?></div><?php endif; ?>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">First Name <span class="text-danger">*</span></label>
+              <input type="text" name="first_name" class="form-control <?= isset($errors['first_name']) ? 'is-invalid' : '' ?>" value="<?= old('first_name', $old) ?>">
+              <?php if (isset($errors['first_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['first_name']) ?></div><?php endif; ?>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Middle Name</label>
+              <input type="text" name="middle_name" class="form-control" value="<?= old('middle_name', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Last Name <span class="text-danger">*</span></label>
+              <input type="text" name="last_name" class="form-control <?= isset($errors['last_name']) ? 'is-invalid' : '' ?>" value="<?= old('last_name', $old) ?>">
+              <?php if (isset($errors['last_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['last_name']) ?></div><?php endif; ?>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Gender</label>
+              <select name="gender" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Male','Female','Other'] as $g): ?>
+                  <option value="<?= $g ?>" <?= (($old['gender'] ?? '') === $g) ? 'selected' : '' ?>><?= $g ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Date of Birth</label>
+              <input type="date" name="date_of_birth" class="form-control" value="<?= old('date_of_birth', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">ID Number</label>
+              <input type="text" name="id_number" class="form-control <?= isset($errors['id_number']) ? 'is-invalid' : '' ?>" value="<?= old('id_number', $old) ?>">
+              <?php if (isset($errors['id_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['id_number']) ?></div><?php endif; ?>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Passport No</label>
+              <input type="text" name="passport_no" class="form-control" value="<?= old('passport_no', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Marital Status</label>
+              <select name="marital_status" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Single','Married','Divorced','Widowed'] as $m): ?>
+                  <option value="<?= $m ?>" <?= (($old['marital_status'] ?? '') === $m) ? 'selected' : '' ?>><?= $m ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Nationality</label>
+              <input type="text" name="nationality" class="form-control" value="<?= old('nationality', $old, 'Namibian') ?>">
+            </div>
+          </div>
+        </div>
+
+        <!-- Address & Contact -->
+        <div class="tab-pane fade" id="tab-address" role="tabpanel">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Phone</label>
+              <input type="text" name="phone" class="form-control" value="<?= old('phone', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= old('email', $old) ?>">
+              <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Physical Address</label>
+              <textarea name="physical_address" class="form-control" rows="3"><?= old('physical_address', $old) ?></textarea>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Postal Address</label>
+              <textarea name="postal_address" class="form-control" rows="3"><?= old('postal_address', $old) ?></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Employment -->
+        <div class="tab-pane fade" id="tab-employment" role="tabpanel">
+          <p class="text-muted small">Optional. Fill in if this borrower is employed &mdash; used for affordability checks.</p>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employer Name</label>
+              <input type="text" name="employer_name" class="form-control" value="<?= old('employer_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employee No</label>
+              <input type="text" name="employee_no" class="form-control" value="<?= old('employee_no', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Job Title</label>
+              <input type="text" name="job_title" class="form-control" value="<?= old('job_title', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employment Type</label>
+              <select name="employment_type" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Permanent','Contract','Self-Employed','Government','Casual','Other'] as $t): ?>
+                  <option value="<?= $t ?>" <?= (($old['employment_type'] ?? '') === $t) ? 'selected' : '' ?>><?= $t ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employment Start Date</label>
+              <input type="date" name="employment_start_date" class="form-control" value="<?= old('employment_start_date', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Salary Payment Day</label>
+              <input type="number" min="1" max="31" name="employment_payment_day" class="form-control" value="<?= old('employment_payment_day', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Gross Salary</label>
+              <input type="number" step="0.01" name="gross_salary" class="form-control" value="<?= old('gross_salary', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Net Salary</label>
+              <input type="number" step="0.01" name="net_salary" class="form-control" value="<?= old('net_salary', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employer Phone</label>
+              <input type="text" name="employer_phone" class="form-control" value="<?= old('employer_phone', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employer Email</label>
+              <input type="email" name="employer_email" class="form-control" value="<?= old('employer_email', $old) ?>">
+            </div>
+            <div class="col-md-8 mb-3">
+              <label class="form-label">Employer Address</label>
+              <textarea name="employer_address" class="form-control" rows="1"><?= old('employer_address', $old) ?></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banking -->
+        <div class="tab-pane fade" id="tab-banking" role="tabpanel">
+          <p class="text-muted small">Optional. Primary bank account used for disbursements and debit orders.</p>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Bank Name</label>
+              <input type="text" name="bank_name" class="form-control" value="<?= old('bank_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Account Name</label>
+              <input type="text" name="account_name" class="form-control" value="<?= old('account_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Account Number</label>
+              <input type="text" name="account_number" class="form-control" value="<?= old('account_number', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Account Type</label>
+              <select name="account_type" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Savings','Cheque','Current'] as $t): ?>
+                  <option value="<?= $t ?>" <?= (($old['account_type'] ?? '') === $t) ? 'selected' : '' ?>><?= $t ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Bank Branch Name</label>
+              <input type="text" name="bank_branch_name" class="form-control" value="<?= old('bank_branch_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Bank Branch Code</label>
+              <input type="text" name="bank_branch_code" class="form-control" value="<?= old('bank_branch_code', $old) ?>">
+            </div>
+          </div>
+        </div>
+
+        <!-- Next of Kin / Contacts -->
+        <div class="tab-pane fade" id="tab-contacts" role="tabpanel">
+          <p class="text-muted small">Optional. Add next of kin, guarantors or emergency contacts. You can add as many as needed.</p>
+
+          <div id="contacts-container"></div>
+
+          <button type="button" id="add-contact-btn" class="btn btn-sm btn-outline-info">
+            <i class="mdi mdi-plus"></i> Add Contact
+          </button>
+        </div>
+
+        <!-- Documents -->
+        <div class="tab-pane fade" id="tab-documents" role="tabpanel">
+          <p class="text-muted small">Optional at registration. Accepted formats: PDF, JPG, PNG &mdash; max 5MB each.</p>
+          <div class="row">
+            <?php foreach ($documentRequirements as $req): ?>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">
+                  <?= e($req['requirement_name']) ?>
+                  <?php if ((int) $req['is_required'] === 1): ?><span class="badge bg-warning text-dark">Required by disbursement</span><?php endif; ?>
+                </label>
+                <input type="file" name="documents[<?= (int) $req['id'] ?>]" class="form-control <?= isset($errors['documents.' . $req['id']]) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+                <?php if (isset($errors['documents.' . $req['id']])): ?><div class="invalid-feedback d-block"><?= e($errors['documents.' . $req['id']]) ?></div><?php endif; ?>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Borrower</button>
+      <a href="<?= url('/borrowers') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+<template id="contact-row-template">
+  <div class="row contact-row border-top pt-3 mt-2">
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Type</label>
+      <select name="contacts[__INDEX__][contact_type]" class="form-select">
+        <option value="Next of Kin">Next of Kin</option>
+        <option value="Guarantor">Guarantor</option>
+        <option value="Emergency">Emergency</option>
+        <option value="Employer">Employer</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Full Name</label>
+      <input type="text" name="contacts[__INDEX__][full_name]" class="form-control">
+    </div>
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Relationship</label>
+      <input type="text" name="contacts[__INDEX__][relationship]" class="form-control">
+    </div>
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Phone</label>
+      <input type="text" name="contacts[__INDEX__][phone]" class="form-control">
+    </div>
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" name="contacts[__INDEX__][email]" class="form-control">
+    </div>
+    <div class="col-md-11 mb-3">
+      <label class="form-label">Address</label>
+      <input type="text" name="contacts[__INDEX__][address]" class="form-control">
+    </div>
+    <div class="col-md-1 mb-3 d-flex align-items-end">
+      <button type="button" class="btn btn-sm btn-outline-danger remove-contact-btn"><i class="mdi mdi-delete"></i></button>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  var container = document.getElementById('contacts-container');
+  var template = document.getElementById('contact-row-template');
+  var addBtn = document.getElementById('add-contact-btn');
+  var index = 0;
+
+  function addRow() {
+    var html = template.innerHTML.replace(/__INDEX__/g, index);
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    var row = wrapper.firstElementChild;
+    row.querySelector('.remove-contact-btn').addEventListener('click', function () {
+      row.remove();
+    });
+    container.appendChild(row);
+    index++;
+  }
+
+  addBtn.addEventListener('click', addRow);
+
+  // Start with one contact row pre-filled for convenience.
+  addRow();
+})();
+</script>

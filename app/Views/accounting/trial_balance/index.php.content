@@ -1,0 +1,46 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Trial Balance</h4>
+      <form method="get" action="<?= url('/accounting/trial-balance') ?>" class="d-flex gap-2">
+        <input type="date" name="as_of_date" class="form-control form-control-sm" value="<?= e($asOfDate) ?>">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Run</button>
+      </form>
+    </div>
+    <p class="text-muted small">As at <?= e($asOfDate) ?>. A balanced ledger always has matching Debit and Credit totals below.</p>
+
+    <div class="table-responsive">
+      <table class="table table-bordered">
+        <thead class="table-light">
+          <tr><th>Code</th><th>Account</th><th>Type</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No posted activity as of this date.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <tr>
+              <td><code><?= e($r['account_code']) ?></code></td>
+              <td><?= e($r['account_name']) ?></td>
+              <td><?= e($r['account_type']) ?></td>
+              <td class="text-end"><?= $r['debit_balance'] > 0 ? format_money($r['debit_balance']) : '' ?></td>
+              <td class="text-end"><?= $r['credit_balance'] > 0 ? format_money($r['credit_balance']) : '' ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold <?= abs($totalDebit - $totalCredit) > 0.01 ? 'table-danger' : 'table-success' ?>">
+            <td colspan="3" class="text-end">Total</td>
+            <td class="text-end"><?= format_money($totalDebit) ?></td>
+            <td class="text-end"><?= format_money($totalCredit) ?></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <?php if (abs($totalDebit - $totalCredit) > 0.01): ?>
+      <div class="alert alert-danger">Out of balance by <?= format_money(abs($totalDebit - $totalCredit)) ?> &mdash; this should never happen if every journal was posted through the system's balanced-entry check. Investigate any journal posted outside that path.</div>
+    <?php endif; ?>
+  </div>
+</div>

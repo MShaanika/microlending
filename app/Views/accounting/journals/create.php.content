@@ -1,0 +1,109 @@
+<?= flash_messages() ?>
+
+<?php if ($error): ?>
+  <div class="alert alert-danger"><?= e($error) ?></div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">New Manual Journal</h4>
+    <p class="text-muted mb-3">For adjustments and entries that don't come from an automatic posting (loan release, payment, depreciation). Every journal must balance: total debit = total credit, at least two lines.</p>
+
+    <form method="post" action="<?= url('/accounting/journals') ?>" id="manual-journal-form">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Journal Date</label>
+          <input type="date" name="journal_date" class="form-control" value="<?= old('journal_date', $old, date('Y-m-d')) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Reference No</label>
+          <input type="text" name="reference_no" class="form-control" value="<?= old('reference_no', $old) ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Description <span class="text-danger">*</span></label>
+          <input type="text" name="description" class="form-control" value="<?= old('description', $old) ?>">
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm" id="lines-table">
+          <thead><tr><th>Account</th><th>Line Description</th><th style="width:140px;">Debit</th><th style="width:140px;">Credit</th><th></th></tr></thead>
+          <tbody id="lines-body"></tbody>
+          <tfoot>
+            <tr class="fw-bold">
+              <td colspan="2" class="text-end">Total</td>
+              <td id="debit-total">0.00</td>
+              <td id="credit-total">0.00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <button type="button" id="add-line-btn" class="btn btn-sm btn-outline-info mb-3"><i class="mdi mdi-plus"></i> Add Line</button>
+      <div id="balance-warning" class="alert alert-warning py-2 d-none">Debit and credit totals must match before you can save.</div>
+
+      <div>
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Journal</button>
+        <a href="<?= url('/accounting/journals') ?>" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<template id="line-row-template">
+  <tr class="line-row">
+    <td>
+      <select name="account_id[]" class="form-select form-select-sm account-select">
+        <option value="">Select account</option>
+        <?php foreach ($accounts as $a): ?>
+          <option value="<?= $a['id'] ?>"><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </td>
+    <td><input type="text" name="line_description[]" class="form-control form-control-sm"></td>
+    <td><input type="number" step="0.01" name="debit[]" class="form-control form-control-sm debit-input"></td>
+    <td><input type="number" step="0.01" name="credit[]" class="form-control form-control-sm credit-input"></td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger remove-line-btn"><i class="mdi mdi-delete"></i></button></td>
+  </tr>
+</template>
+
+<script>
+(function () {
+  var tbody = document.getElementById('lines-body');
+  var template = document.getElementById('line-row-template');
+  var addBtn = document.getElementById('add-line-btn');
+  var debitTotalEl = document.getElementById('debit-total');
+  var creditTotalEl = document.getElementById('credit-total');
+  var warningEl = document.getElementById('balance-warning');
+
+  function recalc() {
+    var debitSum = 0, creditSum = 0;
+    tbody.querySelectorAll('.debit-input').forEach(function (i) { debitSum += parseFloat(i.value) || 0; });
+    tbody.querySelectorAll('.credit-input').forEach(function (i) { creditSum += parseFloat(i.value) || 0; });
+    debitTotalEl.textContent = debitSum.toFixed(2);
+    creditTotalEl.textContent = creditSum.toFixed(2);
+    warningEl.classList.toggle('d-none', Math.abs(debitSum - creditSum) < 0.01);
+  }
+
+  function addRow() {
+    var wrapper = document.createElement('tbody');
+    wrapper.innerHTML = template.innerHTML;
+    var row = wrapper.firstElementChild;
+    row.querySelector('.remove-line-btn').addEventListener('click', function () {
+      row.remove();
+      recalc();
+    });
+    row.querySelectorAll('.debit-input, .credit-input').forEach(function (input) {
+      input.addEventListener('input', recalc);
+    });
+    tbody.appendChild(row);
+  }
+
+  addBtn.addEventListener('click', addRow);
+  addRow();
+  addRow();
+})();
+</script>

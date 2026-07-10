@@ -1,0 +1,91 @@
+<?= flash_messages() ?>
+
+<?php $completedLoans = array_filter($loans, fn ($l) => $l['loan_status'] === 'Completed'); ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Request a Letter</h4>
+    <p class="text-muted mb-3">Our team prepares these on official letterhead. Once ready, you'll be able to download it here.</p>
+
+    <form method="post" action="<?= url('/portal/letters') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Letter Type <span class="text-danger">*</span></label>
+        <select name="letter_type" id="letter_type" class="form-select <?= isset($errors['letter_type']) ? 'is-invalid' : '' ?>">
+          <option value="">Select</option>
+          <option value="Completion Letter" <?= (($old['letter_type'] ?? '') === 'Completion Letter') ? 'selected' : '' ?>>Completion Letter</option>
+          <option value="Consolidation Letter" <?= (($old['letter_type'] ?? '') === 'Consolidation Letter') ? 'selected' : '' ?>>Consolidation Letter</option>
+        </select>
+        <?php if (isset($errors['letter_type'])): ?><div class="invalid-feedback d-block"><?= e($errors['letter_type']) ?></div><?php endif; ?>
+      </div>
+
+      <div id="completion-wrap" style="display:none;" class="mb-3">
+        <label class="form-label">Completed Loan <span class="text-danger">*</span></label>
+        <select name="loan_id" class="form-select">
+          <option value="">Select loan</option>
+          <?php foreach ($completedLoans as $l): ?>
+            <option value="<?= $l['id'] ?>"><?= e($l['loan_no']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php if (empty($completedLoans)): ?><p class="text-muted small mt-1">You don't have any completed loans yet.</p><?php endif; ?>
+      </div>
+
+      <div id="consolidation-wrap" style="display:none;">
+        <div class="mb-3">
+          <label class="form-label">Scope</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="consolidation_scope" id="scope-one" value="one" checked>
+              <label class="form-check-label" for="scope-one">One Loan</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="consolidation_scope" id="scope-all" value="all">
+              <label class="form-check-label" for="scope-all">All My Loans</label>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3" id="consolidation-loan-wrap">
+          <label class="form-label">Loan <span class="text-danger">*</span></label>
+          <select name="loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select loan</option>
+            <?php foreach ($loans as $l): ?>
+              <option value="<?= $l['id'] ?>"><?= e($l['loan_no']) ?> (<?= e($l['loan_status']) ?>)</option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_id']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Submit Request</button>
+      <a href="<?= url('/portal/letters') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var typeSelect = document.getElementById('letter_type');
+  var completionWrap = document.getElementById('completion-wrap');
+  var consolidationWrap = document.getElementById('consolidation-wrap');
+  var scopeOne = document.getElementById('scope-one');
+  var scopeAll = document.getElementById('scope-all');
+  var consolidationLoanWrap = document.getElementById('consolidation-loan-wrap');
+
+  function syncType() {
+    var v = typeSelect.value;
+    completionWrap.style.display = v === 'Completion Letter' ? '' : 'none';
+    consolidationWrap.style.display = v === 'Consolidation Letter' ? '' : 'none';
+  }
+
+  function syncScope() {
+    consolidationLoanWrap.style.display = scopeAll.checked ? 'none' : '';
+  }
+
+  typeSelect.addEventListener('change', syncType);
+  scopeOne.addEventListener('change', syncScope);
+  scopeAll.addEventListener('change', syncScope);
+  syncType();
+  syncScope();
+})();
+</script>

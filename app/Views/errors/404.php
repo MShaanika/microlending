@@ -1,0 +1,1 @@
+<!DOCTYPE html><html><head><title>404</title><link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet" /></head><body><div class="container py-5"><div class="alert alert-warning"><h3>404 - Page Not Found</h3><a href="<?= url('/dashboard') ?>">Back to dashboard</a></div></div></body></html>

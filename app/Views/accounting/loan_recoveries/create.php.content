@@ -1,0 +1,48 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Record Recovery</h4>
+    <p class="text-muted small">Write-off <?= e($writeOff['write_off_no']) ?> &bull; Loan <?= e($writeOff['loan_no']) ?> &bull; <?= e($writeOff['borrower_name']) ?></p>
+    <p class="text-muted small">Written off: <strong><?= e(format_money($writeOff['outstanding_balance'])) ?></strong> &bull; Recovered so far: <strong><?= e(format_money($totalRecovered)) ?></strong></p>
+
+    <form method="post" action="<?= url('/accounting/loan-recoveries') ?>">
+      <?= csrf_field() ?>
+      <input type="hidden" name="write_off_id" value="<?= (int) $writeOff['id'] ?>">
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Recovered Amount <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" min="0.01" name="recovered_amount" class="form-control" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Recovery Date</label>
+          <input type="date" name="recovery_date" class="form-control" value="<?= e(date('Y-m-d')) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Deposited To</label>
+          <select name="bank_account_id" class="form-select">
+            <option value="">Default cash/bank account</option>
+            <?php foreach ($bankAccounts as $ba): ?>
+              <option value="<?= (int) $ba['id'] ?>"><?= e($ba['account_name']) ?> - <?= e($ba['bank_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Reference No.</label>
+          <input type="text" name="reference_no" class="form-control">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Notes</label>
+          <input type="text" name="notes" class="form-control">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-cash-refund"></i> Record Recovery</button>
+      <a href="<?= url('/accounting/loan-write-offs/' . $writeOff['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

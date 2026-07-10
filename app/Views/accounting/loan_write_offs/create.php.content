@@ -1,0 +1,47 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Write Off Loan <?= e($badDebt['loan_no']) ?></h4>
+    <p class="text-muted small">Borrower: <?= e($badDebt['borrower_name']) ?> &bull; Bad Debt No. <?= e($badDebt['bad_debt_no']) ?></p>
+
+    <div class="row text-center my-3">
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Outstanding Balance</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($outstandingBalance)) ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Already Provisioned</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($provisionAmount)) ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded border-danger">
+          <div class="text-muted small">Net Write-Off (hits P&amp;L)</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($netWriteOffAmount)) ?></div>
+        </div>
+      </div>
+    </div>
+    <p class="text-muted small">The provisioned portion is drawn down from the existing provision. Only the unprovisioned shortfall above hits Bad Debt Expense directly.</p>
+
+    <form method="post" action="<?= url('/accounting/loan-write-offs') ?>">
+      <?= csrf_field() ?>
+      <input type="hidden" name="bad_debt_id" value="<?= (int) $badDebt['id'] ?>">
+      <input type="hidden" name="outstanding_balance" value="<?= e((string) $outstandingBalance) ?>">
+      <input type="hidden" name="provision_amount" value="<?= e((string) $provisionAmount) ?>">
+      <input type="hidden" name="net_write_off_amount" value="<?= e((string) $netWriteOffAmount) ?>">
+
+      <div class="mb-3">
+        <label class="form-label">Reason <span class="text-danger">*</span></label>
+        <textarea name="reason" rows="3" class="form-control <?= isset($errors['reason']) ? 'is-invalid' : '' ?>" placeholder="Why this loan is being written off (e.g. borrower untraceable, legal action exhausted)"><?= e($_POST['reason'] ?? '') ?></textarea>
+        <?php if (isset($errors['reason'])): ?><div class="invalid-feedback d-block"><?= e($errors['reason']) ?></div><?php endif; ?>
+      </div>
+
+      <button type="submit" class="btn btn-danger waves-effect waves-light"><i class="mdi mdi-file-remove"></i> Request Write-Off</button>
+      <a href="<?= url('/accounting/bad-debts') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,193 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($borrower['status']) {
+    'Approved' => 'success',
+    'Rejected' => 'danger',
+    'Blacklisted' => 'dark',
+    'Inactive' => 'secondary',
+    default => 'warning',
+  };
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title"><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?></h4>
+          <span class="badge bg-<?= $badge ?>"><?= e($borrower['status']) ?></span>
+        </div>
+        <p class="text-muted mb-1"><?= e($borrower['borrower_no']) ?></p>
+        <hr>
+        <p class="mb-1"><i class="mdi mdi-phone me-1"></i> <?= e($borrower['phone']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($borrower['email']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($borrower['id_number']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($borrower['physical_address']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-bank-outline me-1"></i> Branch: <?= e($borrower['branch_name']) ?></p>
+        <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Registered: <?= e(date('d M Y', strtotime($borrower['created_at']))) ?></p>
+
+        <div class="mt-3">
+          <a href="<?= url('/borrowers/' . $borrower['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i> Edit</a>
+          <a href="<?= url('/loans/create?borrower_id=' . $borrower['id']) ?>" class="btn btn-sm btn-info"><i class="mdi mdi-cash-plus"></i> New Loan</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-account-key me-1"></i> Borrower Portal Access</h4>
+        <?php if ($portalUser): ?>
+          <p class="mb-1">Username: <strong><?= e($portalUser['username']) ?></strong></p>
+          <p class="mb-1">Status: <span class="badge bg-<?= $portalUser['is_active'] ? 'success' : 'secondary' ?>"><?= $portalUser['is_active'] ? 'Active' : 'Disabled' ?></span></p>
+          <p class="mb-3 text-muted small">Last login: <?= $portalUser['last_login'] ? e(date('d M Y H:i', strtotime($portalUser['last_login']))) : 'Never' ?></p>
+        <?php else: ?>
+          <p class="text-muted mb-3">This borrower doesn't have portal access yet.</p>
+        <?php endif; ?>
+        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" onsubmit="return confirm('<?= $portalUser ? 'Reset this borrower\'s portal password?' : 'Create portal access for this borrower?' ?>');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-key"></i> <?= $portalUser ? 'Reset Password' : 'Create Portal Access' ?></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Loans</h4>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Loan No</th>
+                <th>Product</th>
+                <th>Principal</th>
+                <th>Term</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($loans)): ?>
+                <tr><td colspan="6" class="text-center text-muted py-4">No loans yet for this borrower.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($loans as $loan): ?>
+                <tr>
+                  <td><?= e($loan['loan_no']) ?></td>
+                  <td><?= e($loan['product_name']) ?></td>
+                  <td><?= format_money($loan['principal_amount']) ?></td>
+                  <td><?= (int) $loan['term_months'] ?> mo</td>
+                  <td><span class="badge bg-info"><?= e($loan['loan_status']) ?></span></td>
+                  <td class="text-end">
+                    <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h4 class="card-title"><i class="mdi mdi-briefcase me-1"></i> Employment</h4>
+            <?php if (!$employment): ?>
+              <p class="text-muted mb-0">No employment details on file.</p>
+            <?php else: ?>
+              <p class="mb-1"><strong><?= e($employment['employer_name']) ?></strong></p>
+              <p class="mb-1 text-muted"><?= e($employment['job_title'] ?: '&mdash;') ?> &middot; <?= e($employment['employment_type'] ?: '&mdash;') ?></p>
+              <p class="mb-1">Gross: <?= format_money($employment['gross_salary']) ?> &middot; Net: <?= format_money($employment['net_salary']) ?></p>
+              <p class="mb-1">Employee No: <?= e($employment['employee_no'] ?: '&mdash;') ?></p>
+              <p class="mb-1">Started: <?= e($employment['employment_start_date'] ?: '&mdash;') ?></p>
+              <p class="mb-0">Employer Contact: <?= e($employment['employer_phone'] ?: '&mdash;') ?> <?= $employment['employer_email'] ? '/ ' . e($employment['employer_email']) : '' ?></p>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h4 class="card-title"><i class="mdi mdi-bank me-1"></i> Banking Details</h4>
+            <?php if (!$bank): ?>
+              <p class="text-muted mb-0">No banking details on file.</p>
+            <?php else: ?>
+              <p class="mb-1"><strong><?= e($bank['bank_name']) ?></strong></p>
+              <p class="mb-1">Account Name: <?= e($bank['account_name'] ?: '&mdash;') ?></p>
+              <p class="mb-1">Account No: <?= e($bank['account_number'] ?: '&mdash;') ?></p>
+              <p class="mb-1">Type: <?= e($bank['account_type'] ?: '&mdash;') ?></p>
+              <p class="mb-0">Branch: <?= e($bank['branch_name'] ?: '&mdash;') ?> <?= $bank['branch_code'] ? '(' . e($bank['branch_code']) . ')' : '' ?></p>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-account-multiple me-1"></i> Next of Kin / Contacts</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr><th>Type</th><th>Name</th><th>Relationship</th><th>Phone</th><th>Email</th></tr>
+            </thead>
+            <tbody>
+              <?php if (empty($contacts)): ?>
+                <tr><td colspan="5" class="text-center text-muted py-3">No contacts on file.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($contacts as $c): ?>
+                <tr>
+                  <td><span class="badge bg-secondary"><?= e($c['contact_type']) ?></span></td>
+                  <td><?= e($c['full_name']) ?></td>
+                  <td><?= e($c['relationship'] ?: '&mdash;') ?></td>
+                  <td><?= e($c['phone'] ?: '&mdash;') ?></td>
+                  <td><?= e($c['email'] ?: '&mdash;') ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-file-document me-1"></i> Documents</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr><th>Document</th><th>Type</th><th>Status</th><th>Uploaded</th><th class="text-end">Action</th></tr>
+            </thead>
+            <tbody>
+              <?php if (empty($documents)): ?>
+                <tr><td colspan="5" class="text-center text-muted py-3">No documents uploaded.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($documents as $doc): ?>
+                <?php
+                  $docBadge = match ($doc['status']) {
+                    'Verified' => 'success',
+                    'Rejected' => 'danger',
+                    default => 'warning',
+                  };
+                ?>
+                <tr>
+                  <td><?= e($doc['document_name'] ?: $doc['document_type']) ?></td>
+                  <td><?= e($doc['document_type']) ?></td>
+                  <td><span class="badge bg-<?= $docBadge ?>"><?= e($doc['status']) ?></span></td>
+                  <td><?= e(date('d M Y', strtotime($doc['uploaded_at']))) ?></td>
+                  <td class="text-end">
+                    <a href="<?= url('/borrowers/' . $borrower['id'] . '/documents/' . $doc['id']) ?>" target="_blank" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i></a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

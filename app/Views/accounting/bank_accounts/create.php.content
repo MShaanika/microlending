@@ -1,0 +1,67 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Bank Account</h4>
+
+    <?php if (empty($glAccounts)): ?>
+      <div class="alert alert-warning">
+        No GL accounts are flagged as cash/bank accounts yet. <a href="<?= url('/accounting/accounts/create') ?>">Add one</a> (or edit an existing account and tick "Cash/bank account") before setting up a bank account here.
+      </div>
+    <?php else: ?>
+      <form method="post" action="<?= url('/accounting/bank-accounts') ?>">
+        <?= csrf_field() ?>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Account Nickname <span class="text-danger">*</span></label>
+            <input type="text" name="account_name" class="form-control <?= isset($errors['account_name']) ? 'is-invalid' : '' ?>" value="<?= old('account_name', $old) ?>" placeholder="e.g. Main Operating Account">
+            <?php if (isset($errors['account_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_name']) ?></div><?php endif; ?>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Bank Name <span class="text-danger">*</span></label>
+            <input type="text" name="bank_name" class="form-control <?= isset($errors['bank_name']) ? 'is-invalid' : '' ?>" value="<?= old('bank_name', $old) ?>">
+            <?php if (isset($errors['bank_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_name']) ?></div><?php endif; ?>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Account Number <span class="text-danger">*</span></label>
+            <input type="text" name="account_number" class="form-control <?= isset($errors['account_number']) ? 'is-invalid' : '' ?>" value="<?= old('account_number', $old) ?>">
+            <?php if (isset($errors['account_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_number']) ?></div><?php endif; ?>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">GL Account <span class="text-danger">*</span></label>
+            <select name="account_id" class="form-select <?= isset($errors['account_id']) ? 'is-invalid' : '' ?>">
+              <option value="">Select account</option>
+              <?php foreach ($glAccounts as $g): ?>
+                <option value="<?= $g['id'] ?>" <?= (($old['account_id'] ?? '') == $g['id']) ? 'selected' : '' ?>><?= e($g['account_code'] . ' - ' . $g['account_name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (isset($errors['account_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_id']) ?></div><?php endif; ?>
+            <p class="text-muted small mt-1">Journal entries for disbursements/payments made through this bank account post to this GL account.</p>
+          </div>
+
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Branch</label>
+            <input type="text" name="branch" class="form-control" value="<?= old('branch', $old) ?>">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Branch Code</label>
+            <input type="text" name="branch_code" class="form-control" value="<?= old('branch_code', $old) ?>">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">SWIFT Code</label>
+            <input type="text" name="swift_code" class="form-control" value="<?= old('swift_code', $old) ?>">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Opening Balance</label>
+            <input type="number" step="0.01" name="opening_balance" class="form-control" value="<?= old('opening_balance', $old, '0') ?>">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Bank Account</button>
+        <a href="<?= url('/accounting/bank-accounts') ?>" class="btn btn-outline-secondary">Cancel</a>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>

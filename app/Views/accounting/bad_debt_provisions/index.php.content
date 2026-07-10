@@ -1,0 +1,47 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Bad Debt Provisioning</h4>
+        <p class="text-muted small mb-0">Current provision balance (GL 1050): <strong><?= e(format_money($currentBalance)) ?></strong></p>
+      </div>
+      <form method="get" action="<?= url('/accounting/bad-debt-provisions/preview') ?>" class="d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label small mb-0">As of date</label>
+          <input type="date" name="as_of_date" class="form-control form-control-sm" value="<?= e(date('Y-m-d')) ?>">
+        </div>
+        <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-calculator"></i> Run Provisioning</button>
+      </form>
+    </div>
+    <p class="text-muted small mt-2 mb-0">Default provisioning rates by days overdue: 31-60 days = 25%, 61-90 = 50%, 91-180 = 75%, 180+ = 100% of the loan's outstanding principal + NAMFISA levy + duty stamp. Adjust in <code>ArrearsService::PROVISION_RATES</code> if the client specifies different bands.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Past Provisioning Runs</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Date</th><th>Loans</th><th class="text-end">Total Provision</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($runs)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No provisioning runs posted yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($runs as $run): ?>
+            <tr>
+              <td><?= e($run['provision_date']) ?></td>
+              <td><?= (int) $run['loan_count'] ?></td>
+              <td class="text-end"><?= e(format_money($run['total_provision'])) ?></td>
+              <td><span class="badge bg-<?= $run['status'] === 'Posted' ? 'success' : 'secondary' ?>"><?= e($run['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/accounting/bad-debt-provisions/runs/' . $run['provision_date']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

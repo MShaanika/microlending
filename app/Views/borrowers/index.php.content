@@ -1,0 +1,77 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Borrowers</h4>
+      <a href="<?= url('/borrowers/create') ?>" class="btn btn-info waves-effect waves-light">
+        <i class="mdi mdi-plus"></i> Add Borrower
+      </a>
+    </div>
+
+    <form method="get" action="<?= url('/borrowers') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search name, phone, ID number..." value="<?= e($search ?? '') ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending','Approved','Rejected','Blacklisted','Inactive'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Borrower No</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>ID Number</th>
+            <th>Branch</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($borrowers)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No borrowers found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($borrowers as $b): ?>
+            <?php
+              $badge = match ($b['status']) {
+                'Approved' => 'success',
+                'Rejected' => 'danger',
+                'Blacklisted' => 'dark',
+                'Inactive' => 'secondary',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($b['borrower_no']) ?></td>
+              <td><?= e(trim($b['first_name'] . ' ' . $b['last_name'])) ?></td>
+              <td><?= e($b['phone']) ?></td>
+              <td><?= e($b['id_number']) ?></td>
+              <td><?= e($b['branch_name']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($b['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/borrowers/' . $b['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+                <a href="<?= url('/borrowers/' . $b['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
+                <form method="post" action="<?= url('/borrowers/' . $b['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Remove this borrower?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

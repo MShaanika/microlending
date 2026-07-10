@@ -1,0 +1,25 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Permissions</h4>
+    <p class="text-muted small">The full catalog of permission keys the system knows about. To grant these to a user, assign them to a <a href="<?= url('/settings/roles') ?>">role</a>, then assign that role to the user.</p>
+
+    <?php foreach ($groupedPermissions as $module => $permissions): ?>
+      <h6 class="mt-3"><?= e($module) ?></h6>
+      <div class="table-responsive mb-2">
+        <table class="table table-sm">
+          <thead><tr><th>Key</th><th>Name</th></tr></thead>
+          <tbody>
+            <?php foreach ($permissions as $p): ?>
+              <tr>
+                <td><code><?= e($p['permission_key']) ?></code></td>
+                <td><?= e($p['permission_name']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>

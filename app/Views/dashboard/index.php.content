@@ -1,0 +1,38 @@
+<div class="row">
+  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-account-multiple display-6 text-info"></i></div><div><h3 class="mb-0"><?= (int) $stats['total_borrowers'] ?></h3><span>Total Borrowers</span></div></div></div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash-multiple display-6 text-success"></i></div><div><h3 class="mb-0"><?= (int) $stats['active_loans'] ?></h3><span>Active Loans</span></div></div></div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-bank display-6 text-primary"></i></div><div><h3 class="mb-0"><?= format_money($stats['total_collected']) ?></h3><span>Total Collected</span></div></div></div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-alert-circle display-6 text-danger"></i></div><div><h3 class="mb-0"><?= (int) $stats['loans_in_arrears'] ?></h3><span>Loans in Arrears</span></div></div></div></div></div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-office-building-marker display-6 text-warning"></i></div><div><h3 class="mb-0"><?= (int) $stats['total_assets'] ?></h3><span>Fixed Assets Registered</span></div></div></div></div></div>
+  <div class="col-lg-6 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-scale-balance display-6 text-secondary"></i></div><div><h3 class="mb-0"><?= format_money($stats['assets_nbv']) ?></h3><span>Fixed Assets Net Book Value</span></div></div></div></div></div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Quick Access</h4>
+    <p class="text-muted">Core lending, collections and fixed-asset modules are live. Everything else below is on the roadmap.</p>
+    <div class="row">
+      <?php $modules = [
+        ['Borrowers','Borrower profiles and status','mdi-account-multiple','info', url('/borrowers')],
+        ['Loans','Applications, approvals, releases, amortization schedules','mdi-cash-multiple','success', url('/loans')],
+        ['Payments','Collections and schedule allocation','mdi-bank','primary', url('/payments')],
+        ['Fixed Assets','Depreciation & amortization schedules','mdi-trending-up','warning', url('/fixed-assets')],
+        ['Accounting','Chart of accounts, bank accounts, general ledger','mdi-calculator','secondary', url('/accounting/accounts')],
+        ['Reports','Operational, financial, regulatory and audit reports','mdi-chart-bar','danger', null],
+        ['Documents','Word templates, letters, statements and signatures','mdi-file-document','dark', null],
+        ['Compliance','NAMFISA, duty stamps and quarterly reports','mdi-gavel','info', null],
+      ]; foreach($modules as $m): ?>
+        <div class="col-lg-3 col-md-6"><div class="card border module-card"><div class="card-body text-center"><i class="mdi <?= $m[2] ?> display-5 text-<?= $m[3] ?>"></i><h4 class="mt-3"><?= $m[0] ?></h4><p class="text-muted small"><?= $m[1] ?></p>
+          <?php if ($m[4]): ?>
+            <a href="<?= $m[4] ?>" class="btn btn-outline-<?= $m[3] ?> btn-sm">Open</a>
+          <?php else: ?>
+            <button class="btn btn-outline-<?= $m[3] ?> btn-sm" disabled>Coming next</button>
+          <?php endif; ?>
+        </div></div></div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>

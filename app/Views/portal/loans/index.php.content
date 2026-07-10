@@ -1,0 +1,26 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Loan No</th><th>Product</th><th>Principal</th><th>Term</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">You don't have any loans yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $loan): ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['product_name']) ?></td>
+              <td><?= format_money($loan['principal_amount']) ?></td>
+              <td><?= (int) $loan['term_months'] ?> mo</td>
+              <td><span class="badge bg-info"><?= e($loan['loan_status']) ?></span></td>
+              <td class="text-end"><a href="<?= url('/portal/loans/' . $loan['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

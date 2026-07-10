@@ -1,0 +1,69 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Account</h4>
+
+    <form method="post" action="<?= url('/accounting/accounts') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Code <span class="text-danger">*</span></label>
+          <input type="text" name="account_code" class="form-control <?= isset($errors['account_code']) ? 'is-invalid' : '' ?>" value="<?= old('account_code', $old) ?>">
+          <?php if (isset($errors['account_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_code']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Account Name <span class="text-danger">*</span></label>
+          <input type="text" name="account_name" class="form-control <?= isset($errors['account_name']) ? 'is-invalid' : '' ?>" value="<?= old('account_name', $old) ?>">
+          <?php if (isset($errors['account_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_name']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Type <span class="text-danger">*</span></label>
+          <select name="account_type" class="form-select <?= isset($errors['account_type']) ? 'is-invalid' : '' ?>">
+            <option value="">Select</option>
+            <?php foreach (['Asset','Contra Asset','Liability','Equity','Income','Expense'] as $t): ?>
+              <option value="<?= $t ?>" <?= (($old['account_type'] ?? '') === $t) ? 'selected' : '' ?>><?= $t ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['account_type'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_type']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Normal Balance <span class="text-danger">*</span></label>
+          <select name="normal_balance" class="form-select <?= isset($errors['normal_balance']) ? 'is-invalid' : '' ?>">
+            <option value="">Select</option>
+            <option value="Debit" <?= (($old['normal_balance'] ?? '') === 'Debit') ? 'selected' : '' ?>>Debit</option>
+            <option value="Credit" <?= (($old['normal_balance'] ?? '') === 'Credit') ? 'selected' : '' ?>>Credit</option>
+          </select>
+          <?php if (isset($errors['normal_balance'])): ?><div class="invalid-feedback d-block"><?= e($errors['normal_balance']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Parent Account</label>
+          <select name="parent_account_id" class="form-select">
+            <option value="">None</option>
+            <?php foreach ($parents as $p): ?>
+              <option value="<?= $p['id'] ?>" <?= (($old['parent_account_id'] ?? '') == $p['id']) ? 'selected' : '' ?>><?= e($p['account_code'] . ' - ' . $p['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_control_account" id="is_control_account" value="1" <?= !empty($old['is_control_account']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="is_control_account">Control account (a header/summary account, not posted to directly)</label>
+          </div>
+        </div>
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_cash_bank_account" id="is_cash_bank_account" value="1" <?= !empty($old['is_cash_bank_account']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="is_cash_bank_account">This is a cash/bank account (selectable when setting up bank accounts)</label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Account</button>
+      <a href="<?= url('/accounting/accounts') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

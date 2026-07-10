@@ -1,0 +1,66 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($journal['status']) {
+    'Posted' => 'success',
+    'Reversed' => 'danger',
+    'Cancelled' => 'secondary',
+    default => 'warning',
+  };
+  $totalDebit = array_sum(array_column($lines, 'debit'));
+  $totalCredit = array_sum(array_column($lines, 'credit'));
+?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h4 class="card-title mb-1"><?= e($journal['journal_no']) ?></h4>
+        <p class="text-muted mb-0"><?= e($journal['description']) ?></p>
+      </div>
+      <span class="badge bg-<?= $badge ?>"><?= e($journal['status']) ?></span>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-3"><strong>Date:</strong> <?= e($journal['journal_date']) ?></div>
+      <div class="col-md-3"><strong>Source:</strong> <?= e($journal['source_module'] ?: '&mdash;') ?></div>
+      <div class="col-md-3"><strong>Reference:</strong> <?= e($journal['reference_no'] ?: '&mdash;') ?></div>
+      <div class="col-md-3"><strong>Type:</strong> <?= e($journal['journal_type']) ?></div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered">
+        <thead class="table-light">
+          <tr><th>Account</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($lines as $line): ?>
+            <tr>
+              <td><code><?= e($line['account_code']) ?></code> <?= e($line['account_name']) ?></td>
+              <td><?= e($line['description']) ?></td>
+              <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>
+              <td class="text-end"><?= $line['credit'] > 0 ? format_money($line['credit']) : '' ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold">
+            <td colspan="2" class="text-end">Total</td>
+            <td class="text-end"><?= format_money($totalDebit) ?></td>
+            <td class="text-end"><?= format_money($totalCredit) ?></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="<?= url('/accounting/journals') ?>" class="btn btn-outline-secondary">Back to General Ledger</a>
+      <?php if ($journal['status'] === 'Posted' && in_array($journal['journal_type'], ['Manual', 'Adjustment'], true)): ?>
+        <form method="post" action="<?= url('/accounting/journals/' . $journal['id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this journal? A new offsetting journal will be posted and this one marked Reversed.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-danger"><i class="mdi mdi-undo"></i> Reverse Journal</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>

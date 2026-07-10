@@ -1,0 +1,75 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Submit a Refund Claim</h4>
+    <p class="text-muted mb-3">Overpaid, paid twice, or think there's an error on your account? Tell us the details and, if you have one, attach proof.</p>
+
+    <form method="post" action="<?= url('/portal/refund-claims') ?>" enctype="multipart/form-data">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Related Loan (optional)</label>
+          <select name="loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Not related to a specific loan</option>
+            <?php foreach ($loans as $l): ?>
+              <option value="<?= $l['id'] ?>" <?= (($old['loan_id'] ?? '') == $l['id']) ? 'selected' : '' ?>><?= e($l['loan_no']) ?> (<?= e($l['loan_status']) ?>)</option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_id']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Claim Type</label>
+          <select name="claim_type" class="form-select">
+            <?php foreach (['Overpayment','Duplicate Payment','Early Settlement','Debit Order Error','Other'] as $t): ?>
+              <option value="<?= $t ?>" <?= (($old['claim_type'] ?? '') === $t) ? 'selected' : '' ?>><?= $t ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Claim Amount <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" name="claim_amount" class="form-control <?= isset($errors['claim_amount']) ? 'is-invalid' : '' ?>" value="<?= old('claim_amount', $old) ?>">
+          <?php if (isset($errors['claim_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['claim_amount']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <label class="form-label">Reason <span class="text-danger">*</span></label>
+          <textarea name="reason" class="form-control <?= isset($errors['reason']) ? 'is-invalid' : '' ?>" rows="3"><?= old('reason', $old) ?></textarea>
+          <?php if (isset($errors['reason'])): ?><div class="invalid-feedback d-block"><?= e($errors['reason']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-12"><h6 class="text-muted">Bank details for refund (optional)</h6></div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank Name</label>
+          <input type="text" name="bank_name" class="form-control" value="<?= old('bank_name', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Name</label>
+          <input type="text" name="account_name" class="form-control" value="<?= old('account_name', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Number</label>
+          <input type="text" name="account_number" class="form-control" value="<?= old('account_number', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Branch Code</label>
+          <input type="text" name="branch_code" class="form-control" value="<?= old('branch_code', $old) ?>">
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <label class="form-label">Supporting Document (optional)</label>
+          <input type="file" name="documents[0]" class="form-control <?= isset($errors['documents.0']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+          <?php if (isset($errors['documents.0'])): ?><div class="invalid-feedback d-block"><?= e($errors['documents.0']) ?></div><?php endif; ?>
+          <p class="text-muted small mt-1">PDF, JPG or PNG, max 5MB.</p>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Submit Claim</button>
+      <a href="<?= url('/portal/refund-claims') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

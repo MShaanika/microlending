@@ -1,0 +1,35 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="card-title mb-0">Provisioning Run &mdash; <?= e($provisionDate) ?></h4>
+      <a href="<?= url('/accounting/bad-debt-provisions') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-arrow-left"></i> Back</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Borrower</th><th class="text-end">Days Overdue</th><th>Bucket</th><th class="text-end">Outstanding</th><th class="text-end">Rate</th><th class="text-end">Provision</th><th>Journal</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($lines)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No lines found for this run.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($lines as $line): ?>
+            <tr>
+              <td><a href="<?= url('/loans/' . $line['loan_id']) ?>"><?= e($line['loan_no']) ?></a></td>
+              <td><?= e($line['borrower_name']) ?></td>
+              <td class="text-end"><?= (int) $line['aging_days'] ?></td>
+              <td><span class="badge bg-warning text-dark"><?= e(\App\Services\ArrearsService::agingBucket((int) $line['aging_days'])) ?></span></td>
+              <td class="text-end"><?= e(format_money($line['outstanding_balance'])) ?></td>
+              <td class="text-end"><?= e(number_format((float) $line['provision_rate'], 0)) ?>%</td>
+              <td class="text-end"><?= e(format_money($line['provision_amount'])) ?></td>
+              <td><?php if ($line['journal_id']): ?><a href="<?= url('/accounting/journals/' . $line['journal_id']) ?>">View</a><?php endif; ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

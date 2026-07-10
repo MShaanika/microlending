@@ -1,0 +1,53 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Preview: Penalty Accrual as at <?= e($asOfDate) ?></h4>
+    <p class="text-muted small">Nothing is posted yet. Each installment below has never been charged a penalty before &mdash; running this again later will not double-charge them.</p>
+
+    <div class="p-3 border rounded d-inline-block">
+      <div class="text-muted small">Total to Charge</div>
+      <div class="fs-4 fw-bold"><?= e(format_money($total)) ?></div>
+    </div>
+
+    <?php if ($total > 0): ?>
+      <form method="post" action="<?= url('/accounting/penalty-accruals') ?>" class="mt-3" onsubmit="return confirm('Post this penalty accrual? This will create a journal entry and charge these installments.');">
+        <?= csrf_field() ?>
+        <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Accrual</button>
+        <a href="<?= url('/accounting/penalty-accruals') ?>" class="btn btn-outline-secondary">Cancel</a>
+      </form>
+    <?php else: ?>
+      <div class="alert alert-info mt-3">No newly-overdue, unpenalized installments as at this date.</div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Chargeable Installments</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Borrower</th><th>Installment</th><th class="text-end">Days Overdue</th><th class="text-end">Base Amount</th><th class="text-end">Rate</th><th class="text-end">Penalty</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($installments)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">Nothing to charge.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($installments as $inst): ?>
+            <tr>
+              <td><?= e($inst['loan_no']) ?></td>
+              <td><?= e($inst['borrower_name']) ?></td>
+              <td>#<?= (int) $inst['installment_no'] ?> (due <?= e($inst['due_date']) ?>)</td>
+              <td class="text-end"><?= (int) $inst['days_overdue'] ?></td>
+              <td class="text-end"><?= e(format_money($inst['base_amount'])) ?></td>
+              <td class="text-end"><?= e(number_format($inst['penalty_rate'], 0)) ?>%</td>
+              <td class="text-end"><?= e(format_money($inst['penalty_amount'])) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

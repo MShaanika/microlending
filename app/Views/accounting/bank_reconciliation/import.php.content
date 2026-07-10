@@ -1,0 +1,31 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Import Bank Statement</h4>
+    <p class="text-muted small">Upload a CSV export of your bank statement. Expected header row: <code>date,reference,description,money_in,money_out,balance</code>. Already-imported lines (same date, reference and amounts) are skipped automatically, so re-uploading an overlapping export is safe.</p>
+
+    <form method="post" action="<?= url('/accounting/bank-reconciliation/import') ?>" enctype="multipart/form-data" class="mt-3">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Bank Account <span class="text-danger">*</span></label>
+        <select name="bank_account_id" class="form-select" required>
+          <?php foreach ($bankAccounts as $ba): ?>
+            <option value="<?= (int) $ba['id'] ?>" <?= $bankAccountId === (int) $ba['id'] ? 'selected' : '' ?>>
+              <?= e($ba['bank_name'] . ' - ' . $ba['account_name'] . ' (' . $ba['account_number'] . ')') ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">CSV File <span class="text-danger">*</span></label>
+        <input type="file" name="statement" accept=".csv,text/csv" class="form-control" required>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-upload"></i> Import &amp; Auto-Match</button>
+      <a href="<?= url('/accounting/bank-reconciliation') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

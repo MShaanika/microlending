@@ -1,0 +1,81 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Borrower Loan Requests</h4>
+    </div>
+
+    <form method="get" action="<?= url('/loan-requests') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending','Approved','Rejected','Converted to Application','Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Request No</th><th>Borrower</th><th>Type</th><th>Amount</th><th>Term</th><th>Purpose</th><th>Docs</th><th>Status</th><th>Submitted</th><th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($requests)): ?>
+            <tr><td colspan="10" class="text-center text-muted py-4">No loan requests from the portal yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($requests as $r): ?>
+            <?php
+              $badge = match ($r['status']) {
+                'Approved', 'Converted to Application' => 'success',
+                'Rejected', 'Cancelled' => 'danger',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($r['request_no']) ?></td>
+              <td><a href="<?= url('/borrowers/' . $r['borrower_id']) ?>"><?= e($r['borrower_name']) ?></a></td>
+              <td>
+                <span class="badge bg-<?= $r['request_type'] === 'Top Up' ? 'info' : 'secondary' ?>"><?= e($r['request_type']) ?></span>
+                <?php if ($r['request_type'] === 'Top Up' && $r['existing_loan_no']): ?>
+                  <br><small class="text-muted"><?= e($r['existing_loan_no']) ?></small>
+                <?php endif; ?>
+              </td>
+              <td><?= format_money($r['requested_amount']) ?></td>
+              <td><?= (int) $r['requested_term_months'] ?> mo</td>
+              <td><?= e($r['purpose'] ?: '&mdash;') ?></td>
+              <td>
+                <?php if ((int) $r['document_count'] > 0): ?>
+                  <a href="<?= url('/loan-requests/' . $r['id'] . '/documents') ?>"><?= (int) $r['document_count'] ?> file(s)</a>
+                <?php else: ?>
+                  <span class="text-muted">0</span>
+                <?php endif; ?>
+              </td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($r['requested_at']))) ?></td>
+              <td class="text-end">
+                <?php if ($r['status'] === 'Pending'): ?>
+                  <form method="post" action="<?= url('/loan-requests/' . $r['id'] . '/approve') ?>" class="d-inline" onsubmit="return confirm('Approve this request? You will be taken to the New Loan screen to finalize it.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> Approve</button>
+                  </form>
+                  <form method="post" action="<?= url('/loan-requests/' . $r['id'] . '/reject') ?>" class="d-inline" onsubmit="return confirm('Reject this request?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

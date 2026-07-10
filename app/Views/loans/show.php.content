@@ -1,0 +1,130 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($loan['loan_status']) {
+    'Active', 'Current', 'Released' => 'success',
+    'Completed' => 'primary',
+    'Denied', 'Written Off', 'Cancelled' => 'danger',
+    'Approved' => 'info',
+    default => 'warning',
+  };
+  $totalPaid = array_sum(array_column($schedule, 'total_paid'));
+  $totalDue = array_sum(array_column($schedule, 'total_due'));
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title mb-0"><?= e($loan['loan_no']) ?></h4>
+          <span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span>
+        </div>
+        <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
+
+        <p class="mb-1"><strong>Borrower:</strong> <a href="<?= url('/borrowers/' . $loan['borrower_id']) ?>"><?= e($loan['borrower_name']) ?></a></p>
+        <p class="mb-1"><strong>Principal:</strong> <?= format_money($loan['principal_amount']) ?></p>
+        <p class="mb-1"><strong>Interest (<?= e($loan['interest_method']) ?>):</strong> <?= format_money($loan['interest_amount']) ?></p>
+        <p class="mb-1"><strong>Admin Fee:</strong> <?= format_money($loan['admin_fee']) ?></p>
+        <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($loan['total_payable']) ?></p>
+        <p class="mb-1"><strong>Installment:</strong> <?= format_money($loan['installment_amount']) ?> / month</p>
+        <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
+        <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
+        <p class="mb-3"><strong>Collected so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <?php if ($loan['loan_status'] === 'Pending Approval'): ?>
+            <form method="post" action="<?= url('/loans/' . $loan['id'] . '/approve') ?>" onsubmit="return confirm('Approve this loan?');">
+              <?= csrf_field() ?>
+              <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+            </form>
+          <?php endif; ?>
+
+          <?php if ($loan['loan_status'] === 'Approved'): ?>
+            <button class="btn btn-info btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#releaseForm">
+              <i class="mdi mdi-cash-fast"></i> Release / Disburse
+            </button>
+          <?php endif; ?>
+
+          <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
+            <a href="<?= url('/loans/' . $loan['id'] . '/payments/create') ?>" class="btn btn-primary btn-sm"><i class="mdi mdi-cash-plus"></i> Record Payment</a>
+          <?php endif; ?>
+        </div>
+
+        <?php if ($loan['loan_status'] === 'Approved'): ?>
+        <div class="collapse mt-3" id="releaseForm">
+          <form method="post" action="<?= url('/loans/' . $loan['id'] . '/release') ?>" onsubmit="return confirm('Release / disburse this loan?');">
+            <?= csrf_field() ?>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Disbursement Method</label>
+              <select name="disbursement_method" class="form-select form-select-sm">
+                <?php foreach (['Cash','Bank Transfer','Wallet','Other'] as $m): ?>
+                  <option value="<?= $m ?>"><?= $m ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Bank Account</label>
+              <select name="bank_account_id" class="form-select form-select-sm">
+                <option value="">Default (Bank Account)</option>
+                <?php foreach ($bankAccounts as $b): ?>
+                  <option value="<?= $b['id'] ?>"><?= e($b['bank_name'] . ' - ' . $b['account_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Reference No</label>
+              <input type="text" name="reference_no" class="form-control form-control-sm">
+            </div>
+            <button class="btn btn-info btn-sm w-100" type="submit">Confirm Release</button>
+          </form>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Amortization Schedule</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>#</th><th>Due Date</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Fees</th><th>NAMFISA Levy</th><th>Duty Stamp</th><th>Total Due</th><th>Paid</th><th>Closing</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($schedule as $row): ?>
+                <?php
+                  $rowBadge = match ($row['status']) {
+                    'Paid' => 'success',
+                    'Partial' => 'info',
+                    'In Arrears' => 'danger',
+                    'Written Off' => 'dark',
+                    default => 'warning',
+                  };
+                ?>
+                <tr>
+                  <td><?= (int) $row['installment_no'] ?></td>
+                  <td><?= e($row['due_date']) ?></td>
+                  <td><?= format_money($row['opening_balance']) ?></td>
+                  <td><?= format_money($row['principal_due']) ?></td>
+                  <td><?= format_money($row['interest_due']) ?></td>
+                  <td><?= format_money($row['fees_due']) ?></td>
+                  <td><?= format_money($row['namfisa_levy_due']) ?></td>
+                  <td><?= format_money($row['duty_stamp_due']) ?></td>
+                  <td><?= format_money($row['total_due']) ?></td>
+                  <td><?= format_money($row['total_paid']) ?></td>
+                  <td><?= format_money($row['closing_balance']) ?></td>
+                  <td><span class="badge bg-<?= $rowBadge ?>"><?= e($row['status']) ?></span></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

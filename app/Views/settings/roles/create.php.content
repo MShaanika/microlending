@@ -1,0 +1,24 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Role</h4>
+
+    <form method="post" action="<?= url('/settings/roles') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Role Name <span class="text-danger">*</span></label>
+        <input type="text" name="role_name" class="form-control <?= isset($errors['role_name']) ? 'is-invalid' : '' ?>" value="<?= old('role_name', $old) ?>">
+        <?php if (isset($errors['role_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['role_name']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" rows="2" class="form-control"><?= old('description', $old) ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save &amp; Assign Permissions</button>
+      <a href="<?= url('/settings/roles') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,41 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Bank Accounts</h4>
+      <a href="<?= url('/accounting/bank-accounts/create') ?>" class="btn btn-info waves-effect waves-light">
+        <i class="mdi mdi-plus"></i> Add Bank Account
+      </a>
+    </div>
+    <p class="text-muted small">Every bank account here is linked to a GL account in the Chart of Accounts. When staff record disbursements or payments, they pick one of these accounts and the accounting entry posts straight to its linked GL account.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Account Name</th><th>Bank</th><th>Account No</th><th>Branch</th><th>GL Account</th><th>Status</th><th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($bankAccounts)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No bank accounts set up yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($bankAccounts as $b): ?>
+            <tr>
+              <td><?= e($b['account_name']) ?></td>
+              <td><?= e($b['bank_name']) ?></td>
+              <td><?= e($b['account_number']) ?></td>
+              <td><?= e($b['branch'] ?: '&mdash;') ?></td>
+              <td><code><?= e($b['gl_account_code']) ?></code> <?= e($b['gl_account_name']) ?></td>
+              <td><span class="badge bg-<?= $b['is_active'] ? 'success' : 'secondary' ?>"><?= $b['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/accounting/bank-accounts/' . $b['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

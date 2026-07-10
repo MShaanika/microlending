@@ -1,0 +1,59 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h4 class="card-title mb-1"><?= e($fiscalYear['financial_year']) ?></h4>
+        <p class="text-muted mb-0"><?= e($fiscalYear['start_date']) ?> &rarr; <?= e($fiscalYear['end_date']) ?></p>
+      </div>
+      <span class="badge bg-<?= $fiscalYear['status'] === 'Open' ? 'success' : 'secondary' ?>"><?= e($fiscalYear['status']) ?></span>
+    </div>
+
+    <div class="mb-3">
+      <?php if ($fiscalYear['status'] === 'Open'): ?>
+        <form method="post" action="<?= url('/accounting/fiscal-years/' . $fiscalYear['id'] . '/close') ?>" class="d-inline" onsubmit="return confirm('Close this fiscal year and ALL its periods? No new journals will be able to post to any date in this year.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-lock"></i> Close Entire Fiscal Year</button>
+        </form>
+      <?php else: ?>
+        <form method="post" action="<?= url('/accounting/fiscal-years/' . $fiscalYear['id'] . '/open') ?>" class="d-inline" onsubmit="return confirm('Reopen this fiscal year and all its periods?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-lock-open"></i> Reopen Entire Fiscal Year</button>
+        </form>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Period</th><th>Start</th><th>End</th><th>Status</th><th>Closed By / At</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php foreach ($periods as $p): ?>
+            <tr>
+              <td><?= e($p['period_name']) ?></td>
+              <td><?= e($p['start_date']) ?></td>
+              <td><?= e($p['end_date']) ?></td>
+              <td><span class="badge bg-<?= $p['is_closed'] ? 'secondary' : 'success' ?>"><?= $p['is_closed'] ? 'Closed' : 'Open' ?></span></td>
+              <td><?= $p['closed_at'] ? e(date('d M Y H:i', strtotime($p['closed_at']))) : '&mdash;' ?></td>
+              <td class="text-end">
+                <?php if ($p['is_closed']): ?>
+                  <form method="post" action="<?= url('/accounting/periods/' . $p['id'] . '/reopen') ?>" class="d-inline" onsubmit="return confirm('Reopen this period?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-lock-open"></i> Reopen</button>
+                  </form>
+                <?php else: ?>
+                  <form method="post" action="<?= url('/accounting/periods/' . $p['id'] . '/close') ?>" class="d-inline" onsubmit="return confirm('Close this period? No new journals will be able to post to a date inside it.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-lock"></i> Close</button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <a href="<?= url('/accounting/fiscal-years') ?>" class="btn btn-outline-secondary">Back to Fiscal Years</a>
+  </div>
+</div>

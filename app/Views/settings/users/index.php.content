@@ -1,0 +1,59 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Users</h4>
+      <a href="<?= url('/settings/users/create') ?>" class="btn btn-info waves-effect waves-light">
+        <i class="mdi mdi-plus"></i> Add User
+      </a>
+    </div>
+
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search name, username, email" value="<?= e($search) ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select" onchange="this.form.submit()">
+          <option value="">All statuses</option>
+          <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>Active</option>
+          <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>Inactive</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Branch</th><th>Roles</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($users)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No users found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($users as $u): ?>
+            <tr>
+              <td><?= e($u['name']) ?></td>
+              <td><?= e($u['username']) ?></td>
+              <td><?= e($u['email']) ?></td>
+              <td><?= e($u['branch_name'] ?? '-') ?></td>
+              <td><?= e($u['role_names'] ?: $u['user_type']) ?></td>
+              <td><span class="badge bg-<?= $u['is_active'] ? 'success' : 'secondary' ?>"><?= $u['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/settings/users/' . $u['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/settings/users/' . $u['id'] . '/reset-password') ?>" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-key"></i></a>
+                <form method="post" action="<?= url('/settings/users/' . $u['id'] . '/toggle-active') ?>" class="d-inline" onsubmit="return confirm('<?= $u['is_active'] ? 'Deactivate' : 'Activate' ?> this user?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-<?= $u['is_active'] ? 'danger' : 'success' ?>">
+                    <i class="mdi mdi-<?= $u['is_active'] ? 'account-off' : 'account-check' ?>"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

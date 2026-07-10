@@ -1,0 +1,32 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Fiscal Year</h4>
+    <p class="text-muted small">Monthly accounting periods are generated automatically to cover the date range you choose.</p>
+
+    <form method="post" action="<?= url('/accounting/fiscal-years') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Name <span class="text-danger">*</span></label>
+          <input type="text" name="financial_year" class="form-control <?= isset($errors['financial_year']) ? 'is-invalid' : '' ?>" value="<?= old('financial_year', $old) ?>" placeholder="e.g. FY2026">
+          <?php if (isset($errors['financial_year'])): ?><div class="invalid-feedback d-block"><?= e($errors['financial_year']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old) ?>">
+          <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">End Date <span class="text-danger">*</span></label>
+          <input type="date" name="end_date" class="form-control" value="<?= old('end_date', $old) ?>">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Fiscal Year</button>
+      <a href="<?= url('/accounting/fiscal-years') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

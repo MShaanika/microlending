@@ -1,0 +1,72 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Refund Claims</h4>
+
+    <form method="get" action="<?= url('/refund-claims') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending','Under Review','Approved','Rejected','Paid','Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Claim No</th><th>Borrower</th><th>Loan</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($claims)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No refund claims yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($claims as $c): ?>
+            <?php
+              $badge = match ($c['status']) {
+                'Approved', 'Paid' => 'success',
+                'Rejected', 'Cancelled' => 'danger',
+                'Under Review' => 'info',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($c['claim_no']) ?></td>
+              <td><a href="<?= url('/borrowers/' . $c['borrower_id']) ?>"><?= e($c['borrower_name']) ?></a></td>
+              <td><?= e($c['loan_no'] ?: '&mdash;') ?></td>
+              <td><?= e($c['claim_type']) ?></td>
+              <td><?= format_money($c['claim_amount']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($c['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($c['claim_date']))) ?></td>
+              <td class="text-end">
+                <?php if (in_array($c['status'], ['Pending', 'Under Review'], true)): ?>
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/approve') ?>" class="d-inline" onsubmit="return confirm('Approve this claim for ' + document.getElementById('amt-<?= $c['id'] ?>').value + '?');">
+                    <?= csrf_field() ?>
+                    <input type="number" step="0.01" id="amt-<?= $c['id'] ?>" name="approved_amount" value="<?= $c['claim_amount'] ?>" class="form-control form-control-sm d-inline-block" style="width:100px;">
+                    <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i></button>
+                  </form>
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/reject') ?>" class="d-inline" onsubmit="return confirm('Reject this claim?');">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="reason" value="Could not verify claim">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>
+                  </form>
+                <?php elseif ($c['status'] === 'Approved'): ?>
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/mark-paid') ?>" class="d-inline" onsubmit="return confirm('Mark this claim as paid?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-cash-check"></i> Mark Paid</button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

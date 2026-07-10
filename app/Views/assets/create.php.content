@@ -1,0 +1,117 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Register Fixed / Intangible Asset</h4>
+    <p class="text-muted">Selecting a category pre-fills the useful life, method and default rate. A full depreciation (or amortization, for intangible assets) schedule is generated automatically for the asset's entire useful life.</p>
+
+    <form method="post" action="<?= url('/fixed-assets') ?>" id="asset-form">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Category <span class="text-danger">*</span></label>
+          <select name="category_id" id="category_id" class="form-select <?= isset($errors['category_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select category</option>
+            <?php foreach ($categories as $c): ?>
+              <option value="<?= $c['id'] ?>" <?= (($old['category_id'] ?? '') == $c['id']) ? 'selected' : '' ?>><?= e($c['category_name']) ?> (<?= e($c['asset_nature']) ?>)</option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['category_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['category_id']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Asset Name <span class="text-danger">*</span></label>
+          <input type="text" name="asset_name" class="form-control <?= isset($errors['asset_name']) ? 'is-invalid' : '' ?>" value="<?= old('asset_name', $old) ?>">
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Branch</label>
+          <select name="branch_id" class="form-select">
+            <option value="">Head Office / Unassigned</option>
+            <?php foreach ($branches as $branch): ?>
+              <option value="<?= $branch['id'] ?>" <?= (($old['branch_id'] ?? '') == $branch['id']) ? 'selected' : '' ?>><?= e($branch['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Serial No</label>
+          <input type="text" name="serial_no" class="form-control" value="<?= old('serial_no', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Location</label>
+          <input type="text" name="location" class="form-control" value="<?= old('location', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Supplier</label>
+          <input type="text" name="supplier_name" class="form-control" value="<?= old('supplier_name', $old) ?>">
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="2"><?= old('description', $old) ?></textarea>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Purchase Date <span class="text-danger">*</span></label>
+          <input type="date" name="purchase_date" class="form-control <?= isset($errors['purchase_date']) ? 'is-invalid' : '' ?>" value="<?= old('purchase_date', $old, date('Y-m-d')) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Purchase Cost <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" name="purchase_cost" class="form-control <?= isset($errors['purchase_cost']) ? 'is-invalid' : '' ?>" value="<?= old('purchase_cost', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Additional Costs</label>
+          <input type="number" step="0.01" name="additional_costs" class="form-control" value="<?= old('additional_costs', $old, '0') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Residual Value</label>
+          <input type="number" step="0.01" name="residual_value" id="residual_value" class="form-control" value="<?= old('residual_value', $old, '0') ?>">
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Useful Life (months) <span class="text-danger">*</span></label>
+          <input type="number" name="useful_life_months" id="useful_life_months" class="form-control <?= isset($errors['useful_life_months']) ? 'is-invalid' : '' ?>" value="<?= old('useful_life_months', $old, '60') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Method</label>
+          <select name="depreciation_method" id="depreciation_method" class="form-select">
+            <option value="Straight Line">Straight Line</option>
+            <option value="Reducing Balance">Reducing Balance</option>
+            <option value="No Depreciation">No Depreciation</option>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Reducing Balance Rate % <span class="text-muted small">(if applicable)</span></label>
+          <input type="number" step="0.001" name="reducing_balance_rate" id="reducing_balance_rate" class="form-control" value="<?= old('reducing_balance_rate', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Depreciation/Amortization Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="depreciation_start_date" class="form-control <?= isset($errors['depreciation_start_date']) ? 'is-invalid' : '' ?>" value="<?= old('depreciation_start_date', $old, date('Y-m-d')) ?>">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save & Generate Schedule</button>
+      <a href="<?= url('/fixed-assets') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var categories = <?= json_encode(array_column($categories, null, 'id')) ?>;
+  var categorySelect = document.getElementById('category_id');
+  var usefulLife = document.getElementById('useful_life_months');
+  var method = document.getElementById('depreciation_method');
+  var rbRate = document.getElementById('reducing_balance_rate');
+
+  categorySelect.addEventListener('change', function () {
+    var cat = categories[this.value];
+    if (!cat) return;
+    usefulLife.value = cat.default_useful_life_months;
+    method.value = cat.depreciation_method;
+    rbRate.value = cat.default_reducing_balance_rate || '';
+  });
+})();
+</script>

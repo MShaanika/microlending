@@ -1,0 +1,103 @@
+<?= flash_messages() ?>
+
+<?php
+  $nextDue = null;
+  foreach ($schedule as $row) {
+      if ($row['status'] !== 'Paid') { $nextDue = $row; break; }
+  }
+?>
+
+<div class="row">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Record Payment</h4>
+        <p class="text-muted mb-3">Loan <?= e($loan['loan_no']) ?> &middot; <?= e($loan['borrower_name']) ?></p>
+
+        <?php if ($nextDue): ?>
+          <div class="alert alert-info py-2">
+            Next due: installment #<?= (int) $nextDue['installment_no'] ?> on <?= e($nextDue['due_date']) ?>
+            for <?= format_money($nextDue['total_due'] - $nextDue['total_paid']) ?>
+          </div>
+        <?php endif; ?>
+
+        <form method="post" action="<?= url('/payments') ?>">
+          <?= csrf_field() ?>
+          <input type="hidden" name="loan_id" value="<?= $loan['id'] ?>">
+
+          <div class="mb-3">
+            <label class="form-label">Amount Received <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" name="amount_received" class="form-control" value="<?= old('amount_received', $old, (string) ($loan['installment_amount'] ?? '')) ?>">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Payment Date</label>
+            <input type="date" name="payment_date" class="form-control" value="<?= old('payment_date', $old, date('Y-m-d')) ?>">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Payment Source</label>
+            <select name="payment_source" class="form-select">
+              <?php foreach (['Cash','Debit Order','Bank Transfer','Wallet','Manual Adjustment','Other'] as $s): ?>
+                <option value="<?= $s ?>"><?= $s ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Deposited Into</label>
+            <select name="bank_account_id" class="form-select">
+              <option value="">Default (Bank Account)</option>
+              <?php foreach ($bankAccounts as $b): ?>
+                <option value="<?= $b['id'] ?>"><?= e($b['bank_name'] . ' - ' . $b['account_name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Payer Name</label>
+            <input type="text" name="payer_name" class="form-control" value="<?= e($loan['borrower_name']) ?>">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Reference No</label>
+            <input type="text" name="reference_no" class="form-control">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Payment</button>
+          <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Outstanding Schedule</h4>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead><tr><th>#</th><th>Due Date</th><th>Total Due</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+            <tbody>
+              <?php foreach ($schedule as $row): ?>
+                <tr class="<?= $row['status'] === 'Paid' ? 'text-muted' : '' ?>">
+                  <td><?= (int) $row['installment_no'] ?></td>
+                  <td><?= e($row['due_date']) ?></td>
+                  <td><?= format_money($row['total_due']) ?></td>
+                  <td><?= format_money($row['total_paid']) ?></td>
+                  <td><?= format_money($row['total_due'] - $row['total_paid']) ?></td>
+                  <td><?= e($row['status']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

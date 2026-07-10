@@ -1,0 +1,109 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($asset['status']) {
+    'Active' => 'success',
+    'Fully Depreciated' => 'info',
+    'Disposed' => 'secondary',
+    default => 'danger',
+  };
+  $label = $asset['asset_nature'] === 'Intangible' ? 'Amortization' : 'Depreciation';
+  $hasPending = false;
+  foreach ($schedule as $row) { if ($row['status'] === 'Pending') { $hasPending = true; break; } }
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title mb-0"><?= e($asset['asset_name']) ?></h4>
+          <span class="badge bg-<?= $badge ?>"><?= e($asset['status']) ?></span>
+        </div>
+        <p class="text-muted mb-3"><?= e($asset['asset_no']) ?> &middot; <?= e($asset['category_name']) ?> (<?= e($asset['asset_nature']) ?>)</p>
+
+        <p class="mb-1"><strong>Purchase Date:</strong> <?= e($asset['purchase_date']) ?></p>
+        <p class="mb-1"><strong>Capitalized Cost:</strong> <?= format_money($asset['capitalized_cost']) ?></p>
+        <p class="mb-1"><strong>Residual Value:</strong> <?= format_money($asset['residual_value']) ?></p>
+        <p class="mb-1"><strong>Useful Life:</strong> <?= (int) $asset['useful_life_months'] ?> months</p>
+        <p class="mb-1"><strong>Method:</strong> <?= e($asset['depreciation_method']) ?><?= $asset['reducing_balance_rate'] ? ' (' . $asset['reducing_balance_rate'] . '% p.a.)' : '' ?></p>
+        <p class="mb-1"><strong>Accumulated <?= $label ?>:</strong> <?= format_money($asset['accumulated_depreciation']) ?></p>
+        <p class="mb-3"><strong>Net Book Value:</strong> <?= format_money($asset['net_book_value']) ?></p>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <?php if ($asset['status'] === 'Active' && $hasPending): ?>
+            <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/depreciate') ?>" onsubmit="return confirm('Post the next <?= strtolower($label) ?> period to the ledger?');">
+              <?= csrf_field() ?>
+              <button class="btn btn-info btn-sm"><i class="mdi mdi-calculator"></i> Post Next <?= $label ?> Period</button>
+            </form>
+          <?php endif; ?>
+
+          <?php if ($asset['status'] !== 'Disposed'): ?>
+            <button class="btn btn-outline-danger btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#disposeForm">
+              <i class="mdi mdi-trash-can-outline"></i> Dispose
+            </button>
+          <?php endif; ?>
+        </div>
+
+        <?php if ($asset['status'] !== 'Disposed'): ?>
+        <div class="collapse mt-3" id="disposeForm">
+          <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/dispose') ?>" onsubmit="return confirm('Dispose this asset? This cannot be undone.');">
+            <?= csrf_field() ?>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Disposal Date</label>
+              <input type="date" name="disposal_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Method</label>
+              <select name="disposal_method" class="form-select form-select-sm">
+                <?php foreach (['Sold','Scrapped','Written Off','Donated','Other'] as $m): ?>
+                  <option value="<?= $m ?>"><?= $m ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Disposal Proceeds</label>
+              <input type="number" step="0.01" name="disposal_proceeds" class="form-control form-control-sm" value="0">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Notes</label>
+              <textarea name="notes" class="form-control form-control-sm" rows="2"></textarea>
+            </div>
+            <button class="btn btn-danger btn-sm w-100" type="submit">Confirm Disposal</button>
+          </form>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><?= $label ?> Schedule</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr><th>#</th><th>Period Date</th><th>Opening</th><th><?= $label ?></th><th>Closing</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <?php if (empty($schedule)): ?>
+                <tr><td colspan="6" class="text-center text-muted py-4">No depreciation applies to this asset.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($schedule as $row): ?>
+                <tr>
+                  <td><?= (int) $row['period_no'] ?></td>
+                  <td><?= e($row['period_date']) ?></td>
+                  <td><?= format_money($row['opening_book_value']) ?></td>
+                  <td><?= format_money($row['depreciation_amount']) ?></td>
+                  <td><?= format_money($row['closing_book_value']) ?></td>
+                  <td><span class="badge bg-<?= $row['status'] === 'Posted' ? 'success' : 'warning' ?>"><?= e($row['status']) ?></span></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

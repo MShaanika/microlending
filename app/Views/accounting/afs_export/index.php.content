@@ -1,0 +1,51 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Annual Financial Statements Export</h4>
+    <p class="text-muted small">Generates the Profit &amp; Loss, Balance Sheet and Cash Flow statement as a single Excel workbook, in the client's approved AFS layout, computed live from posted journal entries.</p>
+
+    <form method="get" action="<?= url('/accounting/afs-export/download') ?>" class="row g-3 mt-2">
+      <div class="col-md-4">
+        <label class="form-label">Fiscal Year</label>
+        <select name="fiscal_year_id" id="fiscal_year_id" class="form-select">
+          <option value="">-- Custom date range --</option>
+          <?php foreach ($fiscalYears as $fy): ?>
+            <option value="<?= (int) $fy['id'] ?>" data-start="<?= e($fy['start_date']) ?>" data-end="<?= e($fy['end_date']) ?>">
+              <?= e($fy['financial_year']) ?> (<?= e($fy['start_date']) ?> to <?= e($fy['end_date']) ?>)
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Start Date</label>
+        <input type="date" name="start_date" id="start_date" class="form-control" value="<?= e(date('Y-01-01')) ?>">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">End Date</label>
+        <input type="date" name="end_date" id="end_date" class="form-control" value="<?= e(date('Y-m-d')) ?>">
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-info w-100 waves-effect waves-light">
+          <i class="mdi mdi-file-excel"></i> Export
+        </button>
+      </div>
+    </form>
+
+    <?php if (empty($fiscalYears)): ?>
+      <p class="text-muted small mt-3">No fiscal years have been set up yet &mdash; you can still export using a custom date range, or <a href="<?= url('/accounting/fiscal-years/create') ?>">create a fiscal year</a> first.</p>
+    <?php endif; ?>
+  </div>
+</div>
+
+<script>
+document.getElementById('fiscal_year_id').addEventListener('change', function () {
+  var opt = this.options[this.selectedIndex];
+  var start = opt.getAttribute('data-start');
+  var end = opt.getAttribute('data-end');
+  if (start && end) {
+    document.getElementById('start_date').value = start;
+    document.getElementById('end_date').value = end;
+  }
+});
+</script>

@@ -1,0 +1,62 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Cash Book</h4>
+
+    <?php if (empty($cashBankAccounts)): ?>
+      <div class="alert alert-warning">No GL accounts are flagged as cash/bank accounts yet. <a href="<?= url('/accounting/accounts') ?>">Set one up</a> first.</div>
+    <?php else: ?>
+      <form method="get" action="<?= url('/accounting/cash-book') ?>" class="row g-2 mb-3">
+        <div class="col-md-4">
+          <select name="account_id" class="form-select">
+            <?php foreach ($cashBankAccounts as $a): ?>
+              <option value="<?= $a['id'] ?>" <?= $accountId == $a['id'] ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="date" name="from_date" class="form-control" value="<?= e($fromDate) ?>">
+        </div>
+        <div class="col-md-3">
+          <input type="date" name="to_date" class="form-control" value="<?= e($toDate) ?>">
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-outline-secondary w-100">Run</button>
+        </div>
+      </form>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <p class="mb-0"><strong>Opening Balance:</strong> <?= format_money($cashBook['opening_balance']) ?></p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <p class="mb-0"><strong>Closing Balance:</strong> <?= format_money($cashBook['closing_balance']) ?></p>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead><tr><th>Date</th><th>Journal No</th><th>Reference</th><th>Description</th><th>Source</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th></tr></thead>
+          <tbody>
+            <?php if (empty($cashBook['lines'])): ?>
+              <tr><td colspan="8" class="text-center text-muted py-4">No transactions in this period.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($cashBook['lines'] as $line): ?>
+              <tr>
+                <td><?= e($line['journal_date']) ?></td>
+                <td><a href="<?= url('/accounting/journals') ?>"><?= e($line['journal_no']) ?></a></td>
+                <td><?= e($line['reference_no'] ?: '&mdash;') ?></td>
+                <td><?= e($line['description']) ?></td>
+                <td><span class="badge bg-light text-dark border"><?= e($line['source_module'] ?: '&mdash;') ?></span></td>
+                <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>
+                <td class="text-end"><?= $line['credit'] > 0 ? format_money($line['credit']) : '' ?></td>
+                <td class="text-end"><?= format_money($line['running_balance']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>

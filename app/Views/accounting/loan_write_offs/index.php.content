@@ -1,0 +1,41 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Loan Write-Offs</h4>
+      <form method="get" class="d-flex gap-2">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All statuses</option>
+          <?php foreach (['Pending','Approved','Posted','Rejected','Reversed'] as $s): ?>
+            <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </form>
+    </div>
+
+    <p class="text-muted small">Write-offs are created from a bad debt record on the <a href="<?= url('/accounting/bad-debt-provisions') ?>">Bad Debt Provisioning</a> page once a loan is provisioned at 31+ days overdue.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Write-Off No.</th><th>Loan</th><th>Borrower</th><th class="text-end">Outstanding</th><th class="text-end">Net Write-Off</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+          <?php if (empty($writeOffs)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No write-offs yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($writeOffs as $wo): ?>
+            <tr>
+              <td><?= e($wo['write_off_no']) ?></td>
+              <td><?= e($wo['loan_no']) ?></td>
+              <td><?= e($wo['borrower_name']) ?></td>
+              <td class="text-end"><?= e(format_money($wo['outstanding_balance'])) ?></td>
+              <td class="text-end"><?= e(format_money($wo['net_write_off_amount'])) ?></td>
+              <td><span class="badge bg-<?= $wo['status'] === 'Posted' ? 'success' : ($wo['status'] === 'Pending' ? 'secondary' : 'info') ?>"><?= e($wo['status']) ?></span></td>
+              <td class="text-end"><a href="<?= url('/accounting/loan-write-offs/' . $wo['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i> View</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

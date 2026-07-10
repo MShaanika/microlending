@@ -1,0 +1,76 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($loan['loan_status']) {
+    'Active', 'Current', 'Released' => 'success',
+    'Completed' => 'primary',
+    'Denied', 'Written Off', 'Cancelled' => 'danger',
+    'Approved' => 'info',
+    default => 'warning',
+  };
+  $totalPaid = array_sum(array_column($schedule, 'total_paid'));
+  $totalDue = array_sum(array_column($schedule, 'total_due'));
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title mb-0"><?= e($loan['loan_no']) ?></h4>
+          <span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span>
+        </div>
+        <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
+
+        <p class="mb-1"><strong>Principal:</strong> <?= format_money($loan['principal_amount']) ?></p>
+        <p class="mb-1"><strong>Interest:</strong> <?= format_money($loan['interest_amount']) ?></p>
+        <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($loan['total_payable']) ?></p>
+        <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
+        <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
+        <p class="mb-3"><strong>Paid so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
+            <a href="<?= url('/portal/payments/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-cash-plus"></i> Log a Payment</a>
+          <?php endif; ?>
+          <a href="<?= url('/portal/loans/' . $loan['id'] . '/invoice') ?>" target="_blank" class="btn btn-outline-info btn-sm"><i class="mdi mdi-receipt"></i> View Invoice</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Amortization Schedule</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr><th>#</th><th>Due Date</th><th>Total Due</th><th>Paid</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <?php foreach ($schedule as $row): ?>
+                <?php
+                  $rowBadge = match ($row['status']) {
+                    'Paid' => 'success',
+                    'Partial' => 'info',
+                    'In Arrears' => 'danger',
+                    'Written Off' => 'dark',
+                    default => 'warning',
+                  };
+                ?>
+                <tr>
+                  <td><?= (int) $row['installment_no'] ?></td>
+                  <td><?= e($row['due_date']) ?></td>
+                  <td><?= format_money($row['total_due']) ?></td>
+                  <td><?= format_money($row['total_paid']) ?></td>
+                  <td><span class="badge bg-<?= $rowBadge ?>"><?= e($row['status']) ?></span></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

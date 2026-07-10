@@ -1,0 +1,59 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">General Ledger</h4>
+
+    <form method="get" action="<?= url('/accounting/journals') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search journal no, reference, description..." value="<?= e($search ?? '') ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="source_module" class="form-select">
+          <option value="">All Sources</option>
+          <?php foreach ($sourceModules as $m): ?>
+            <option value="<?= e($m) ?>" <?= ($sourceModule ?? '') === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Journal No</th><th>Date</th><th>Source</th><th>Reference</th><th>Description</th><th class="text-end">Amount</th><th>Type</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($journals)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No journal entries yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($journals as $j): ?>
+            <?php
+              $badge = match ($j['status']) {
+                'Posted' => 'success',
+                'Reversed' => 'danger',
+                'Cancelled' => 'secondary',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><a href="<?= url('/accounting/journals/' . $j['id']) ?>"><?= e($j['journal_no']) ?></a></td>
+              <td><?= e($j['journal_date']) ?></td>
+              <td><span class="badge bg-light text-dark border"><?= e($j['source_module'] ?: '&mdash;') ?></span></td>
+              <td><?= e($j['reference_no'] ?: '&mdash;') ?></td>
+              <td><?= e($j['description'] ?: '&mdash;') ?></td>
+              <td class="text-end"><?= format_money($j['total_debit']) ?></td>
+              <td><?= e($j['journal_type']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($j['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

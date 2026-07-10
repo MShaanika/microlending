@@ -1,0 +1,17 @@
+/vendor/
+/.claude/
+
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/backups/*
+!/storage/backups/.gitkeep
+/storage/letters/*
+!/storage/letters/.gitkeep
+
+/public/uploads/
+
+.DS_Store
+Thumbs.db
+*.log

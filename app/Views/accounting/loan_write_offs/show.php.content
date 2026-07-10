@@ -1,0 +1,60 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Write-Off <?= e($writeOff['write_off_no']) ?></h4>
+        <p class="text-muted small mb-0">Loan <?= e($writeOff['loan_no']) ?> &bull; <?= e($writeOff['borrower_name']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $writeOff['status'] === 'Posted' ? 'success' : ($writeOff['status'] === 'Pending' ? 'secondary' : 'info') ?>"><?= e($writeOff['status']) ?></span>
+    </div>
+
+    <div class="row text-center my-3">
+      <div class="col-md-3">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Outstanding</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($writeOff['outstanding_balance'])) ?></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Provision Used</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($writeOff['provision_amount'])) ?></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Net Write-Off</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($writeOff['net_write_off_amount'])) ?></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded border-success">
+          <div class="text-muted small">Recovered So Far</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($totalRecovered)) ?></div>
+        </div>
+      </div>
+    </div>
+
+    <p><strong>Reason:</strong> <?= e($writeOff['reason']) ?></p>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <?php if ($writeOff['status'] === 'Pending'): ?>
+        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/approve') ?>" onsubmit="return confirm('Approve this write-off?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+      <?php elseif ($writeOff['status'] === 'Approved'): ?>
+        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/post') ?>" onsubmit="return confirm('Post this write-off? This will create a journal entry and mark the loan as written off.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-danger waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Write-Off</button>
+        </form>
+      <?php elseif ($writeOff['status'] === 'Posted'): ?>
+        <a href="<?= url('/accounting/journals/' . $writeOff['journal_id']) ?>" class="btn btn-outline-primary"><i class="mdi mdi-book-open-variant"></i> View Journal</a>
+        <a href="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/recoveries/create') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-cash-refund"></i> Record Recovery</a>
+      <?php endif; ?>
+      <a href="<?= url('/accounting/loan-write-offs') ?>" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+  </div>
+</div>

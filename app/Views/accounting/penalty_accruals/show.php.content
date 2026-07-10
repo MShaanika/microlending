@@ -1,0 +1,31 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="card-title mb-0">Penalty Accrual Run &mdash; <?= e($penaltyDate) ?></h4>
+      <a href="<?= url('/accounting/penalty-accruals') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-arrow-left"></i> Back</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Loan</th><th>Borrower</th><th class="text-end">Base Amount</th><th class="text-end">Rate</th><th class="text-end">Penalty</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php if (empty($lines)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No lines found for this run.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($lines as $line): ?>
+            <tr>
+              <td><a href="<?= url('/loans/' . $line['loan_id']) ?>"><?= e($line['loan_no']) ?></a></td>
+              <td><?= e($line['borrower_name']) ?></td>
+              <td class="text-end"><?= e(format_money($line['base_amount'])) ?></td>
+              <td class="text-end"><?= e(number_format((float) $line['penalty_rate'], 0)) ?>%</td>
+              <td class="text-end"><?= e(format_money($line['penalty_amount'])) ?></td>
+              <td><span class="badge bg-<?= $line['status'] === 'Paid' ? 'success' : ($line['status'] === 'Waived' ? 'secondary' : 'warning text-dark') ?>"><?= e($line['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

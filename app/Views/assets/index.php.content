@@ -1,0 +1,88 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-3 col-md-6">
+    <div class="card"><div class="card-body">
+      <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-office-building display-6 text-info"></i></div>
+      <div><h3 class="mb-0"><?= (int) $totals['count'] ?></h3><span>Assets in Register</span></div></div>
+    </div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card"><div class="card-body">
+      <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash display-6 text-success"></i></div>
+      <div><h3 class="mb-0"><?= format_money($totals['net_book_value']) ?></h3><span>Total Net Book Value</span></div></div>
+    </div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card"><div class="card-body">
+      <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-calendar-clock display-6 text-warning"></i></div>
+      <div><h3 class="mb-0"><?= format_money($totals['monthly_charge']) ?></h3><span>Next Month's Depreciation/Amortization</span></div></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Fixed Asset Register</h4>
+      <a href="<?= url('/fixed-assets/create') ?>" class="btn btn-info waves-effect waves-light">
+        <i class="mdi mdi-plus"></i> Register Asset
+      </a>
+    </div>
+
+    <form method="get" action="<?= url('/fixed-assets') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search asset no, name, serial..." value="<?= e($search ?? '') ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Active','Fully Depreciated','Disposed','Written Off'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Asset No</th><th>Name</th><th>Category</th><th>Nature</th><th>Cost</th><th>Acc. Depr.</th><th>NBV</th><th>Status</th><th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($assets)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-4">No assets registered yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($assets as $a): ?>
+            <?php
+              $badge = match ($a['status']) {
+                'Active' => 'success',
+                'Fully Depreciated' => 'info',
+                'Disposed' => 'secondary',
+                default => 'danger',
+              };
+            ?>
+            <tr>
+              <td><?= e($a['asset_no']) ?></td>
+              <td><?= e($a['asset_name']) ?></td>
+              <td><?= e($a['category_name']) ?></td>
+              <td><?= e($a['asset_nature']) ?></td>
+              <td><?= format_money($a['capitalized_cost']) ?></td>
+              <td><?= format_money($a['accumulated_depreciation']) ?></td>
+              <td><?= format_money($a['net_book_value']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($a['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/fixed-assets/' . $a['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
