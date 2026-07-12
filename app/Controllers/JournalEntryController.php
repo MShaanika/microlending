@@ -26,7 +26,7 @@ class JournalEntryController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.journals');
         $search = trim((string) ($_GET['q'] ?? ''));
         $sourceModule = trim((string) ($_GET['source_module'] ?? ''));
 
@@ -41,7 +41,7 @@ class JournalEntryController extends Controller
 
     public function show(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.journals');
         $journal = $this->journalEntries->find((int) $id);
 
         if (!$journal) {
@@ -58,7 +58,7 @@ class JournalEntryController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.journals');
         $this->view('accounting/journals/create', [
             'title' => 'New Manual Journal',
             'accounts' => $this->accounts->allAccounts(true),
@@ -69,7 +69,7 @@ class JournalEntryController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.journals');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -167,7 +167,7 @@ class JournalEntryController extends Controller
 
     public function reverse(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.journals');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

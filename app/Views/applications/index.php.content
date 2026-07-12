@@ -1,0 +1,63 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Online Loan Applications</h4>
+    </div>
+
+    <form method="get" action="<?= url('/applications') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Submitted', 'Screening', 'Documents Required', 'Approved', 'Rejected', 'Converted to Loan', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Application No</th><th>Applicant</th><th>Source</th><th>Amount</th><th>Term</th><th>Status</th><th>Submitted</th><th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($applications)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No online applications yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($applications as $a): ?>
+            <?php
+              $badge = match ($a['status']) {
+                'Approved', 'Converted to Loan' => 'success',
+                'Rejected', 'Cancelled' => 'danger',
+                'Screening', 'Documents Required' => 'info',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($a['application_no']) ?></td>
+              <td>
+                <?= e(trim($a['applicant_first_name'] . ' ' . $a['applicant_last_name'])) ?>
+                <?php if ($a['borrower_no']): ?><br><small class="text-muted"><?= e($a['borrower_no']) ?></small><?php endif; ?>
+              </td>
+              <td><span class="badge bg-secondary"><?= e($a['source_name'] ?: $a['application_source']) ?></span></td>
+              <td><?= format_money($a['requested_amount']) ?></td>
+              <td><?= (int) $a['requested_term_months'] ?> mo</td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($a['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($a['created_at']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/applications/' . $a['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

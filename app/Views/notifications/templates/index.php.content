@@ -1,0 +1,36 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Notification Templates</h4>
+      <a href="<?= url('/notifications/templates/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Template</a>
+    </div>
+    <p class="text-muted small">Message-body templates for SMS/Email/WhatsApp/Portal notifications. Available merge fields: <?php foreach ($mergeFields as $f): ?><code>{{<?= e($f) ?>}}</code> <?php endforeach; ?></p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Code</th><th>Name</th><th>Channel</th><th>Subject</th><th>Status</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($templates)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No templates yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($templates as $t): ?>
+            <tr>
+              <td><code><?= e($t['template_code']) ?></code></td>
+              <td><?= e($t['template_name']) ?></td>
+              <td><span class="badge bg-secondary"><?= e($t['channel']) ?></span></td>
+              <td><?= e($t['subject']) ?: '&mdash;' ?></td>
+              <td><span class="badge bg-<?= $t['is_active'] ? 'success' : 'secondary' ?>"><?= $t['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/notifications/templates/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-pencil"></i> Edit</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

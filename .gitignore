@@ -9,8 +9,14 @@
 !/storage/backups/.gitkeep
 /storage/letters/*
 !/storage/letters/.gitkeep
+/storage/generated_documents/*
+!/storage/generated_documents/.gitkeep
+/storage/regulatory_exports/*
+!/storage/regulatory_exports/.gitkeep
 
 /public/uploads/
+/public/filled_pdfs/*
+!/public/filled_pdfs/.gitkeep
 
 .DS_Store
 Thumbs.db

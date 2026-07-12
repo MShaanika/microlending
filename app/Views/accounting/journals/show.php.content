@@ -29,7 +29,7 @@
     </div>
 
     <div class="table-responsive">
-      <table class="table table-bordered">
+      <table class="table table-bordered no-datatable">
         <thead class="table-light">
           <tr><th>Account</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr>
         </thead>

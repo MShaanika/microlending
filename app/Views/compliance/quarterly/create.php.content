@@ -1,0 +1,47 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Generate Quarterly Report</h4>
+
+    <form method="post" action="<?= url('/compliance/quarterly-reports') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Report Type <span class="text-danger">*</span></label>
+          <select name="report_type_id" class="form-select <?= isset($errors['report_type_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select report type</option>
+            <?php foreach ($reportTypes as $t): ?>
+              <option value="<?= (int) $t['id'] ?>" <?= (($old['report_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['report_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['report_type_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['report_type_id']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Quarter <span class="text-danger">*</span></label>
+          <select name="quarter" class="form-select <?= isset($errors['quarter']) ? 'is-invalid' : '' ?>">
+            <?php foreach ([1 => 'Q1 (Jan-Mar)', 2 => 'Q2 (Apr-Jun)', 3 => 'Q3 (Jul-Sep)', 4 => 'Q4 (Oct-Dec)'] as $q => $qLabel): ?>
+              <option value="<?= $q ?>" <?= (((int) ($old['quarter'] ?? (int) ceil(date('n') / 3))) === $q) ? 'selected' : '' ?>><?= e($qLabel) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['quarter'])): ?><div class="invalid-feedback d-block"><?= e($errors['quarter']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Year <span class="text-danger">*</span></label>
+          <select name="year" class="form-select <?= isset($errors['year']) ? 'is-invalid' : '' ?>">
+            <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+              <option value="<?= $y ?>" <?= (((int) ($old['year'] ?? date('Y'))) === $y) ? 'selected' : '' ?>><?= $y ?></option>
+            <?php endfor; ?>
+          </select>
+          <?php if (isset($errors['year'])): ?><div class="invalid-feedback d-block"><?= e($errors['year']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-file-chart"></i> Generate Report</button>
+      <a href="<?= url('/compliance/quarterly-reports') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

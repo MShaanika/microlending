@@ -1,0 +1,49 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($cancellation['status']) {
+    'Approved' => 'success',
+    'Rejected', 'Cancelled' => 'danger',
+    default => 'warning',
+  };
+?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Cancellation <?= e($cancellation['cancellation_no']) ?></h4>
+        <p class="text-muted small mb-0"><?= e($cancellation['borrower_name']) ?><?= $cancellation['loan_no'] ? ' &bull; Loan ' . e($cancellation['loan_no']) : '' ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($cancellation['status']) ?></span>
+    </div>
+
+    <hr>
+    <p class="mb-1"><strong>Cancellation Date:</strong> <?= e(date('d M Y', strtotime($cancellation['cancellation_date']))) ?></p>
+    <p class="mb-1"><strong>Amount Cancelled:</strong> <?= format_money($cancellation['amount_cancelled']) ?></p>
+    <p class="mb-1"><strong>Reason:</strong> <?= e($cancellation['reason']) ?></p>
+
+    <?php if ($cancellation['status'] === 'Pending'): ?>
+      <div class="alert alert-warning small mt-3 mb-0">
+        <i class="mdi mdi-alert-outline"></i> The debit order mandate is still <strong>Active</strong>.
+        Click <strong>Approve &amp; Cancel Mandate</strong> below to stop it now, or Reject to leave it running.
+      </div>
+    <?php endif; ?>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <?php if ($cancellation['status'] === 'Pending'): ?>
+        <form method="post" action="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/approve') ?>" onsubmit="return confirm('Cancel this debit order mandate now?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve &amp; Cancel Mandate</button>
+        </form>
+        <form method="post" action="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/reject') ?>" onsubmit="return confirm('Reject this cancellation request? The mandate will keep running.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-danger waves-effect waves-light"><i class="mdi mdi-close"></i> Reject (Keep Mandate Active)</button>
+        </form>
+      <?php elseif ($cancellation['status'] === 'Approved'): ?>
+        <a href="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/generate-letter') ?>" class="btn btn-outline-secondary"><i class="mdi mdi-file-document"></i> Generate Letter</a>
+      <?php endif; ?>
+      <a href="<?= url('/debit-order-cancellations') ?>" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+  </div>
+</div>

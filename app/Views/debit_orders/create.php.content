@@ -1,0 +1,52 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Register Debit Order</h4>
+    <p class="text-muted small">Loan <?= e($loan['loan_no']) ?> &bull; <?= e($loan['borrower_name']) ?></p>
+
+    <form method="post" action="<?= url('/debit-orders') ?>">
+      <?= csrf_field() ?>
+      <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank Name <span class="text-danger">*</span></label>
+          <input type="text" name="bank_name" class="form-control <?= isset($errors['bank_name']) ? 'is-invalid' : '' ?>" value="<?= old('bank_name', $old) ?>">
+          <?php if (isset($errors['bank_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_name']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Name</label>
+          <input type="text" name="account_name" class="form-control" value="<?= old('account_name', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Number <span class="text-danger">*</span></label>
+          <input type="text" name="account_number" class="form-control <?= isset($errors['account_number']) ? 'is-invalid' : '' ?>" value="<?= old('account_number', $old) ?>">
+          <?php if (isset($errors['account_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_number']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Branch Code</label>
+          <input type="text" name="branch_code" class="form-control" value="<?= old('branch_code', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Debit Day (1-28) <span class="text-danger">*</span></label>
+          <input type="number" min="1" max="28" name="debit_day" class="form-control <?= isset($errors['debit_day']) ? 'is-invalid' : '' ?>" value="<?= old('debit_day', $old, (string) $loan['payment_day']) ?>">
+          <?php if (isset($errors['debit_day'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_day']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Debit Amount <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" name="debit_amount" class="form-control <?= isset($errors['debit_amount']) ? 'is-invalid' : '' ?>" value="<?= old('debit_amount', $old, (string) $loan['installment_amount']) ?>">
+          <?php if (isset($errors['debit_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_amount']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
+          <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Register Debit Order</button>
+      <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

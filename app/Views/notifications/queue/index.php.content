@@ -1,0 +1,85 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0"><?= e($title) ?></h4>
+      <a href="<?= url('/notifications/compose?channel=' . $channel) ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Compose</a>
+    </div>
+    <p class="text-muted small">No gateway is connected yet, so nothing sends automatically &mdash; queue a message, send it yourself (call/SMS/email the borrower), then mark it here.</p>
+
+    <form method="get" action="<?= url($channel === 'Email' ? '/notifications/email' : '/notifications/sms') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending', 'Processing', 'Sent', 'Failed', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Recipient name or contact..." value="<?= e($search) ?>">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Recipient</th><th>Contact</th><th>Template</th><th>Message</th><th>Status</th><th>Queued</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($items)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No <?= e(strtolower($channel)) ?> notifications match this filter.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($items as $item): ?>
+            <?php
+              $badge = match ($item['status']) {
+                'Sent' => 'success',
+                'Failed' => 'danger',
+                'Cancelled' => 'secondary',
+                'Processing' => 'info',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?php if ($item['borrower_id']): ?><a href="<?= url('/borrowers/' . $item['borrower_id']) ?>"><?= e($item['recipient_name'] ?: $item['borrower_name']) ?></a><?php else: ?><?= e($item['recipient_name']) ?: '&mdash;' ?><?php endif; ?></td>
+              <td><?= e($item['recipient_contact']) ?></td>
+              <td><?= e($item['template_name']) ?: '&mdash;' ?></td>
+              <td class="text-truncate" style="max-width: 260px;" title="<?= e($item['message']) ?>"><?= e($item['message']) ?></td>
+              <td>
+                <span class="badge bg-<?= $badge ?>"><?= e($item['status']) ?></span>
+                <?php if (!empty($item['last_error'])): ?>
+                  <div class="small text-danger mt-1" title="<?= e($item['last_error']) ?>">Last attempt failed<?= (int) $item['attempts'] > 1 ? ' (' . (int) $item['attempts'] . 'x)' : '' ?></div>
+                <?php endif; ?>
+              </td>
+              <td><?= e(date('d M Y H:i', strtotime($item['created_at']))) ?></td>
+              <td class="text-end">
+                <?php if ($item['status'] === 'Pending'): ?>
+                  <form method="post" action="<?= url('/notifications/' . $item['id'] . '/send-now') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-success" title="Send now via configured gateway"><i class="mdi mdi-send"></i> Send Now</button>
+                  </form>
+                  <form method="post" action="<?= url('/notifications/' . $item['id'] . '/mark-sent') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-success" title="Mark as Sent manually"><i class="mdi mdi-check"></i></button>
+                  </form>
+                  <form method="post" action="<?= url('/notifications/' . $item['id'] . '/mark-failed') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger" title="Mark as Failed"><i class="mdi mdi-alert"></i></button>
+                  </form>
+                  <form method="post" action="<?= url('/notifications/' . $item['id'] . '/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this queued notification?');">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-secondary" title="Cancel"><i class="mdi mdi-close"></i></button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

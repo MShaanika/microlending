@@ -8,6 +8,8 @@ use App\Controllers\LoanRequestController;
 use App\Controllers\PaymentController;
 use App\Controllers\AssetController;
 use App\Controllers\LetterController;
+use App\Controllers\TemplateController;
+use App\Controllers\GeneratedDocumentController;
 use App\Controllers\RefundClaimController;
 use App\Controllers\AccountingAccountController;
 use App\Controllers\BankAccountController;
@@ -25,13 +27,36 @@ use App\Controllers\UserController;
 use App\Controllers\RoleController;
 use App\Controllers\PermissionController;
 use App\Controllers\CompanySettingController;
+use App\Controllers\CollectionsController;
+use App\Controllers\ReportController;
+use App\Controllers\OperationalReportController;
+use App\Controllers\StatutoryChargeSettingController;
+use App\Controllers\NotificationTemplateController;
+use App\Controllers\NotificationController;
+use App\Controllers\NotificationSettingController;
+use App\Controllers\NamfisaReportController;
+use App\Controllers\DutyStampController;
+use App\Controllers\QuarterlyReportController;
+use App\Controllers\RegulatoryReportController;
 use App\Controllers\PortalAuthController;
 use App\Controllers\PortalController;
+use App\Controllers\ApplicationController;
+use App\Controllers\ApplicationIntakeController;
+use App\Controllers\RescheduleController;
+use App\Controllers\DebitOrderController;
+use App\Controllers\DebitOrderCancellationController;
+use App\Controllers\DebitOrderRunController;
+use App\Controllers\ExpenseController;
+use App\Controllers\ExpenseCategoryController;
 
 $router->get('/', [AuthController::class, 'showLogin']);
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->get('/logout', [AuthController::class, 'logout']);
+$router->get('/forgot-password', [AuthController::class, 'showForgotForm']);
+$router->post('/forgot-password', [AuthController::class, 'sendResetLink']);
+$router->get('/reset-password/{token}', [AuthController::class, 'showResetForm']);
+$router->post('/reset-password/{token}', [AuthController::class, 'resetPassword']);
 
 $router->get('/dashboard', [DashboardController::class, 'index']);
 
@@ -57,8 +82,66 @@ $router->get('/loans', [LoanController::class, 'index']);
 $router->get('/loans/create', [LoanController::class, 'create']);
 $router->post('/loans', [LoanController::class, 'store']);
 $router->get('/loans/{id}', [LoanController::class, 'show']);
+$router->get('/loans/{id}/statement', [LoanController::class, 'statement']);
+$router->get('/loans/{id}/statement.xlsx', [LoanController::class, 'statementExcel']);
 $router->post('/loans/{id}/approve', [LoanController::class, 'approve']);
 $router->post('/loans/{id}/release', [LoanController::class, 'release']);
+$router->get('/loans/{id}/topup-created', [LoanController::class, 'topupCreated']);
+$router->post('/loan-topups/{topupId}/reverse', [LoanController::class, 'reverseTopup']);
+
+// Loan Reschedules
+$router->get('/reschedules', [RescheduleController::class, 'index']);
+$router->get('/loans/{id}/reschedule', [RescheduleController::class, 'create']);
+$router->post('/loans/{id}/reschedule/preview', [RescheduleController::class, 'previewAction']);
+$router->post('/reschedules', [RescheduleController::class, 'store']);
+$router->get('/reschedules/{id}', [RescheduleController::class, 'show']);
+$router->post('/reschedules/{id}/approve', [RescheduleController::class, 'approve']);
+$router->post('/reschedules/{id}/reject', [RescheduleController::class, 'reject']);
+$router->post('/reschedules/{id}/implement', [RescheduleController::class, 'implement']);
+$router->get('/reschedules/{id}/generate-letter', [RescheduleController::class, 'generateLetter']);
+
+// Debit Orders & Cancellations
+$router->get('/debit-orders', [DebitOrderController::class, 'index']);
+$router->get('/loans/{id}/debit-orders/create', [DebitOrderController::class, 'create']);
+$router->post('/debit-orders', [DebitOrderController::class, 'store']);
+$router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
+$router->get('/debit-orders/{id}/cancel', [DebitOrderCancellationController::class, 'create']);
+$router->get('/debit-order-cancellations', [DebitOrderCancellationController::class, 'index']);
+$router->post('/debit-order-cancellations', [DebitOrderCancellationController::class, 'store']);
+$router->get('/debit-order-cancellations/{id}', [DebitOrderCancellationController::class, 'show']);
+$router->post('/debit-order-cancellations/{id}/approve', [DebitOrderCancellationController::class, 'approve']);
+$router->post('/debit-order-cancellations/{id}/reject', [DebitOrderCancellationController::class, 'reject']);
+$router->get('/debit-order-cancellations/{id}/generate-letter', [DebitOrderCancellationController::class, 'generateLetter']);
+
+// Debit Order Batch Collection Runs
+$router->get('/debit-order-runs', [DebitOrderRunController::class, 'index']);
+$router->get('/debit-order-runs/create', [DebitOrderRunController::class, 'create']);
+$router->post('/debit-order-runs', [DebitOrderRunController::class, 'store']);
+$router->get('/debit-order-runs/{id}', [DebitOrderRunController::class, 'show']);
+$router->get('/debit-order-runs/{id}/export', [DebitOrderRunController::class, 'export']);
+$router->post('/debit-order-runs/{id}/submit', [DebitOrderRunController::class, 'submit']);
+$router->get('/debit-order-runs/{id}/import-response', [DebitOrderRunController::class, 'importResponseForm']);
+$router->post('/debit-order-runs/{id}/import-response', [DebitOrderRunController::class, 'importResponse']);
+$router->post('/debit-order-runs/{id}/post', [DebitOrderRunController::class, 'post']);
+$router->post('/debit-order-runs/{id}/cancel', [DebitOrderRunController::class, 'cancel']);
+
+// Expenses
+$router->get('/expenses', [ExpenseController::class, 'index']);
+$router->get('/expenses/create', [ExpenseController::class, 'create']);
+$router->post('/expenses', [ExpenseController::class, 'store']);
+$router->get('/expenses/{id}', [ExpenseController::class, 'show']);
+$router->get('/expenses/{id}/edit', [ExpenseController::class, 'edit']);
+$router->post('/expenses/{id}', [ExpenseController::class, 'update']);
+$router->post('/expenses/{id}/submit', [ExpenseController::class, 'submit']);
+$router->post('/expenses/{id}/approve', [ExpenseController::class, 'approve']);
+$router->post('/expenses/{id}/reject', [ExpenseController::class, 'reject']);
+$router->post('/expenses/{id}/pay', [ExpenseController::class, 'pay']);
+$router->post('/expenses/{id}/cancel', [ExpenseController::class, 'cancel']);
+$router->get('/expenses/{id}/attachments/{attachmentId}', [ExpenseController::class, 'downloadAttachment']);
+
+$router->get('/expense-categories', [ExpenseCategoryController::class, 'index']);
+$router->get('/expense-categories/create', [ExpenseCategoryController::class, 'create']);
+$router->post('/expense-categories', [ExpenseCategoryController::class, 'store']);
 
 // Payments / Collections
 $router->get('/payments', [PaymentController::class, 'index']);
@@ -74,15 +157,90 @@ $router->post('/loan-requests/{id}/reject', [LoanRequestController::class, 'reje
 $router->get('/loan-requests/{id}/documents', [LoanRequestController::class, 'documents']);
 $router->get('/loan-requests/{id}/documents/{documentId}', [LoanRequestController::class, 'downloadDocument']);
 
+// Online Loan Applications (submitted publicly via a client website's own form)
+$router->get('/applications', [ApplicationController::class, 'index']);
+$router->get('/applications/{id}', [ApplicationController::class, 'show']);
+$router->post('/applications/{id}/screen', [ApplicationController::class, 'screen']);
+$router->post('/applications/{id}/approve', [ApplicationController::class, 'approve']);
+$router->post('/applications/{id}/reject', [ApplicationController::class, 'reject']);
+$router->post('/applications/{id}/convert', [ApplicationController::class, 'convert']);
+$router->get('/applications/{id}/documents/{documentId}', [ApplicationController::class, 'downloadDocument']);
+$router->get('/applications/{id}/generate/{templateCode}', [ApplicationController::class, 'generateDocument']);
+
+// Public, unauthenticated intake -- an external client website's own form
+// POSTs here directly (cross-origin). See ApplicationIntakeController.
+$router->post('/api/applications/{sourceCode}', [ApplicationIntakeController::class, 'submit']);
+
 // Borrower letter requests (Completion / Consolidation) -- staff fulfil by uploading the prepared PDF
 $router->get('/letters', [LetterController::class, 'index']);
+$router->get('/letters/create', [LetterController::class, 'create']);
+$router->post('/letters', [LetterController::class, 'store']);
 $router->post('/letters/{id}/fulfill', [LetterController::class, 'fulfill']);
+$router->post('/letters/{id}/generate', [LetterController::class, 'generate']);
+$router->get('/letters/{id}/download', [LetterController::class, 'download']);
+
+// Document Templates
+$router->get('/templates', [TemplateController::class, 'index']);
+$router->get('/templates/create', [TemplateController::class, 'create']);
+$router->post('/templates', [TemplateController::class, 'store']);
+$router->get('/templates/{id}/edit', [TemplateController::class, 'edit']);
+$router->post('/templates/{id}', [TemplateController::class, 'update']);
+$router->get('/templates/{id}/fields', [TemplateController::class, 'fields']);
+$router->post('/templates/{id}/fields', [TemplateController::class, 'addField']);
+$router->post('/templates/{id}/fields/{fieldId}/delete', [TemplateController::class, 'deleteField']);
+
+// Generated Documents
+$router->get('/generated-documents', [GeneratedDocumentController::class, 'index']);
+$router->get('/generated-documents/{id}/download', [GeneratedDocumentController::class, 'download']);
+
+// Compliance
+$router->get('/compliance/settings', [StatutoryChargeSettingController::class, 'index']);
+$router->post('/compliance/settings/namfisa', [StatutoryChargeSettingController::class, 'storeNamfisaSetting']);
+$router->post('/compliance/settings/duty-stamp', [StatutoryChargeSettingController::class, 'storeDutyStampSetting']);
+
+$router->get('/compliance/namfisa', [NamfisaReportController::class, 'index']);
+$router->post('/compliance/namfisa/mark-submitted', [NamfisaReportController::class, 'markSubmitted']);
+
+$router->get('/compliance/duty-stamps', [DutyStampController::class, 'index']);
+$router->post('/compliance/duty-stamps/mark-submitted', [DutyStampController::class, 'markSubmitted']);
+
+$router->get('/compliance/quarterly-reports', [QuarterlyReportController::class, 'index']);
+$router->get('/compliance/quarterly-reports/create', [QuarterlyReportController::class, 'create']);
+$router->post('/compliance/quarterly-reports', [QuarterlyReportController::class, 'store']);
+$router->get('/compliance/quarterly-reports/{id}', [QuarterlyReportController::class, 'show']);
+$router->post('/compliance/quarterly-reports/{id}/submit', [QuarterlyReportController::class, 'submit']);
+$router->post('/compliance/quarterly-reports/{id}/approve', [QuarterlyReportController::class, 'approve']);
+$router->post('/compliance/quarterly-reports/{id}/reject', [QuarterlyReportController::class, 'reject']);
+$router->get('/compliance/quarterly-reports/{id}/download', [QuarterlyReportController::class, 'download']);
+
+// Notifications
+$router->get('/notifications/templates', [NotificationTemplateController::class, 'index']);
+$router->get('/notifications/templates/create', [NotificationTemplateController::class, 'create']);
+$router->post('/notifications/templates', [NotificationTemplateController::class, 'store']);
+$router->get('/notifications/templates/{id}/edit', [NotificationTemplateController::class, 'edit']);
+$router->post('/notifications/templates/{id}', [NotificationTemplateController::class, 'update']);
+
+$router->get('/notifications/sms', [NotificationController::class, 'smsQueue']);
+$router->get('/notifications/email', [NotificationController::class, 'emailQueue']);
+$router->get('/notifications/compose', [NotificationController::class, 'compose']);
+$router->post('/notifications/compose', [NotificationController::class, 'store']);
+$router->post('/notifications/{id}/mark-sent', [NotificationController::class, 'markSent']);
+$router->post('/notifications/{id}/mark-failed', [NotificationController::class, 'markFailed']);
+$router->post('/notifications/{id}/cancel', [NotificationController::class, 'cancel']);
+$router->post('/notifications/{id}/send-now', [NotificationController::class, 'sendNow']);
+
+$router->get('/notifications/settings', [NotificationSettingController::class, 'index']);
+$router->post('/notifications/settings/email', [NotificationSettingController::class, 'storeEmailSettings']);
+$router->post('/notifications/settings/sms', [NotificationSettingController::class, 'storeSmsSettings']);
+$router->post('/notifications/settings/email/test', [NotificationSettingController::class, 'testEmail']);
+$router->post('/notifications/settings/sms/test', [NotificationSettingController::class, 'testSms']);
 
 // Refund claims (submitted via the self-service portal, reviewed by staff)
 $router->get('/refund-claims', [RefundClaimController::class, 'index']);
 $router->post('/refund-claims/{id}/approve', [RefundClaimController::class, 'approve']);
 $router->post('/refund-claims/{id}/reject', [RefundClaimController::class, 'reject']);
 $router->post('/refund-claims/{id}/mark-paid', [RefundClaimController::class, 'markPaid']);
+$router->post('/refund-claims/{id}/generate-document', [RefundClaimController::class, 'generateDocument']);
 
 // Accounting: Chart of Accounts, Bank Accounts, General Ledger
 $router->get('/accounting/accounts', [AccountingAccountController::class, 'index']);
@@ -168,6 +326,20 @@ $router->get('/settings/permissions', [PermissionController::class, 'index']);
 $router->get('/settings/company', [CompanySettingController::class, 'edit']);
 $router->post('/settings/company', [CompanySettingController::class, 'update']);
 
+// Collections worklist
+$router->get('/collections/worklist', [CollectionsController::class, 'index']);
+$router->get('/collections/worklist/{loanId}', [CollectionsController::class, 'show']);
+$router->post('/collections/contacts', [CollectionsController::class, 'storeContact']);
+$router->post('/collections/promises', [CollectionsController::class, 'storePromise']);
+$router->post('/collections/promises/{id}', [CollectionsController::class, 'updatePromise']);
+$router->post('/collections/escalations', [CollectionsController::class, 'storeEscalation']);
+$router->post('/collections/escalations/{id}/resolve', [CollectionsController::class, 'resolveEscalation']);
+
+// Reports
+$router->get('/reports', [ReportController::class, 'index']);
+$router->get('/reports/operational', [OperationalReportController::class, 'index']);
+$router->get('/reports/regulatory', [RegulatoryReportController::class, 'index']);
+
 // Fixed Assets: Depreciation & Amortization
 // Note: routed under /fixed-assets (not /assets) because /assets collides with
 // the public/assets static theme directory served by Apache.
@@ -187,6 +359,7 @@ $router->get('/portal/dashboard', [PortalController::class, 'dashboard']);
 $router->get('/portal/loans', [PortalController::class, 'loans']);
 $router->get('/portal/loans/{id}', [PortalController::class, 'loanShow']);
 $router->get('/portal/loans/{id}/invoice', [PortalController::class, 'loanInvoice']);
+$router->get('/portal/loans/{id}/statement.xlsx', [PortalController::class, 'loanStatementExcel']);
 
 $router->get('/portal/loan-requests', [PortalController::class, 'loanRequestsIndex']);
 $router->get('/portal/loan-requests/create', [PortalController::class, 'loanRequestCreate']);

@@ -1,0 +1,60 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Debit Order Runs</h4>
+      <a href="<?= url('/debit-order-runs/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Run</a>
+    </div>
+
+    <form method="get" action="<?= url('/debit-order-runs') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Draft', 'Generated', 'Submitted', 'Processed', 'Posted', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Run No</th><th>Branch</th><th>Debit Month</th><th>Accounts</th><th>Total Amount</th><th>Status</th><th>Run Date</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($runs)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No debit order runs yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($runs as $r): ?>
+            <?php
+              $badge = match ($r['status']) {
+                'Posted' => 'success',
+                'Cancelled' => 'danger',
+                'Processed' => 'info',
+                'Submitted' => 'primary',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($r['run_no']) ?></td>
+              <td><?= e($r['branch_name']) ?></td>
+              <td><?= e($r['debit_month']) ?></td>
+              <td><?= (int) $r['total_accounts'] ?></td>
+              <td><?= format_money($r['total_amount']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($r['run_date']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/debit-order-runs/' . $r['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -10,7 +10,7 @@ class PermissionController extends Controller
 {
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.permissions');
         $this->view('settings/permissions/index', [
             'title' => 'Permissions',
             'groupedPermissions' => (new Permission())->groupedByModule(),

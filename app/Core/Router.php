@@ -64,6 +64,9 @@ class Router
 		}
 
 		if (!$handler) {
+			if ($method === 'GET' && $this->serveStaticFile($path)) {
+				return;
+			}
 			http_response_code(404);
 			View::render('errors/404', [
 				'title' => 'Page Not Found'
@@ -73,5 +76,38 @@ class Router
 
 		[$class, $action] = $handler;
 		(new $class())->$action(...$params);
+	}
+
+	/**
+	 * Fallback for dev servers started with a router script (e.g.
+	 * `php -S -t public public/index.php`), which -- unlike Apache/XAMPP --
+	 * run this router for every request instead of serving real files
+	 * directly. asset()/url() always build paths like "/public/dist/..."
+	 * relative to the project root, so that's exactly where to look
+	 * regardless of which directory the dev server's docroot points at.
+	 */
+	private function serveStaticFile(string $path): bool
+	{
+		if (!str_starts_with($path, '/public/') || str_contains($path, '..')) {
+			return false;
+		}
+
+		$filePath = ROOT_PATH . $path;
+		if (!is_file($filePath)) {
+			return false;
+		}
+
+		static $mimeTypes = [
+			'css' => 'text/css', 'js' => 'application/javascript', 'json' => 'application/json',
+			'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'gif' => 'image/gif',
+			'svg' => 'image/svg+xml', 'ico' => 'image/x-icon', 'woff' => 'font/woff', 'woff2' => 'font/woff2',
+			'ttf' => 'font/ttf', 'eot' => 'application/vnd.ms-fontobject', 'map' => 'application/json',
+		];
+		$ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+		header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
+		header('Content-Length: ' . filesize($filePath));
+		readfile($filePath);
+		return true;
 	}
 }

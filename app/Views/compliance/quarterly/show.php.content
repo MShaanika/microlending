@@ -1,0 +1,90 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($report['status']) {
+    'Approved' => 'success',
+    'Submitted' => 'info',
+    'Rejected' => 'danger',
+    'Generated' => 'primary',
+    default => 'secondary',
+  };
+?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1"><?= e($report['report_name']) ?></h4>
+        <p class="text-muted mb-0"><?= e($report['report_no']) ?> &middot; <?= e($report['period_start']) ?> &rarr; <?= e($report['period_end']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($report['status']) ?></span>
+    </div>
+
+    <hr>
+
+    <div class="row text-center">
+      <div class="col"><div class="text-muted small">Loans</div><div class="fw-bold"><?= (int) $report['total_loans'] ?></div></div>
+      <div class="col"><div class="text-muted small">Principal</div><div class="fw-bold"><?= format_money($report['total_principal']) ?></div></div>
+      <div class="col"><div class="text-muted small">Bad Debts</div><div class="fw-bold"><?= format_money($report['total_bad_debts']) ?></div></div>
+      <div class="col"><div class="text-muted small">Recoveries</div><div class="fw-bold"><?= format_money($report['total_recoveries']) ?></div></div>
+      <div class="col"><div class="text-muted small">NAMFISA Levy</div><div class="fw-bold"><?= format_money($report['total_namfisa_levy']) ?></div></div>
+      <div class="col"><div class="text-muted small">Duty Stamp</div><div class="fw-bold"><?= format_money($report['total_duty_stamp']) ?></div></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <a href="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/download') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-excel"></i> Download Excel</a>
+
+      <?php if ($report['status'] === 'Generated'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/submit') ?>" onsubmit="return confirm('Mark this report as Submitted to NAMFISA?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-info btn-sm"><i class="mdi mdi-send"></i> Mark as Submitted</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($report['status'] === 'Submitted'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/approve') ?>" onsubmit="return confirm('Approve this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/reject') ?>" onsubmit="return confirm('Reject this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-outline-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Line Items</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr><th>Category</th><th>Description</th><th>Gender</th><th>Salary Band</th><th>Loan Size Band</th><th class="text-end">Loans</th><th class="text-end">Principal</th><th class="text-end">Outstanding</th><th class="text-end">Bad Debt</th><th class="text-end">Recovery</th><th class="text-end">Levy</th><th class="text-end">Duty Stamp</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($lines)): ?>
+            <tr><td colspan="12" class="text-center text-muted py-4">No line items.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($lines as $l): ?>
+            <tr>
+              <td><?= e($l['line_category']) ?></td>
+              <td><?= e($l['line_description']) ?: '&mdash;' ?></td>
+              <td><?= e($l['gender']) ?: '&mdash;' ?></td>
+              <td><?= e($l['salary_band']) ?: '&mdash;' ?></td>
+              <td><?= e($l['loan_size_band']) ?: '&mdash;' ?></td>
+              <td class="text-end"><?= (int) $l['loan_count'] ?></td>
+              <td class="text-end"><?= format_money($l['principal_amount']) ?></td>
+              <td class="text-end"><?= format_money($l['outstanding_amount']) ?></td>
+              <td class="text-end"><?= format_money($l['bad_debt_amount']) ?></td>
+              <td class="text-end"><?= format_money($l['recovery_amount']) ?></td>
+              <td class="text-end"><?= format_money($l['levy_amount']) ?></td>
+              <td class="text-end"><?= format_money($l['duty_stamp_amount']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

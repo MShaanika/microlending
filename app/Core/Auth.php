@@ -7,16 +7,25 @@ class Auth
     public static function user(): ?array { return Session::get('user'); }
     public static function requireLogin(): void { if (!self::check()) { header('Location: ' . url('/login')); exit; } }
 
-    /**
-     * Not yet enforced anywhere -- existing controllers still gate on
-     * requireLogin() alone. Available for callers that want to start
-     * checking a specific permission_key from the catalog managed under
-     * Settings > Roles.
-     */
     public static function can(string $permissionKey): bool
     {
         $user = self::user();
         return $user && in_array($permissionKey, $user['permissions'] ?? [], true);
+    }
+
+    /**
+     * requireLogin() + a permission_key check, in one call. Redirects to
+     * the dashboard with a flash error rather than a dedicated 403 page,
+     * matching this app's existing flash-then-redirect convention.
+     */
+    public static function authorize(string $permissionKey): void
+    {
+        self::requireLogin();
+        if (!self::can($permissionKey)) {
+            Session::flash('error', 'You do not have permission to do that.');
+            header('Location: ' . url('/dashboard'));
+            exit;
+        }
     }
 
     public static function attempt(string $login, string $password): bool

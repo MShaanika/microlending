@@ -76,6 +76,9 @@ DROP TABLE IF EXISTS loan_reschedule_schedules;
 DROP TABLE IF EXISTS loan_reschedules;
 DROP TABLE IF EXISTS refund_claim_documents;
 DROP TABLE IF EXISTS refund_claims;
+DROP TABLE IF EXISTS case_escalations;
+DROP TABLE IF EXISTS payment_promises;
+DROP TABLE IF EXISTS collection_contacts;
 DROP TABLE IF EXISTS overdue_notices;
 DROP TABLE IF EXISTS arrears_tracking;
 DROP TABLE IF EXISTS penalties;
@@ -129,6 +132,7 @@ DROP TABLE IF EXISTS companies;
 CREATE TABLE companies (
     id INT AUTO_INCREMENT PRIMARY KEY,
     company_name VARCHAR(150) NOT NULL,
+    brand_name VARCHAR(150),
     registration_no VARCHAR(100),
     namfisa_license_no VARCHAR(100),
     tax_no VARCHAR(100),
@@ -136,6 +140,9 @@ CREATE TABLE companies (
     phone VARCHAR(50),
     address TEXT,
     logo VARCHAR(255),
+    primary_color VARCHAR(7) DEFAULT '#25a9e0',
+    footer_tagline VARCHAR(255) DEFAULT 'Your trusted Loan Manager',
+    favicon VARCHAR(255),
     is_active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -164,6 +171,8 @@ CREATE TABLE users (
     user_type ENUM('Super Admin','Admin','Manager','Loan Officer','Cashier','Accountant','Collector','Borrower') DEFAULT 'Admin',
     is_active TINYINT(1) DEFAULT 1,
     last_login DATETIME NULL,
+    password_reset_token VARCHAR(255) NULL,
+    password_reset_expires DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id)
@@ -316,6 +325,39 @@ CREATE TABLE borrower_bank_details (
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- A point-in-time affordability worksheet snapshot (other income streams
+-- beyond salary, monthly living expenses, existing contractual payments) --
+-- the same breakdown the public application form collects from applicants.
+-- Kept as its own table rather than more borrowers/borrower_employment
+-- columns since it's a re-takeable snapshot (staff re-run this whenever
+-- they reassess a borrower), not a fixed profile attribute.
+CREATE TABLE borrower_affordability (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    borrower_id BIGINT NOT NULL,
+    commission DECIMAL(18,2) DEFAULT 0,
+    pension DECIMAL(18,2) DEFAULT 0,
+    business_income DECIMAL(18,2) DEFAULT 0,
+    groceries DECIMAL(18,2) DEFAULT 0,
+    school_fees DECIMAL(18,2) DEFAULT 0,
+    transport DECIMAL(18,2) DEFAULT 0,
+    home_loan DECIMAL(18,2) DEFAULT 0,
+    home_rental DECIMAL(18,2) DEFAULT 0,
+    credit_card DECIMAL(18,2) DEFAULT 0,
+    personal_loans DECIMAL(18,2) DEFAULT 0,
+    education_loan DECIMAL(18,2) DEFAULT 0,
+    insurance DECIMAL(18,2) DEFAULT 0,
+    car_payments DECIMAL(18,2) DEFAULT 0,
+    cell_phone DECIMAL(18,2) DEFAULT 0,
+    other_credit DECIMAL(18,2) DEFAULT 0,
+    total_income DECIMAL(18,2) DEFAULT 0,
+    total_expenses DECIMAL(18,2) DEFAULT 0,
+    total_installments DECIMAL(18,2) DEFAULT 0,
+    recorded_by INT NULL,
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE,
+    FOREIGN KEY (recorded_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE borrower_documents (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     borrower_id BIGINT NOT NULL,
@@ -391,6 +433,48 @@ CREATE TABLE borrower_statements (
 -- PHASE 3: APPLICATIONS
 -- =========================================================
 
+-- One row per external client website/form that submits applications into
+-- this system (e.g. a client's public "Apply Now" page). Onboarding a new
+-- client with a differently-shaped form is a data change here + in
+-- intake_field_mappings below, not a code change -- mirrors how
+-- document_templates/document_template_fields let a new client's own letter
+-- templates plug in without touching DocumentGenerationService.
+CREATE TABLE intake_sources (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_code VARCHAR(50) NOT NULL UNIQUE,
+    source_name VARCHAR(150) NOT NULL,
+    api_token VARCHAR(100) NOT NULL,
+    allowed_origin VARCHAR(255) NULL,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Maps one intake source's raw form field names onto our canonical
+-- loan_applications columns, or 'extra:<key>' to land in extra_data JSON
+-- for fields with no dedicated column. ApplicationIntakeController reads
+-- these rows to normalize $_POST -- it never hardcodes a client's field
+-- names.
+CREATE TABLE intake_field_mappings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    intake_source_id INT NOT NULL,
+    incoming_field_name VARCHAR(100) NOT NULL,
+    target_field VARCHAR(100) NOT NULL,
+    is_required TINYINT(1) DEFAULT 0,
+    UNIQUE KEY unique_source_field (intake_source_id, incoming_field_name),
+    FOREIGN KEY (intake_source_id) REFERENCES intake_sources(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Lightweight anti-abuse throttle for the public intake endpoint (no
+-- CAPTCHA infra exists yet) -- ApplicationIntakeController counts rows for
+-- the same source+IP in the last hour before accepting a submission.
+CREATE TABLE intake_submission_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    intake_source_id INT NOT NULL,
+    ip_address VARCHAR(50) NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (intake_source_id) REFERENCES intake_sources(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE loan_applications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT NULL,
@@ -428,13 +512,16 @@ CREATE TABLE loan_applications (
     rejected_at DATETIME NULL,
     ip_address VARCHAR(50),
     user_agent TEXT,
+    intake_source_id INT NULL,
+    extra_data JSON NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id),
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
     FOREIGN KEY (screened_by) REFERENCES users(id),
     FOREIGN KEY (approved_by) REFERENCES users(id),
-    FOREIGN KEY (rejected_by) REFERENCES users(id)
+    FOREIGN KEY (rejected_by) REFERENCES users(id),
+    FOREIGN KEY (intake_source_id) REFERENCES intake_sources(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE loan_application_documents (
@@ -594,6 +681,7 @@ CREATE TABLE loans (
     branch_id INT NOT NULL,
     borrower_id BIGINT NOT NULL,
     application_id BIGINT NULL,
+    topup_of_loan_id BIGINT NULL,
     product_id INT NOT NULL,
     plan_id INT NOT NULL,
     loan_no VARCHAR(50) NOT NULL UNIQUE,
@@ -626,6 +714,7 @@ CREATE TABLE loans (
     FOREIGN KEY (branch_id) REFERENCES branches(id),
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
     FOREIGN KEY (application_id) REFERENCES loan_applications(id),
+    FOREIGN KEY (topup_of_loan_id) REFERENCES loans(id),
     FOREIGN KEY (product_id) REFERENCES loan_products(id),
     FOREIGN KEY (plan_id) REFERENCES loan_plans(id),
     FOREIGN KEY (approved_by) REFERENCES users(id),
@@ -1000,6 +1089,58 @@ CREATE TABLE overdue_notices (
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
     FOREIGN KEY (loan_id) REFERENCES loans(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =========================================================
+-- PHASE 6B: COLLECTIONS WORKLIST (contact log / promise to pay / escalation)
+-- =========================================================
+
+CREATE TABLE collection_contacts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loan_id BIGINT NOT NULL,
+    borrower_id BIGINT NOT NULL,
+    contact_method ENUM('Phone Call','SMS','Email','In-Person Visit','WhatsApp') NOT NULL,
+    outcome ENUM('Promised to Pay','No Answer','Disputed Amount','Agreed to Pay','Refused to Pay') NOT NULL,
+    notes TEXT NOT NULL,
+    contacted_by INT NULL,
+    contacted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
+    FOREIGN KEY (contacted_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE payment_promises (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loan_id BIGINT NOT NULL,
+    borrower_id BIGINT NOT NULL,
+    promise_date DATE NOT NULL,
+    expected_amount DECIMAL(18,2) DEFAULT 0,
+    notes TEXT,
+    status ENUM('Pending','Kept','Broken','Cancelled') DEFAULT 'Pending',
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE case_escalations (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loan_id BIGINT NOT NULL,
+    borrower_id BIGINT NOT NULL,
+    escalation_level ENUM('Supervisor','Manager','Legal','Collections Agency') NOT NULL,
+    reason TEXT NOT NULL,
+    status ENUM('Open','Resolved','Cancelled') DEFAULT 'Open',
+    escalated_by INT NULL,
+    escalated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_by INT NULL,
+    resolved_at DATETIME NULL,
+    resolution_notes TEXT,
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
+    FOREIGN KEY (escalated_by) REFERENCES users(id),
+    FOREIGN KEY (resolved_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =========================================================
@@ -1605,6 +1746,33 @@ CREATE TABLE duty_stamp_transactions (
     FOREIGN KEY (duty_stamp_setting_id) REFERENCES duty_stamp_settings(id),
     FOREIGN KEY (journal_id) REFERENCES accounting_journal_entries(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per top-up consolidation event (see TopUpService::consolidate()).
+-- Snapshots the loan/schedule/statutory-charge state as it stood immediately
+-- before the consolidation, so a mistaken top-up can be fully undone --
+-- restoring principal/schedule/term and reversing the incremental journal --
+-- rather than only being correctable by a manual accounting adjustment.
+CREATE TABLE loan_topups (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loan_id BIGINT NOT NULL,
+    topup_amount DECIMAL(18,2) NOT NULL,
+    journal_id BIGINT NULL,
+    disbursement_id BIGINT NULL,
+    previous_loan_snapshot JSON NOT NULL,
+    previous_schedule_snapshot JSON NOT NULL,
+    previous_namfisa_levy_snapshot JSON NULL,
+    previous_duty_stamp_snapshot JSON NULL,
+    status ENUM('Active','Reversed') DEFAULT 'Active',
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reversed_by INT NULL,
+    reversed_at DATETIME NULL,
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (journal_id) REFERENCES accounting_journal_entries(id),
+    FOREIGN KEY (disbursement_id) REFERENCES loan_disbursements(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (reversed_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE loan_breakdown_size_bands (
@@ -2333,14 +2501,112 @@ INSERT INTO document_template_categories (category_name, description, is_active)
 ('Compliance', 'Regulatory and compliance documents.', 1);
 
 INSERT INTO document_templates (category_id, template_code, template_name, template_type, file_type, file_path, description, is_active) VALUES
-(1, 'COMPLETION_LETTER', 'Completion Letter', 'Completion Letter', 'DOCX', 'templates/completion_letter.docx', 'Issued when a borrower completes repayment.', 1),
-(1, 'CONSOLIDATION_ONE_LOAN', 'Consolidation Letter - One Loan', 'Consolidation Letter', 'DOCX', 'templates/consolidation_one_loan.docx', 'Consolidation letter for one selected loan.', 1),
-(1, 'CONSOLIDATION_ALL_LOANS', 'Consolidation Letter - All Client Loans', 'Consolidation Letter', 'DOCX', 'templates/consolidation_all_loans.docx', 'Consolidation letter combining all active client loans.', 1),
-(2, 'REFUND_CLAIM_FORM', 'Refund Claim Form', 'Refund Claim Form', 'DOCX', 'templates/refund_claim_form.docx', 'Form completed for refund claims.', 1),
-(2, 'REFUND_CLAIM_LETTER', 'Refund Claim Letter', 'Refund Claim Letter', 'DOCX', 'templates/refund_claim_letter.docx', 'Letter issued to client for refund claim.', 1),
+(1, 'COMPLETION_LETTER', 'Completion Letter', 'Completion Letter', 'DOCX', 'document_templates/completion_letter.docx', 'Issued when a borrower completes repayment.', 1),
+(1, 'CONSOLIDATION_ONE_LOAN', 'Consolidation Letter - One Loan', 'Consolidation Letter', 'DOCX', 'document_templates/consolidation_one_loan.docx', 'Consolidation letter for one selected loan.', 1),
+(1, 'CONSOLIDATION_ALL_LOANS', 'Consolidation Letter - All Client Loans', 'Consolidation Letter', 'DOCX', 'document_templates/consolidation_all_loans.docx', 'Consolidation letter combining all active client loans.', 1),
+(2, 'REFUND_CLAIM_FORM', 'Refund Claim Form', 'Refund Claim Form', 'DOCX', 'document_templates/refund_claim_form.docx', 'Form completed for refund claims.', 1),
+(2, 'REFUND_CLAIM_LETTER', 'Refund Claim Letter', 'Refund Claim Letter', 'DOCX', 'document_templates/refund_claim_letter.docx', 'Letter issued to client for refund claim.', 1),
 (3, 'DEBIT_ORDER_CANCELLATION', 'Debit Order Cancellation Letter', 'Debit Order Cancellation Letter', 'DOCX', 'templates/debit_order_cancellation.docx', 'Letter for cancelling debit order instruction.', 1),
 (4, 'LOAN_RESCHEDULE_LETTER', 'Loan Reschedule Letter', 'Loan Reschedule Letter', 'DOCX', 'templates/loan_reschedule_letter.docx', 'Letter confirming approved loan reschedule.', 1),
 (5, 'STATEMENT_OF_ACCOUNT', 'Statement of Account', 'Statement of Account', 'DOCX', 'templates/statement_of_account.docx', 'Borrower statement of account.', 1);
+
+-- Placeholder -> data-source mapping for the template merge engine (see
+-- App\Services\DocumentGenerationService). Onboarding a new client's own
+-- letter wording is a matter of uploading their .docx (using the same
+-- ${PLACEHOLDER} keys) and adjusting these mappings -- not a code change.
+INSERT INTO document_template_fields (template_id, field_key, field_label, source_table, source_column, is_required) VALUES
+(1, 'CLIENT_NAME', 'Client Name', 'computed', 'client_name', 1),
+(1, 'ID_NUMBER', 'ID Number', 'borrowers', 'id_number', 1),
+(1, 'CURRENT_DATE', 'Current Date', 'computed', 'current_date', 1),
+(1, 'CLEARED_BALANCE', 'Cleared Balance', 'computed', 'cleared_balance', 1),
+(1, 'WORDS', 'Cleared Balance in Words', 'computed', 'cleared_balance_words', 1),
+(2, 'CLIENT_NAME', 'Client Name', 'computed', 'client_name', 1),
+(2, 'ID_NUMBER', 'ID Number', 'borrowers', 'id_number', 1),
+(2, 'OUTSTANDING_BALANCE', 'Outstanding Balance', 'computed', 'outstanding_balance', 1),
+(2, 'WORDS', 'Outstanding Balance in Words', 'computed', 'outstanding_balance_words', 1),
+(2, 'TRANSACTION_TABLE', 'Transaction History Table', 'computed', 'transaction_table', 0),
+(2, 'LOAN_END_DATE', 'Loan End Date', 'computed', 'loan_end_date', 1),
+(3, 'CLIENT_NAME', 'Client Name', 'computed', 'client_name', 1),
+(3, 'ID_NUMBER', 'ID Number', 'borrowers', 'id_number', 1),
+(3, 'OUTSTANDING_BALANCE', 'Outstanding Balance', 'computed', 'outstanding_balance', 1),
+(3, 'WORDS', 'Outstanding Balance in Words', 'computed', 'outstanding_balance_words', 1),
+(3, 'LOAN_END_DATE', 'Loan End Date', 'computed', 'loan_end_date', 1),
+(4, 'CLIENT_NAME', 'Client Name', 'computed', 'client_name', 1),
+(4, 'CONTACT_NUMBER', 'Contact Number', 'borrowers', 'phone', 0),
+(4, 'CURRENT_DATE', 'Current Date', 'computed', 'current_date', 1),
+(4, 'ID_NUMBER', 'ID Number', 'borrowers', 'id_number', 1),
+(4, 'LOAN_REF', 'Loan Reference', 'loans', 'loan_no', 0),
+(4, 'PRINCIPLE_AMOUNT', 'Principal Amount', 'loans', 'principal_amount', 0),
+(4, 'REFUND_AMOUNT', 'Refund Amount', 'computed', 'refund_amount', 1),
+(4, 'REFUND_AMOUNT_WORDS', 'Refund Amount in Words', 'computed', 'refund_amount_words', 1),
+(4, 'RESAON', 'Reason', 'refund_claims', 'reason', 1),
+(5, 'AMOUNT_CLAIMED', 'Amount Claimed', 'refund_claims', 'claim_amount', 1),
+(5, 'AMOUNT_PROCESSED', 'Amount Processed', 'refund_claims', 'approved_amount', 1),
+(5, 'CLIENT_NAME', 'Client Name', 'computed', 'client_name', 1),
+(5, 'DATE_CREATED', 'Date Created', 'refund_claims', 'claim_date', 1),
+(5, 'TOTAL_REPAYMENT', 'Total Repayment', 'loans', 'total_payable', 0);
+
+-- Solid Desert Cash Loan Express's public "Apply Now" website form posts
+-- these exact field names today (via its own legacy PHP backend). This
+-- mapping lets ApplicationIntakeController accept that form's POST as-is
+-- once its submit URL is repointed at /api/applications/solid-desert --
+-- no changes needed on the client's website. IMPORTANT: rotate api_token
+-- to a real secret before this goes live; the seeded value is a placeholder.
+INSERT INTO intake_sources (source_code, source_name, api_token, allowed_origin, is_active) VALUES
+('solid-desert', 'Solid Desert Cash Loan Express cc', 'CHANGE_ME_ROTATE_BEFORE_LIVE_7f3a9c2e1b', 'https://solid-desert.com', 1);
+
+INSERT INTO intake_field_mappings (intake_source_id, incoming_field_name, target_field, is_required) VALUES
+(1, 'firstname', 'applicant_first_name', 1),
+(1, 'lastname', 'applicant_last_name', 1),
+(1, 'id_number', 'applicant_id_number', 1),
+(1, 'gender', 'applicant_gender', 0),
+(1, 'marital_status', 'extra:marital_status', 0),
+(1, 'account_no', 'extra:account_no', 0),
+(1, 'address', 'applicant_address', 0),
+(1, 'postal_address', 'extra:postal_address', 0),
+(1, 'salary', 'net_salary', 0),
+(1, 'commission', 'extra:commission', 0),
+(1, 'pension', 'extra:pension', 0),
+(1, 'business_income', 'extra:business_income', 0),
+(1, 'groceries', 'extra:groceries', 0),
+(1, 'school_fees', 'extra:school_fees', 0),
+(1, 'transport', 'extra:transport', 0),
+(1, 'home_loan', 'extra:home_loan', 0),
+(1, 'home_rental', 'extra:home_rental', 0),
+(1, 'credit_card', 'extra:credit_card', 0),
+(1, 'personal_loans', 'extra:personal_loans', 0),
+(1, 'education_loan', 'extra:education_loan', 0),
+(1, 'insurance', 'extra:insurance', 0),
+(1, 'car_payments', 'extra:car_payments', 0),
+(1, 'cell_phone', 'extra:cell_phone', 0),
+(1, 'other_credit', 'extra:other_credit', 0),
+(1, 'occupation', 'extra:occupation', 0),
+(1, 'employee_number', 'employee_no', 0),
+(1, 'company_name', 'employer_name', 0),
+(1, 'company_tel', 'extra:company_tel', 0),
+(1, 'gross_salary', 'gross_salary', 1),
+(1, 'payment_day', 'payment_day', 0),
+(1, 'employer_address', 'extra:employer_address', 0),
+(1, 'contact_no', 'applicant_phone', 1),
+(1, 'email', 'applicant_email', 1),
+(1, 'relative_contact', 'extra:relative_contact', 0),
+(1, 'bank_name', 'bank_name', 0),
+(1, 'bank_branch', 'extra:bank_branch_name', 0),
+(1, 'account_number', 'bank_account_number', 0),
+(1, 'account_type', 'extra:account_type', 0),
+(1, 'ref1_name', 'extra:ref1_name', 0),
+(1, 'ref1_tel', 'extra:ref1_tel', 0),
+(1, 'ref2_name', 'extra:ref2_name', 0),
+(1, 'ref2_tel', 'extra:ref2_tel', 0),
+(1, 'loan_types', 'requested_purpose', 0),
+(1, 'loan_amount', 'requested_amount', 1),
+(1, 'num_installments', 'requested_term_months', 1),
+(1, 'first_due_date', 'extra:first_due_date', 0),
+(1, 'last_due_date', 'extra:last_due_date', 0),
+(1, 'signing_place', 'extra:signing_place', 0),
+(1, 'signing_day', 'extra:signing_day', 0),
+(1, 'signing_month', 'extra:signing_month', 0),
+(1, 'signing_year', 'extra:signing_year', 0);
 
 INSERT INTO expense_categories (category_name, account_id, description, is_active) VALUES
 ('Bank Charges', (SELECT id FROM accounting_accounts WHERE account_code='5020'), 'Bank related charges.', 1),

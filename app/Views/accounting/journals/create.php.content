@@ -28,7 +28,7 @@
       </div>
 
       <div class="table-responsive">
-        <table class="table table-sm" id="lines-table">
+        <table class="table table-sm no-datatable" id="lines-table">
           <thead><tr><th>Account</th><th>Line Description</th><th style="width:140px;">Debit</th><th style="width:140px;">Credit</th><th></th></tr></thead>
           <tbody id="lines-body"></tbody>
           <tfoot>

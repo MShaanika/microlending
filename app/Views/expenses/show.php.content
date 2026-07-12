@@ -1,0 +1,151 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($expense['status']) {
+    'Paid' => 'success',
+    'Rejected', 'Cancelled' => 'danger',
+    'Approved' => 'info',
+    'Pending Approval' => 'warning',
+    default => 'secondary',
+  };
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title mb-1"><?= e($expense['expense_no']) ?></h4>
+          <span class="badge bg-<?= $badge ?>"><?= e($expense['status']) ?></span>
+        </div>
+        <p class="text-muted small mb-2"><?= e($expense['category_name']) ?> &bull; <?= e($expense['branch_name']) ?></p>
+        <hr>
+        <p class="mb-1"><strong>Date:</strong> <?= e(date('d M Y', strtotime($expense['expense_date']))) ?></p>
+        <p class="mb-1"><strong>Supplier:</strong> <?= e($expense['supplier_name']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><strong>Reference:</strong> <?= e($expense['reference_no']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><strong>Amount:</strong> <?= format_money($expense['amount']) ?></p>
+        <p class="mb-1"><strong>Tax:</strong> <?= format_money($expense['tax_amount']) ?></p>
+        <p class="mb-1"><strong>Total:</strong> <?= format_money($expense['total_amount']) ?></p>
+        <p class="mb-0"><strong>Description:</strong> <?= e($expense['description']) ?></p>
+        <?php if ($expense['rejection_reason']): ?>
+          <p class="mt-2 mb-0 text-danger"><strong>Rejection Reason:</strong> <?= e($expense['rejection_reason']) ?></p>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-cog me-1"></i> Actions</h4>
+
+        <?php if ($expense['status'] === 'Draft'): ?>
+          <div class="d-flex gap-2 flex-wrap">
+            <a href="<?= url('/expenses/' . $expense['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/submit') ?>" onsubmit="return confirm('Submit this expense for approval?');">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-info"><i class="mdi mdi-send"></i> Submit for Approval</button>
+            </form>
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this draft expense?');">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i> Cancel</button>
+            </form>
+          </div>
+        <?php endif; ?>
+
+        <?php if ($expense['status'] === 'Pending Approval'): ?>
+          <div class="d-flex gap-2 flex-wrap">
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/approve') ?>" onsubmit="return confirm('Approve this expense?');">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> Approve</button>
+            </form>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this expense request?');">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Withdraw</button>
+            </form>
+          </div>
+          <div class="collapse mt-2" id="rejectForm">
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/reject') ?>">
+              <?= csrf_field() ?>
+              <textarea name="rejection_reason" class="form-control form-control-sm mb-2" rows="2" placeholder="Reason (required)" required></textarea>
+              <button type="submit" class="btn btn-sm btn-danger w-100">Confirm Rejection</button>
+            </form>
+          </div>
+        <?php endif; ?>
+
+        <?php if ($expense['status'] === 'Approved'): ?>
+          <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/pay') ?>" onsubmit="return confirm('Pay this expense? This posts a real accounting journal entry.');">
+            <?= csrf_field() ?>
+            <label class="form-label small">Payment Method</label>
+            <select name="payment_method_id" class="form-select form-select-sm mb-2">
+              <option value="">Select method</option>
+              <?php foreach ($paymentMethods as $pm): ?>
+                <option value="<?= (int) $pm['id'] ?>"><?= e($pm['method_name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <label class="form-label small">Paid From (Bank Account)</label>
+            <select name="bank_account_id" class="form-select form-select-sm mb-2">
+              <option value="">Default / Cash</option>
+              <?php foreach ($bankAccounts as $ba): ?>
+                <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <button type="submit" class="btn btn-sm btn-success w-100"><i class="mdi mdi-cash-check"></i> Pay <?= format_money($expense['total_amount']) ?></button>
+          </form>
+        <?php endif; ?>
+
+        <?php if ($expense['status'] === 'Paid'): ?>
+          <p class="mb-1 text-muted small">Paid on <?= e(date('d M Y', strtotime($expense['paid_at']))) ?></p>
+          <?php if ($expense['journal_id']): ?>
+            <a href="<?= url('/accounting/journals/' . $expense['journal_id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-book-open-variant"></i> View Journal</a>
+          <?php endif; ?>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-file-document me-1"></i> Attachments</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead><tr><th>File</th><th>Uploaded</th><th class="text-end">Action</th></tr></thead>
+            <tbody>
+              <?php if (empty($attachments)): ?>
+                <tr><td colspan="3" class="text-center text-muted py-3">No attachments.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($attachments as $a): ?>
+                <tr>
+                  <td><?= e($a['attachment_name'] ?: $a['attachment_type']) ?></td>
+                  <td><?= e(date('d M Y', strtotime($a['uploaded_at']))) ?></td>
+                  <td class="text-end">
+                    <a href="<?= url('/expenses/' . $expense['id'] . '/attachments/' . $a['id']) ?>" target="_blank" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i></a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Approval History</h4>
+        <ul class="list-unstyled mb-0">
+          <?php if (empty($approvals)): ?>
+            <li class="text-muted">No approval decisions recorded yet.</li>
+          <?php endif; ?>
+          <?php foreach ($approvals as $ap): ?>
+            <li class="mb-2 pb-2 border-bottom">
+              <span class="badge bg-<?= $ap['status'] === 'Approved' ? 'success' : 'danger' ?>"><?= e($ap['status']) ?></span>
+              by <?= e($ap['approver_name'] ?: 'Unknown') ?>
+              <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($ap['actioned_at']))) ?></span>
+              <?php if ($ap['comments']): ?><br><span class="text-muted"><?= e($ap['comments']) ?></span><?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,109 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h4 class="card-title mb-0">Email (SMTP)</h4>
+          <span class="badge bg-<?= $emailConfigured ? 'success' : 'secondary' ?>"><?= $emailConfigured ? 'Configured' : 'Not Configured' ?></span>
+        </div>
+        <p class="text-muted small">Credentials are stored in the database and never displayed again once saved -- leave the password blank to keep the current one.</p>
+
+        <form method="post" action="<?= url('/notifications/settings/email') ?>" class="row g-2 mb-3">
+          <?= csrf_field() ?>
+          <div class="col-md-8">
+            <label class="form-label small mb-0">SMTP Host</label>
+            <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e($email['SMTP_HOST'] ?? '') ?>" placeholder="smtp.example.com">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-0">Port</label>
+            <input type="number" name="smtp_port" class="form-control form-control-sm" value="<?= e($email['SMTP_PORT'] ?? '587') ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Encryption</label>
+            <?php $enc = $email['SMTP_ENCRYPTION'] ?? 'tls'; ?>
+            <select name="smtp_encryption" class="form-select form-select-sm">
+              <?php foreach (['tls' => 'TLS (STARTTLS)', 'ssl' => 'SSL', 'none' => 'None'] as $val => $label): ?>
+                <option value="<?= $val ?>" <?= $enc === $val ? 'selected' : '' ?>><?= $label ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Username</label>
+            <input type="text" name="smtp_username" class="form-control form-control-sm" value="<?= e($email['SMTP_USERNAME'] ?? '') ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Password</label>
+            <input type="password" name="smtp_password" class="form-control form-control-sm" value="" placeholder="<?= !empty($email['SMTP_PASSWORD']) ? 'Leave blank to keep current password' : 'Not set' ?>">
+          </div>
+          <div class="col-md-6"></div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">From Email</label>
+            <input type="email" name="smtp_from_email" class="form-control form-control-sm" value="<?= e($email['SMTP_FROM_EMAIL'] ?? '') ?>" placeholder="noreply@example.com">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">From Name</label>
+            <input type="text" name="smtp_from_name" class="form-control form-control-sm" value="<?= e($email['SMTP_FROM_NAME'] ?? 'DesertLedger') ?>">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Email Settings</button>
+          </div>
+        </form>
+
+        <h6 class="mb-2">Send Test Email</h6>
+        <form method="post" action="<?= url('/notifications/settings/email/test') ?>" class="row g-2">
+          <?= csrf_field() ?>
+          <div class="col-md-8">
+            <input type="email" name="test_recipient" class="form-control form-control-sm" placeholder="you@example.com" required>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-email-fast-outline"></i> Send Test</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h4 class="card-title mb-0">SMS (Twilio)</h4>
+          <span class="badge bg-<?= $smsConfigured ? 'success' : 'secondary' ?>"><?= $smsConfigured ? 'Configured' : 'Not Configured' ?></span>
+        </div>
+        <p class="text-muted small">Get your Account SID, Auth Token and a From number from your Twilio console -- leave the token blank to keep the current one.</p>
+
+        <form method="post" action="<?= url('/notifications/settings/sms') ?>" class="row g-2 mb-3">
+          <?= csrf_field() ?>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">Account SID</label>
+            <input type="text" name="twilio_account_sid" class="form-control form-control-sm" value="<?= e($sms['TWILIO_ACCOUNT_SID'] ?? '') ?>" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          </div>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">Auth Token</label>
+            <input type="password" name="twilio_auth_token" class="form-control form-control-sm" value="" placeholder="<?= !empty($sms['TWILIO_AUTH_TOKEN']) ? 'Leave blank to keep current token' : 'Not set' ?>">
+          </div>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">From Number</label>
+            <input type="text" name="twilio_from_number" class="form-control form-control-sm" value="<?= e($sms['TWILIO_FROM_NUMBER'] ?? '') ?>" placeholder="+15555550100">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save SMS Settings</button>
+          </div>
+        </form>
+
+        <h6 class="mb-2">Send Test SMS</h6>
+        <form method="post" action="<?= url('/notifications/settings/sms/test') ?>" class="row g-2">
+          <?= csrf_field() ?>
+          <div class="col-md-8">
+            <input type="text" name="test_recipient" class="form-control form-control-sm" placeholder="+264811234567" required>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-message-fast-outline"></i> Send Test</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

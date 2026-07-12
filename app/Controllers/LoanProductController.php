@@ -20,7 +20,7 @@ class LoanProductController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.view');
         $this->view('loan_products/index', [
             'title' => 'Loan Products',
             'products' => $this->products->allWithPlans(),
@@ -29,7 +29,7 @@ class LoanProductController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.edit');
         $this->view('loan_products/create', [
             'title' => 'Add Loan Product',
             'old' => [],
@@ -39,7 +39,7 @@ class LoanProductController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.edit');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -96,7 +96,7 @@ class LoanProductController extends Controller
 
     public function addPlan(string $productId): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.edit');
         $productId = (int) $productId;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

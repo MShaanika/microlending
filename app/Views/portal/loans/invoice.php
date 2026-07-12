@@ -22,6 +22,7 @@ use App\Core\Session;
 
 <div class="no-print mb-3">
   <button class="btn btn-info" onclick="window.print()"><i class="mdi mdi-printer"></i> Print / Save as PDF</button>
+  <a href="<?= url('/portal/loans/' . $loan['id'] . '/statement.xlsx') ?>" class="btn btn-outline-success"><i class="mdi mdi-file-excel"></i> Download Excel</a>
   <a href="<?= url('/portal/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Back to Loan</a>
 </div>
 
@@ -91,6 +92,31 @@ use App\Core\Session;
   </tfoot>
 </table>
 <p class="text-muted small mt-2">NAMFISA Levy and Duty Stamp are statutory charges remitted to the relevant Namibian authorities and are included in your total repayable amount.</p>
+
+<h4 class="mt-4">Transaction History</h4>
+<table class="table table-bordered invoice-table">
+  <thead class="table-light">
+    <tr><th>Date</th><th>Type</th><th>Description</th><th class="text-end">Charged</th><th class="text-end">Paid</th><th class="text-end">Balance</th></tr>
+  </thead>
+  <tbody>
+    <?php foreach ($ledger['events'] as $event): ?>
+      <tr>
+        <td><?= e($event['date'] ?: '-') ?></td>
+        <td><?= e($event['type']) ?></td>
+        <td><?= e($event['description']) ?></td>
+        <td class="text-end"><?= $event['debit'] > 0 ? format_money($event['debit']) : '' ?></td>
+        <td class="text-end"><?= $event['credit'] > 0 ? format_money($event['credit']) : '' ?></td>
+        <td class="text-end"><?= format_money($event['balance']) ?></td>
+      </tr>
+    <?php endforeach; ?>
+  </tbody>
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="5" class="text-end">Closing Balance</td>
+      <td class="text-end"><?= format_money($ledger['closing_balance']) ?></td>
+    </tr>
+  </tfoot>
+</table>
 
 <p class="text-muted small mt-4">This is a system-generated statement and does not require a signature.</p>
 

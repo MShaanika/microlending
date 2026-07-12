@@ -32,7 +32,45 @@
         <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
         <p class="mb-3"><strong>Collected so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
 
+        <?php if (!empty($originalLoan)): ?>
+          <p class="mb-1"><i class="mdi mdi-arrow-up-bold-circle-outline text-info"></i> Top-up of loan
+            <a href="<?= url('/loans/' . $originalLoan['id']) ?>"><?= e($originalLoan['loan_no']) ?></a></p>
+        <?php endif; ?>
+        <?php if (!empty($topups)): ?>
+          <p class="mb-1"><i class="mdi mdi-arrow-down-bold-circle-outline text-info"></i> Topped up by:
+            <?php foreach ($topups as $t): ?>
+              <a href="<?= url('/loans/' . $t['id']) ?>"><?= e($t['loan_no']) ?></a><?= $t !== end($topups) ? ', ' : '' ?>
+            <?php endforeach; ?>
+          </p>
+        <?php endif; ?>
+
+        <?php if (!empty($latestTopup)): ?>
+          <div class="alert alert-<?= $latestTopupReversible ? 'warning' : 'secondary' ?> py-2 px-3 mt-2 mb-0">
+            <div class="small mb-1">
+              This loan was topped up by <?= format_money($latestTopup['topup_amount']) ?> on
+              <?= e(date('d M Y', strtotime($latestTopup['created_at']))) ?> (consolidated into this loan).
+            </div>
+            <?php if ($latestTopupReversible): ?>
+              <form method="post" action="<?= url('/loan-topups/' . $latestTopup['id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this top-up? The incremental journal will be reversed and the loan restored to its principal, schedule and term from before the top-up.');">
+                <?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger"><i class="mdi mdi-undo"></i> Reverse Top-up</button>
+              </form>
+            <?php else: ?>
+              <span class="small text-muted">Can no longer be reversed -- a payment has been recorded against this loan since the top-up.</span>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+
         <div class="d-flex gap-2 flex-wrap">
+          <a href="<?= url('/loans/' . $loan['id'] . '/statement') ?>" target="_blank" class="btn btn-outline-info btn-sm"><i class="mdi mdi-receipt"></i> Statement of Account</a>
+          <a href="<?= url('/notifications/compose?borrower_id=' . $loan['borrower_id'] . '&loan_id=' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bell-ring-outline"></i> Notify Borrower</a>
+
+          <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
+            <a href="<?= url('/loans/' . $loan['id'] . '/reschedule') ?>" class="btn btn-outline-warning btn-sm"><i class="mdi mdi-calendar-sync"></i> Reschedule</a>
+            <a href="<?= url('/loans/' . $loan['id'] . '/debit-orders/create') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bank"></i> Register Debit Order</a>
+            <a href="<?= url('/loans/create?borrower_id=' . $loan['borrower_id'] . '&loan_mode=topup&existing_loan_id=' . $loan['id']) ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-cash-plus"></i> Top Up This Loan</a>
+          <?php endif; ?>
+
           <?php if ($loan['loan_status'] === 'Pending Approval'): ?>
             <form method="post" action="<?= url('/loans/' . $loan['id'] . '/approve') ?>" onsubmit="return confirm('Approve this loan?');">
               <?= csrf_field() ?>

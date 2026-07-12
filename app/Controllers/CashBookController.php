@@ -20,7 +20,7 @@ class CashBookController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.cashbook');
 
         $cashBankAccounts = $this->accounts->cashBankAccounts();
         $accountId = (int) ($_GET['account_id'] ?? ($cashBankAccounts[0]['id'] ?? 0));

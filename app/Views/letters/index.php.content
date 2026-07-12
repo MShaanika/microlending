@@ -2,8 +2,11 @@
 
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-3">Borrower Letter Requests</h4>
-    <p class="text-muted small">Consolidation and completion letters requested via the portal. Prepare the letter on official letterhead outside the system, then upload the final PDF here &mdash; the borrower can then download it from their portal.</p>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Borrower Letter Requests</h4>
+      <a href="<?= url('/letters/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Generate Letter</a>
+    </div>
+    <p class="text-muted small">Completion and Consolidation letters, either requested by a borrower via their portal or started directly here. For each pending request, either click <strong>Generate Automatically</strong> to fill the template from the loan/borrower data, or prepare the letter on letterhead yourself and upload the final PDF.</p>
 
     <form method="get" action="<?= url('/letters') ?>" class="row g-2 mb-3">
       <div class="col-md-3">
@@ -45,13 +48,19 @@
               <td><?= e(date('d M Y', strtotime($d['generated_at']))) ?></td>
               <td class="text-end">
                 <?php if ($d['status'] === 'Draft'): ?>
-                  <form method="post" action="<?= url('/letters/' . $d['id'] . '/fulfill') ?>" enctype="multipart/form-data" class="d-flex gap-1 justify-content-end">
-                    <?= csrf_field() ?>
-                    <input type="file" name="letter_file" accept=".pdf" class="form-control form-control-sm" style="max-width:200px;" required>
-                    <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-upload"></i> Upload</button>
-                  </form>
+                  <div class="d-flex gap-1 justify-content-end flex-wrap">
+                    <form method="post" action="<?= url('/letters/' . $d['id'] . '/generate') ?>">
+                      <?= csrf_field() ?>
+                      <button type="submit" class="btn btn-sm btn-info"><i class="mdi mdi-auto-fix"></i> Generate Automatically</button>
+                    </form>
+                    <form method="post" action="<?= url('/letters/' . $d['id'] . '/fulfill') ?>" enctype="multipart/form-data" class="d-flex gap-1 justify-content-end">
+                      <?= csrf_field() ?>
+                      <input type="file" name="letter_file" accept=".pdf" class="form-control form-control-sm" style="max-width:180px;" required>
+                      <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-upload"></i> Upload</button>
+                    </form>
+                  </div>
                 <?php elseif ($d['file_path']): ?>
-                  <span class="text-success small"><i class="mdi mdi-check"></i> Fulfilled</span>
+                  <a href="<?= url('/letters/' . $d['id'] . '/download') ?>" class="btn btn-sm btn-outline-success" target="_blank"><i class="mdi mdi-download"></i> Download</a>
                 <?php endif; ?>
               </td>
             </tr>

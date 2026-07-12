@@ -148,4 +148,27 @@ class Loan extends Model
             [$loanId, $borrowerId]
         );
     }
+
+    /**
+     * Active/Current loans grouped by borrower, for the Top-up "existing
+     * active loan" picker on loan creation.
+     */
+    public function activeLoansForTopup(): array
+    {
+        return $this->all(
+            "SELECT id, loan_no, borrower_id, principal_amount, start_date
+             FROM loans WHERE loan_status IN ('Active','Current') ORDER BY id DESC"
+        );
+    }
+
+    public function topupsOf(int $loanId): array
+    {
+        return $this->all(
+            "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+             FROM loans l
+             JOIN borrowers b ON b.id = l.borrower_id
+             WHERE l.topup_of_loan_id = ? ORDER BY l.id DESC",
+            [$loanId]
+        );
+    }
 }

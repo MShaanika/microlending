@@ -1,0 +1,59 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body text-center">
+    <i class="mdi mdi-check-circle-outline text-success" style="font-size: 3rem;"></i>
+    <h4 class="card-title mt-2">Top-up Loan Created</h4>
+    <p class="text-muted">
+      <?= e($loan['loan_no']) ?> was created as a separate loan linked to
+      <?php if ($originalLoan): ?>
+        <a href="<?= url('/loans/' . $originalLoan['id']) ?>"><?= e($originalLoan['loan_no']) ?></a>.
+      <?php else: ?>
+        the original loan.
+      <?php endif; ?>
+      It will follow the normal approval &rarr; release flow like any other loan.
+    </p>
+  </div>
+</div>
+
+<div class="row mt-3">
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Original Loan</h5>
+        <?php if ($originalLoan): ?>
+          <p class="mb-1"><strong><?= e($originalLoan['loan_no']) ?></strong></p>
+          <p class="mb-1 text-muted small">Principal: <?= format_money($originalLoan['principal_amount']) ?></p>
+          <p class="mb-1 text-muted small">Status: <?= e($originalLoan['loan_status']) ?></p>
+          <a href="<?= url('/loans/' . $originalLoan['id']) ?>" class="btn btn-sm btn-outline-secondary mt-2">View Loan</a>
+        <?php else: ?>
+          <p class="text-muted">Not available.</p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">New Top-up Loan</h5>
+        <p class="mb-1"><strong><?= e($loan['loan_no']) ?></strong></p>
+        <p class="mb-1 text-muted small">Principal: <?= format_money($loan['principal_amount']) ?></p>
+        <p class="mb-1 text-muted small">Status: <?= e($loan['loan_status']) ?></p>
+        <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-sm btn-outline-secondary mt-2">View Loan</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Reschedule the original loan?</h5>
+    <p class="text-muted small">Since the borrower now has two active loans, you may want to spread out the original loan's remaining installments to ease the combined repayment load.</p>
+    <div class="d-flex gap-2 flex-wrap">
+      <?php if ($originalLoan): ?>
+        <a href="<?= url('/loans/' . $originalLoan['id'] . '/reschedule') ?>" class="btn btn-warning btn-sm"><i class="mdi mdi-calendar-sync"></i> Reschedule the Original Loan Now</a>
+      <?php endif; ?>
+      <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm">No, That's Fine</a>
+    </div>
+  </div>
+</div>

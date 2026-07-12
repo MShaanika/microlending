@@ -1,0 +1,193 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Collections Case &mdash; <?= e($loan['loan_no']) ?></h4>
+        <p class="text-muted small mb-0"><?= e($loan['borrower_name']) ?> &bull; <?= e($loan['borrower_phone'] ?? '') ?></p>
+      </div>
+      <a href="<?= url('/collections/worklist') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-arrow-left"></i> Back to Worklist</a>
+    </div>
+
+    <div class="row text-center mt-3">
+      <div class="col-md-3">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Days Overdue</div>
+          <div class="fs-5 fw-bold"><?= (int) $outstanding['days_in_arrears'] ?></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Aging Bucket</div>
+          <div class="fs-5 fw-bold"><?= e($outstanding['aging_bucket']) ?></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Outstanding</div>
+          <div class="fs-5 fw-bold"><?= e(format_money($outstanding['outstanding_balance'])) ?></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-primary mt-2">View Full Loan</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-phone"></i> Log Contact</h5>
+        <form method="post" action="<?= url('/collections/contacts') ?>">
+          <?= csrf_field() ?>
+          <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
+          <div class="mb-2">
+            <label class="form-label small">Method</label>
+            <select name="contact_method" class="form-select form-select-sm">
+              <option>Phone Call</option>
+              <option>SMS</option>
+              <option>Email</option>
+              <option>In-Person Visit</option>
+              <option>WhatsApp</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Outcome</label>
+            <select name="outcome" class="form-select form-select-sm">
+              <option>Promised to Pay</option>
+              <option>No Answer</option>
+              <option>Disputed Amount</option>
+              <option>Agreed to Pay</option>
+              <option>Refused to Pay</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Notes <span class="text-danger">*</span></label>
+            <textarea name="notes" rows="3" class="form-control form-control-sm" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-info w-100">Log Contact</button>
+        </form>
+
+        <hr>
+        <h6 class="small text-muted">History</h6>
+        <?php if (empty($contacts)): ?>
+          <p class="text-muted small">No contacts logged yet.</p>
+        <?php endif; ?>
+        <?php foreach ($contacts as $c): ?>
+          <div class="border-bottom py-2 small">
+            <div class="d-flex justify-content-between">
+              <strong><?= e($c['contact_method']) ?></strong>
+              <span class="text-muted"><?= e($c['contacted_at']) ?></span>
+            </div>
+            <div>Outcome: <span class="badge bg-light text-dark"><?= e($c['outcome']) ?></span></div>
+            <div><?= nl2br(e($c['notes'])) ?></div>
+            <div class="text-muted">by <?= e($c['contacted_by_name'] ?? 'Unknown') ?></div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-calendar-check"></i> Promise to Pay</h5>
+        <form method="post" action="<?= url('/collections/promises') ?>">
+          <?= csrf_field() ?>
+          <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
+          <div class="mb-2">
+            <label class="form-label small">Promise Date <span class="text-danger">*</span></label>
+            <input type="date" name="promise_date" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Expected Amount</label>
+            <input type="number" step="0.01" min="0" name="expected_amount" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Notes</label>
+            <textarea name="notes" rows="2" class="form-control form-control-sm"></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-info w-100">Record Promise</button>
+        </form>
+
+        <hr>
+        <h6 class="small text-muted">History</h6>
+        <?php if (empty($promises)): ?>
+          <p class="text-muted small">No promises recorded yet.</p>
+        <?php endif; ?>
+        <?php foreach ($promises as $p): ?>
+          <div class="border-bottom py-2 small">
+            <div class="d-flex justify-content-between">
+              <strong>Due <?= e($p['promise_date']) ?></strong>
+              <span class="badge bg-<?= $p['status'] === 'Kept' ? 'success' : ($p['status'] === 'Broken' ? 'danger' : ($p['status'] === 'Cancelled' ? 'secondary' : 'info text-dark')) ?>"><?= e($p['status']) ?></span>
+            </div>
+            <div>Expected: <?= e(format_money($p['expected_amount'])) ?></div>
+            <?php if ($p['notes']): ?><div><?= nl2br(e($p['notes'])) ?></div><?php endif; ?>
+            <?php if ($p['status'] === 'Pending'): ?>
+              <form method="post" action="<?= url('/collections/promises/' . $p['id']) ?>" class="d-flex gap-1 mt-1">
+                <?= csrf_field() ?>
+                <button type="submit" name="status" value="Kept" class="btn btn-xs btn-outline-success">Kept</button>
+                <button type="submit" name="status" value="Broken" class="btn btn-xs btn-outline-danger">Broken</button>
+                <button type="submit" name="status" value="Cancelled" class="btn btn-xs btn-outline-secondary">Cancel</button>
+              </form>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-alert"></i> Escalation</h5>
+        <form method="post" action="<?= url('/collections/escalations') ?>">
+          <?= csrf_field() ?>
+          <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
+          <div class="mb-2">
+            <label class="form-label small">Escalate To</label>
+            <select name="escalation_level" class="form-select form-select-sm">
+              <option>Supervisor</option>
+              <option>Manager</option>
+              <option>Legal</option>
+              <option>Collections Agency</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Reason <span class="text-danger">*</span></label>
+            <textarea name="reason" rows="3" class="form-control form-control-sm" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-danger w-100" onclick="return confirm('Escalate this case?');">Escalate</button>
+        </form>
+
+        <hr>
+        <h6 class="small text-muted">History</h6>
+        <?php if (empty($escalations)): ?>
+          <p class="text-muted small">No escalations yet.</p>
+        <?php endif; ?>
+        <?php foreach ($escalations as $esc): ?>
+          <div class="border-bottom py-2 small">
+            <div class="d-flex justify-content-between">
+              <strong><?= e($esc['escalation_level']) ?></strong>
+              <span class="badge bg-<?= $esc['status'] === 'Open' ? 'danger' : ($esc['status'] === 'Resolved' ? 'success' : 'secondary') ?>"><?= e($esc['status']) ?></span>
+            </div>
+            <div><?= nl2br(e($esc['reason'])) ?></div>
+            <div class="text-muted">by <?= e($esc['escalated_by_name'] ?? 'Unknown') ?> on <?= e($esc['escalated_at']) ?></div>
+            <?php if ($esc['status'] === 'Open'): ?>
+              <form method="post" action="<?= url('/collections/escalations/' . $esc['id'] . '/resolve') ?>" class="mt-1">
+                <?= csrf_field() ?>
+                <input type="text" name="resolution_notes" class="form-control form-control-sm mb-1" placeholder="Resolution notes">
+                <button type="submit" class="btn btn-xs btn-outline-success">Mark Resolved</button>
+              </form>
+            <?php elseif ($esc['resolution_notes']): ?>
+              <div class="text-muted">Resolution: <?= nl2br(e($esc['resolution_notes'])) ?></div>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </div>
+</div>

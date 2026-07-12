@@ -1,0 +1,212 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($application['status']) {
+    'Approved', 'Converted to Loan' => 'success',
+    'Rejected', 'Cancelled' => 'danger',
+    'Screening', 'Documents Required' => 'info',
+    default => 'warning',
+  };
+  $canScreen = in_array($application['status'], ['Submitted', 'Screening', 'Documents Required'], true);
+  $canApprove = !in_array($application['status'], ['Approved', 'Converted to Loan', 'Rejected', 'Cancelled'], true);
+  $canReject = !in_array($application['status'], ['Rejected', 'Converted to Loan', 'Cancelled'], true);
+  $canConvert = $application['status'] === 'Approved';
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title"><?= e(trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name'])) ?></h4>
+          <span class="badge bg-<?= $badge ?>"><?= e($application['status']) ?></span>
+        </div>
+        <p class="text-muted mb-1"><?= e($application['application_no']) ?></p>
+        <p class="text-muted small mb-2">Source: <?= e($application['source_name'] ?: $application['application_source']) ?></p>
+        <hr>
+        <p class="mb-1"><i class="mdi mdi-phone me-1"></i> <?= e($application['applicant_phone']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($application['applicant_email']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($application['applicant_id_number']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($application['applicant_address']) ?: '&mdash;' ?></p>
+        <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Submitted: <?= e(date('d M Y H:i', strtotime($application['created_at']))) ?></p>
+
+        <?php if ($application['borrower_id']): ?>
+          <p class="mt-2 mb-0"><a href="<?= url('/borrowers/' . $application['borrower_id']) ?>"><i class="mdi mdi-account"></i> View Borrower Record</a></p>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-cash-multiple me-1"></i> Requested Loan</h4>
+        <p class="mb-1">Amount: <strong><?= format_money($application['requested_amount']) ?></strong></p>
+        <p class="mb-1">Term: <?= (int) $application['requested_term_months'] ?> mo</p>
+        <p class="mb-1">Purpose: <?= e($application['requested_purpose']) ?: '&mdash;' ?></p>
+        <p class="mb-1">Employer: <?= e($application['employer_name']) ?: '&mdash;' ?></p>
+        <p class="mb-1">Gross Salary: <?= format_money($application['gross_salary']) ?></p>
+        <p class="mb-0">Net Salary: <?= format_money($application['net_salary']) ?></p>
+      </div>
+    </div>
+
+    <?php if (!empty($extra)): ?>
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title"><i class="mdi mdi-format-list-bulleted me-1"></i> Additional Details</h4>
+          <p class="text-muted small">Fields collected by the source form with no dedicated column.</p>
+          <table class="table table-sm">
+            <tbody>
+              <?php foreach ($extra as $key => $value): ?>
+                <tr><td class="text-muted"><?= e(str_replace('_', ' ', ucfirst($key))) ?></td><td><?= e((string) $value) ?></td></tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php endif; ?>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-cog me-1"></i> Actions</h4>
+
+        <?php if ($canScreen): ?>
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/screen') ?>" class="mb-3">
+            <?= csrf_field() ?>
+            <label class="form-label small">Existing Monthly Deductions</label>
+            <input type="number" step="0.01" name="existing_deductions" class="form-control form-control-sm mb-2" value="<?= $screening['existing_deductions'] ?? '' ?>">
+            <label class="form-label small">Proposed Installment</label>
+            <input type="number" step="0.01" name="proposed_installment" class="form-control form-control-sm mb-2" value="<?= $screening['proposed_installment'] ?? '' ?>">
+            <label class="form-label small">Recommendation</label>
+            <select name="recommendation" class="form-select form-select-sm mb-2">
+              <option value="Approve">Approve</option>
+              <option value="Reject">Reject</option>
+              <option value="Request More Info" selected>Request More Info</option>
+            </select>
+            <label class="form-label small">Notes</label>
+            <textarea name="screening_notes" class="form-control form-control-sm mb-2" rows="2"></textarea>
+            <button type="submit" class="btn btn-sm btn-outline-info w-100"><i class="mdi mdi-calculator"></i> Record Screening</button>
+          </form>
+        <?php endif; ?>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <?php if ($canApprove): ?>
+            <form method="post" action="<?= url('/applications/' . $application['id'] . '/approve') ?>" onsubmit="return confirm('Approve this application?');">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> Approve</button>
+            </form>
+          <?php endif; ?>
+
+          <?php if ($canReject): ?>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
+          <?php endif; ?>
+        </div>
+
+        <?php if ($canReject): ?>
+          <div class="collapse mt-2" id="rejectForm">
+            <form method="post" action="<?= url('/applications/' . $application['id'] . '/reject') ?>">
+              <?= csrf_field() ?>
+              <select name="rejection_category" class="form-select form-select-sm mb-2">
+                <?php foreach (['Affordability', 'Incomplete Documents', 'Credit Risk', 'Blacklisted', 'Duplicate Application', 'Employer Verification Failed', 'Other'] as $cat): ?>
+                  <option value="<?= $cat ?>"><?= $cat ?></option>
+                <?php endforeach; ?>
+              </select>
+              <textarea name="rejection_reason" class="form-control form-control-sm mb-2" rows="2" placeholder="Reason (required)" required></textarea>
+              <button type="submit" class="btn btn-sm btn-danger w-100">Confirm Rejection</button>
+            </form>
+          </div>
+        <?php endif; ?>
+
+        <?php if ($canConvert): ?>
+          <hr>
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/convert') ?>" class="mt-2" onsubmit="return confirm('Convert this application to a borrower and proceed to loan creation?');">
+            <?= csrf_field() ?>
+            <?php if (!$application['borrower_id']): ?>
+              <label class="form-label small">Branch (for new borrower)</label>
+              <select name="branch_id" class="form-select form-select-sm mb-2">
+                <option value="">Select branch</option>
+                <?php foreach ($branches as $b): ?>
+                  <option value="<?= (int) $b['id'] ?>"><?= e($b['branch_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-sm btn-info w-100"><i class="mdi mdi-account-convert"></i> Convert to Borrower &amp; Loan</button>
+          </form>
+        <?php endif; ?>
+
+        <hr>
+        <p class="text-muted small mb-1">Generate application-stage documents (requires the template to be configured under document templates first):</p>
+        <div class="d-flex flex-column gap-1">
+          <a href="<?= url('/applications/' . $application['id'] . '/generate/APPLICATION_CONSENT') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Consent Form</a>
+          <a href="<?= url('/applications/' . $application['id'] . '/generate/APPLICATION_AFFORDABILITY') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Affordability Assessment</a>
+          <a href="<?= url('/applications/' . $application['id'] . '/generate/APPLICATION_LOAN_AGREEMENT') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Loan Agreement</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-file-document me-1"></i> Documents</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr><th>Document</th><th>Type</th><th>Status</th><th>Uploaded</th><th class="text-end">Action</th></tr>
+            </thead>
+            <tbody>
+              <?php if (empty($documents)): ?>
+                <tr><td colspan="5" class="text-center text-muted py-3">No documents uploaded.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($documents as $doc): ?>
+                <?php
+                  $docBadge = match ($doc['status']) {
+                    'Verified' => 'success',
+                    'Rejected' => 'danger',
+                    default => 'warning',
+                  };
+                ?>
+                <tr>
+                  <td><?= e($doc['document_name'] ?: $doc['document_type']) ?></td>
+                  <td><?= e($doc['document_type']) ?></td>
+                  <td><span class="badge bg-<?= $docBadge ?>"><?= e($doc['status']) ?></span></td>
+                  <td><?= e(date('d M Y', strtotime($doc['uploaded_at']))) ?></td>
+                  <td class="text-end">
+                    <a href="<?= url('/applications/' . $application['id'] . '/documents/' . $doc['id']) ?>" target="_blank" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i></a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <?php if ($screening): ?>
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title"><i class="mdi mdi-calculator me-1"></i> Latest Screening</h4>
+          <div class="row">
+            <div class="col-md-4"><p class="mb-1 text-muted small">Disposable Income</p><p class="mb-0"><strong><?= format_money($screening['disposable_income']) ?></strong></p></div>
+            <div class="col-md-4"><p class="mb-1 text-muted small">Debt-to-Income Ratio</p><p class="mb-0"><strong><?= e($screening['debt_to_income_ratio']) ?>%</strong></p></div>
+            <div class="col-md-4"><p class="mb-1 text-muted small">Recommendation</p><p class="mb-0"><strong><?= e($screening['recommendation']) ?></strong></p></div>
+          </div>
+          <?php if ($screening['screening_notes']): ?><p class="mt-2 mb-0 text-muted"><?= e($screening['screening_notes']) ?></p><?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Status History</h4>
+        <ul class="list-unstyled mb-0">
+          <?php foreach ($history as $h): ?>
+            <li class="mb-2 pb-2 border-bottom">
+              <strong><?= e($h['new_status']) ?></strong>
+              <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($h['changed_at']))) ?></span>
+              <?php if ($h['notes']): ?><br><span class="text-muted"><?= e($h['notes']) ?></span><?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

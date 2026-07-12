@@ -7,20 +7,27 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\DocumentTemplate;
+use App\Models\GeneratedDocument;
 use App\Models\RefundClaim;
+use App\Services\DocumentGenerationService;
 
 class RefundClaimController extends Controller
 {
     private RefundClaim $refundClaims;
+    private GeneratedDocument $documents;
+    private DocumentTemplate $templates;
 
     public function __construct()
     {
         $this->refundClaims = new RefundClaim();
+        $this->documents = new GeneratedDocument();
+        $this->templates = new DocumentTemplate();
     }
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('refunds.view');
         $status = trim((string) ($_GET['status'] ?? ''));
 
         $this->view('refund_claims/index', [
@@ -32,7 +39,7 @@ class RefundClaimController extends Controller
 
     public function approve(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('refunds.approve');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -56,7 +63,7 @@ class RefundClaimController extends Controller
 
     public function reject(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('refunds.approve');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -74,7 +81,7 @@ class RefundClaimController extends Controller
 
     public function markPaid(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('refunds.pay');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -92,6 +99,71 @@ class RefundClaimController extends Controller
 
         Audit::log('Pay', 'Refund Claims', 'Marked refund claim #' . $id . ' as paid');
         Session::flash('success', 'Refund claim marked as paid.');
+        $this->redirect('/refund-claims');
+    }
+
+    /**
+     * Generate the claim form or the client letter straight from the
+     * template engine -- a fresh generated_documents row is created each
+     * time so earlier copies stay on record.
+     */
+    public function generateDocument(string $id): void
+    {
+        Auth::authorize('refunds.view');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/refund-claims');
+            return;
+        }
+
+        $claim = $this->refundClaims->find($id);
+        if (!$claim) {
+            Session::flash('error', 'Refund claim not found.');
+            $this->redirect('/refund-claims');
+            return;
+        }
+
+        $templateCode = $_POST['template_code'] ?? '';
+        if (!in_array($templateCode, ['REFUND_CLAIM_FORM', 'REFUND_CLAIM_LETTER'], true)) {
+            Session::flash('error', 'Select which document to generate.');
+            $this->redirect('/refund-claims');
+            return;
+        }
+
+        $template = $this->templates->findByCode($templateCode);
+        if (!$template) {
+            Session::flash('error', 'That template is not configured.');
+            $this->redirect('/refund-claims');
+            return;
+        }
+
+        $documentId = $this->documents->create([
+            'template_id' => $template['id'],
+            'document_no' => generate_reference('DOC'),
+            'document_title' => $template['template_name'] . ' - ' . $claim['claim_no'],
+            'borrower_id' => $claim['borrower_id'],
+            'loan_id' => $claim['loan_id'],
+            'refund_claim_id' => $id,
+            'source_module' => 'Refund Claims',
+            'status' => 'Draft',
+        ]);
+
+        $document = $this->documents->find($documentId);
+
+        try {
+            $filePath = DocumentGenerationService::generate($document);
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/refund-claims');
+            return;
+        }
+
+        $this->documents->markFulfilled($documentId, $filePath, Auth::user()['id'] ?? null);
+
+        Audit::log('Generate', 'Documents', 'Generated ' . $template['template_name'] . ' for refund claim #' . $id);
+        Session::flash('success', $template['template_name'] . ' generated. Find it under Letters to download.');
         $this->redirect('/refund-claims');
     }
 }

@@ -34,7 +34,7 @@
   <div class="card-body">
     <h5 class="card-title">Reconciliation Summary</h5>
     <div class="table-responsive">
-      <table class="table table-sm align-middle" style="max-width:640px">
+      <table class="table table-sm align-middle no-datatable" style="max-width:640px">
         <tbody>
           <tr><td>GL Balance (books, as at <?= e($asOfDate) ?>)</td><td class="text-end"><?= e(format_money($summary['gl_balance'])) ?></td></tr>
           <tr><td class="text-muted small ps-3">+ Deposits on statement not yet in books</td><td class="text-end text-muted small"><?= e(format_money($summary['unrecorded_deposits'])) ?></td></tr>
@@ -61,7 +61,7 @@
         <h5 class="card-title">Unreconciled Bank Statement Lines</h5>
         <p class="text-muted small">On the bank statement, not yet matched to a journal entry.</p>
         <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle">
+          <table class="table table-sm table-hover align-middle no-datatable">
             <thead><tr><th>Date</th><th>Description</th><th class="text-end">In</th><th class="text-end">Out</th><th></th></tr></thead>
             <tbody>
               <?php if (empty($unreconciledStatementLines)): ?>
@@ -127,7 +127,7 @@
         <h5 class="card-title">Unmatched Journal Lines</h5>
         <p class="text-muted small">In the books, not yet seen on a bank statement.</p>
         <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle">
+          <table class="table table-sm table-hover align-middle no-datatable">
             <thead><tr><th>Date</th><th>Journal</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
             <tbody>
               <?php if (empty($unmatchedJournalLines)): ?>

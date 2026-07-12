@@ -1,0 +1,59 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Loan Reschedules</h4>
+
+    <form method="get" action="<?= url('/reschedules') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending', 'Approved', 'Rejected', 'Implemented', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Reschedule No</th><th>Loan</th><th>Borrower</th><th>Old Term</th><th>New Term</th><th>New Installment</th><th>Status</th><th>Requested</th><th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($reschedules)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-4">No reschedule requests yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($reschedules as $r): ?>
+            <?php
+              $badge = match ($r['status']) {
+                'Implemented' => 'success',
+                'Rejected', 'Cancelled' => 'danger',
+                'Approved' => 'info',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($r['reschedule_no']) ?></td>
+              <td><?= e($r['loan_no']) ?></td>
+              <td><?= e($r['borrower_name']) ?></td>
+              <td><?= (int) $r['old_term_months'] ?> mo</td>
+              <td><?= (int) $r['new_term_months'] ?> mo</td>
+              <td><?= format_money($r['new_installment_amount']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($r['request_date']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/reschedules/' . $r['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

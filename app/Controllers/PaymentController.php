@@ -26,7 +26,7 @@ class PaymentController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('collections.view');
         $search = trim((string) ($_GET['q'] ?? ''));
 
         $this->view('payments/index', [
@@ -39,7 +39,7 @@ class PaymentController extends Controller
 
     public function create(string $loanId): void
     {
-        Auth::requireLogin();
+        Auth::authorize('collections.create');
         $loan = $this->loans->find((int) $loanId);
 
         if (!$loan) {
@@ -59,7 +59,7 @@ class PaymentController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('collections.create');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -106,7 +106,7 @@ class PaymentController extends Controller
      */
     public function confirm(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('collections.post');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -135,7 +135,7 @@ class PaymentController extends Controller
 
     public function reject(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('collections.reverse');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

@@ -35,7 +35,7 @@ class LoanRecoveryController extends Controller
 
     public function create(string $writeOffId): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.recoveries');
         $writeOff = $this->writeOffs->find((int) $writeOffId);
 
         if (!$writeOff || $writeOff['status'] !== 'Posted') {
@@ -55,7 +55,7 @@ class LoanRecoveryController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.recoveries');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');

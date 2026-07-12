@@ -3,7 +3,12 @@ use App\Core\Security;
 
 function base_url(): string {
     $script = str_replace('\\','/', $_SERVER['SCRIPT_NAME'] ?? '');
-    $dir = rtrim(dirname($script), '/');
+    // dirname() on Windows returns '\' (not '/') for a root-level script
+    // like '/index.php' -- normalize before rtrim or that stray backslash
+    // survives into every url()/asset() call as a protocol-relative "\/..."
+    // href, which browsers resolve as if "public" were a hostname.
+    $dir = str_replace('\\', '/', dirname($script));
+    $dir = rtrim($dir, '/');
     if (str_ends_with($dir, '/public')) $dir = substr($dir, 0, -7);
     return $dir ?: '';
 }

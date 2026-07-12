@@ -1,13 +1,215 @@
+<?php
+  $deltaUp = $kpis['collected_delta_pct'] >= 0;
+  $parBadge = $kpis['par_ratio'] >= 10 ? 'danger' : ($kpis['par_ratio'] >= 5 ? 'warning' : 'success');
+?>
+
+<?= flash_messages() ?>
+
 <div class="row">
-  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-account-multiple display-6 text-info"></i></div><div><h3 class="mb-0"><?= (int) $stats['total_borrowers'] ?></h3><span>Total Borrowers</span></div></div></div></div></div>
-  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash-multiple display-6 text-success"></i></div><div><h3 class="mb-0"><?= (int) $stats['active_loans'] ?></h3><span>Active Loans</span></div></div></div></div></div>
-  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-bank display-6 text-primary"></i></div><div><h3 class="mb-0"><?= format_money($stats['total_collected']) ?></h3><span>Total Collected</span></div></div></div></div></div>
-  <div class="col-lg-3 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-alert-circle display-6 text-danger"></i></div><div><h3 class="mb-0"><?= (int) $stats['loans_in_arrears'] ?></h3><span>Loans in Arrears</span></div></div></div></div></div>
+  <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Total Borrowers</span>
+            <h3 class="mb-0"><?= (int) $kpis['total_borrowers'] ?></h3>
+            <span class="badge bg-info-subtle text-info small">+<?= (int) $kpis['new_borrowers_this_month'] ?> this month</span>
+          </div>
+          <i class="mdi mdi-account-multiple display-6 text-info"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Active Loans</span>
+            <h3 class="mb-0"><?= (int) $kpis['active_loans'] ?></h3>
+            <span class="text-muted small">Portfolio: <?= format_money($kpis['portfolio_outstanding']) ?></span>
+          </div>
+          <i class="mdi mdi-cash-multiple display-6 text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Collected This Month</span>
+            <h3 class="mb-0"><?= format_money($kpis['collected_this_month']) ?></h3>
+            <span class="badge bg-<?= $deltaUp ? 'success' : 'danger' ?>-subtle text-<?= $deltaUp ? 'success' : 'danger' ?> small">
+              <i class="mdi mdi-arrow-<?= $deltaUp ? 'up' : 'down' ?>"></i> <?= abs($kpis['collected_delta_pct']) ?>% vs last month
+            </span>
+          </div>
+          <i class="mdi mdi-bank display-6 text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Loans in Arrears</span>
+            <h3 class="mb-0"><?= (int) $kpis['arrears_count'] ?></h3>
+            <span class="text-muted small"><?= format_money($kpis['arrears_value']) ?> outstanding</span>
+          </div>
+          <i class="mdi mdi-alert-circle display-6 text-danger"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Portfolio at Risk</span>
+            <h3 class="mb-0"><?= $kpis['par_ratio'] ?>%</h3>
+            <span class="badge bg-<?= $parBadge ?>-subtle text-<?= $parBadge ?> small">of outstanding portfolio</span>
+          </div>
+          <i class="mdi mdi-shield-alert display-6 text-<?= $parBadge ?>"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Fixed Assets NBV</span>
+            <h3 class="mb-0"><?= format_money($stats['assets_nbv']) ?></h3>
+            <span class="text-muted small"><?= (int) $stats['total_assets'] ?> assets registered</span>
+          </div>
+          <i class="mdi mdi-office-building-marker display-6 text-warning"></i>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="row">
-  <div class="col-lg-6 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-office-building-marker display-6 text-warning"></i></div><div><h3 class="mb-0"><?= (int) $stats['total_assets'] ?></h3><span>Fixed Assets Registered</span></div></div></div></div></div>
-  <div class="col-lg-6 col-md-6"><div class="card"><div class="card-body"><div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-scale-balance display-6 text-secondary"></i></div><div><h3 class="mb-0"><?= format_money($stats['assets_nbv']) ?></h3><span>Fixed Assets Net Book Value</span></div></div></div></div></div>
+  <div class="col-lg-7 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Disbursements vs Collections <span class="text-muted small">(last 6 months)</span></h4>
+        <div id="trendChart"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Loan Status Distribution</h4>
+        <div id="statusChart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Arrears Aging</h4>
+        <div id="agingChart"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Cash Position <span class="text-muted small">by bank account</span></h4>
+        <div id="cashChart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Top Overdue Loans</h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead><tr><th>Loan</th><th>Borrower</th><th>Days</th><th class="text-end">Outstanding</th></tr></thead>
+            <tbody>
+              <?php if (empty($topArrears)): ?>
+                <tr><td colspan="4" class="text-center text-muted py-3">No loans in arrears.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($topArrears as $row): ?>
+                <tr>
+                  <td><a href="<?= url('/loans/' . $row['loan_id']) ?>"><?= e($row['loan_no']) ?></a></td>
+                  <td><?= e($row['borrower_name']) ?></td>
+                  <td><span class="badge bg-danger-subtle text-danger"><?= (int) $row['days_in_arrears'] ?>d</span></td>
+                  <td class="text-end"><?= format_money($row['outstanding_balance']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Upcoming Installments <span class="text-muted small">(next 7 days)</span></h4>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead><tr><th>Loan</th><th>Borrower</th><th>Due</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              <?php if (empty($upcomingDue)): ?>
+                <tr><td colspan="4" class="text-center text-muted py-3">No installments due in the next 7 days.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($upcomingDue as $row): ?>
+                <tr>
+                  <td><a href="<?= url('/loans/' . $row['loan_id']) ?>"><?= e($row['loan_no']) ?></a></td>
+                  <td><?= e($row['borrower_name']) ?></td>
+                  <td><?= e(date('d M', strtotime($row['due_date']))) ?></td>
+                  <td class="text-end"><?= format_money((float) $row['total_due'] - (float) $row['total_paid']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Recent Activity</h4>
+    <ul class="list-unstyled mb-0">
+      <?php if (empty($recentActivity)): ?>
+        <li class="text-muted py-2">No recent activity.</li>
+      <?php endif; ?>
+      <?php foreach ($recentActivity as $row): ?>
+        <li class="d-flex align-items-start gap-2 py-2 border-bottom">
+          <i class="mdi mdi-circle-medium text-info"></i>
+          <div class="flex-grow-1">
+            <span class="fw-semibold"><?= e($row['user_name']) ?: 'System' ?></span>
+            <span class="text-muted"><?= e($row['action']) ?> &middot; <?= e($row['module_name']) ?></span>
+            <div class="small"><?= e($row['description']) ?></div>
+          </div>
+          <span class="text-muted small text-nowrap"><?= e(date('d M, H:i', strtotime($row['created_at']))) ?></span>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
 </div>
 
 <div class="card">
@@ -21,7 +223,7 @@
         ['Payments','Collections and schedule allocation','mdi-bank','primary', url('/payments')],
         ['Fixed Assets','Depreciation & amortization schedules','mdi-trending-up','warning', url('/fixed-assets')],
         ['Accounting','Chart of accounts, bank accounts, general ledger','mdi-calculator','secondary', url('/accounting/accounts')],
-        ['Reports','Operational, financial, regulatory and audit reports','mdi-chart-bar','danger', null],
+        ['Reports','Operational, financial, regulatory and audit reports','mdi-chart-bar','danger', url('/reports')],
         ['Documents','Word templates, letters, statements and signatures','mdi-file-document','dark', null],
         ['Compliance','NAMFISA, duty stamps and quarterly reports','mdi-gavel','info', null],
       ]; foreach($modules as $m): ?>
@@ -36,3 +238,51 @@
     </div>
   </div>
 </div>
+
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var trendData = <?= json_encode($disbursementVsCollectionTrend) ?>;
+  var statusData = <?= json_encode($loanStatusDistribution) ?>;
+  var agingData = <?= json_encode($arrearsAging) ?>;
+  var cashData = <?= json_encode($cashPosition) ?>;
+
+  new ApexCharts(document.getElementById('trendChart'), {
+    chart: { type: 'area', height: 320, toolbar: { show: false } },
+    series: [
+      { name: 'Disbursed', data: trendData.map(function (r) { return r.disbursed; }) },
+      { name: 'Collected', data: trendData.map(function (r) { return r.collected; }) },
+    ],
+    xaxis: { categories: trendData.map(function (r) { return r.label; }) },
+    colors: ['#635bff', '#2bd67b'],
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    legend: { position: 'top' },
+  }).render();
+
+  new ApexCharts(document.getElementById('statusChart'), {
+    chart: { type: 'donut', height: 320 },
+    series: statusData.map(function (r) { return parseInt(r.count, 10); }),
+    labels: statusData.map(function (r) { return r.loan_status; }),
+    legend: { position: 'bottom' },
+  }).render();
+
+  new ApexCharts(document.getElementById('agingChart'), {
+    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+    series: [{ name: 'Outstanding', data: agingData.map(function (r) { return r.value; }) }],
+    xaxis: { categories: agingData.map(function (r) { return r.bucket + ' days'; }) },
+    colors: ['#ff5c75'],
+    dataLabels: { enabled: false },
+    plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+  }).render();
+
+  new ApexCharts(document.getElementById('cashChart'), {
+    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+    series: [{ name: 'Balance', data: cashData.map(function (r) { return r.balance; }) }],
+    xaxis: { categories: cashData.map(function (r) { return r.label; }) },
+    colors: ['#2bd67b'],
+    dataLabels: { enabled: false },
+    plotOptions: { bar: { columnWidth: '45%', borderRadius: 4, horizontal: true } },
+  }).render();
+})();
+</script>

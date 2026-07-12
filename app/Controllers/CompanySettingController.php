@@ -12,6 +12,7 @@ use App\Models\Company;
 class CompanySettingController extends Controller
 {
     private const ALLOWED_LOGO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'svg'];
+    private const ALLOWED_FAVICON_EXTENSIONS = ['jpg', 'jpeg', 'png', 'ico', 'svg'];
     private const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
 
     private Company $company;
@@ -23,7 +24,7 @@ class CompanySettingController extends Controller
 
     public function edit(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.company');
         $this->view('settings/company/edit', [
             'title' => 'Company Settings',
             'company' => $this->company->primary(),
@@ -33,7 +34,7 @@ class CompanySettingController extends Controller
 
     public function update(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.company');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -55,6 +56,10 @@ class CompanySettingController extends Controller
         if (!empty($_POST['email']) && !filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
             $errors['email'] = 'Enter a valid email address.';
         }
+        $primaryColor = trim($_POST['primary_color'] ?? '');
+        if ($primaryColor !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $primaryColor)) {
+            $errors['primary_color'] = 'Enter a valid hex color (e.g. #25a9e0).';
+        }
 
         $logoPath = $company['logo'];
         $logoFile = $_FILES['logo'] ?? null;
@@ -63,11 +68,20 @@ class CompanySettingController extends Controller
                 $errors['logo'] = 'Logo upload failed. Please try again.';
             } elseif ($logoFile['size'] > self::MAX_LOGO_SIZE) {
                 $errors['logo'] = 'Logo is too large (max 2MB).';
-            } else {
-                $ext = strtolower(pathinfo($logoFile['name'], PATHINFO_EXTENSION));
-                if (!in_array($ext, self::ALLOWED_LOGO_EXTENSIONS, true)) {
-                    $errors['logo'] = 'Only JPG, PNG and SVG logos are accepted.';
-                }
+            } elseif (!in_array(strtolower(pathinfo($logoFile['name'], PATHINFO_EXTENSION)), self::ALLOWED_LOGO_EXTENSIONS, true)) {
+                $errors['logo'] = 'Only JPG, PNG and SVG logos are accepted.';
+            }
+        }
+
+        $faviconPath = $company['favicon'];
+        $faviconFile = $_FILES['favicon'] ?? null;
+        if ($faviconFile && $faviconFile['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($faviconFile['error'] !== UPLOAD_ERR_OK) {
+                $errors['favicon'] = 'Favicon upload failed. Please try again.';
+            } elseif ($faviconFile['size'] > self::MAX_LOGO_SIZE) {
+                $errors['favicon'] = 'Favicon is too large (max 2MB).';
+            } elseif (!in_array(strtolower(pathinfo($faviconFile['name'], PATHINFO_EXTENSION)), self::ALLOWED_FAVICON_EXTENSIONS, true)) {
+                $errors['favicon'] = 'Only JPG, PNG, ICO and SVG favicons are accepted.';
             }
         }
 
@@ -81,23 +95,21 @@ class CompanySettingController extends Controller
         }
 
         if ($logoFile && $logoFile['error'] === UPLOAD_ERR_OK) {
-            // Unlike borrower KYC documents, the logo is a public brand
-            // asset displayed on every page -- store it under the
-            // web-servable public/ dir rather than storage/, so it can be
-            // linked to directly instead of streamed through a controller.
-            $targetDir = PUBLIC_PATH . '/uploads/company';
-            if (!is_dir($targetDir)) {
-                mkdir($targetDir, 0755, true);
+            $stored = $this->storeUpload($logoFile, 'logo');
+            if ($stored) {
+                $logoPath = $stored;
             }
-            $ext = strtolower(pathinfo($logoFile['name'], PATHINFO_EXTENSION));
-            $storedName = 'logo_' . uniqid() . '.' . $ext;
-            if (move_uploaded_file($logoFile['tmp_name'], $targetDir . '/' . $storedName)) {
-                $logoPath = 'uploads/company/' . $storedName;
+        }
+        if ($faviconFile && $faviconFile['error'] === UPLOAD_ERR_OK) {
+            $stored = $this->storeUpload($faviconFile, 'favicon');
+            if ($stored) {
+                $faviconPath = $stored;
             }
         }
 
         $this->company->updateRecord((int) $company['id'], [
             'company_name' => trim($_POST['company_name']),
+            'brand_name' => trim($_POST['brand_name'] ?? '') ?: null,
             'registration_no' => trim($_POST['registration_no'] ?? '') ?: null,
             'namfisa_license_no' => trim($_POST['namfisa_license_no'] ?? '') ?: null,
             'tax_no' => trim($_POST['tax_no'] ?? '') ?: null,
@@ -105,10 +117,33 @@ class CompanySettingController extends Controller
             'phone' => trim($_POST['phone'] ?? '') ?: null,
             'address' => trim($_POST['address'] ?? '') ?: null,
             'logo' => $logoPath,
+            'primary_color' => $primaryColor ?: '#25a9e0',
+            'footer_tagline' => trim($_POST['footer_tagline'] ?? '') ?: null,
+            'favicon' => $faviconPath,
         ]);
 
         Audit::log('Update', 'Admin', 'Updated company settings');
         Session::flash('success', 'Company settings updated.');
         $this->redirect('/settings/company');
+    }
+
+    /**
+     * Both logo and favicon are public brand assets displayed on every
+     * page -- stored under the web-servable public/ dir rather than
+     * storage/, so they can be linked to directly instead of streamed
+     * through a controller (unlike borrower KYC documents).
+     */
+    private function storeUpload(array $file, string $prefix): ?string
+    {
+        $targetDir = PUBLIC_PATH . '/uploads/company';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $storedName = $prefix . '_' . uniqid() . '.' . $ext;
+        if (move_uploaded_file($file['tmp_name'], $targetDir . '/' . $storedName)) {
+            return 'uploads/company/' . $storedName;
+        }
+        return null;
     }
 }

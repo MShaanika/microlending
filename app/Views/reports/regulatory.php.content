@@ -1,0 +1,190 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Regulatory Reports</h4>
+    <p class="text-muted small mb-3">Showing <strong><?= e($period['label']) ?></strong>. One period filter drives every report below.</p>
+
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small mb-0">View by</label>
+        <select name="period_type" id="period_type" class="form-select" onchange="mlsToggleReportPeriod(this.value)">
+          <option value="month" <?= $period['type'] === 'month' ? 'selected' : '' ?>>Month</option>
+          <option value="quarter" <?= $period['type'] === 'quarter' ? 'selected' : '' ?>>Quarter</option>
+          <option value="year" <?= $period['type'] === 'year' ? 'selected' : '' ?>>Year</option>
+        </select>
+      </div>
+      <div class="col-auto" id="reportMonthField" style="<?= $period['type'] === 'month' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Month</label>
+        <select name="month" class="form-select">
+          <?php for ($m = 1; $m <= 12; $m++): ?>
+            <option value="<?= $m ?>" <?= (int) $period['month'] === $m ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto" id="reportQuarterField" style="<?= $period['type'] === 'quarter' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Quarter</label>
+        <select name="quarter" class="form-select">
+          <?php foreach ([1 => 'Q1 (Jan-Mar)', 2 => 'Q2 (Apr-Jun)', 3 => 'Q3 (Jul-Sep)', 4 => 'Q4 (Oct-Dec)'] as $q => $qLabel): ?>
+            <option value="<?= $q ?>" <?= (int) $period['quarter'] === $q ? 'selected' : '' ?>><?= e($qLabel) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-0">Year</label>
+        <select name="year" class="form-select">
+          <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+            <option value="<?= $y ?>" <?= $period['year'] === $y ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-filter"></i> Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mlsToggleReportPeriod(type) {
+  document.getElementById('reportMonthField').style.display = type === 'month' ? '' : 'none';
+  document.getElementById('reportQuarterField').style.display = type === 'quarter' ? '' : 'none';
+}
+</script>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>NAMFISA Levy</strong> <span class="text-muted small">Total: <?= format_money($namfisaLevySummary['total_amount']) ?></span></div>
+      <div class="card-body">
+        <div id="levyChart"></div>
+        <table class="table table-sm table-bordered mt-2 no-datatable">
+          <thead><tr><th>Status</th><th class="text-end">Transactions</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            <?php if (empty($namfisaLevySummary['by_status'])): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No NAMFISA levy transactions in this period.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($namfisaLevySummary['by_status'] as $row): ?>
+              <tr>
+                <td><?= e($row['status']) ?></td>
+                <td class="text-end"><?= (int) $row['txn_count'] ?></td>
+                <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Duty Stamp</strong> <span class="text-muted small">Total: <?= format_money($dutyStampSummary['total_amount']) ?></span></div>
+      <div class="card-body">
+        <div id="stampChart"></div>
+        <table class="table table-sm table-bordered mt-2 no-datatable">
+          <thead><tr><th>Status</th><th class="text-end">Transactions</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            <?php if (empty($dutyStampSummary['by_status'])): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No duty stamp transactions in this period.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($dutyStampSummary['by_status'] as $row): ?>
+              <tr>
+                <td><?= e($row['status']) ?></td>
+                <td class="text-end"><?= (int) $row['txn_count'] ?></td>
+                <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Bad Debt / Write-Off Summary</strong> <span class="text-muted small">by status &amp; aging bucket</span></div>
+      <div class="card-body">
+        <?php if (empty($badDebtWriteOffSummary)): ?>
+          <p class="text-center text-muted py-4">No bad debt activity in this period.</p>
+        <?php else: ?>
+          <div id="writeOffChart"></div>
+          <table class="table table-sm table-bordered mt-2 no-datatable">
+            <thead><tr><th>Status</th><th>Aging Bucket</th><th class="text-end">Loans</th><th class="text-end">Outstanding</th></tr></thead>
+            <tbody>
+              <?php foreach ($badDebtWriteOffSummary as $row): ?>
+                <tr>
+                  <td><?= e($row['status']) ?></td>
+                  <td><?= e($row['aging_bucket']) ?> days</td>
+                  <td class="text-end"><?= (int) $row['loan_count'] ?></td>
+                  <td class="text-end"><?= format_money($row['total_outstanding']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Recoveries</strong></div>
+      <div class="card-body text-center d-flex flex-column justify-content-center h-100">
+        <i class="mdi mdi-cash-refund display-4 text-success"></i>
+        <h3 class="mt-2 mb-0"><?= format_money($recoverySummary['total_recovered']) ?></h3>
+        <span class="text-muted">recovered across <?= (int) $recoverySummary['recovery_count'] ?> payment(s)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var levyTrend = <?= json_encode($namfisaLevySummary['trend']) ?>;
+  var stampTrend = <?= json_encode($dutyStampSummary['trend']) ?>;
+  var writeOffData = <?= json_encode($badDebtWriteOffSummary) ?>;
+
+  if (levyTrend.length) {
+    new ApexCharts(document.getElementById('levyChart'), {
+      chart: { type: 'line', height: 220, toolbar: { show: false } },
+      series: [{ name: 'Levy', data: levyTrend.map(function (r) { return r.total_amount; }) }],
+      xaxis: { categories: levyTrend.map(function (r) { return r.month_label; }) },
+      colors: ['#635bff'],
+      dataLabels: { enabled: false },
+      stroke: { curve: 'smooth', width: 2 },
+    }).render();
+  }
+
+  if (stampTrend.length) {
+    new ApexCharts(document.getElementById('stampChart'), {
+      chart: { type: 'line', height: 220, toolbar: { show: false } },
+      series: [{ name: 'Duty Stamp', data: stampTrend.map(function (r) { return r.total_amount; }) }],
+      xaxis: { categories: stampTrend.map(function (r) { return r.month_label; }) },
+      colors: ['#ffb400'],
+      dataLabels: { enabled: false },
+      stroke: { curve: 'smooth', width: 2 },
+    }).render();
+  }
+
+  if (writeOffData.length) {
+    var buckets = [];
+    var byBucket = {};
+    writeOffData.forEach(function (r) {
+      if (!byBucket[r.aging_bucket]) { byBucket[r.aging_bucket] = 0; buckets.push(r.aging_bucket); }
+      byBucket[r.aging_bucket] += parseFloat(r.total_outstanding);
+    });
+    new ApexCharts(document.getElementById('writeOffChart'), {
+      chart: { type: 'bar', height: 240, toolbar: { show: false } },
+      series: [{ name: 'Outstanding', data: buckets.map(function (b) { return byBucket[b]; }) }],
+      xaxis: { categories: buckets.map(function (b) { return b + ' days'; }) },
+      colors: ['#ff5c75'],
+      dataLabels: { enabled: false },
+      plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+    }).render();
+  }
+})();
+</script>

@@ -17,7 +17,7 @@ class TrialBalanceController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.trial_balance');
         $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
 
         $rows = $this->journalEntries->trialBalance($asOfDate);

@@ -19,7 +19,7 @@ class AfsReportController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.balance_sheet');
 
         $this->view('accounting/afs_export/index', [
             'title' => 'Annual Financial Statements Export',
@@ -29,7 +29,7 @@ class AfsReportController extends Controller
 
     public function export(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.balance_sheet');
 
         $startDate = $_GET['start_date'] ?? '';
         $endDate = $_GET['end_date'] ?? '';

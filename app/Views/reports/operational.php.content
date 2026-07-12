@@ -1,0 +1,234 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Operational Reports</h4>
+    <p class="text-muted small mb-3">Showing <strong><?= e($period['label']) ?></strong>. One period filter drives every report below.</p>
+
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small mb-0">View by</label>
+        <select name="period_type" id="period_type" class="form-select" onchange="mlsToggleReportPeriod(this.value)">
+          <option value="month" <?= $period['type'] === 'month' ? 'selected' : '' ?>>Month</option>
+          <option value="quarter" <?= $period['type'] === 'quarter' ? 'selected' : '' ?>>Quarter</option>
+          <option value="year" <?= $period['type'] === 'year' ? 'selected' : '' ?>>Year</option>
+        </select>
+      </div>
+      <div class="col-auto" id="reportMonthField" style="<?= $period['type'] === 'month' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Month</label>
+        <select name="month" class="form-select">
+          <?php for ($m = 1; $m <= 12; $m++): ?>
+            <option value="<?= $m ?>" <?= (int) $period['month'] === $m ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto" id="reportQuarterField" style="<?= $period['type'] === 'quarter' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Quarter</label>
+        <select name="quarter" class="form-select">
+          <?php foreach ([1 => 'Q1 (Jan-Mar)', 2 => 'Q2 (Apr-Jun)', 3 => 'Q3 (Jul-Sep)', 4 => 'Q4 (Oct-Dec)'] as $q => $qLabel): ?>
+            <option value="<?= $q ?>" <?= (int) $period['quarter'] === $q ? 'selected' : '' ?>><?= e($qLabel) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-0">Year</label>
+        <select name="year" class="form-select">
+          <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+            <option value="<?= $y ?>" <?= $period['year'] === $y ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-filter"></i> Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mlsToggleReportPeriod(type) {
+  document.getElementById('reportMonthField').style.display = type === 'month' ? '' : 'none';
+  document.getElementById('reportQuarterField').style.display = type === 'quarter' ? '' : 'none';
+}
+</script>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Portfolio at Risk</strong> <span class="text-muted small">(as of <?= e($period['end']) ?>)</span></div>
+      <div class="card-body">
+        <div id="parChart"></div>
+        <table class="table table-sm table-bordered mt-2 no-datatable">
+          <thead><tr><th>Bucket</th><th class="text-end">Loans</th><th class="text-end">Outstanding</th><th class="text-end">% of Portfolio</th></tr></thead>
+          <tbody>
+            <?php foreach ($portfolioAtRisk as $row): ?>
+              <tr>
+                <td><?= e($row['bucket']) ?> days</td>
+                <td class="text-end"><?= (int) $row['count'] ?></td>
+                <td class="text-end"><?= format_money($row['value']) ?></td>
+                <td class="text-end"><?= $row['pct_of_portfolio'] ?>%</td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Collections Efficiency</strong></div>
+      <div class="card-body">
+        <div class="row text-center mb-2">
+          <div class="col-4"><div class="text-muted small">Due</div><div class="fw-bold"><?= format_money($collectionsEfficiency['total_due']) ?></div></div>
+          <div class="col-4"><div class="text-muted small">Collected</div><div class="fw-bold"><?= format_money($collectionsEfficiency['total_collected']) ?></div></div>
+          <div class="col-4"><div class="text-muted small">Rate</div><div class="fw-bold"><?= $collectionsEfficiency['collection_rate'] ?>%</div></div>
+        </div>
+        <div id="collectionsChart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Expense Summary</strong> <span class="text-muted small">by category</span></div>
+      <div class="card-body">
+        <?php if (empty($expenseSummary)): ?>
+          <p class="text-center text-muted py-4">No paid expenses in this period.</p>
+        <?php else: ?>
+          <div id="expenseChart"></div>
+          <table class="table table-sm table-bordered mt-2 no-datatable">
+            <thead><tr><th>Category</th><th class="text-end">Count</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              <?php foreach ($expenseSummary as $row): ?>
+                <tr>
+                  <td><?= e($row['category_name']) ?></td>
+                  <td class="text-end"><?= (int) $row['expense_count'] ?></td>
+                  <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Debit Order Performance</strong></div>
+      <div class="card-body">
+        <?php if (empty($debitOrderPerformance)): ?>
+          <p class="text-center text-muted py-4">No debit order runs in this period.</p>
+        <?php else: ?>
+          <div id="debitOrderChart"></div>
+          <table class="table table-sm table-bordered mt-2 no-datatable">
+            <thead><tr><th>Status</th><th class="text-end">Lines</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              <?php foreach ($debitOrderPerformance as $row): ?>
+                <tr>
+                  <td><?= e($row['status']) ?></td>
+                  <td class="text-end"><?= (int) $row['line_count'] ?></td>
+                  <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>Loan Mix</strong> <span class="text-muted small">disbursed in period, by type</span></div>
+  <div class="card-body">
+    <?php if (empty($loanMix)): ?>
+      <p class="text-center text-muted py-4">No loans disbursed in this period.</p>
+    <?php else: ?>
+      <div class="row">
+        <div class="col-lg-5"><div id="loanMixChart"></div></div>
+        <div class="col-lg-7">
+          <table class="table table-sm table-bordered no-datatable">
+            <thead><tr><th>Loan Type</th><th class="text-end">Count</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              <?php foreach ($loanMix as $row): ?>
+                <tr>
+                  <td><?= e($row['loan_type']) ?></td>
+                  <td class="text-end"><?= (int) $row['loan_count'] ?></td>
+                  <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var parData = <?= json_encode($portfolioAtRisk) ?>;
+  var collectionsTrend = <?= json_encode($collectionsEfficiency['trend']) ?>;
+  var expenseData = <?= json_encode($expenseSummary) ?>;
+  var debitOrderData = <?= json_encode($debitOrderPerformance) ?>;
+  var loanMixData = <?= json_encode($loanMix) ?>;
+
+  new ApexCharts(document.getElementById('parChart'), {
+    chart: { type: 'bar', height: 260, toolbar: { show: false } },
+    series: [{ name: 'Outstanding', data: parData.map(function (r) { return r.value; }) }],
+    xaxis: { categories: parData.map(function (r) { return r.bucket + ' days'; }) },
+    colors: ['#ff5c75'],
+    dataLabels: { enabled: false },
+    plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+  }).render();
+
+  if (collectionsTrend.length) {
+    new ApexCharts(document.getElementById('collectionsChart'), {
+      chart: { type: 'line', height: 240, toolbar: { show: false } },
+      series: [
+        { name: 'Due', data: collectionsTrend.map(function (r) { return r.due; }) },
+        { name: 'Collected', data: collectionsTrend.map(function (r) { return r.collected; }) },
+      ],
+      xaxis: { categories: collectionsTrend.map(function (r) { return r.month_label; }) },
+      colors: ['#ff5c75', '#2bd67b'],
+      dataLabels: { enabled: false },
+      stroke: { curve: 'smooth', width: 2 },
+      legend: { position: 'top' },
+    }).render();
+  }
+
+  if (expenseData.length) {
+    new ApexCharts(document.getElementById('expenseChart'), {
+      chart: { type: 'donut', height: 260 },
+      series: expenseData.map(function (r) { return parseFloat(r.total_amount); }),
+      labels: expenseData.map(function (r) { return r.category_name; }),
+      legend: { position: 'bottom' },
+    }).render();
+  }
+
+  if (debitOrderData.length) {
+    new ApexCharts(document.getElementById('debitOrderChart'), {
+      chart: { type: 'bar', height: 260, toolbar: { show: false } },
+      series: [{ name: 'Amount', data: debitOrderData.map(function (r) { return r.total_amount; }) }],
+      xaxis: { categories: debitOrderData.map(function (r) { return r.status; }) },
+      colors: ['#635bff'],
+      dataLabels: { enabled: false },
+      plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+    }).render();
+  }
+
+  if (loanMixData.length) {
+    new ApexCharts(document.getElementById('loanMixChart'), {
+      chart: { type: 'donut', height: 260 },
+      series: loanMixData.map(function (r) { return parseFloat(r.total_amount); }),
+      labels: loanMixData.map(function (r) { return r.loan_type; }),
+      legend: { position: 'bottom' },
+    }).render();
+  }
+})();
+</script>

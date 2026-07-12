@@ -1,0 +1,97 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Compose Notification</h4>
+    <p class="text-muted small mb-3">Pick a borrower/loan and a template to auto-fill the message below, then edit freely before queuing. Nothing sends automatically &mdash; you'll send it yourself, then mark it as Sent from the queue.</p>
+
+    <form method="get" action="<?= url('/notifications/compose') ?>" id="pickerForm">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Borrower</label>
+          <select name="borrower_id" class="form-select" onchange="document.getElementById('pickerForm').submit()">
+            <option value="">No borrower (ad-hoc)</option>
+            <?php foreach ($borrowers as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= ($borrower && (int) $borrower['id'] === (int) $b['id']) ? 'selected' : '' ?>><?= e($b['borrower_no'] . ' - ' . $b['first_name'] . ' ' . $b['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Loan <span class="text-muted small">(optional, for loan-specific merge fields)</span></label>
+          <select name="loan_id" class="form-select" onchange="document.getElementById('pickerForm').submit()">
+            <option value="">No specific loan</option>
+            <?php foreach ($borrowerLoans as $l): ?>
+              <option value="<?= (int) $l['id'] ?>" <?= ($loan && (int) $loan['id'] === (int) $l['id']) ? 'selected' : '' ?>><?= e($l['loan_no']) ?> (<?= e($l['loan_status']) ?>)</option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Channel</label>
+          <select name="channel" class="form-select" onchange="document.getElementById('pickerForm').submit()">
+            <?php foreach ($channels as $c): ?>
+              <option value="<?= e($c) ?>" <?= $selectedChannel === $c ? 'selected' : '' ?>><?= e($c) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Template</label>
+          <select name="template_id" class="form-select" onchange="document.getElementById('pickerForm').submit()">
+            <option value="">Blank message</option>
+            <?php foreach ($templates as $t): ?>
+              <option value="<?= (int) $t['id'] ?>" <?= $selectedTemplateId === (int) $t['id'] ? 'selected' : '' ?>><?= e($t['template_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="<?= url('/notifications/compose') ?>">
+      <?= csrf_field() ?>
+      <input type="hidden" name="borrower_id" value="<?= $borrower ? (int) $borrower['id'] : '' ?>">
+      <input type="hidden" name="loan_id" value="<?= $loan ? (int) $loan['id'] : '' ?>">
+      <input type="hidden" name="template_id" value="<?= $selectedTemplateId ?: '' ?>">
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Channel</label>
+          <input type="text" class="form-control" value="<?= e($selectedChannel) ?>" disabled>
+          <input type="hidden" name="channel" value="<?= e($selectedChannel) ?>">
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Recipient Name</label>
+          <input type="text" name="recipient_name" class="form-control" value="<?= old('recipient_name', $old, $borrower ? trim($borrower['first_name'] . ' ' . $borrower['last_name']) : '') ?>">
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Recipient <?= $selectedChannel === 'Email' ? 'Email' : 'Phone' ?> <span class="text-danger">*</span></label>
+          <input type="text" name="recipient_contact" class="form-control <?= isset($errors['recipient_contact']) ? 'is-invalid' : '' ?>" value="<?= old('recipient_contact', $old, $defaultContact) ?>">
+          <?php if (isset($errors['recipient_contact'])): ?><div class="invalid-feedback d-block"><?= e($errors['recipient_contact']) ?></div><?php endif; ?>
+        </div>
+
+        <?php if ($selectedChannel === 'Email'): ?>
+          <div class="col-12 mb-3">
+            <label class="form-label">Subject</label>
+            <input type="text" name="subject" class="form-control" value="<?= old('subject', $old, $previewSubject) ?>">
+          </div>
+        <?php endif; ?>
+
+        <div class="col-12 mb-3">
+          <label class="form-label">Message <span class="text-danger">*</span></label>
+          <textarea name="message" rows="5" class="form-control <?= isset($errors['message']) ? 'is-invalid' : '' ?>"><?= old('message', $old, $previewBody) ?></textarea>
+          <?php if (isset($errors['message'])): ?><div class="invalid-feedback d-block"><?= e($errors['message']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-tray-arrow-down"></i> Queue Message</button>
+      <a href="<?= url($selectedChannel === 'Email' ? '/notifications/email' : '/notifications/sms') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

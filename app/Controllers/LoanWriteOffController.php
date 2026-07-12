@@ -37,7 +37,7 @@ class LoanWriteOffController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.writeoffs');
         $status = trim((string) ($_GET['status'] ?? ''));
         $this->view('accounting/loan_write_offs/index', [
             'title' => 'Loan Write-Offs',
@@ -48,7 +48,7 @@ class LoanWriteOffController extends Controller
 
     public function create(string $badDebtId): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.writeoffs');
         $badDebt = $this->badDebts->find((int) $badDebtId);
 
         if (!$badDebt) {
@@ -72,7 +72,7 @@ class LoanWriteOffController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.writeoffs');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -129,7 +129,7 @@ class LoanWriteOffController extends Controller
 
     public function show(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.writeoffs');
         $writeOff = $this->writeOffs->find((int) $id);
 
         if (!$writeOff) {
@@ -147,7 +147,7 @@ class LoanWriteOffController extends Controller
 
     public function approve(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.writeoffs');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -176,7 +176,7 @@ class LoanWriteOffController extends Controller
 
     public function post(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.writeoffs');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

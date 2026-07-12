@@ -1,0 +1,63 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h4 class="card-title mb-0">Collections Worklist</h4>
+      <form method="get" class="d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label small mb-0">As of date</label>
+          <input type="date" name="as_of_date" class="form-control form-control-sm" value="<?= e($asOfDate) ?>" onchange="this.form.submit()">
+        </div>
+      </form>
+    </div>
+    <p class="text-muted small mb-0">Every loan with at least one overdue, unpaid installment as at <?= e($asOfDate) ?>.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Loan</th><th>Borrower</th><th class="text-end">Days Overdue</th><th>Bucket</th>
+            <th class="text-end">Outstanding</th><th class="text-center">Contacts</th><th>Promise</th><th>Escalation</th><th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-4">No loans in arrears as at this date.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $loan): ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['borrower_name']) ?></td>
+              <td class="text-end"><?= (int) $loan['days_in_arrears'] ?></td>
+              <td><span class="badge bg-warning text-dark"><?= e($loan['aging_bucket']) ?></span></td>
+              <td class="text-end"><?= e(format_money($loan['outstanding_balance'])) ?></td>
+              <td class="text-center"><span class="badge bg-secondary"><?= (int) $loan['contact_count'] ?></span></td>
+              <td>
+                <?php if ($loan['pending_promise']): ?>
+                  <span class="badge bg-info text-dark">Due <?= e($loan['pending_promise']['promise_date']) ?></span>
+                <?php else: ?>
+                  <span class="text-muted small">&mdash;</span>
+                <?php endif; ?>
+              </td>
+              <td>
+                <?php if ($loan['open_escalation']): ?>
+                  <span class="badge bg-danger"><?= e($loan['open_escalation']['escalation_level']) ?></span>
+                <?php else: ?>
+                  <span class="text-muted small">&mdash;</span>
+                <?php endif; ?>
+              </td>
+              <td class="text-end">
+                <a href="<?= url('/collections/worklist/' . $loan['loan_id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i> View Case</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

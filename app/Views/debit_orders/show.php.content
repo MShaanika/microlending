@@ -1,0 +1,49 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($debitOrder['status']) {
+    'Active' => 'success',
+    'Cancelled' => 'danger',
+    'Suspended' => 'warning',
+    default => 'secondary',
+  };
+?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Debit Order <?= e($debitOrder['debit_order_no']) ?></h4>
+        <p class="text-muted small mb-0">Loan <?= e($debitOrder['loan_no']) ?> &bull; <?= e($debitOrder['borrower_name']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($debitOrder['status']) ?></span>
+    </div>
+
+    <hr>
+    <p class="mb-1"><strong>Bank:</strong> <?= e($debitOrder['bank_name']) ?></p>
+    <p class="mb-1"><strong>Account:</strong> <?= e($debitOrder['account_name']) ?: '&mdash;' ?> &mdash; <?= e($debitOrder['account_number']) ?> <?= $debitOrder['branch_code'] ? '(' . e($debitOrder['branch_code']) . ')' : '' ?></p>
+    <p class="mb-1"><strong>Debit Day:</strong> <?= (int) $debitOrder['debit_day'] ?> of each month</p>
+    <p class="mb-1"><strong>Debit Amount:</strong> <?= format_money($debitOrder['debit_amount']) ?></p>
+    <p class="mb-1"><strong>Start Date:</strong> <?= e(date('d M Y', strtotime($debitOrder['start_date']))) ?></p>
+    <?php if ($debitOrder['end_date']): ?>
+      <p class="mb-1"><strong>End Date:</strong> <?= e(date('d M Y', strtotime($debitOrder['end_date']))) ?></p>
+    <?php endif; ?>
+
+    <?php if ($pendingCancellation): ?>
+      <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-0">
+        <div>
+          <strong>Cancellation requested</strong> on <?= e(date('d M Y', strtotime($pendingCancellation['created_at']))) ?> &mdash;
+          this mandate is still <strong>Active</strong> until the request below is approved.
+        </div>
+        <a href="<?= url('/debit-order-cancellations/' . $pendingCancellation['id']) ?>" class="btn btn-sm btn-warning"><i class="mdi mdi-arrow-right"></i> Review &amp; Approve</a>
+      </div>
+    <?php endif; ?>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <?php if ($debitOrder['status'] === 'Active' && !$pendingCancellation): ?>
+        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/cancel') ?>" class="btn btn-outline-danger"><i class="mdi mdi-cancel"></i> Request Cancellation</a>
+      <?php endif; ?>
+      <a href="<?= url('/debit-orders') ?>" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+  </div>
+</div>

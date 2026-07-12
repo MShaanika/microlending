@@ -23,7 +23,7 @@ class AccountingAccountController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.chart');
 
         $accounts = $this->accounts->allAccounts();
         foreach ($accounts as &$account) {
@@ -38,7 +38,7 @@ class AccountingAccountController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.chart');
         $this->view('accounting/accounts/create', [
             'title' => 'Add Account',
             'parents' => $this->accounts->allAccounts(true),
@@ -49,7 +49,7 @@ class AccountingAccountController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.chart');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -90,7 +90,7 @@ class AccountingAccountController extends Controller
 
     public function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.chart');
         $account = $this->accounts->find((int) $id);
 
         if (!$account) {
@@ -108,7 +108,7 @@ class AccountingAccountController extends Controller
 
     public function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.chart');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

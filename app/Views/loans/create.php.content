@@ -1,16 +1,34 @@
 <?= flash_messages() ?>
 
+<?php if (!empty($application_id)): ?>
+  <div class="alert alert-info">
+    <i class="mdi mdi-information-outline"></i> Converting online application #<?= (int) $application_id ?> &mdash; pick the loan product and plan below to finish.
+  </div>
+<?php endif; ?>
+
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-3">New Loan</h4>
 
     <form method="post" action="<?= url('/loans') ?>" id="loan-form">
       <?= csrf_field() ?>
+      <?php if (!empty($application_id)): ?><input type="hidden" name="application_id" value="<?= (int) $application_id ?>"><?php endif; ?>
 
       <div class="row">
+        <div class="col-12 mb-3">
+          <label class="form-label d-block">Loan Type</label>
+          <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="loan_mode" id="loan_mode_new" value="new" <?= (($old['loan_mode'] ?? 'new') !== 'topup') ? 'checked' : '' ?>>
+            <label class="btn btn-outline-info" for="loan_mode_new"><i class="mdi mdi-file-plus-outline"></i> New Loan</label>
+
+            <input type="radio" class="btn-check" name="loan_mode" id="loan_mode_topup" value="topup" <?= (($old['loan_mode'] ?? '') === 'topup') ? 'checked' : '' ?>>
+            <label class="btn btn-outline-info" for="loan_mode_topup"><i class="mdi mdi-cash-plus"></i> Top-up</label>
+          </div>
+        </div>
+
         <div class="col-md-6 mb-3">
           <label class="form-label">Borrower <span class="text-danger">*</span></label>
-          <select name="borrower_id" class="form-select <?= isset($errors['borrower_id']) ? 'is-invalid' : '' ?>">
+          <select name="borrower_id" id="borrower_id" class="form-select <?= isset($errors['borrower_id']) ? 'is-invalid' : '' ?>">
             <option value="">Select borrower</option>
             <?php foreach ($borrowers as $b): ?>
               <option value="<?= $b['id'] ?>" <?= ((int) ($old['borrower_id'] ?? $preselected_borrower_id)) === (int) $b['id'] ? 'selected' : '' ?>>
@@ -19,6 +37,25 @@
             <?php endforeach; ?>
           </select>
           <?php if (isset($errors['borrower_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['borrower_id']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3 topup-only" style="display:none;">
+          <label class="form-label">Existing Active Loan <span class="text-danger">*</span></label>
+          <select name="existing_loan_id" id="existing_loan_id" class="form-select <?= isset($errors['existing_loan_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select borrower first</option>
+          </select>
+          <div id="existing_loan_hint" class="form-text"></div>
+          <?php if (isset($errors['existing_loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['existing_loan_id']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3 topup-only" style="display:none;">
+          <label class="form-label">Bank Account <span class="text-muted small">(if the top-up consolidates)</span></label>
+          <select name="bank_account_id" class="form-select">
+            <option value="">Default (Bank Account)</option>
+            <?php foreach ($bankAccounts as $b): ?>
+              <option value="<?= $b['id'] ?>" <?= (($old['bank_account_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['bank_name'] . ' - ' . $b['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
         </div>
 
         <div class="col-md-6 mb-3">
@@ -43,7 +80,7 @@
         </div>
 
         <div class="col-md-6 mb-3">
-          <label class="form-label">Principal Amount <span class="text-danger">*</span></label>
+          <label class="form-label"><span id="principal_amount_label">Principal Amount</span> <span class="text-danger">*</span></label>
           <input type="number" step="0.01" name="principal_amount" class="form-control <?= isset($errors['principal_amount']) ? 'is-invalid' : '' ?>" value="<?= old('principal_amount', $old) ?>">
           <?php if (isset($errors['principal_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['principal_amount']) ?></div><?php endif; ?>
         </div>
@@ -100,5 +137,70 @@
 
   productSelect.addEventListener('change', renderPlans);
   if (productSelect.value) renderPlans();
+
+  // Top-up mode: existing active loan picker cascaded from the borrower
+  // select, same pattern as product -> plan above. The same-month/
+  // different-month hint is purely informational -- the server re-checks
+  // authoritatively via TopUpService::shouldConsolidate().
+  var activeLoansByBorrower = <?= json_encode($activeLoansByBorrower ?? []) ?>;
+  var borrowerSelect = document.getElementById('borrower_id');
+  var existingLoanSelect = document.getElementById('existing_loan_id');
+  var existingLoanHint = document.getElementById('existing_loan_hint');
+  var amountLabel = document.getElementById('principal_amount_label');
+  var topupOnlyEls = document.querySelectorAll('.topup-only');
+  var loanModeRadios = document.querySelectorAll('input[name="loan_mode"]');
+  var selectedExistingLoanId = "<?= e($old['existing_loan_id'] ?? '') ?>";
+
+  function currentMonthKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function updateHint() {
+    var opt = existingLoanSelect.options[existingLoanSelect.selectedIndex];
+    if (!opt || !opt.value) {
+      existingLoanHint.textContent = '';
+      return;
+    }
+    existingLoanHint.textContent = opt.dataset.sameMonth === '1'
+      ? 'Disbursed this month -- if nothing has been paid on it yet, the top-up will be consolidated into this loan as one balance.'
+      : 'From a different month (or already has a payment) -- the top-up will be created as a separate loan linked to this one.';
+  }
+
+  function renderExistingLoans() {
+    var loans = activeLoansByBorrower[borrowerSelect.value] || [];
+    existingLoanSelect.innerHTML = '';
+    if (!loans.length) {
+      existingLoanSelect.innerHTML = '<option value="">No active loans for this borrower</option>';
+      existingLoanHint.textContent = '';
+      return;
+    }
+    existingLoanSelect.innerHTML = '<option value="">Select active loan</option>';
+    loans.forEach(function (loan) {
+      var opt = document.createElement('option');
+      opt.value = loan.id;
+      var sameMonth = String(loan.start_date).slice(0, 7) === currentMonthKey();
+      opt.dataset.sameMonth = sameMonth ? '1' : '0';
+      opt.textContent = loan.loan_no + ' - N$' + Number(loan.principal_amount).toFixed(2) + ' (' + (sameMonth ? 'this month' : 'different month') + ')';
+      if (String(loan.id) === selectedExistingLoanId) opt.selected = true;
+      existingLoanSelect.appendChild(opt);
+    });
+    updateHint();
+  }
+
+  function updateModeUI() {
+    var checked = document.querySelector('input[name="loan_mode"]:checked');
+    var isTopup = !!checked && checked.value === 'topup';
+    topupOnlyEls.forEach(function (el) { el.style.display = isTopup ? '' : 'none'; });
+    existingLoanSelect.required = isTopup;
+    amountLabel.textContent = isTopup ? 'Top-up Amount' : 'Principal Amount';
+  }
+
+  borrowerSelect.addEventListener('change', renderExistingLoans);
+  existingLoanSelect.addEventListener('change', updateHint);
+  loanModeRadios.forEach(function (r) { r.addEventListener('change', updateModeUI); });
+
+  updateModeUI();
+  if (borrowerSelect.value) renderExistingLoans();
 })();
 </script>

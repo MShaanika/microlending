@@ -1,0 +1,58 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">New Notification Template</h4>
+
+    <form method="post" action="<?= url('/notifications/templates') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template Code <span class="text-danger">*</span></label>
+          <input type="text" name="template_code" class="form-control <?= isset($errors['template_code']) ? 'is-invalid' : '' ?>" value="<?= old('template_code', $old) ?>" placeholder="e.g. PAYMENT_REMINDER_SMS">
+          <?php if (isset($errors['template_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['template_code']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template Name <span class="text-danger">*</span></label>
+          <input type="text" name="template_name" class="form-control <?= isset($errors['template_name']) ? 'is-invalid' : '' ?>" value="<?= old('template_name', $old) ?>">
+          <?php if (isset($errors['template_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['template_name']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Channel <span class="text-danger">*</span></label>
+          <select name="channel" class="form-select <?= isset($errors['channel']) ? 'is-invalid' : '' ?>">
+            <option value="">Select channel</option>
+            <?php foreach ($channels as $c): ?>
+              <option value="<?= e($c) ?>" <?= (($old['channel'] ?? '') === $c) ? 'selected' : '' ?>><?= e($c) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['channel'])): ?><div class="invalid-feedback d-block"><?= e($errors['channel']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Subject <span class="text-muted small">(Email only)</span></label>
+          <input type="text" name="subject" class="form-control" value="<?= old('subject', $old) ?>">
+        </div>
+
+        <div class="col-12 mb-2">
+          <label class="form-label">Message Body <span class="text-danger">*</span></label>
+          <textarea name="message_body" rows="5" class="form-control <?= isset($errors['message_body']) ? 'is-invalid' : '' ?>"><?= old('message_body', $old) ?></textarea>
+          <?php if (isset($errors['message_body'])): ?><div class="invalid-feedback d-block"><?= e($errors['message_body']) ?></div><?php endif; ?>
+          <div class="form-text">Available merge fields: <?php foreach ($mergeFields as $f): ?><code>{{<?= e($f) ?>}}</code> <?php endforeach; ?></div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <div class="form-check">
+            <input type="checkbox" name="is_active" id="is_active" class="form-check-input" value="1" <?= (empty($old) || isset($old['is_active'])) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="is_active">Active</label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Template</button>
+      <a href="<?= url('/notifications/templates') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

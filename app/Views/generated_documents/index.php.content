@@ -1,0 +1,81 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Generated Documents</h4>
+      <a href="<?= url('/letters/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Generate Letter</a>
+    </div>
+    <p class="text-muted small">Every document generated across the system &mdash; Letters, Loan Reschedules, Debit Order Cancellations, Applications and Refund Claims.</p>
+
+    <form method="get" action="<?= url('/generated-documents') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="source_module" class="form-select">
+          <option value="">All Sources</option>
+          <?php foreach ($sourceModules as $m): ?>
+            <option value="<?= e($m) ?>" <?= $sourceModule === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Draft', 'Generated', 'Sent', 'Signed', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="q" class="form-control" placeholder="Document no, title, borrower..." value="<?= e($search) ?>">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Document No</th><th>Title</th><th>Source</th><th>Related To</th><th>Status</th><th>Generated</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($documents)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No documents match this filter.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($documents as $d): ?>
+            <?php
+              $badge = match ($d['status']) {
+                'Generated', 'Sent', 'Signed' => 'success',
+                'Cancelled' => 'danger',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($d['document_no']) ?></td>
+              <td><?= e($d['document_title']) ?></td>
+              <td><span class="badge bg-secondary"><?= e($d['source_module']) ?: 'n/a' ?></span></td>
+              <td>
+                <?php if ($d['borrower_id']): ?>
+                  <a href="<?= url('/borrowers/' . $d['borrower_id']) ?>"><?= e($d['borrower_name']) ?: 'Borrower #' . $d['borrower_id'] ?></a>
+                <?php elseif ($d['loan_id']): ?>
+                  <a href="<?= url('/loans/' . $d['loan_id']) ?>">Loan #<?= (int) $d['loan_id'] ?></a>
+                <?php else: ?>
+                  <span class="text-muted">&mdash;</span>
+                <?php endif; ?>
+              </td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
+              <td><?= $d['generated_at'] ? e(date('d M Y H:i', strtotime($d['generated_at']))) : '&mdash;' ?></td>
+              <td class="text-end">
+                <?php if ($d['file_path']): ?>
+                  <a href="<?= url('/generated-documents/' . $d['id'] . '/download') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i> Download</a>
+                <?php else: ?>
+                  <span class="text-muted small">Not ready</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

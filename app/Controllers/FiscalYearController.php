@@ -23,7 +23,7 @@ class FiscalYearController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $this->view('accounting/fiscal_years/index', [
             'title' => 'Fiscal Years',
             'fiscalYears' => $this->fiscalYears->allYears(),
@@ -32,7 +32,7 @@ class FiscalYearController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $this->view('accounting/fiscal_years/create', [
             'title' => 'Add Fiscal Year',
             'old' => [],
@@ -42,7 +42,7 @@ class FiscalYearController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -96,7 +96,7 @@ class FiscalYearController extends Controller
 
     public function show(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $fiscalYear = $this->fiscalYears->find((int) $id);
 
         if (!$fiscalYear) {
@@ -113,7 +113,7 @@ class FiscalYearController extends Controller
 
     public function close(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -131,7 +131,7 @@ class FiscalYearController extends Controller
 
     public function open(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -149,7 +149,7 @@ class FiscalYearController extends Controller
 
     public function closePeriod(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -172,7 +172,7 @@ class FiscalYearController extends Controller
 
     public function reopenPeriod(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.settings');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

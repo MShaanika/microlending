@@ -36,7 +36,7 @@ class BankReconciliationController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_reconciliation');
 
         $bankAccounts = $this->bankAccounts->allBankAccounts(true);
         $bankAccountId = (int) ($_GET['bank_account_id'] ?? ($bankAccounts[0]['id'] ?? 0));
@@ -59,7 +59,7 @@ class BankReconciliationController extends Controller
 
     public function importForm(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_reconciliation');
         $bankAccounts = $this->bankAccounts->allBankAccounts(true);
         $bankAccountId = (int) ($_GET['bank_account_id'] ?? ($bankAccounts[0]['id'] ?? 0));
 
@@ -73,7 +73,7 @@ class BankReconciliationController extends Controller
 
     public function import(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_reconciliation');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -163,7 +163,7 @@ class BankReconciliationController extends Controller
 
     public function match(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_reconciliation');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -193,7 +193,7 @@ class BankReconciliationController extends Controller
 
     public function unmatch(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_reconciliation');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -218,7 +218,7 @@ class BankReconciliationController extends Controller
      */
     public function createAdjustment(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_reconciliation');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');

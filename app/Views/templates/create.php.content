@@ -1,0 +1,68 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">New Document Template</h4>
+
+    <form method="post" action="<?= url('/templates') ?>" enctype="multipart/form-data">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template Code <span class="text-danger">*</span></label>
+          <input type="text" name="template_code" class="form-control <?= isset($errors['template_code']) ? 'is-invalid' : '' ?>" value="<?= old('template_code', $old) ?>" placeholder="e.g. LOAN_RESCHEDULE_LETTER">
+          <?php if (isset($errors['template_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['template_code']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template Name <span class="text-danger">*</span></label>
+          <input type="text" name="template_name" class="form-control <?= isset($errors['template_name']) ? 'is-invalid' : '' ?>" value="<?= old('template_name', $old) ?>">
+          <?php if (isset($errors['template_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['template_name']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template Type <span class="text-danger">*</span></label>
+          <select name="template_type" class="form-select <?= isset($errors['template_type']) ? 'is-invalid' : '' ?>">
+            <option value="">Select type</option>
+            <?php foreach ($templateTypes as $type): ?>
+              <option value="<?= e($type) ?>" <?= (($old['template_type'] ?? '') === $type) ? 'selected' : '' ?>><?= e($type) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['template_type'])): ?><div class="invalid-feedback d-block"><?= e($errors['template_type']) ?></div><?php endif; ?>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Category</label>
+          <select name="category_id" class="form-select">
+            <option value="">None</option>
+            <?php foreach ($categories as $c): ?>
+              <option value="<?= (int) $c['id'] ?>" <?= (($old['category_id'] ?? '') == $c['id']) ? 'selected' : '' ?>><?= e($c['category_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template File (.docx) <span class="text-danger">*</span></label>
+          <input type="file" name="template_file" class="form-control <?= isset($errors['template_file']) ? 'is-invalid' : '' ?>" accept=".docx">
+          <?php if (isset($errors['template_file'])): ?><div class="invalid-feedback d-block"><?= e($errors['template_file']) ?></div><?php endif; ?>
+          <div class="form-text">Use <code>${FIELD_KEY}</code>-style placeholders inside the document -- map each one under "Fields" after saving.</div>
+        </div>
+
+        <div class="col-md-6 mb-3 d-flex align-items-end">
+          <div class="form-check">
+            <input type="checkbox" name="is_active" id="is_active" class="form-check-input" value="1" <?= (empty($old) || isset($old['is_active'])) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="is_active">Active</label>
+          </div>
+        </div>
+
+        <div class="col-12 mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" rows="2" class="form-control"><?= old('description', $old) ?></textarea>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Template</button>
+      <a href="<?= url('/templates') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

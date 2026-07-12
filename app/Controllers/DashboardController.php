@@ -7,12 +7,13 @@ use App\Models\Borrower;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Models\FixedAsset;
+use App\Services\DashboardService;
 
 class DashboardController extends Controller
 {
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('dashboard.view');
 
         $borrowers = new Borrower();
         $loans = new Loan();
@@ -31,6 +32,14 @@ class DashboardController extends Controller
                 'total_assets' => $assets->totals()['count'],
                 'assets_nbv' => $assets->totals()['net_book_value'],
             ],
+            'kpis' => DashboardService::kpis(),
+            'loanStatusDistribution' => DashboardService::loanStatusDistribution(),
+            'disbursementVsCollectionTrend' => DashboardService::disbursementVsCollectionTrend(6),
+            'arrearsAging' => DashboardService::arrearsAging(),
+            'cashPosition' => DashboardService::cashPosition(),
+            'topArrears' => DashboardService::topArrears(5),
+            'upcomingDue' => DashboardService::upcomingDue(7),
+            'recentActivity' => DashboardService::recentActivity(8),
         ]);
     }
 }

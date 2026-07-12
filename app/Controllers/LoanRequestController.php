@@ -20,7 +20,7 @@ class LoanRequestController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.view');
         $status = trim((string) ($_GET['status'] ?? ''));
 
         $this->view('loan_requests/index', [
@@ -32,7 +32,7 @@ class LoanRequestController extends Controller
 
     public function approve(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.approve');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -55,7 +55,7 @@ class LoanRequestController extends Controller
 
     public function reject(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.deny');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -78,7 +78,7 @@ class LoanRequestController extends Controller
 
     public function documents(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.view');
         $request = $this->loanRequests->find((int) $id);
         if (!$request) {
             Session::flash('error', 'Loan request not found.');
@@ -94,7 +94,7 @@ class LoanRequestController extends Controller
 
     public function downloadDocument(string $id, string $documentId): void
     {
-        Auth::requireLogin();
+        Auth::authorize('loans.view');
         $documents = $this->loanRequests->documentsFor((int) $id);
         $document = null;
         foreach ($documents as $d) {

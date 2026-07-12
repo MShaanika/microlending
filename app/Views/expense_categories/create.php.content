@@ -1,0 +1,36 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Expense Category</h4>
+
+    <form method="post" action="<?= url('/expense-categories') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Category Name <span class="text-danger">*</span></label>
+        <input type="text" name="category_name" class="form-control <?= isset($errors['category_name']) ? 'is-invalid' : '' ?>" value="<?= old('category_name', $old) ?>">
+        <?php if (isset($errors['category_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['category_name']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">GL Expense Account <span class="text-danger">*</span></label>
+        <select name="account_id" class="form-select <?= isset($errors['account_id']) ? 'is-invalid' : '' ?>">
+          <option value="">Select account</option>
+          <?php foreach ($expenseAccounts as $a): ?>
+            <option value="<?= (int) $a['id'] ?>" <?= (($old['account_id'] ?? '') == $a['id']) ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php if (isset($errors['account_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_id']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" rows="2" class="form-control"><?= old('description', $old) ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Category</button>
+      <a href="<?= url('/expense-categories') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,112 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($run['status']) {
+    'Posted' => 'success',
+    'Cancelled' => 'danger',
+    'Processed' => 'info',
+    'Submitted' => 'primary',
+    default => 'warning',
+  };
+?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Debit Order Run <?= e($run['run_no']) ?></h4>
+        <p class="text-muted small mb-0"><?= e($run['branch_name']) ?> &bull; Debit Month: <?= e($run['debit_month']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($run['status']) ?></span>
+    </div>
+
+    <div class="row text-center my-3">
+      <div class="col-md-6">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Accounts</div>
+          <div class="fs-5 fw-bold"><?= (int) $run['total_accounts'] ?></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Total Amount</div>
+          <div class="fs-5 fw-bold"><?= format_money($run['total_amount']) ?></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <?php if (in_array($run['status'], ['Draft', 'Generated'], true)): ?>
+        <a href="<?= url('/debit-order-runs/' . $run['id'] . '/export') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-download"></i> <?= $run['status'] === 'Draft' ? 'Export Collection File' : 'Re-download Collection File' ?></a>
+      <?php endif; ?>
+
+      <?php if ($run['status'] === 'Generated'): ?>
+        <form method="post" action="<?= url('/debit-order-runs/' . $run['id'] . '/submit') ?>" onsubmit="return confirm('Mark this run as submitted to the bank?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-primary waves-effect waves-light"><i class="mdi mdi-send"></i> Mark as Submitted</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($run['status'] === 'Submitted'): ?>
+        <a href="<?= url('/debit-order-runs/' . $run['id'] . '/import-response') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Response File</a>
+      <?php endif; ?>
+
+      <?php if ($run['status'] === 'Processed'): ?>
+        <form method="post" action="<?= url('/debit-order-runs/' . $run['id'] . '/post') ?>" onsubmit="return confirm('Post all successful collections as payments? This creates real payment and accounting entries.');" class="d-flex gap-2 flex-wrap align-items-center">
+          <?= csrf_field() ?>
+          <select name="bank_account_id" class="form-select form-select-sm" style="max-width:260px;">
+            <option value="">No specific bank account</option>
+            <?php foreach ($bankAccounts as $ba): ?>
+              <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check-all"></i> Post Successful Collections</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if (in_array($run['status'], ['Draft', 'Generated'], true)): ?>
+        <form method="post" action="<?= url('/debit-order-runs/' . $run['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this run?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-danger waves-effect waves-light"><i class="mdi mdi-cancel"></i> Cancel Run</button>
+        </form>
+      <?php endif; ?>
+
+      <a href="<?= url('/debit-order-runs') ?>" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Lines</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr><th>Loan</th><th>Borrower</th><th>Amount</th><th>Reference</th><th>Status</th><th>Response</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($lines)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-3">No lines.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($lines as $l): ?>
+            <?php
+              $lineBadge = match ($l['status']) {
+                'Successful', 'Posted' => 'success',
+                'Failed', 'Returned' => 'danger',
+                default => 'secondary',
+              };
+            ?>
+            <tr>
+              <td><?= e($l['loan_no']) ?></td>
+              <td><?= e($l['borrower_name']) ?></td>
+              <td><?= format_money($l['debit_amount']) ?></td>
+              <td><?= e($l['bank_reference']) ?></td>
+              <td><span class="badge bg-<?= $lineBadge ?>"><?= e($l['status']) ?></span></td>
+              <td class="text-muted small"><?= e($l['response_code'] ? $l['response_code'] . ' - ' . $l['response_message'] : '') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

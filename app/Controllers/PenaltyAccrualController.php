@@ -28,7 +28,7 @@ class PenaltyAccrualController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.view');
         $this->view('accounting/penalty_accruals/index', [
             'title' => 'Penalty Accruals',
             'runs' => $this->penalties->runsPaginated(),
@@ -37,7 +37,7 @@ class PenaltyAccrualController extends Controller
 
     public function preview(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.view');
         $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
         $installments = PenaltyAccrualService::chargeableInstallments($asOfDate);
         $total = round(array_sum(array_column($installments, 'penalty_amount')), 2);
@@ -52,7 +52,7 @@ class PenaltyAccrualController extends Controller
 
     public function post(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.view');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -128,7 +128,7 @@ class PenaltyAccrualController extends Controller
 
     public function show(string $penaltyDate): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.view');
         $this->view('accounting/penalty_accruals/show', [
             'title' => 'Penalty Accrual Run - ' . $penaltyDate,
             'penaltyDate' => $penaltyDate,

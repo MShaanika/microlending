@@ -100,4 +100,33 @@ class User extends Model
     {
         return $this->update('users', ['password' => $hashedPassword], 'id', $id);
     }
+
+    public function findByEmailOrUsername(string $login): ?array
+    {
+        return $this->one("SELECT * FROM users WHERE (email = ? OR username = ?) AND is_active = 1 LIMIT 1", [$login, $login]);
+    }
+
+    public function setResetToken(int $id, string $tokenHash, string $expiresAt): void
+    {
+        $this->update('users', [
+            'password_reset_token' => $tokenHash,
+            'password_reset_expires' => $expiresAt,
+        ], 'id', $id);
+    }
+
+    public function findByValidResetToken(string $tokenHash): ?array
+    {
+        return $this->one(
+            "SELECT * FROM users WHERE password_reset_token = ? AND password_reset_expires > NOW() AND is_active = 1 LIMIT 1",
+            [$tokenHash]
+        );
+    }
+
+    public function clearResetToken(int $id): void
+    {
+        $this->update('users', [
+            'password_reset_token' => null,
+            'password_reset_expires' => null,
+        ], 'id', $id);
+    }
 }

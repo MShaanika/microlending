@@ -1,0 +1,408 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Financial Reports</h4>
+    <p class="text-muted small mb-3">Showing <strong><?= e($period['label']) ?></strong>. One period filter drives every report below.</p>
+
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small mb-0">View by</label>
+        <select name="period_type" id="period_type" class="form-select" onchange="mlsToggleReportPeriod(this.value)">
+          <option value="month" <?= $period['type'] === 'month' ? 'selected' : '' ?>>Month</option>
+          <option value="quarter" <?= $period['type'] === 'quarter' ? 'selected' : '' ?>>Quarter</option>
+          <option value="year" <?= $period['type'] === 'year' ? 'selected' : '' ?>>Year</option>
+        </select>
+      </div>
+      <div class="col-auto" id="reportMonthField" style="<?= $period['type'] === 'month' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Month</label>
+        <select name="month" class="form-select">
+          <?php for ($m = 1; $m <= 12; $m++): ?>
+            <option value="<?= $m ?>" <?= (int) $period['month'] === $m ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto" id="reportQuarterField" style="<?= $period['type'] === 'quarter' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Quarter</label>
+        <select name="quarter" class="form-select">
+          <?php foreach ([1 => 'Q1 (Jan-Mar)', 2 => 'Q2 (Apr-Jun)', 3 => 'Q3 (Jul-Sep)', 4 => 'Q4 (Oct-Dec)'] as $q => $qLabel): ?>
+            <option value="<?= $q ?>" <?= (int) $period['quarter'] === $q ? 'selected' : '' ?>><?= e($qLabel) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-0">Year</label>
+        <select name="year" class="form-select">
+          <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+            <option value="<?= $y ?>" <?= $period['year'] === $y ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-filter"></i> Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mlsToggleReportPeriod(type) {
+  document.getElementById('reportMonthField').style.display = type === 'month' ? '' : 'none';
+  document.getElementById('reportQuarterField').style.display = type === 'quarter' ? '' : 'none';
+}
+</script>
+
+<div class="row">
+  <div class="col-lg-7 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Disbursement Trend</strong></div>
+      <div class="card-body">
+        <?php if (empty($disbursementByMonth)): ?>
+          <p class="text-center text-muted py-4">No disbursements in this period.</p>
+        <?php else: ?>
+          <div id="reportDisbursementChart"></div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Loans Issued</strong> <span class="text-muted small">by gender</span></div>
+      <div class="card-body">
+        <?php if (empty($genderBreakdown)): ?>
+          <p class="text-center text-muted py-4">No loans issued in this period.</p>
+        <?php else: ?>
+          <div id="reportGenderChart"></div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Loans Issued &mdash; Break-down by Gender</strong></div>
+      <div class="card-body">
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th>Gender</th><th class="text-end">Amount (N$)</th><th class="text-end">No. of Loans</th></tr></thead>
+          <tbody>
+            <?php if (empty($genderBreakdown)): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No loans issued in this period.</td></tr>
+            <?php endif; ?>
+            <?php $gTotalAmt = 0; $gTotalCnt = 0; foreach ($genderBreakdown as $row): $gTotalAmt += $row['total_amount']; $gTotalCnt += $row['loan_count']; ?>
+              <tr>
+                <td><?= e($row['gender']) ?></td>
+                <td class="text-end"><?= e(format_money($row['total_amount'])) ?></td>
+                <td class="text-end"><?= (int) $row['loan_count'] ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <?php if (!empty($genderBreakdown)): ?>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= e(format_money($gTotalAmt)) ?></td><td class="text-end"><?= $gTotalCnt ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Loans Issued &mdash; Break-down by Size and Gender</strong></div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered no-datatable">
+            <thead><tr><th>Range</th><th class="text-end">Total (N$)</th><th class="text-end">Male (N$)</th><th class="text-end">Female (N$)</th><th class="text-end">Male Payers</th><th class="text-end">Female Payers</th></tr></thead>
+            <tbody>
+              <?php $sTotal = ['total_amount' => 0, 'male_amount' => 0, 'female_amount' => 0, 'male_payers' => 0, 'female_payers' => 0]; ?>
+              <?php foreach ($sizeBreakdown as $row): if ((float) $row['total_amount'] <= 0) continue; ?>
+                <?php foreach (array_keys($sTotal) as $k) { $sTotal[$k] += $row[$k]; } ?>
+                <tr>
+                  <td><?= e($row['label']) ?></td>
+                  <td class="text-end"><?= e(format_money($row['total_amount'])) ?></td>
+                  <td class="text-end"><?= e(format_money($row['male_amount'])) ?></td>
+                  <td class="text-end"><?= e(format_money($row['female_amount'])) ?></td>
+                  <td class="text-end"><?= (int) $row['male_payers'] ?></td>
+                  <td class="text-end"><?= (int) $row['female_payers'] ?></td>
+                </tr>
+              <?php endforeach; ?>
+              <?php if ($sTotal['total_amount'] > 0): ?>
+                <tr class="fw-bold">
+                  <td>Total</td>
+                  <td class="text-end"><?= e(format_money($sTotal['total_amount'])) ?></td>
+                  <td class="text-end"><?= e(format_money($sTotal['male_amount'])) ?></td>
+                  <td class="text-end"><?= e(format_money($sTotal['female_amount'])) ?></td>
+                  <td class="text-end"><?= $sTotal['male_payers'] ?></td>
+                  <td class="text-end"><?= $sTotal['female_payers'] ?></td>
+                </tr>
+              <?php else: ?>
+                <tr><td colspan="6" class="text-center text-muted py-3">No loans issued in this period.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Break-down by Gross Salary Range and Gender</strong></div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered no-datatable">
+            <thead><tr><th>Salary Range</th><th class="text-end">Male (N$)</th><th class="text-end">Female (N$)</th><th class="text-end">Male Qty</th><th class="text-end">Female Qty</th></tr></thead>
+            <tbody>
+              <?php $salTotal = ['male_salary' => 0, 'female_salary' => 0, 'male_count' => 0, 'female_count' => 0]; ?>
+              <?php foreach ($salaryBreakdown as $row): ?>
+                <?php foreach (array_keys($salTotal) as $k) { $salTotal[$k] += $row[$k]; } ?>
+                <tr>
+                  <td><?= e($row['label']) ?></td>
+                  <td class="text-end"><?= e(format_money($row['male_salary'])) ?></td>
+                  <td class="text-end"><?= e(format_money($row['female_salary'])) ?></td>
+                  <td class="text-end"><?= (int) $row['male_count'] ?></td>
+                  <td class="text-end"><?= (int) $row['female_count'] ?></td>
+                </tr>
+              <?php endforeach; ?>
+              <tr class="fw-bold">
+                <td>Total</td>
+                <td class="text-end"><?= e(format_money($salTotal['male_salary'])) ?></td>
+                <td class="text-end"><?= e(format_money($salTotal['female_salary'])) ?></td>
+                <td class="text-end"><?= $salTotal['male_count'] ?></td>
+                <td class="text-end"><?= $salTotal['female_count'] ?></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Loan Financial Metrics</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Loans disbursed in this period. Figures are exact (drawn from the amortization schedule), not estimated.</p>
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th>Metric</th><th class="text-end">Amount (N$)</th></tr></thead>
+          <tbody>
+            <tr><td>Total Outstanding Principal</td><td class="text-end"><?= e(format_money($financialMetrics['outstanding_principal'])) ?></td></tr>
+            <tr><td>Principal Received</td><td class="text-end"><?= e(format_money($financialMetrics['principal_received'])) ?></td></tr>
+            <tr><td>Interest Received</td><td class="text-end"><?= e(format_money($financialMetrics['interest_received'])) ?></td></tr>
+            <tr><td>Interest Earned (Completed Loans)</td><td class="text-end"><?= e(format_money($financialMetrics['interest_completed'])) ?></td></tr>
+            <tr><td>Penalty Fee Income</td><td class="text-end"><?= e(format_money($financialMetrics['penalty_income'])) ?></td></tr>
+            <tr><td>Number of Active Loans</td><td class="text-end"><?= (int) $financialMetrics['active_loans'] ?></td></tr>
+            <tr><td>Total Loans Disbursed</td><td class="text-end"><?= (int) $financialMetrics['total_loans'] ?></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Payments Collected &mdash; Break-down by Gender</strong></div>
+      <div class="card-body">
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th>Gender</th><th class="text-end">Amount (N$)</th><th class="text-end">No. of Payments</th></tr></thead>
+          <tbody>
+            <?php if (empty($paymentGenderBreakdown)): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No payments collected in this period.</td></tr>
+            <?php endif; ?>
+            <?php $pTotalAmt = 0; $pTotalCnt = 0; foreach ($paymentGenderBreakdown as $row): $pTotalAmt += $row['total_amount']; $pTotalCnt += $row['payment_count']; ?>
+              <tr>
+                <td><?= e($row['gender']) ?></td>
+                <td class="text-end"><?= e(format_money($row['total_amount'])) ?></td>
+                <td class="text-end"><?= (int) $row['payment_count'] ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <?php if (!empty($paymentGenderBreakdown)): ?>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= e(format_money($pTotalAmt)) ?></td><td class="text-end"><?= $pTotalCnt ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Disbursement Report</strong></div>
+      <div class="card-body">
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th>Month</th><th class="text-end">Amount Disbursed (N$)</th><th class="text-end">No. of Disbursements</th></tr></thead>
+          <tbody>
+            <?php if (empty($disbursementByMonth)): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No disbursements in this period.</td></tr>
+            <?php endif; ?>
+            <?php $dTotal = 0; $dCount = 0; foreach ($disbursementByMonth as $row): $dTotal += $row['total_amount']; $dCount += $row['disbursement_count']; ?>
+              <tr>
+                <td><?= e($row['month_label']) ?></td>
+                <td class="text-end"><?= e(format_money($row['total_amount'])) ?></td>
+                <td class="text-end"><?= (int) $row['disbursement_count'] ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <?php if (!empty($disbursementByMonth)): ?>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= e(format_money($dTotal)) ?></td><td class="text-end"><?= $dCount ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Break-down by Loan Term (Installment Plan)</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Loans disbursed in this period, grouped by plan length.</p>
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th>Term</th><th class="text-end">Amount Disbursed (N$)</th><th class="text-end">No. of Loans</th></tr></thead>
+          <tbody>
+            <?php if (empty($installmentBreakdown)): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No loans disbursed in this period.</td></tr>
+            <?php endif; ?>
+            <?php $iTotal = 0; $iCount = 0; foreach ($installmentBreakdown as $row): $iTotal += $row['total_amount']; $iCount += $row['loan_count']; ?>
+              <tr>
+                <td><?= (int) $row['term_months'] ?> month(s)</td>
+                <td class="text-end"><?= e(format_money($row['total_amount'])) ?></td>
+                <td class="text-end"><?= (int) $row['loan_count'] ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <?php if (!empty($installmentBreakdown)): ?>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= e(format_money($iTotal)) ?></td><td class="text-end"><?= $iCount ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Active Loans</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Snapshot as of <?= e(date('d M Y', strtotime($period['end']))) ?> (end of the selected period) &mdash; every currently outstanding loan, whether or not it's overdue.</p>
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th></th><th class="text-end">No. of Loans</th><th class="text-end">Outstanding (N$)</th></tr></thead>
+          <tbody>
+            <tr><td>In Arrears</td><td class="text-end"><?= (int) $activeLoanStatus['arrears_count'] ?></td><td class="text-end"><?= e(format_money($activeLoanStatus['arrears_outstanding'])) ?></td></tr>
+            <tr><td>Not in Arrears (Current)</td><td class="text-end"><?= (int) $activeLoanStatus['current_count'] ?></td><td class="text-end"><?= e(format_money($activeLoanStatus['current_outstanding'])) ?></td></tr>
+            <tr class="fw-bold"><td>Total Active Loans</td><td class="text-end"><?= (int) $activeLoanStatus['total_count'] ?></td><td class="text-end"><?= e(format_money($activeLoanStatus['total_outstanding'])) ?></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Current Loans</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Just the on-track subset of Active Loans as of <?= e(date('d M Y', strtotime($period['end']))) ?> &mdash; no overdue installment.</p>
+        <div class="row text-center">
+          <div class="col-md-6">
+            <div class="p-3 border rounded">
+              <div class="text-muted small">No. of Loans</div>
+              <div class="fs-4 fw-bold"><?= (int) $activeLoanStatus['current_count'] ?></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 border rounded">
+              <div class="text-muted small">Outstanding Balance</div>
+              <div class="fs-4 fw-bold"><?= e(format_money($activeLoanStatus['current_outstanding'])) ?></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Bad Debts</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Loans identified as bad debt (via a provisioning run) in this period. Select "Quarter" above for a quarterly view.</p>
+        <table class="table table-bordered no-datatable">
+          <thead><tr><th>Aging Bucket</th><th class="text-end">No. of Loans</th><th class="text-end">Outstanding (N$)</th></tr></thead>
+          <tbody>
+            <?php if (empty($badDebtsBreakdown)): ?>
+              <tr><td colspan="3" class="text-center text-muted py-3">No bad debts identified in this period.</td></tr>
+            <?php endif; ?>
+            <?php $bdTotal = 0; $bdCount = 0; foreach ($badDebtsBreakdown as $row): $bdTotal += $row['total_outstanding']; $bdCount += $row['loan_count']; ?>
+              <tr>
+                <td><?= e($row['aging_bucket']) ?></td>
+                <td class="text-end"><?= (int) $row['loan_count'] ?></td>
+                <td class="text-end"><?= e(format_money($row['total_outstanding'])) ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <?php if (!empty($badDebtsBreakdown)): ?>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= $bdCount ?></td><td class="text-end"><?= e(format_money($bdTotal)) ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-header"><strong>Bad Debt Recovery</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Recovery payments posted against written-off loans in this period &mdash; borrowers who were bad debt and have since paid. Select "Quarter" above for a quarterly view.</p>
+        <div class="table-responsive">
+          <table class="table table-bordered no-datatable">
+            <thead><tr><th>Date</th><th>Loan</th><th>Borrower</th><th class="text-end">Recovered (N$)</th><th>Status</th></tr></thead>
+            <tbody>
+              <?php if (empty($badDebtRecoveries)): ?>
+                <tr><td colspan="5" class="text-center text-muted py-3">No recoveries posted in this period.</td></tr>
+              <?php endif; ?>
+              <?php $rTotal = 0; foreach ($badDebtRecoveries as $row): $rTotal += $row['recovered_amount']; ?>
+                <tr>
+                  <td><?= e($row['recovery_date']) ?></td>
+                  <td><?= e($row['loan_no']) ?></td>
+                  <td><?= e($row['borrower_name']) ?></td>
+                  <td class="text-end"><?= e(format_money($row['recovered_amount'])) ?></td>
+                  <td><span class="badge bg-<?= $row['bad_debt_status'] === 'Recovered' ? 'success' : 'info text-dark' ?>"><?= e($row['bad_debt_status'] ?? 'n/a') ?></span></td>
+                </tr>
+              <?php endforeach; ?>
+              <?php if (!empty($badDebtRecoveries)): ?>
+                <tr class="fw-bold"><td colspan="3">Total</td><td class="text-end"><?= e(format_money($rTotal)) ?></td><td></td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var disbursementData = <?= json_encode($disbursementByMonth) ?>;
+  var genderData = <?= json_encode($genderBreakdown) ?>;
+
+  if (disbursementData.length) {
+    new ApexCharts(document.getElementById('reportDisbursementChart'), {
+      chart: { type: 'bar', height: 300, toolbar: { show: false } },
+      series: [{ name: 'Disbursed', data: disbursementData.map(function (r) { return r.total_amount; }) }],
+      xaxis: { categories: disbursementData.map(function (r) { return r.month_label; }) },
+      colors: ['#635bff'],
+      dataLabels: { enabled: false },
+      plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+    }).render();
+  }
+
+  if (genderData.length) {
+    new ApexCharts(document.getElementById('reportGenderChart'), {
+      chart: { type: 'donut', height: 300 },
+      series: genderData.map(function (r) { return parseFloat(r.total_amount); }),
+      labels: genderData.map(function (r) { return r.gender; }),
+      legend: { position: 'bottom' },
+    }).render();
+  }
+})();
+</script>

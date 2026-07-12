@@ -1,4 +1,14 @@
-<?php use App\Core\Auth; $user = Auth::user(); ?>
+<?php
+use App\Core\Auth;
+use App\Models\Company;
+$user = Auth::user();
+$company = (new Company())->primary() ?: [];
+$brandName = $company['brand_name'] ?: ($company['company_name'] ?? '') ?: 'DesertLedger';
+$faviconUrl = !empty($company['favicon']) ? asset($company['favicon']) : (!empty($company['logo']) ? asset($company['logo']) : asset('assets/images/logo-icon.png'));
+$sidebarLogoUrl = !empty($company['logo']) ? asset($company['logo']) : asset('assets/images/logo-light-text.png');
+$primaryColor = $company['primary_color'] ?? '#25a9e0';
+$footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
+?>
 <!DOCTYPE html>
 <html dir="ltr" lang="en">
 <head>
@@ -6,10 +16,12 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
-  <title><?= e($title ?? 'Dashboard') ?> | Micro Lending System</title>
+  <title><?= e($title ?? 'Dashboard') ?> | <?= e($brandName) ?></title>
 
-  <link rel="icon" type="image/png" sizes="16x16" href="<?= asset('assets/images/favicon.png') ?>" />
+  <link rel="icon" type="image/png" sizes="16x16" href="<?= $faviconUrl ?>" />
   <link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet" />
+  <link href="<?= asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') ?>" rel="stylesheet" />
+  <link href="<?= asset('assets/extra-libs/datatables-buttons/css/buttons.bootstrap4.min.css') ?>" rel="stylesheet" />
 
   <style>
     .sidebar-nav ul .sidebar-item .sidebar-link { font-size:15px; }
@@ -18,6 +30,20 @@
       transform:translateY(-3px);
       box-shadow:0 10px 25px rgba(0,0,0,.08);
     }
+    /* White-label accent color -- overrides the theme's Bootstrap "info"
+       accent everywhere it's used (buttons, badges, active nav, links). */
+    :root { --bs-info: <?= e($primaryColor) ?>; --bs-info-rgb: <?= implode(',', array_map('hexdec', str_split(ltrim($primaryColor, '#'), 2))) ?>; }
+    .btn-info, .badge.bg-info, .bg-info, .page-item.active .page-link, .sidebar-nav ul .sidebar-item.selected > .sidebar-link {
+      background-color: <?= e($primaryColor) ?> !important;
+      border-color: <?= e($primaryColor) ?> !important;
+    }
+    .text-info, a.link { color: <?= e($primaryColor) ?> !important; }
+    .border-info { border-color: <?= e($primaryColor) ?> !important; }
+    .btn-info:hover, .btn-info:focus, .btn-outline-info:hover {
+      filter: brightness(90%);
+    }
+    .btn-outline-info { color: <?= e($primaryColor) ?> !important; border-color: <?= e($primaryColor) ?> !important; }
+    .btn-outline-info:hover { background-color: <?= e($primaryColor) ?> !important; color: #fff !important; }
   </style>
 </head>
 
@@ -38,7 +64,7 @@
         <a class="navbar-brand" href="<?= url('/dashboard') ?>">
           
           <span class="logo-text">
-            <img src="<?= asset('assets/images/logo-light-text.png') ?>" class="light-logo" alt="homepage" style="    height: 76px;" />
+            <img src="<?= $sidebarLogoUrl ?>" class="light-logo" alt="homepage" style="height: 76px; max-width: 220px; object-fit: contain;" />
           </span>
         </a>
 
@@ -144,76 +170,109 @@
             <span class="hide-menu">Main</span>
           </li>
 
+          <?php if (Auth::can('dashboard.view')): ?>
           <li class="sidebar-item">
             <a class="sidebar-link waves-effect waves-dark sidebar-link" href="<?= url('/dashboard') ?>">
               <i class="mdi mdi-gauge"></i>
               <span class="hide-menu">Dashboard</span>
             </a>
           </li>
+          <?php endif; ?>
 
           <li class="nav-small-cap">
             <i class="mdi mdi-dots-horizontal"></i>
-            <span class="hide-menu">DesertLedger</span>
+            <span class="hide-menu"><?= e($brandName) ?></span>
           </li>
 
           <?php
           $menus = [
             'Borrowers' => ['icon' => 'mdi-account-multiple', 'items' => [
-              ['label' => 'Borrower List', 'url' => url('/borrowers')],
-              ['label' => 'Add Borrower', 'url' => url('/borrowers/create')],
+              ['label' => 'Borrower List', 'url' => url('/borrowers'), 'perm' => 'borrowers.view'],
+              ['label' => 'Add Borrower', 'url' => url('/borrowers/create'), 'perm' => 'borrowers.create'],
             ]],
             'Loans' => ['icon' => 'mdi-cash-multiple', 'items' => [
-              ['label' => 'Loan List', 'url' => url('/loans')],
-              ['label' => 'New Loan', 'url' => url('/loans/create')],
-              ['label' => 'Loan Products & Plans', 'url' => url('/loan-products')],
-              ['label' => 'Portal Loan Requests', 'url' => url('/loan-requests')],
+              ['label' => 'Loan List', 'url' => url('/loans'), 'perm' => 'loans.view'],
+              ['label' => 'New Loan', 'url' => url('/loans/create'), 'perm' => 'loans.create'],
+              ['label' => 'Loan Products & Plans', 'url' => url('/loan-products'), 'perm' => 'loans.view'],
+              ['label' => 'Portal Loan Requests', 'url' => url('/loan-requests'), 'perm' => 'loans.view'],
+              ['label' => 'Loan Reschedules', 'url' => url('/reschedules'), 'perm' => 'reschedules.view'],
             ]],
             'Collections' => ['icon' => 'mdi-bank', 'items' => [
-              ['label' => 'Payments', 'url' => url('/payments')],
-              ['label' => 'Refund Claims', 'url' => url('/refund-claims')],
+              ['label' => 'Payments', 'url' => url('/payments'), 'perm' => 'collections.view'],
+              ['label' => 'Refund Claims', 'url' => url('/refund-claims'), 'perm' => 'refunds.view'],
+              ['label' => 'Collections Worklist', 'url' => url('/collections/worklist'), 'perm' => 'collections.arrears'],
+              ['label' => 'Debit Orders', 'url' => url('/debit-orders'), 'perm' => 'collections.debit_orders'],
+              ['label' => 'Debit Order Runs', 'url' => url('/debit-order-runs'), 'perm' => 'collections.debit_orders'],
+              ['label' => 'Debit Order Cancellations', 'url' => url('/debit-order-cancellations'), 'perm' => 'collections.debit_orders'],
             ]],
             'Fixed Assets' => ['icon' => 'mdi-trending-up', 'items' => [
-              ['label' => 'Asset Register', 'url' => url('/fixed-assets')],
-              ['label' => 'Register Asset', 'url' => url('/fixed-assets/create')],
+              ['label' => 'Asset Register', 'url' => url('/fixed-assets'), 'perm' => 'assets.view'],
+              ['label' => 'Register Asset', 'url' => url('/fixed-assets/create'), 'perm' => 'assets.manage'],
             ]],
             'Applications' => ['icon' => 'mdi-telegram', 'items' => [
-              ['label' => 'New Applications'], ['label' => 'Screening'], ['label' => 'Rejected Applications'],
+              ['label' => 'All Applications', 'url' => url('/applications'), 'perm' => 'applications.view'],
+              ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view'],
+              ['label' => 'Screening', 'url' => url('/applications?status=Screening'), 'perm' => 'applications.view'],
+              ['label' => 'Rejected Applications', 'url' => url('/applications?status=Rejected'), 'perm' => 'applications.view'],
             ]],
             'Accounting' => ['icon' => 'mdi-calculator', 'items' => [
-              ['label' => 'Chart of Accounts', 'url' => url('/accounting/accounts')],
-              ['label' => 'Bank Accounts', 'url' => url('/accounting/bank-accounts')],
-              ['label' => 'General Ledger', 'url' => url('/accounting/journals')],
-              ['label' => 'New Manual Journal', 'url' => url('/accounting/journals/create')],
-              ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years')],
-              ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance')],
-              ['label' => 'Cash Book', 'url' => url('/accounting/cash-book')],
-              ['label' => 'AFS Export', 'url' => url('/accounting/afs-export')],
-              ['label' => 'Bad Debt Provisioning', 'url' => url('/accounting/bad-debt-provisions')],
-              ['label' => 'Bad Debts & Write-Offs', 'url' => url('/accounting/bad-debts')],
-              ['label' => 'Loan Write-Offs', 'url' => url('/accounting/loan-write-offs')],
-              ['label' => 'Penalty Accruals', 'url' => url('/accounting/penalty-accruals')],
-              ['label' => 'Bank Reconciliation', 'url' => url('/accounting/bank-reconciliation')],
+              ['label' => 'Chart of Accounts', 'url' => url('/accounting/accounts'), 'perm' => 'accounting.chart'],
+              ['label' => 'Bank Accounts', 'url' => url('/accounting/bank-accounts'), 'perm' => 'accounting.bank_accounts'],
+              ['label' => 'General Ledger', 'url' => url('/accounting/journals'), 'perm' => 'accounting.journals'],
+              ['label' => 'New Manual Journal', 'url' => url('/accounting/journals/create'), 'perm' => 'accounting.journals'],
+              ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years'), 'perm' => 'accounting.settings'],
+              ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance'), 'perm' => 'accounting.trial_balance'],
+              ['label' => 'Cash Book', 'url' => url('/accounting/cash-book'), 'perm' => 'accounting.cashbook'],
+              ['label' => 'AFS Export', 'url' => url('/accounting/afs-export'), 'perm' => 'accounting.balance_sheet'],
+              ['label' => 'Bad Debt Provisioning', 'url' => url('/accounting/bad-debt-provisions'), 'perm' => 'accounting.provisions'],
+              ['label' => 'Bad Debts & Write-Offs', 'url' => url('/accounting/bad-debts'), 'perm' => 'accounting.provisions'],
+              ['label' => 'Loan Write-Offs', 'url' => url('/accounting/loan-write-offs'), 'perm' => 'accounting.writeoffs'],
+              ['label' => 'Penalty Accruals', 'url' => url('/accounting/penalty-accruals'), 'perm' => 'accounting.view'],
+              ['label' => 'Bank Reconciliation', 'url' => url('/accounting/bank-reconciliation'), 'perm' => 'accounting.bank_reconciliation'],
+              ['label' => 'Expenses', 'url' => url('/expenses'), 'perm' => 'expenses.view'],
+              ['label' => 'Expense Categories', 'url' => url('/expense-categories'), 'perm' => 'expenses.view'],
             ]],
             'Reports' => ['icon' => 'mdi-chart-bar', 'items' => [
-              ['label' => 'Operational Reports'], ['label' => 'Financial Reports'], ['label' => 'Regulatory Reports'],
+              ['label' => 'Operational Reports', 'url' => url('/reports/operational'), 'perm' => 'reports.operational'],
+              ['label' => 'Financial Reports', 'url' => url('/reports'), 'perm' => 'reports.financial'],
+              ['label' => 'Regulatory Reports', 'url' => url('/reports/regulatory'), 'perm' => 'reports.regulatory'],
             ]],
             'Documents' => ['icon' => 'mdi-file-document', 'items' => [
-              ['label' => 'Templates'], ['label' => 'Generated Documents'],
-              ['label' => 'Letters', 'url' => url('/letters')],
+              ['label' => 'Templates', 'url' => url('/templates'), 'perm' => 'documents.templates'],
+              ['label' => 'Generated Documents', 'url' => url('/generated-documents'), 'perm' => 'documents.view'],
+              ['label' => 'Letters', 'url' => url('/letters'), 'perm' => 'documents.view'],
             ]],
             'Compliance' => ['icon' => 'mdi-gavel', 'items' => [
-              ['label' => 'NAMFISA Reports'], ['label' => 'Duty Stamps'], ['label' => 'Quarterly Reports'],
+              ['label' => 'NAMFISA Reports', 'url' => url('/compliance/namfisa'), 'perm' => 'compliance.namfisa'],
+              ['label' => 'Duty Stamps', 'url' => url('/compliance/duty-stamps'), 'perm' => 'compliance.duty_stamp'],
+              ['label' => 'Quarterly Reports', 'url' => url('/compliance/quarterly-reports'), 'perm' => 'compliance.quarterly'],
             ]],
             'Notifications' => ['icon' => 'mdi-bell', 'items' => [
-              ['label' => 'SMS Queue'], ['label' => 'Email Queue'], ['label' => 'Templates'],
+              ['label' => 'SMS Queue', 'url' => url('/notifications/sms'), 'perm' => 'notifications.view'],
+              ['label' => 'Email Queue', 'url' => url('/notifications/email'), 'perm' => 'notifications.view'],
+              ['label' => 'Templates', 'url' => url('/notifications/templates'), 'perm' => 'notifications.templates'],
+              ['label' => 'Settings', 'url' => url('/notifications/settings'), 'perm' => 'notifications.settings'],
             ]],
             'Settings' => ['icon' => 'mdi-settings', 'items' => [
-              ['label' => 'Users', 'url' => url('/settings/users')],
-              ['label' => 'Roles', 'url' => url('/settings/roles')],
-              ['label' => 'Permissions', 'url' => url('/settings/permissions')],
-              ['label' => 'Company Settings', 'url' => url('/settings/company')],
+              ['label' => 'Users', 'url' => url('/settings/users'), 'perm' => 'admin.users'],
+              ['label' => 'Roles', 'url' => url('/settings/roles'), 'perm' => 'admin.roles'],
+              ['label' => 'Permissions', 'url' => url('/settings/permissions'), 'perm' => 'admin.permissions'],
+              ['label' => 'Company Settings', 'url' => url('/settings/company'), 'perm' => 'admin.company'],
             ]],
           ];
+
+          // Drop items the current user's role(s) can't reach, then drop any
+          // group left with zero visible items -- keeps the sidebar honest
+          // about what's actually clickable instead of just what exists.
+          foreach ($menus as $menuName => $menu) {
+            $menus[$menuName]['items'] = array_values(array_filter(
+                $menu['items'],
+                fn ($item) => Auth::can($item['perm'])
+            ));
+            if (empty($menus[$menuName]['items'])) {
+                unset($menus[$menuName]);
+            }
+          }
           ?>
 
           <?php foreach ($menus as $menuName => $menu): ?>
@@ -256,7 +315,7 @@
             <div class="d-flex mt-2 justify-content-end">
               <div class="d-flex me-3 ms-2">
                 <div class="chart-text me-2">
-                  <h6 class="mb-0"><small>DesertLedger</small></h6>
+                  <h6 class="mb-0"><small><?= e($brandName) ?></small></h6>
                 </div>
                 <div class="spark-chart">
                   <div id="monthchart"></div>
@@ -272,8 +331,8 @@
     </div>
 
     <footer class="footer text-center">
-		<strong>DesertLedger</strong><br>
-		<small>Your trusted Loan Manager</small><br>
+		<strong><?= e($brandName) ?></strong><br>
+		<small><?= e($footerTagline) ?></small><br>
 		<small>Proudly Powered by <strong>Kodecamp Technologies</strong> &copy; <?= date('Y') ?></small>
 	</footer>
   </div>
@@ -289,6 +348,17 @@
 <script src="<?= asset('dist/js/app-style-switcher.js') ?>"></script>
 <script src="<?= asset('dist/js/sidebarmenu.js') ?>"></script>
 <script src="<?= asset('dist/js/custom.min.js') ?>"></script>
+
+<script src="<?= asset('assets/extra-libs/datatables.net/js/jquery.dataTables.min.js') ?>"></script>
+<script src="<?= asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/dataTables.buttons.min.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/buttons.bootstrap4.min.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/jszip.min.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/pdfmake.min.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/vfs_fonts.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/buttons.html5.min.js') ?>"></script>
+<script src="<?= asset('assets/extra-libs/datatables-buttons/js/buttons.print.min.js') ?>"></script>
+<script src="<?= asset('dist/js/pages/datatable/app-datatables-init.js') ?>"></script>
 
 <script>
   $('.preloader').fadeOut();

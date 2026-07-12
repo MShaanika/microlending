@@ -41,6 +41,37 @@
         </div>
       </div>
 
+      <hr>
+      <h6 class="mb-3">White-Label Branding</h6>
+      <p class="text-muted small">These control how the app looks and what it's called throughout the system, separately from the legal company name above.</p>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Brand Name</label>
+          <input type="text" name="brand_name" class="form-control" value="<?= e($company['brand_name'] ?? '') ?>" placeholder="<?= e($company['company_name']) ?>">
+          <div class="form-text">Shown in the title bar, sidebar and footer instead of the company name. Leave blank to use the company name.</div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Primary Color</label>
+          <input type="color" name="primary_color" class="form-control form-control-color <?= isset($errors['primary_color']) ? 'is-invalid' : '' ?>" value="<?= e($company['primary_color'] ?? '#25a9e0') ?>">
+          <?php if (isset($errors['primary_color'])): ?><div class="invalid-feedback d-block"><?= e($errors['primary_color']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-5 mb-3">
+          <label class="form-label">Footer Tagline</label>
+          <input type="text" name="footer_tagline" class="form-control" value="<?= e($company['footer_tagline'] ?? '') ?>" placeholder="Your trusted Loan Manager">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3 text-center">
+          <?php if (!empty($company['favicon'])): ?>
+            <img src="<?= asset($company['favicon']) ?>" alt="Favicon" class="mb-2" style="max-height:40px">
+          <?php else: ?>
+            <div class="text-muted small mb-2">No favicon uploaded (falls back to logo)</div>
+          <?php endif; ?>
+          <input type="file" name="favicon" accept=".jpg,.jpeg,.png,.ico,.svg" class="form-control <?= isset($errors['favicon']) ? 'is-invalid' : '' ?>">
+          <?php if (isset($errors['favicon'])): ?><div class="invalid-feedback d-block"><?= e($errors['favicon']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
       <div class="row">
         <div class="col-md-4 mb-3">
           <label class="form-label">Tax No.</label>

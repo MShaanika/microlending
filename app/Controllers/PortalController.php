@@ -17,6 +17,8 @@ use App\Models\LoanRequest;
 use App\Models\Payment;
 use App\Models\RefundClaim;
 use App\Models\UploadRequirement;
+use App\Services\LoanStatementExcelExporter;
+use App\Services\LoanStatementService;
 
 class PortalController extends Controller
 {
@@ -110,7 +112,39 @@ class PortalController extends Controller
             'schedule' => $this->loans->schedule((int) $id),
             'borrower' => $this->borrowers->find($borrowerId),
             'company' => $this->companies->primary(),
+            'ledger' => LoanStatementService::ledger((int) $id),
         ]);
+    }
+
+    public function loanStatementExcel(string $id): void
+    {
+        PortalAuth::requireLogin();
+        $borrowerId = (int) PortalAuth::user()['borrower_id'];
+
+        $loan = $this->loans->findForBorrower((int) $id, $borrowerId);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/portal/loans');
+            return;
+        }
+
+        $borrower = $this->borrowers->find($borrowerId);
+        $schedule = $this->loans->schedule((int) $id);
+        $ledger = LoanStatementService::ledger((int) $id);
+        $company = $this->companies->primary();
+
+        $spreadsheet = LoanStatementExcelExporter::build($loan, $borrower, $schedule, $ledger, $company);
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Statement_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $loan['loan_no']) . '.xlsx"');
+        header('Cache-Control: max-age=0');
+
+        LoanStatementExcelExporter::save($spreadsheet, 'php://output');
+        exit;
     }
 
     public function loanRequestCreate(): void
@@ -355,7 +389,15 @@ class PortalController extends Controller
             return;
         }
 
-        $template = $this->documentTemplates->findByType($letterType);
+        // template_type alone is ambiguous for consolidation letters (two
+        // templates share it -- one loan vs. all loans), so look up by the
+        // specific template_code instead of the shared type.
+        if ($letterType === 'Completion Letter') {
+            $template = $this->documentTemplates->findByCode('COMPLETION_LETTER');
+        } else {
+            $template = $this->documentTemplates->findByCode($scope === 'all' ? 'CONSOLIDATION_ALL_LOANS' : 'CONSOLIDATION_ONE_LOAN');
+        }
+
         $title = $letterType === 'Completion Letter'
             ? 'Completion Letter - ' . $loan['loan_no']
             : ($scope === 'all' ? 'Consolidation Letter - All Loans' : 'Consolidation Letter - ' . $loan['loan_no']);
@@ -602,11 +644,16 @@ class PortalController extends Controller
             'pdf' => 'application/pdf',
             'jpg', 'jpeg' => 'image/jpeg',
             'png' => 'image/png',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             default => 'application/octet-stream',
         };
 
+        // Word documents can't be rendered inline by the browser -- force a
+        // download instead of the generic octet-stream/"inline" combo that
+        // some browsers mishandle.
+        $disposition = $ext === 'docx' ? 'attachment' : 'inline';
         header('Content-Type: ' . $mime);
-        header('Content-Disposition: inline; filename="' . basename($fullPath) . '"');
+        header('Content-Disposition: ' . $disposition . '; filename="' . basename($fullPath) . '"');
         header('Content-Length: ' . filesize($fullPath));
         readfile($fullPath);
         exit;

@@ -30,7 +30,7 @@ class BadDebtProvisionController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.provisions');
         $this->view('accounting/bad_debt_provisions/index', [
             'title' => 'Bad Debt Provisioning',
             'runs' => $this->provisions->runsPaginated(),
@@ -40,7 +40,7 @@ class BadDebtProvisionController extends Controller
 
     public function badDebts(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.provisions');
         $status = trim((string) ($_GET['status'] ?? ''));
         $this->view('accounting/bad_debt_provisions/bad_debts', [
             'title' => 'Bad Debts',
@@ -51,7 +51,7 @@ class BadDebtProvisionController extends Controller
 
     public function preview(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.provisions');
         $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
 
         [$loans, $totalRequired] = $this->computeRun($asOfDate);
@@ -69,7 +69,7 @@ class BadDebtProvisionController extends Controller
 
     public function post(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.provisions');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -182,7 +182,7 @@ class BadDebtProvisionController extends Controller
 
     public function show(string $provisionDate): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.provisions');
         $this->view('accounting/bad_debt_provisions/show', [
             'title' => 'Provisioning Run - ' . $provisionDate,
             'provisionDate' => $provisionDate,

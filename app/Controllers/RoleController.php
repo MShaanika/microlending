@@ -23,7 +23,7 @@ class RoleController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
         $this->view('settings/roles/index', [
             'title' => 'Roles',
             'roles' => $this->roles->allRoles(),
@@ -32,7 +32,7 @@ class RoleController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
         $this->view('settings/roles/create', [
             'title' => 'Add Role',
             'old' => [],
@@ -42,7 +42,7 @@ class RoleController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -79,7 +79,7 @@ class RoleController extends Controller
 
     public function permissions(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
         $role = $this->roles->find((int) $id);
 
         if (!$role) {
@@ -98,7 +98,7 @@ class RoleController extends Controller
 
     public function updatePermissions(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -124,7 +124,7 @@ class RoleController extends Controller
 
     public function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
         $role = $this->roles->find((int) $id);
 
         if (!$role) {
@@ -142,7 +142,7 @@ class RoleController extends Controller
 
     public function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.roles');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

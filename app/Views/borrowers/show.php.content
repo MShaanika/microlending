@@ -30,6 +30,7 @@
         <div class="mt-3">
           <a href="<?= url('/borrowers/' . $borrower['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i> Edit</a>
           <a href="<?= url('/loans/create?borrower_id=' . $borrower['id']) ?>" class="btn btn-sm btn-info"><i class="mdi mdi-cash-plus"></i> New Loan</a>
+          <a href="<?= url('/notifications/compose?borrower_id=' . $borrower['id']) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-bell-ring-outline"></i> Notify Borrower</a>
         </div>
       </div>
     </div>

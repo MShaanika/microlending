@@ -1,0 +1,67 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Expenses</h4>
+      <a href="<?= url('/expenses/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Capture Expense</a>
+    </div>
+
+    <form method="get" action="<?= url('/expenses') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Draft', 'Pending Approval', 'Approved', 'Paid', 'Rejected', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="category_id" class="form-select">
+          <option value="">All Categories</option>
+          <?php foreach ($categories as $c): ?>
+            <option value="<?= (int) $c['id'] ?>" <?= ($categoryId ?? 0) == $c['id'] ? 'selected' : '' ?>><?= e($c['category_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Expense No</th><th>Date</th><th>Category</th><th>Supplier</th><th>Total</th><th>Status</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($expenses)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No expenses yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($expenses as $e): ?>
+            <?php
+              $badge = match ($e['status']) {
+                'Paid' => 'success',
+                'Rejected', 'Cancelled' => 'danger',
+                'Approved' => 'info',
+                'Pending Approval' => 'warning',
+                default => 'secondary',
+              };
+            ?>
+            <tr>
+              <td><?= e($e['expense_no']) ?></td>
+              <td><?= e(date('d M Y', strtotime($e['expense_date']))) ?></td>
+              <td><?= e($e['category_name']) ?></td>
+              <td><?= e($e['supplier_name']) ?: '&mdash;' ?></td>
+              <td><?= format_money($e['total_amount']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($e['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/expenses/' . $e['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

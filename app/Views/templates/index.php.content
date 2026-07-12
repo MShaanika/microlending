@@ -1,0 +1,44 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Document Templates</h4>
+      <a href="<?= url('/templates/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Template</a>
+    </div>
+    <p class="text-muted small">Templates power letter/document generation across Reschedules, Debit Order Cancellations, Applications, Refund Claims and staff-initiated Letters. A template needs both a real <code>.docx</code> file and its field mappings (<a href="<?= url('/generated-documents') ?>">see generated documents</a>) before it can be auto-generated.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Code</th><th>Name</th><th>Type</th><th>Category</th><th>File</th><th>Status</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($templates)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No templates yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($templates as $t): ?>
+            <tr>
+              <td><code><?= e($t['template_code']) ?></code></td>
+              <td><?= e($t['template_name']) ?></td>
+              <td><?= e($t['template_type']) ?></td>
+              <td><?= e($t['category_name']) ?: '&mdash;' ?></td>
+              <td>
+                <?php if ($t['file_exists']): ?>
+                  <span class="badge bg-success">File OK</span>
+                <?php else: ?>
+                  <span class="badge bg-danger">Missing &mdash; upload</span>
+                <?php endif; ?>
+              </td>
+              <td><span class="badge bg-<?= $t['is_active'] ? 'success' : 'secondary' ?>"><?= $t['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/templates/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-pencil"></i> Edit</a>
+                <a href="<?= url('/templates/' . $t['id'] . '/fields') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-table-edit"></i> Fields</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

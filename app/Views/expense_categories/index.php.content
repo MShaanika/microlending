@@ -1,0 +1,31 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Expense Categories</h4>
+      <a href="<?= url('/expense-categories/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Category</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Category</th><th>GL Account</th><th>Description</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($categories)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-4">No expense categories yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($categories as $c): ?>
+            <tr>
+              <td><?= e($c['category_name']) ?></td>
+              <td><?= e($c['account_code'] . ' - ' . $c['account_name']) ?></td>
+              <td class="text-muted small"><?= e($c['description']) ?: '&mdash;' ?></td>
+              <td><span class="badge bg-<?= $c['is_active'] ? 'success' : 'secondary' ?>"><?= $c['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

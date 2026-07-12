@@ -1,0 +1,95 @@
+<?= flash_messages() ?>
+
+<?php
+  $badge = match ($reschedule['status']) {
+    'Implemented' => 'success',
+    'Rejected', 'Cancelled' => 'danger',
+    'Approved' => 'info',
+    default => 'warning',
+  };
+?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Reschedule <?= e($reschedule['reschedule_no']) ?></h4>
+        <p class="text-muted small mb-0">Loan <?= e($reschedule['loan_no']) ?> &bull; <?= e($reschedule['borrower_name']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($reschedule['status']) ?></span>
+    </div>
+
+    <div class="table-responsive mt-3">
+      <table class="table table-sm table-bordered">
+        <thead><tr><th></th><th>Before</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td>Term</td><td><?= (int) $reschedule['old_term_months'] ?> mo</td><td><?= (int) $reschedule['new_term_months'] ?> mo</td></tr>
+          <tr><td>Installment</td><td><?= format_money($reschedule['old_installment_amount']) ?></td><td><?= format_money($reschedule['new_installment_amount']) ?></td></tr>
+          <tr><td>Payment Day</td><td><?= e((string) ($reschedule['old_payment_day'] ?: '&mdash;')) ?></td><td><?= e((string) ($reschedule['new_payment_day'] ?: '&mdash;')) ?></td></tr>
+          <tr><td>Maturity Date</td><td><?= $reschedule['old_maturity_date'] ? e(date('d M Y', strtotime($reschedule['old_maturity_date']))) : '&mdash;' ?></td><td><?= $reschedule['new_maturity_date'] ? e(date('d M Y', strtotime($reschedule['new_maturity_date']))) : '&mdash;' ?></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mb-1"><strong>Outstanding Balance at Request:</strong> <?= format_money($reschedule['outstanding_balance']) ?></p>
+    <?php if ((float) $reschedule['waived_amount'] > 0): ?>
+      <p class="mb-1"><strong>Waived Amount:</strong> <?= format_money($reschedule['waived_amount']) ?></p>
+    <?php endif; ?>
+    <p class="mb-1"><strong>Reason:</strong> <?= e($reschedule['reason']) ?></p>
+    <?php if ($reschedule['rejection_reason']): ?>
+      <p class="mb-1 text-danger"><strong>Rejection Reason:</strong> <?= e($reschedule['rejection_reason']) ?></p>
+    <?php endif; ?>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <?php if ($reschedule['status'] === 'Pending'): ?>
+        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/approve') ?>" onsubmit="return confirm('Approve this reschedule?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
+      <?php elseif ($reschedule['status'] === 'Approved'): ?>
+        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/implement') ?>" onsubmit="return confirm('Implement this reschedule? This will replace the loan\'s remaining schedule now.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-calendar-sync"></i> Implement</button>
+        </form>
+      <?php elseif ($reschedule['status'] === 'Implemented'): ?>
+        <a href="<?= url('/loans/' . $reschedule['loan_id']) ?>" class="btn btn-outline-primary"><i class="mdi mdi-eye"></i> View Loan</a>
+        <a href="<?= url('/reschedules/' . $reschedule['id'] . '/generate-letter') ?>" class="btn btn-outline-secondary"><i class="mdi mdi-file-document"></i> Generate Letter</a>
+      <?php endif; ?>
+      <a href="<?= url('/reschedules') ?>" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+
+    <?php if ($reschedule['status'] === 'Pending'): ?>
+      <div class="collapse mt-3" id="rejectForm">
+        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/reject') ?>">
+          <?= csrf_field() ?>
+          <textarea name="rejection_reason" class="form-control form-control-sm mb-2" rows="2" placeholder="Reason (optional)"></textarea>
+          <button type="submit" class="btn btn-sm btn-danger">Confirm Rejection</button>
+        </form>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">New Schedule</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead><tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php foreach ($newSchedule as $row): ?>
+            <tr>
+              <td><?= (int) $row['installment_no'] ?></td>
+              <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
+              <td><?= format_money($row['principal_due']) ?></td>
+              <td><?= format_money($row['interest_due']) ?></td>
+              <td><?= format_money($row['total_due']) ?></td>
+              <td><span class="badge bg-<?= $row['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($row['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

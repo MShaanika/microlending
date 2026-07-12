@@ -1,0 +1,57 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Debit Order Cancellations</h4>
+      <a href="<?= url('/debit-orders/0/cancel') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Request Cancellation</a>
+    </div>
+
+    <form method="get" action="<?= url('/debit-order-cancellations') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending', 'Approved', 'Rejected', 'Cancelled'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Cancellation No</th><th>Borrower</th><th>Loan</th><th>Amount</th><th>Status</th><th>Requested</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($cancellations)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No cancellation requests yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($cancellations as $c): ?>
+            <?php
+              $badge = match ($c['status']) {
+                'Approved' => 'success',
+                'Rejected', 'Cancelled' => 'danger',
+                default => 'warning',
+              };
+            ?>
+            <tr>
+              <td><?= e($c['cancellation_no']) ?></td>
+              <td><?= e($c['borrower_name']) ?></td>
+              <td><?= e($c['loan_no']) ?: '&mdash;' ?></td>
+              <td><?= format_money($c['amount_cancelled']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($c['status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($c['created_at']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/debit-order-cancellations/' . $c['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,101 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Reschedule <?= e($loan['loan_no']) ?></h4>
+    <p class="text-muted small">Borrower: <?= e($loan['borrower_name']) ?></p>
+
+    <div class="row text-center my-3">
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Current Term</div>
+          <div class="fs-5 fw-bold"><?= (int) $loan['term_months'] ?> mo</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Current Installment</div>
+          <div class="fs-5 fw-bold"><?= format_money($loan['installment_amount']) ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded border-info">
+          <div class="text-muted small">Outstanding Principal</div>
+          <div class="fs-5 fw-bold"><?= format_money($outstandingBalance) ?></div>
+        </div>
+      </div>
+    </div>
+
+    <form method="post" action="<?= url('/loans/' . $loan['id'] . '/reschedule/preview') ?>" id="reschedule-form">
+      <?= csrf_field() ?>
+      <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">New Term (months) <span class="text-danger">*</span></label>
+          <input type="number" min="1" max="60" name="new_term_months" class="form-control" value="<?= old('new_term_months', $old, (string) $loan['term_months']) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">New Payment Day</label>
+          <input type="number" min="1" max="28" name="new_payment_day" class="form-control" value="<?= old('new_payment_day', $old, (string) $loan['payment_day']) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Waived Amount</label>
+          <input type="number" step="0.01" min="0" name="waived_amount" class="form-control" value="<?= old('waived_amount', $old, '0') ?>">
+          <div class="form-text">Optional discount off the outstanding balance before recalculating.</div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Effective Date</label>
+          <input type="date" name="effective_date" class="form-control" value="<?= old('effective_date', $old, date('Y-m-d')) ?>">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Reason <span class="text-danger">*</span></label>
+        <textarea name="reason" rows="3" class="form-control <?= isset($errors['reason']) ? 'is-invalid' : '' ?>" placeholder="Why this loan is being rescheduled"><?= old('reason', $old) ?></textarea>
+        <?php if (isset($errors['reason'])): ?><div class="invalid-feedback d-block"><?= e($errors['reason']) ?></div><?php endif; ?>
+      </div>
+
+      <button type="submit" class="btn btn-outline-info waves-effect waves-light"><i class="mdi mdi-calculator"></i> Preview New Schedule</button>
+      <button type="submit" formaction="<?= url('/reschedules') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Request Reschedule</button>
+      <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+
+    <?php if ($preview): ?>
+      <hr>
+      <h5 class="mt-3">Preview</h5>
+      <div class="row text-center mb-3">
+        <div class="col-md-6">
+          <div class="p-3 border rounded border-success">
+            <div class="text-muted small">New Installment</div>
+            <div class="fs-5 fw-bold"><?= format_money($preview['new_installment_amount']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-3 border rounded border-success">
+            <div class="text-muted small">New Maturity Date</div>
+            <div class="fs-5 fw-bold"><?= e(date('d M Y', strtotime($preview['new_maturity_date']))) ?></div>
+          </div>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered">
+          <thead>
+            <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach ($preview['rows'] as $row): ?>
+              <tr>
+                <td><?= (int) $row['installment_no'] ?></td>
+                <td><?= e($row['due_date']) ?></td>
+                <td><?= format_money($row['principal_due']) ?></td>
+                <td><?= format_money($row['interest_due']) ?></td>
+                <td><?= format_money($row['total_due']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>

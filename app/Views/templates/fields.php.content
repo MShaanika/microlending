@@ -1,0 +1,85 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Fields &mdash; <?= e($template['template_name']) ?></h4>
+    <p class="text-muted small mb-0">Each row maps a placeholder in the <code>.docx</code> file to where its value comes from. <code>computed</code> sources are fixed helpers (client name, current date, cleared/outstanding balance, transaction table, etc.) rather than a raw column.</p>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Field Key</th><th>Label</th><th>Source Table</th><th>Source Column</th><th>Default</th><th>Required</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($fieldRows)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No field mappings yet &mdash; this template can only be fulfilled via manual upload until at least one field is added.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($fieldRows as $f): ?>
+            <tr>
+              <td><code><?= e($f['field_key']) ?></code></td>
+              <td><?= e($f['field_label']) ?: '&mdash;' ?></td>
+              <td><?= e($f['source_table']) ?: '&mdash;' ?></td>
+              <td><?= e($f['source_column']) ?: '&mdash;' ?></td>
+              <td><?= e($f['default_value']) ?: '&mdash;' ?></td>
+              <td><?= $f['is_required'] ? '<span class="badge bg-warning">Required</span>' : '' ?></td>
+              <td class="text-end">
+                <form method="post" action="<?= url('/templates/' . $template['id'] . '/fields/' . $f['id'] . '/delete') ?>" onsubmit="return confirm('Remove this field mapping?');">
+                  <?= csrf_field() ?>
+                  <button class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Field</h4>
+    <form method="post" action="<?= url('/templates/' . $template['id'] . '/fields') ?>">
+      <?= csrf_field() ?>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Field Key <span class="text-danger">*</span></label>
+          <input type="text" name="field_key" class="form-control <?= isset($errors['field_key']) ? 'is-invalid' : '' ?>" placeholder="e.g. CLIENT_NAME">
+          <?php if (isset($errors['field_key'])): ?><div class="invalid-feedback d-block"><?= e($errors['field_key']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Label</label>
+          <input type="text" name="field_label" class="form-control" placeholder="Client Name">
+        </div>
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Source Table</label>
+          <select name="source_table" class="form-select <?= isset($errors['source_table']) ? 'is-invalid' : '' ?>">
+            <option value="">None (default only)</option>
+            <?php foreach ($fieldSources as $s): ?>
+              <option value="<?= e($s) ?>"><?= e($s) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['source_table'])): ?><div class="invalid-feedback d-block"><?= e($errors['source_table']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Source Column</label>
+          <input type="text" name="source_column" class="form-control" placeholder="e.g. first_name">
+        </div>
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Default Value</label>
+          <input type="text" name="default_value" class="form-control">
+        </div>
+      </div>
+      <div class="form-check mb-3">
+        <input type="checkbox" name="is_required" id="is_required" class="form-check-input" value="1">
+        <label class="form-check-label" for="is_required">Required</label>
+      </div>
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Field</button>
+      <a href="<?= url('/templates') ?>" class="btn btn-outline-secondary">Back to Templates</a>
+    </form>
+  </div>
+</div>

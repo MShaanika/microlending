@@ -1,0 +1,67 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Quarterly Reports</h4>
+      <a href="<?= url('/compliance/quarterly-reports/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Generate Report</a>
+    </div>
+
+    <form method="get" action="<?= url('/compliance/quarterly-reports') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <select name="type" class="form-select">
+          <option value="">All Report Types</option>
+          <?php foreach ($reportTypes as $t): ?>
+            <option value="<?= e($t['report_code']) ?>" <?= $typeCode === $t['report_code'] ? 'selected' : '' ?>><?= e($t['report_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Draft', 'Generated', 'Submitted', 'Approved', 'Rejected'] as $s): ?>
+            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Report No</th><th>Type</th><th>Period</th><th>Loans</th><th>Status</th><th>Generated</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($reports)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No reports generated yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($reports as $r): ?>
+            <?php
+              $badge = match ($r['status']) {
+                'Approved' => 'success',
+                'Submitted' => 'info',
+                'Rejected' => 'danger',
+                'Generated' => 'primary',
+                default => 'secondary',
+              };
+            ?>
+            <tr>
+              <td><?= e($r['report_no']) ?></td>
+              <td><?= e($r['report_name']) ?></td>
+              <td><?= e($r['period_start']) ?> &rarr; <?= e($r['period_end']) ?></td>
+              <td><?= (int) $r['total_loans'] ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+              <td><?= e($r['generated_at']) ?: '&mdash;' ?></td>
+              <td class="text-end">
+                <a href="<?= url('/compliance/quarterly-reports/' . $r['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

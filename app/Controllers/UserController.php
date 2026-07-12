@@ -28,7 +28,7 @@ class UserController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
 
@@ -42,7 +42,7 @@ class UserController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $this->view('settings/users/create', [
             'title' => 'Add User',
             'userTypes' => self::USER_TYPES,
@@ -56,7 +56,7 @@ class UserController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -100,7 +100,7 @@ class UserController extends Controller
 
     public function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $user = $this->users->find((int) $id);
 
         if (!$user) {
@@ -122,7 +122,7 @@ class UserController extends Controller
 
     public function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -182,7 +182,7 @@ class UserController extends Controller
 
     public function toggleActive(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -223,7 +223,7 @@ class UserController extends Controller
 
     public function resetPasswordForm(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $user = $this->users->find((int) $id);
 
         if (!$user) {
@@ -241,7 +241,7 @@ class UserController extends Controller
 
     public function resetPassword(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('admin.users');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

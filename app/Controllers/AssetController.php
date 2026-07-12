@@ -27,7 +27,7 @@ class AssetController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('assets.view');
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
 
@@ -42,7 +42,7 @@ class AssetController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('assets.manage');
         $this->view('assets/create', [
             'title' => 'Register Asset',
             'categories' => $this->categories->activeCategories(),
@@ -54,7 +54,7 @@ class AssetController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('assets.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -138,7 +138,7 @@ class AssetController extends Controller
 
     public function show(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('assets.view');
         $asset = $this->assets->find((int) $id);
 
         if (!$asset) {
@@ -155,7 +155,7 @@ class AssetController extends Controller
 
     public function depreciate(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('assets.manage');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
@@ -183,7 +183,7 @@ class AssetController extends Controller
 
     public function dispose(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('assets.manage');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {

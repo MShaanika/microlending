@@ -1,0 +1,56 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Debit Orders</h4>
+
+    <form method="get" action="<?= url('/debit-orders') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Active', 'Suspended', 'Cancelled', 'Completed'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Debit Order No</th><th>Loan</th><th>Borrower</th><th>Bank</th><th>Debit Day</th><th>Amount</th><th>Status</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($debitOrders)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No debit orders registered yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($debitOrders as $d): ?>
+            <?php
+              $badge = match ($d['status']) {
+                'Active' => 'success',
+                'Cancelled' => 'danger',
+                'Suspended' => 'warning',
+                default => 'secondary',
+              };
+            ?>
+            <tr>
+              <td><?= e($d['debit_order_no']) ?></td>
+              <td><?= e($d['loan_no']) ?></td>
+              <td><?= e($d['borrower_name']) ?></td>
+              <td><?= e($d['bank_name']) ?></td>
+              <td><?= (int) $d['debit_day'] ?></td>
+              <td><?= format_money($d['debit_amount']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/debit-orders/' . $d['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

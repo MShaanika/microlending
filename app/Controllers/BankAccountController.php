@@ -23,7 +23,7 @@ class BankAccountController extends Controller
 
     public function index(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_accounts');
         $this->view('accounting/bank_accounts/index', [
             'title' => 'Bank Accounts',
             'bankAccounts' => $this->bankAccounts->allBankAccounts(),
@@ -32,7 +32,7 @@ class BankAccountController extends Controller
 
     public function create(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_accounts');
         $this->view('accounting/bank_accounts/create', [
             'title' => 'Add Bank Account',
             'glAccounts' => $this->accounts->cashBankAccounts(),
@@ -43,7 +43,7 @@ class BankAccountController extends Controller
 
     public function store(): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_accounts');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
@@ -85,7 +85,7 @@ class BankAccountController extends Controller
 
     public function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_accounts');
         $bankAccount = $this->bankAccounts->find((int) $id);
 
         if (!$bankAccount) {
@@ -103,7 +103,7 @@ class BankAccountController extends Controller
 
     public function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::authorize('accounting.bank_accounts');
         $id = (int) $id;
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
