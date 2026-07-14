@@ -185,7 +185,7 @@ class DebitOrderRunController extends Controller
         header('Content-Disposition: attachment; filename="' . preg_replace('/[^A-Za-z0-9_-]/', '_', $run['run_no']) . '.csv"');
 
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['account_holder', 'bank_name', 'account_number', 'branch_code', 'amount', 'reference', 'loan_no']);
+        fputcsv($out, ['account_holder', 'bank_name', 'account_number', 'branch_code', 'amount', 'reference', 'loan_no'], ',', '"', '\\');
 
         foreach ($lines as $line) {
             $mandate = $this->debitOrders->find((int) $line['debit_order_id']);
@@ -197,7 +197,7 @@ class DebitOrderRunController extends Controller
                 number_format((float) $line['debit_amount'], 2, '.', ''),
                 $line['bank_reference'],
                 $line['loan_no'],
-            ]);
+            ], ',', '"', '\\');
         }
 
         fclose($out);

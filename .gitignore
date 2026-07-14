@@ -13,6 +13,8 @@
 !/storage/generated_documents/.gitkeep
 /storage/regulatory_exports/*
 !/storage/regulatory_exports/.gitkeep
+/storage/documentation/*
+!/storage/documentation/.gitkeep
 
 /public/uploads/
 /public/filled_pdfs/*
