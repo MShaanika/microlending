@@ -9,7 +9,7 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
 <html dir="ltr" lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Borrower Portal Login | Micro Lending System</title>
+    <title>Forgot Password | Micro Lending System</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link rel="icon" type="image/png" href="<?= asset('assets/images/favicon.png') ?>">
@@ -30,8 +30,8 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
 
             <div class="logo text-center">
                 <img src="<?= asset('assets/images/logo-icon.png') ?>" alt="logo" style="height:48px" class="mb-2">
-                <h3 class="box-title mb-3">Borrower Portal</h3>
-                <p class="text-muted">View your loans, schedules and payments</p>
+                <h3 class="box-title mb-3">Forgot Password</h3>
+                <p class="text-muted">Enter your username or email and we'll send you a link to reset your password.</p>
             </div>
 
             <?php if (!empty($success)): ?>
@@ -45,32 +45,24 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
                 </div>
             <?php endif; ?>
 
-            <form class="form-horizontal mt-3 form-material" method="post" action="<?= url('/portal/login') ?>">
-
+            <form class="form-horizontal mt-3 form-material" method="post" action="<?= url('/portal/forgot-password') ?>">
                 <?= csrf_field() ?>
 
                 <div class="form-group mb-3">
-                    <input class="form-control" name="username" type="text" required placeholder="Username">
-                </div>
-
-                <div class="form-group mb-3">
-                    <input class="form-control" name="password" type="password" required placeholder="Password">
-                </div>
-
-                <div class="form-group mb-0 text-end">
-                    <a href="<?= url('/portal/forgot-password') ?>" class="small">Forgot password?</a>
+                    <input class="form-control" name="login" type="text" required placeholder="Username or Email">
                 </div>
 
                 <div class="form-group text-center mt-4 mb-3">
                     <button class="btn btn-info d-block w-100 waves-effect waves-light" type="submit">
-                        Log In
+                        Send Reset Link
                     </button>
                 </div>
 
                 <div class="form-group mb-0 mt-2 text-center">
-                    <p class="small text-muted">Don't have portal access? Ask your loan officer to set it up for you.</p>
+                    <a href="<?= url('/portal/login') ?>" class="small">
+                        <i class="fa fa-arrow-left me-1"></i> Back to Login
+                    </a>
                 </div>
-
             </form>
         </div>
 

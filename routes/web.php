@@ -354,6 +354,10 @@ $router->post('/fixed-assets/{id}/dispose', [AssetController::class, 'dispose'])
 $router->get('/portal/login', [PortalAuthController::class, 'showLogin']);
 $router->post('/portal/login', [PortalAuthController::class, 'login']);
 $router->get('/portal/logout', [PortalAuthController::class, 'logout']);
+$router->get('/portal/forgot-password', [PortalAuthController::class, 'showForgotForm']);
+$router->post('/portal/forgot-password', [PortalAuthController::class, 'sendResetLink']);
+$router->get('/portal/reset-password/{token}', [PortalAuthController::class, 'showResetForm']);
+$router->post('/portal/reset-password/{token}', [PortalAuthController::class, 'resetPassword']);
 
 $router->get('/portal/dashboard', [PortalController::class, 'dashboard']);
 $router->get('/portal/loans', [PortalController::class, 'loans']);
