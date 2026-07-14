@@ -43,4 +43,14 @@ class LoanReschedule extends Model
     {
         return $this->update('loan_reschedules', $data, 'id', $id);
     }
+
+    /** A loan that has ever had a reschedule implemented against it can no
+     *  longer be topped up -- staff must use Reschedule again instead. */
+    public function hasImplementedReschedule(int $loanId): bool
+    {
+        return (bool) $this->scalar(
+            "SELECT 1 FROM loan_reschedules WHERE loan_id = ? AND status = 'Implemented' LIMIT 1",
+            [$loanId]
+        );
+    }
 }

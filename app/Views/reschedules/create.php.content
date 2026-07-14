@@ -37,7 +37,7 @@
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">New Payment Day</label>
-          <input type="number" min="1" max="28" name="new_payment_day" class="form-control" value="<?= old('new_payment_day', $old, (string) $loan['payment_day']) ?>">
+          <input type="number" min="1" max="31" name="new_payment_day" class="form-control" value="<?= old('new_payment_day', $old, (string) $loan['payment_day']) ?>">
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">Waived Amount</label>

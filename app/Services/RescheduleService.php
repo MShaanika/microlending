@@ -51,7 +51,7 @@ class RescheduleService
     /**
      * @return array{rows: array, new_installment_amount: float, new_maturity_date: string, outstanding_balance: float}
      */
-    public static function preview(array $loan, string $interestMethod, int $newTermMonths, float $waivedAmount, string $effectiveDate): array
+    public static function preview(array $loan, string $interestMethod, int $newTermMonths, float $waivedAmount, string $effectiveDate, ?int $paymentDay = null): array
     {
         $outstanding = self::outstandingPrincipal((int) $loan['id']);
         $basis = max(0, round($outstanding - $waivedAmount, 2));
@@ -64,7 +64,8 @@ class RescheduleService
             $interestMethod,
             $effectiveDate,
             0,
-            0
+            0,
+            $paymentDay ?? (isset($loan['payment_day']) ? (int) $loan['payment_day'] : null)
         );
 
         $startingInstallmentNo = self::retainedInstallmentCount((int) $loan['id']) + 1;

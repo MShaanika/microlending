@@ -59,8 +59,8 @@ class Payment extends Model
 
     /**
      * Record a payment against a loan and allocate it across the outstanding
-     * amortization schedule using a penalty -> interest -> fees -> NAMFISA
-     * levy -> duty stamp -> principal waterfall, then post the matching
+     * amortization schedule using an interest -> fees -> NAMFISA levy ->
+     * duty stamp -> principal -> penalty waterfall, then post the matching
      * accounting journal. Used by staff for a payment collected and
      * confirmed on the spot.
      */
@@ -185,12 +185,20 @@ class Payment extends Model
     }
 
     /**
-     * Shared penalty -> interest -> fees -> NAMFISA levy -> duty stamp ->
-     * principal waterfall allocation, followed by the matching accounting
+     * Shared interest -> fees -> NAMFISA levy -> duty stamp -> principal ->
+     * penalty waterfall allocation, followed by the matching accounting
      * journal. Assumes it runs inside an already-open transaction.
      */
     private function allocateToSchedule(array $loan, int $paymentId, float $amount, ?int $userId, ?int $bankAccountId = null, ?string $paymentDate = null): void
     {
+        // Auto-accrue any installment that's gone past its grace period as
+        // of this payment's date, scoped to this loan, before allocating --
+        // this is what makes penalty charging automatic instead of relying
+        // on staff to run the manual Penalty Accruals screen first. A no-op
+        // if nothing is newly chargeable (already-charged installments are
+        // skipped by the NOT EXISTS guard in PenaltyAccrualService).
+        \App\Services\PenaltyAccrualService::accrue($paymentDate ?? date('Y-m-d'), $userId, (int) $loan['id']);
+
         $remaining = $amount;
         $totals = ['principal' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'penalty' => 0.0];
 
@@ -215,7 +223,12 @@ class Payment extends Model
 
             $allocated = ['penalty' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'principal' => 0.0];
 
-            foreach (['penalty', 'interest', 'fees', 'namfisa_levy', 'duty_stamp', 'principal'] as $component) {
+            // Installment components are paid off first; only amounts paid
+            // beyond the full installment flow into the penalty leg -- a
+            // payment equal to the installment must fully clear it and
+            // leave any outstanding penalty untouched (still Penalty
+            // Receivable, not recognized as Penalty Income).
+            foreach (['interest', 'fees', 'namfisa_levy', 'duty_stamp', 'principal', 'penalty'] as $component) {
                 if ($remaining <= 0.009 || $outstanding[$component] <= 0.009) {
                     continue;
                 }

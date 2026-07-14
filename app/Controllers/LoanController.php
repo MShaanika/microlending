@@ -166,6 +166,9 @@ class LoanController extends Controller
             ) {
                 $errors['existing_loan_id'] = 'Select a valid active loan for this borrower.';
                 $existingLoan = null;
+            } elseif ((new \App\Models\LoanReschedule())->hasImplementedReschedule((int) $existingLoan['id'])) {
+                $errors['existing_loan_id'] = 'This loan has been rescheduled and can no longer be topped up -- use Reschedule instead.';
+                $existingLoan = null;
             }
         }
 
@@ -221,6 +224,7 @@ class LoanController extends Controller
 
         $namfisaRate = $this->statutoryCharges->currentNamfisaLevyRate();
         $dutyStampAmount = $this->statutoryCharges->currentDutyStampAmount();
+        $paymentDay = $_POST['payment_day'] !== '' ? (int) $_POST['payment_day'] : null;
 
         $schedule = LoanScheduleService::generate(
             $principal,
@@ -230,7 +234,8 @@ class LoanController extends Controller
             $product['interest_method'],
             $startDate,
             $namfisaRate,
-            $dutyStampAmount
+            $dutyStampAmount,
+            $paymentDay
         );
 
         $applicationId = (int) ($_POST['application_id'] ?? 0);
@@ -253,7 +258,8 @@ class LoanController extends Controller
             'interest_rate' => (float) $plan['interest_rate'],
             'penalty_rate' => (float) $plan['penalty_rate'],
             'purpose' => trim($_POST['purpose'] ?? '') ?: null,
-            'payment_day' => $_POST['payment_day'] !== '' ? (int) $_POST['payment_day'] : null,
+            'payment_day' => $paymentDay,
+            'quarter_month' => $_POST['quarter_month'] ?: null,
             'loan_status' => 'Pending Approval',
             'approval_status' => 'Pending',
             'start_date' => $startDate,
@@ -358,6 +364,7 @@ class LoanController extends Controller
             'topups' => $this->loans->topupsOf((int) $id),
             'latestTopup' => $latestTopup,
             'latestTopupReversible' => $latestTopup ? !TopUpService::hasAnyPayment((int) $id) : false,
+            'hasReschedule' => (new \App\Models\LoanReschedule())->hasImplementedReschedule((int) $id),
         ]);
     }
 

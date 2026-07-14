@@ -38,7 +38,7 @@ class LoanReportService
              FROM loans l
              JOIN borrowers b ON b.id = l.borrower_id
              WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
-               AND DATE(l.created_at) BETWEEN ? AND ?
+               AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
              GROUP BY b.gender
              ORDER BY b.gender"
         );
@@ -61,7 +61,7 @@ class LoanReportService
                  FROM loans l
                  JOIN borrowers b ON b.id = l.borrower_id
                  WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
-                   AND DATE(l.created_at) BETWEEN ? AND ?
+                   AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
                    AND l.principal_amount BETWEEN ? AND ?"
             );
             $stmt->execute([$start, $end, $min, $max]);
@@ -90,7 +90,7 @@ class LoanReportService
                  JOIN borrowers b ON b.id = l.borrower_id
                  JOIN borrower_employment be ON be.borrower_id = b.id AND be.is_current = 1
                  WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
-                   AND DATE(l.created_at) BETWEEN ? AND ?
+                   AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
                    AND be.gross_salary BETWEEN ? AND ?"
             );
             $stmt->execute([$start, $end, $min, $max]);

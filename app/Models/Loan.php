@@ -156,8 +156,13 @@ class Loan extends Model
     public function activeLoansForTopup(): array
     {
         return $this->all(
-            "SELECT id, loan_no, borrower_id, principal_amount, start_date
-             FROM loans WHERE loan_status IN ('Active','Current') ORDER BY id DESC"
+            "SELECT l.id, l.loan_no, l.borrower_id, l.principal_amount, l.start_date
+             FROM loans l
+             WHERE l.loan_status IN ('Active','Current')
+               AND NOT EXISTS (
+                   SELECT 1 FROM loan_reschedules r WHERE r.loan_id = l.id AND r.status = 'Implemented'
+               )
+             ORDER BY l.id DESC"
         );
     }
 

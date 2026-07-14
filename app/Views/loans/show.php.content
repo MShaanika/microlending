@@ -68,7 +68,13 @@
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
             <a href="<?= url('/loans/' . $loan['id'] . '/reschedule') ?>" class="btn btn-outline-warning btn-sm"><i class="mdi mdi-calendar-sync"></i> Reschedule</a>
             <a href="<?= url('/loans/' . $loan['id'] . '/debit-orders/create') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bank"></i> Register Debit Order</a>
-            <a href="<?= url('/loans/create?borrower_id=' . $loan['borrower_id'] . '&loan_mode=topup&existing_loan_id=' . $loan['id']) ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-cash-plus"></i> Top Up This Loan</a>
+            <?php if (!$hasReschedule): ?>
+              <a href="<?= url('/loans/create?borrower_id=' . $loan['borrower_id'] . '&loan_mode=topup&existing_loan_id=' . $loan['id']) ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-cash-plus"></i> Top Up This Loan</a>
+            <?php else: ?>
+              <span class="btn btn-outline-secondary btn-sm disabled" title="This loan has been rescheduled and can no longer be topped up.">
+                <i class="mdi mdi-cash-plus"></i> Top Up Unavailable (Rescheduled)
+              </span>
+            <?php endif; ?>
           <?php endif; ?>
 
           <?php if ($loan['loan_status'] === 'Pending Approval'): ?>

@@ -85,8 +85,10 @@ class RescheduleController extends Controller
         $termMonths = max(1, (int) ($_POST['new_term_months'] ?? $loan['term_months']));
         $waived = (float) ($_POST['waived_amount'] ?? 0);
         $effectiveDate = $_POST['effective_date'] ?: date('Y-m-d');
+        // Blank "New Payment Day" means "no change," not "clear it."
+        $paymentDay = ($_POST['new_payment_day'] ?? '') !== '' ? (int) $_POST['new_payment_day'] : (int) $loan['payment_day'];
 
-        $preview = RescheduleService::preview($loan, $loan['interest_method'], $termMonths, $waived, $effectiveDate);
+        $preview = RescheduleService::preview($loan, $loan['interest_method'], $termMonths, $waived, $effectiveDate, $paymentDay);
 
         $this->view('reschedules/create', [
             'title' => 'Reschedule ' . $loan['loan_no'],
@@ -125,7 +127,7 @@ class RescheduleController extends Controller
         $effectiveDate = $_POST['effective_date'] ?: date('Y-m-d');
 
         if ($reason === '') {
-            $preview = RescheduleService::preview($loan, $loan['interest_method'], $termMonths, $waived, $effectiveDate);
+            $preview = RescheduleService::preview($loan, $loan['interest_method'], $termMonths, $waived, $effectiveDate, $paymentDay);
             $this->view('reschedules/create', [
                 'title' => 'Reschedule ' . $loan['loan_no'],
                 'loan' => $loan,
@@ -137,7 +139,7 @@ class RescheduleController extends Controller
             return;
         }
 
-        $preview = RescheduleService::preview($loan, $loan['interest_method'], $termMonths, $waived, $effectiveDate);
+        $preview = RescheduleService::preview($loan, $loan['interest_method'], $termMonths, $waived, $effectiveDate, $paymentDay);
         $userId = Auth::user()['id'] ?? null;
 
         $rescheduleId = $this->reschedules->create([

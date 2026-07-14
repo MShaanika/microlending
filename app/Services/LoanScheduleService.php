@@ -40,21 +40,40 @@ class LoanScheduleService
         string $interestMethod,
         string $startDate,
         float $namfisaLevyRate = 0,
-        float $dutyStampAmount = 0
+        float $dutyStampAmount = 0,
+        ?int $paymentDay = null
     ): array {
         $termMonths = max(1, $termMonths);
         $namfisaLevy = round($principal * ($namfisaLevyRate / 100), 2);
         $dutyStamp = round($dutyStampAmount, 2);
 
         $result = match ($interestMethod) {
-            'Reducing Balance' => self::reducingBalance($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp),
-            default => self::flat($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp),
+            'Reducing Balance' => self::reducingBalance($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp, $paymentDay),
+            default => self::flat($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp, $paymentDay),
         };
 
         $result['namfisa_levy'] = $namfisaLevy;
         $result['duty_stamp'] = $dutyStamp;
 
         return $result;
+    }
+
+    /**
+     * Computes the due date `$monthsAhead` months after `$anchor`, landing on
+     * `$day` of that target month -- clamped to the month's actual length
+     * (e.g. day 31 against a 30-day month lands on the 30th) instead of
+     * PHP's DateTime::modify("+N month"), which overflows into the following
+     * month when the day doesn't exist (2026-01-31 + 1 month -> 2026-03-03).
+     */
+    private static function nextDueDate(\DateTimeImmutable $anchor, int $monthsAhead, int $day): \DateTimeImmutable
+    {
+        $year = (int) $anchor->format('Y');
+        $month = (int) $anchor->format('n') + $monthsAhead;
+        $year += intdiv($month - 1, 12);
+        $month = (($month - 1) % 12) + 1;
+        $daysInMonth = (int) (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
+
+        return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, min($day, $daysInMonth)));
     }
 
     private static function flat(
@@ -64,7 +83,8 @@ class LoanScheduleService
         float $adminFee,
         string $startDate,
         float $namfisaLevy,
-        float $dutyStamp
+        float $dutyStamp,
+        ?int $paymentDay = null
     ): array {
         $interestBasis = round($principal + $namfisaLevy + $dutyStamp, 2);
         $totalInterest = round($interestBasis * ($rate / 100), 2);
@@ -77,10 +97,11 @@ class LoanScheduleService
         $rows = [];
         $balance = $interestBasis;
         $date = new \DateTimeImmutable($startDate);
+        $anchorDay = $paymentDay ?? (int) $date->format('j');
 
         for ($period = 1; $period <= $termMonths; $period++) {
             $isLast = $period === $termMonths;
-            $due = $date->modify("+{$period} month");
+            $due = self::nextDueDate($date, $period, $anchorDay);
 
             $principalDue = $isLast ? round($balance - ($period === 1 ? $namfisaLevy + $dutyStamp : 0), 2) : $principalPerPeriod;
             $interestDue = $isLast ? round($totalInterest - ($interestPerPeriod * ($termMonths - 1)), 2) : $interestPerPeriod;
@@ -124,7 +145,8 @@ class LoanScheduleService
         float $adminFee,
         string $startDate,
         float $namfisaLevy,
-        float $dutyStamp
+        float $dutyStamp,
+        ?int $paymentDay = null
     ): array {
         $interestBasis = round($principal + $namfisaLevy + $dutyStamp, 2);
         $monthlyRate = ($annualRate / 100) / 12;
@@ -140,11 +162,12 @@ class LoanScheduleService
         $balance = $interestBasis;
         $totalInterest = 0.0;
         $date = new \DateTimeImmutable($startDate);
+        $anchorDay = $paymentDay ?? (int) $date->format('j');
         $feePerPeriod = round($adminFee / $termMonths, 2);
 
         for ($period = 1; $period <= $termMonths; $period++) {
             $isLast = $period === $termMonths;
-            $due = $date->modify("+{$period} month");
+            $due = self::nextDueDate($date, $period, $anchorDay);
 
             $opening = round($balance, 2);
             $interestDue = round($opening * $monthlyRate, 2);

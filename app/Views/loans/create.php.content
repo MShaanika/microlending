@@ -90,12 +90,18 @@
           <input type="date" name="start_date" class="form-control" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
         </div>
         <div class="col-md-4 mb-3">
-          <label class="form-label">Payment Day (1-28)</label>
-          <input type="number" min="1" max="28" name="payment_day" class="form-control" value="<?= old('payment_day', $old) ?>">
+          <label class="form-label">Payment Day (1-31)</label>
+          <input type="number" min="1" max="31" name="payment_day" class="form-control" value="<?= old('payment_day', $old) ?>">
+          <div class="form-text">Every installment falls on this day each month, instead of drifting off the start date.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Purpose</label>
           <input type="text" name="purpose" class="form-control" value="<?= old('purpose', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Quarter Month</label>
+          <input type="date" name="quarter_month" class="form-control" value="<?= old('quarter_month', $old) ?>">
+          <div class="form-text">Which regulatory quarter this loan is reported under. Leave blank to use the loan's creation date.</div>
         </div>
       </div>
 

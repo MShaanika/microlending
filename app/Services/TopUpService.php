@@ -79,7 +79,8 @@ class TopUpService
             $product['interest_method'],
             $existingLoan['start_date'],
             $namfisaRate,
-            $dutyStampAmount
+            $dutyStampAmount,
+            isset($existingLoan['payment_day']) && $existingLoan['payment_day'] !== null ? (int) $existingLoan['payment_day'] : null
         );
 
         $levyTxn = $statutoryCharges->findNamfisaLevyByLoan($loanId);
