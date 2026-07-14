@@ -14,6 +14,11 @@ class IntakeSource extends Model
 {
     protected string $table = 'intake_sources';
 
+    public function allSources(): array
+    {
+        return $this->all("SELECT * FROM intake_sources ORDER BY id");
+    }
+
     public function findActiveByCodeAndToken(string $code, string $token): ?array
     {
         return $this->one(

@@ -42,6 +42,7 @@ use App\Controllers\PortalAuthController;
 use App\Controllers\PortalController;
 use App\Controllers\ApplicationController;
 use App\Controllers\ApplicationIntakeController;
+use App\Controllers\IntakeSourceController;
 use App\Controllers\RescheduleController;
 use App\Controllers\DebitOrderController;
 use App\Controllers\DebitOrderCancellationController;
@@ -240,6 +241,7 @@ $router->post('/notifications/settings/sms', [NotificationSettingController::cla
 $router->post('/notifications/settings/email/test', [NotificationSettingController::class, 'testEmail']);
 $router->post('/notifications/settings/sms/test', [NotificationSettingController::class, 'testSms']);
 
+$router->get('/settings/intake-sources', [IntakeSourceController::class, 'index']);
 $router->get('/settings/ai', [AiSettingController::class, 'index']);
 $router->post('/settings/ai', [AiSettingController::class, 'store']);
 $router->post('/settings/ai/test', [AiSettingController::class, 'test']);

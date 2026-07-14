@@ -6,6 +6,7 @@ use App\Core\Audit;
 use App\Core\Controller;
 use App\Models\IntakeSource;
 use App\Models\LoanApplication;
+use App\Support\PhoneNumberNormalizer;
 
 /**
  * Public, unauthenticated endpoint that an external client website's own
@@ -92,6 +93,11 @@ class ApplicationIntakeController extends Controller
         }
         if (isset($applicationData['payment_day'])) {
             $applicationData['payment_day'] = (int) $applicationData['payment_day'];
+        }
+        // Normalize to E.164 (+264...) so this number is already Twilio-valid
+        // for every later SMS -- approval notice, portal credentials, etc.
+        if (!empty($applicationData['applicant_phone'])) {
+            $applicationData['applicant_phone'] = PhoneNumberNormalizer::toE164($applicationData['applicant_phone']);
         }
 
         $applicationId = $this->applications->create($applicationData);

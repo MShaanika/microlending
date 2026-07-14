@@ -1,0 +1,58 @@
+<?php
+  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443 ? 'https' : 'http';
+  $absoluteBase = $scheme . '://' . $_SERVER['HTTP_HOST'];
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Intake Sources</h4>
+    <p class="text-muted small">Each row is an external website form (e.g. the client's own "Apply Now" page) that submits applications into this system. Use the Endpoint URL and API Token below to wire that external form's submission code up -- see ApplicationIntakeController for the expected field names per source.</p>
+
+    <?php if (empty($sources)): ?>
+      <p class="text-muted">No intake sources configured yet.</p>
+    <?php endif; ?>
+
+    <?php foreach ($sources as $s): ?>
+      <div class="border rounded p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+          <h5 class="mb-0"><?= e($s['source_name']) ?></h5>
+          <span class="badge bg-<?= $s['is_active'] ? 'success' : 'secondary' ?>"><?= $s['is_active'] ? 'Active' : 'Inactive' ?></span>
+        </div>
+        <p class="text-muted small mb-2">Source Code: <code><?= e($s['source_code']) ?></code> &bull; Allowed Origin: <?= e($s['allowed_origin'] ?: '&mdash;') ?></p>
+
+        <div class="mb-2">
+          <label class="form-label small mb-0">Endpoint URL (POST here from the external form)</label>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control" readonly value="<?= e($absoluteBase . url('/api/applications/' . $s['source_code'])) ?>" id="endpoint-<?= (int) $s['id'] ?>">
+            <button class="btn btn-outline-secondary" type="button" onclick="copyField('endpoint-<?= (int) $s['id'] ?>')"><i class="mdi mdi-content-copy"></i> Copy</button>
+          </div>
+        </div>
+
+        <div class="mb-0">
+          <label class="form-label small mb-0">API Token (send as <code>_source_token</code>)</label>
+          <div class="input-group input-group-sm">
+            <input type="password" class="form-control" readonly value="<?= e($s['api_token']) ?>" id="token-<?= (int) $s['id'] ?>">
+            <button class="btn btn-outline-secondary" type="button" onclick="toggleField('token-<?= (int) $s['id'] ?>', this)"><i class="mdi mdi-eye"></i></button>
+            <button class="btn btn-outline-secondary" type="button" onclick="copyField('token-<?= (int) $s['id'] ?>')"><i class="mdi mdi-content-copy"></i> Copy</button>
+          </div>
+          <div class="form-text text-danger">Treat this like a password -- anyone with it can submit applications as this source. Don't paste it into chat, tickets, or commit it to a public repo.</div>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+
+<script>
+function toggleField(id, btn) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+  btn.querySelector('i').className = el.type === 'password' ? 'mdi mdi-eye' : 'mdi mdi-eye-off';
+}
+function copyField(id) {
+  const el = document.getElementById(id);
+  el.type = 'text';
+  el.select();
+  document.execCommand('copy');
+}
+</script>

@@ -260,6 +260,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Permissions', 'url' => url('/settings/permissions'), 'perm' => 'admin.permissions'],
               ['label' => 'Company Settings', 'url' => url('/settings/company'), 'perm' => 'admin.company'],
               ['label' => 'AI Settings', 'url' => url('/settings/ai'), 'perm' => 'admin.system_settings'],
+              ['label' => 'Intake Sources', 'url' => url('/settings/intake-sources'), 'perm' => 'admin.system_settings'],
             ]],
           ];
 
