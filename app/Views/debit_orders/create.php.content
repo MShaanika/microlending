@@ -9,11 +9,18 @@
       <?= csrf_field() ?>
       <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
 
+      <p class="text-muted small">Fields below match Collexia's EnDo Batch registration format -- this mandate will be included in the next "Debit Order Run" you submit to Collexia.</p>
+
       <div class="row">
         <div class="col-md-4 mb-3">
-          <label class="form-label">Bank Name <span class="text-danger">*</span></label>
-          <input type="text" name="bank_name" class="form-control <?= isset($errors['bank_name']) ? 'is-invalid' : '' ?>" value="<?= old('bank_name', $old) ?>">
-          <?php if (isset($errors['bank_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_name']) ?></div><?php endif; ?>
+          <label class="form-label">Bank <span class="text-danger">*</span></label>
+          <select name="bank_code" class="form-select <?= isset($errors['bank_code']) ? 'is-invalid' : '' ?>">
+            <option value="">Select bank</option>
+            <?php foreach ($banks as $code => $name): ?>
+              <option value="<?= e($code) ?>" <?= old('bank_code', $old) === $code ? 'selected' : '' ?>><?= e($name) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['bank_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_code']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Account Name</label>
@@ -25,13 +32,31 @@
           <?php if (isset($errors['account_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_number']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-4 mb-3">
+          <label class="form-label">Account Type <span class="text-danger">*</span></label>
+          <select name="account_type" class="form-select">
+            <?php foreach ($accountTypes as $val => $label): ?>
+              <option value="<?= (int) $val ?>" <?= (int) old('account_type', $old, '1') === $val ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">ID Type <span class="text-danger">*</span></label>
+          <select name="id_type" class="form-select">
+            <?php foreach ($idTypes as $val => $label): ?>
+              <option value="<?= (int) $val ?>" <?= (int) old('id_type', $old, '5') === $val ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text">The borrower's ID number itself is taken from their profile.</div>
+        </div>
+        <div class="col-md-4 mb-3">
           <label class="form-label">Branch Code</label>
           <input type="text" name="branch_code" class="form-control" value="<?= old('branch_code', $old) ?>">
         </div>
         <div class="col-md-4 mb-3">
-          <label class="form-label">Debit Day (1-28) <span class="text-danger">*</span></label>
-          <input type="number" min="1" max="28" name="debit_day" class="form-control <?= isset($errors['debit_day']) ? 'is-invalid' : '' ?>" value="<?= old('debit_day', $old, (string) $loan['payment_day']) ?>">
+          <label class="form-label">Debit Day (1-31) <span class="text-danger">*</span></label>
+          <input type="number" min="1" max="31" name="debit_day" class="form-control <?= isset($errors['debit_day']) ? 'is-invalid' : '' ?>" value="<?= old('debit_day', $old, (string) $loan['payment_day']) ?>">
           <?php if (isset($errors['debit_day'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_day']) ?></div><?php endif; ?>
+          <div class="form-text">Day 31 maps to Collexia's "Last Day" code.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Debit Amount <span class="text-danger">*</span></label>
@@ -42,6 +67,11 @@
           <label class="form-label">Start Date <span class="text-danger">*</span></label>
           <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
           <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Tracking Days (1-14)</label>
+          <input type="number" min="1" max="14" name="no_of_days_tracking" class="form-control" value="<?= old('no_of_days_tracking', $old, '3') ?>">
+          <div class="form-text">How many days Collexia retries collection before giving up.</div>
         </div>
       </div>
 

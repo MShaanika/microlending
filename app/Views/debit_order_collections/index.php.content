@@ -1,0 +1,37 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Collexia Collection Reports</h4>
+      <a href="<?= url('/debit-order-collections/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Report</a>
+    </div>
+    <p class="text-muted small">Upload Collexia's "Scheduled Installments" export here periodically to reconcile which installments were actually collected -- matched, already-collected rows are posted as real payments automatically.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>File</th><th>Rows</th><th>Matched</th><th>Payments Posted</th><th>Imported By</th><th>Imported At</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($imports)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No collection reports imported yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($imports as $i): ?>
+            <tr>
+              <td><?= e($i['filename']) ?></td>
+              <td><?= (int) $i['total_rows'] ?></td>
+              <td><?= (int) $i['matched_rows'] ?></td>
+              <td><span class="badge bg-success"><?= (int) $i['posted_payments'] ?></span></td>
+              <td><?= e($i['imported_by_name'] ?: '&mdash;') ?></td>
+              <td><?= e(date('d M Y H:i', strtotime($i['imported_at']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/debit-order-collections/' . $i['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

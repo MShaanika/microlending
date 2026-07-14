@@ -203,6 +203,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Collections Worklist', 'url' => url('/collections/worklist'), 'perm' => 'collections.arrears'],
               ['label' => 'Debit Orders', 'url' => url('/debit-orders'), 'perm' => 'collections.debit_orders'],
               ['label' => 'Debit Order Runs', 'url' => url('/debit-order-runs'), 'perm' => 'collections.debit_orders'],
+              ['label' => 'Collection Reports', 'url' => url('/debit-order-collections'), 'perm' => 'collections.debit_orders'],
               ['label' => 'Debit Order Cancellations', 'url' => url('/debit-order-cancellations'), 'perm' => 'collections.debit_orders'],
             ]],
             'Fixed Assets' => ['icon' => 'mdi-trending-up', 'items' => [
@@ -258,6 +259,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Roles', 'url' => url('/settings/roles'), 'perm' => 'admin.roles'],
               ['label' => 'Permissions', 'url' => url('/settings/permissions'), 'perm' => 'admin.permissions'],
               ['label' => 'Company Settings', 'url' => url('/settings/company'), 'perm' => 'admin.company'],
+              ['label' => 'AI Settings', 'url' => url('/settings/ai'), 'perm' => 'admin.system_settings'],
             ]],
           ];
 

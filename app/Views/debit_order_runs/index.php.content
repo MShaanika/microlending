@@ -11,7 +11,7 @@
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
-          <?php foreach (['Draft', 'Generated', 'Submitted', 'Processed', 'Posted', 'Cancelled'] as $s): ?>
+          <?php foreach (['Draft', 'Generated', 'Submitted', 'Cancelled'] as $s): ?>
             <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
           <?php endforeach; ?>
         </select>
@@ -24,7 +24,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Run No</th><th>Branch</th><th>Debit Month</th><th>Accounts</th><th>Total Amount</th><th>Status</th><th>Run Date</th><th class="text-end">Action</th></tr>
+          <tr><th>Run No</th><th>Branch</th><th>Batch Date</th><th>Mandates</th><th>Total Amount</th><th>Status</th><th>Run Date</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($runs)): ?>
@@ -33,10 +33,8 @@
           <?php foreach ($runs as $r): ?>
             <?php
               $badge = match ($r['status']) {
-                'Posted' => 'success',
+                'Submitted' => 'success',
                 'Cancelled' => 'danger',
-                'Processed' => 'info',
-                'Submitted' => 'primary',
                 default => 'warning',
               };
             ?>

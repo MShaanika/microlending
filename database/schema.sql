@@ -575,6 +575,28 @@ CREATE TABLE loan_application_status_history (
     FOREIGN KEY (changed_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE loan_application_bank_analysis (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    application_id BIGINT NOT NULL,
+    source_document_ids JSON NULL,
+    statement_format ENUM('Merged','Separate') NOT NULL,
+    months_covered INT NULL,
+    average_monthly_income DECIMAL(18,2) DEFAULT 0,
+    average_monthly_expenses DECIMAL(18,2) DEFAULT 0,
+    average_closing_balance DECIMAL(18,2) DEFAULT 0,
+    existing_commitments_total DECIMAL(18,2) DEFAULT 0,
+    existing_commitments JSON NULL,
+    nsf_count INT DEFAULT 0,
+    ai_summary TEXT,
+    model_used VARCHAR(100) NULL,
+    status ENUM('Completed','Failed') DEFAULT 'Completed',
+    error_message TEXT NULL,
+    analyzed_by INT NULL,
+    analyzed_at DATETIME NULL,
+    FOREIGN KEY (application_id) REFERENCES loan_applications(id) ON DELETE CASCADE,
+    FOREIGN KEY (analyzed_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE rejected_applications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,
@@ -962,6 +984,12 @@ CREATE TABLE debit_orders (
     end_date DATE NULL,
     status ENUM('Active','Suspended','Cancelled','Completed') DEFAULT 'Active',
     mandate_file VARCHAR(255),
+    id_type TINYINT NULL,
+    account_type TINYINT NOT NULL DEFAULT 1,
+    bank_code VARCHAR(2) NULL,
+    merchant_system_contract_no VARCHAR(10) NULL UNIQUE,
+    no_of_days_tracking INT NOT NULL DEFAULT 3,
+    collexia_status ENUM('Not Registered','Registered') NOT NULL DEFAULT 'Not Registered',
     created_by INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
@@ -1004,6 +1032,38 @@ CREATE TABLE debit_order_run_lines (
     FOREIGN KEY (run_id) REFERENCES debit_order_runs(id) ON DELETE CASCADE,
     FOREIGN KEY (debit_order_id) REFERENCES debit_orders(id),
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (payment_id) REFERENCES payments(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE debit_order_collection_imports (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    filename VARCHAR(255),
+    total_rows INT DEFAULT 0,
+    matched_rows INT DEFAULT 0,
+    posted_payments INT DEFAULT 0,
+    imported_by INT NULL,
+    imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (imported_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE debit_order_collections (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    import_id BIGINT NOT NULL,
+    debit_order_id BIGINT NULL,
+    loan_id BIGINT NULL,
+    merchant_system_contract_no VARCHAR(10),
+    installment_no INT NULL,
+    scheduled_date DATE NULL,
+    installment_amount DECIMAL(18,2) DEFAULT 0,
+    payment_date DATE NULL,
+    payment_amount DECIMAL(18,2) NULL,
+    installment_status VARCHAR(30),
+    matched TINYINT(1) DEFAULT 0,
+    payment_id BIGINT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (import_id) REFERENCES debit_order_collection_imports(id) ON DELETE CASCADE,
+    FOREIGN KEY (debit_order_id) REFERENCES debit_orders(id),
     FOREIGN KEY (loan_id) REFERENCES loans(id),
     FOREIGN KEY (payment_id) REFERENCES payments(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -2081,7 +2141,7 @@ CREATE TABLE notification_settings (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     setting_key VARCHAR(150) NOT NULL UNIQUE,
     setting_value TEXT,
-    channel ENUM('SMS','Email','WhatsApp','Portal') DEFAULT 'SMS',
+    channel ENUM('SMS','Email','WhatsApp','Portal','AI') DEFAULT 'SMS',
     is_active TINYINT(1) DEFAULT 1,
     updated_by INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

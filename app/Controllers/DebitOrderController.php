@@ -10,6 +10,7 @@ use App\Core\Session;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCancellation;
 use App\Models\Loan;
+use App\Support\CollexiaCodes;
 
 /**
  * Registers a borrower's recurring debit order mandate against a loan. This
@@ -57,6 +58,9 @@ class DebitOrderController extends Controller
             'loan' => $loan,
             'old' => [],
             'errors' => [],
+            'banks' => CollexiaCodes::BANKS,
+            'idTypes' => CollexiaCodes::ID_TYPES,
+            'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
         ]);
     }
 
@@ -80,10 +84,13 @@ class DebitOrderController extends Controller
         }
 
         $errors = [];
-        foreach (['bank_name', 'account_number', 'debit_day', 'debit_amount', 'start_date'] as $field) {
+        foreach (['bank_code', 'account_number', 'debit_day', 'debit_amount', 'start_date'] as $field) {
             if (trim((string) ($_POST[$field] ?? '')) === '') {
                 $errors[$field] = 'This field is required.';
             }
+        }
+        if (!empty($_POST['bank_code']) && !isset(CollexiaCodes::BANKS[$_POST['bank_code']])) {
+            $errors['bank_code'] = 'Select a valid bank.';
         }
 
         if (!empty($errors)) {
@@ -92,15 +99,20 @@ class DebitOrderController extends Controller
                 'loan' => $loan,
                 'old' => $_POST,
                 'errors' => $errors,
+                'banks' => CollexiaCodes::BANKS,
+                'idTypes' => CollexiaCodes::ID_TYPES,
+                'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
             ]);
             return;
         }
+
+        $trackingDays = max(1, min(14, (int) ($_POST['no_of_days_tracking'] ?? 3)));
 
         $debitOrderId = $this->debitOrders->create([
             'borrower_id' => $loan['borrower_id'],
             'loan_id' => $loanId,
             'debit_order_no' => generate_reference('DO'),
-            'bank_name' => trim($_POST['bank_name']),
+            'bank_name' => CollexiaCodes::BANKS[$_POST['bank_code']],
             'account_name' => trim($_POST['account_name'] ?? '') ?: null,
             'account_number' => trim($_POST['account_number']),
             'branch_code' => trim($_POST['branch_code'] ?? '') ?: null,
@@ -108,7 +120,18 @@ class DebitOrderController extends Controller
             'debit_amount' => (float) $_POST['debit_amount'],
             'start_date' => $_POST['start_date'],
             'status' => 'Active',
+            'id_type' => (int) ($_POST['id_type'] ?? 1),
+            'account_type' => (int) ($_POST['account_type'] ?? 1),
+            'bank_code' => $_POST['bank_code'],
+            'no_of_days_tracking' => $trackingDays,
             'created_by' => Auth::user()['id'] ?? null,
+        ]);
+
+        // Merchant System Contract No forms part of Collexia's 30-char bank
+        // statement reference and must be <=10 chars -- derived from our own
+        // PK so it's guaranteed unique without asking staff to invent one.
+        $this->debitOrders->updateRecord($debitOrderId, [
+            'merchant_system_contract_no' => sprintf('SD%08d', $debitOrderId),
         ]);
 
         Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']);

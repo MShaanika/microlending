@@ -9,16 +9,21 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\Borrower;
 use App\Models\Branch;
+use App\Models\Company;
 use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationBankAnalysis;
 use App\Models\LoanApplicationScreening;
+use App\Services\AiBankStatementAnalyzer;
 use App\Services\DocumentGenerationService;
+use App\Services\SmsSenderService;
 
 class ApplicationController extends Controller
 {
     private LoanApplication $applications;
     private LoanApplicationScreening $screenings;
+    private LoanApplicationBankAnalysis $bankAnalyses;
     private Borrower $borrowers;
     private Branch $branches;
     private DocumentTemplate $templates;
@@ -28,6 +33,7 @@ class ApplicationController extends Controller
     {
         $this->applications = new LoanApplication();
         $this->screenings = new LoanApplicationScreening();
+        $this->bankAnalyses = new LoanApplicationBankAnalysis();
         $this->borrowers = new Borrower();
         $this->branches = new Branch();
         $this->templates = new DocumentTemplate();
@@ -62,6 +68,7 @@ class ApplicationController extends Controller
             'application' => $application,
             'documents' => $this->applications->documents((int) $id),
             'screening' => $this->screenings->forApplication((int) $id),
+            'bankAnalysis' => $this->bankAnalyses->forApplication((int) $id),
             'history' => $this->applications->statusHistory((int) $id),
             'extra' => $application['extra_data'] ? json_decode($application['extra_data'], true) : [],
             'branches' => $this->branches->all(),
@@ -91,7 +98,17 @@ class ApplicationController extends Controller
         $existingDeductions = (float) ($_POST['existing_deductions'] ?? 0);
         $proposedInstallment = (float) ($_POST['proposed_installment'] ?? 0);
         $disposable = $netSalary - $existingDeductions - $proposedInstallment;
-        $dti = $netSalary > 0 ? round((($existingDeductions + $proposedInstallment) / $netSalary) * 100, 2) : 0;
+
+        // DTI_BE = (Total Monthly Debt / Gross Monthly Income) * 100 -- total
+        // monthly debt is existing deductions plus the new loan's proposed
+        // installment; measured against gross (not net) income.
+        $totalMonthlyDebt = $existingDeductions + $proposedInstallment;
+        $dti = $grossSalary > 0 ? round(($totalMonthlyDebt / $grossSalary) * 100, 2) : 0;
+
+        // Risk banding: under 50% Healthy, 50-70% Manageable, 70%+ High Risk.
+        // Stored on the existing risk_level column (Low/Medium/High) and
+        // relabeled for display -- see applications/show.php.content.
+        $riskLevel = $dti < 50 ? 'Low' : ($dti < 70 ? 'Medium' : 'High');
 
         $userId = Auth::user()['id'] ?? null;
 
@@ -99,7 +116,7 @@ class ApplicationController extends Controller
             'application_id' => $id,
             'affordability_score' => (float) ($_POST['affordability_score'] ?? 0),
             'credit_score' => (float) ($_POST['credit_score'] ?? 0),
-            'risk_level' => $_POST['risk_level'] ?: 'Medium',
+            'risk_level' => $riskLevel,
             'gross_salary' => $grossSalary,
             'net_salary' => $netSalary,
             'existing_deductions' => $existingDeductions,
@@ -121,6 +138,73 @@ class ApplicationController extends Controller
 
         Audit::log('Screen', 'Applications', 'Recorded screening for application #' . $id);
         Session::flash('success', 'Screening recorded.');
+        $this->redirect('/applications/' . $id);
+    }
+
+    /**
+     * Sends the applicant's uploaded bank statement document(s) to OpenAI for
+     * structured extraction (income, expenses, existing commitments, NSF
+     * count) so staff get one consolidated read whether the applicant
+     * uploaded a single merged statement or up to three separate ones -- see
+     * AiBankStatementAnalyzer for how the two shapes are reconciled.
+     */
+    public function analyzeBankStatements(string $id): void
+    {
+        Auth::authorize('applications.screen');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $application = $this->applications->find($id);
+        if (!$application) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+
+        $result = AiBankStatementAnalyzer::analyze($this->applications->documents($id));
+        $userId = Auth::user()['id'] ?? null;
+
+        if (!$result['success']) {
+            $this->bankAnalyses->create([
+                'application_id' => $id,
+                'statement_format' => 'Separate',
+                'status' => 'Failed',
+                'error_message' => $result['error'],
+                'analyzed_by' => $userId,
+                'analyzed_at' => date('Y-m-d H:i:s'),
+            ]);
+            Audit::log('AI Analysis', 'Applications', 'Bank statement analysis failed for application #' . $id . ': ' . $result['error']);
+            Session::flash('error', 'AI analysis failed: ' . $result['error']);
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $data = $result['data'];
+        $this->bankAnalyses->create([
+            'application_id' => $id,
+            'source_document_ids' => json_encode($result['documentIds']),
+            'statement_format' => $result['format'],
+            'months_covered' => (int) ($data['months_covered'] ?? 0),
+            'average_monthly_income' => (float) ($data['average_monthly_income'] ?? 0),
+            'average_monthly_expenses' => (float) ($data['average_monthly_expenses'] ?? 0),
+            'average_closing_balance' => (float) ($data['average_closing_balance'] ?? 0),
+            'existing_commitments_total' => (float) ($data['existing_commitments_total'] ?? 0),
+            'existing_commitments' => json_encode($data['existing_commitments'] ?? []),
+            'nsf_count' => (int) ($data['nsf_count'] ?? 0),
+            'ai_summary' => (string) ($data['summary'] ?? ''),
+            'model_used' => $result['modelUsed'],
+            'status' => 'Completed',
+            'analyzed_by' => $userId,
+            'analyzed_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Audit::log('AI Analysis', 'Applications', 'Bank statement analysis completed for application #' . $id . ' (' . $result['format'] . ', ' . count($result['documentIds']) . ' file(s))');
+        Session::flash('success', 'AI bank statement analysis complete.');
         $this->redirect('/applications/' . $id);
     }
 
@@ -150,8 +234,20 @@ class ApplicationController extends Controller
         ]);
         $this->applications->addStatusHistory($id, $application['status'], 'Approved', $userId, trim($_POST['notes'] ?? '') ?: null);
 
-        Audit::log('Approve', 'Applications', 'Approved application #' . $id);
-        Session::flash('success', 'Application approved. Convert it to a borrower/loan below when ready.');
+        $deliveryNote = 'no phone number on file -- SMS not sent';
+        if (!empty($application['applicant_phone'])) {
+            $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
+            $company = (new Company())->primary();
+            $brandName = ($company['brand_name'] ?? '') ?: ($company['company_name'] ?? '') ?: 'us';
+            $message = "Dear $applicantName, good news! Your loan application {$application['application_no']} with $brandName has been approved. Our team will contact you shortly to finalize your loan.";
+            $smsResult = SmsSenderService::send((string) $application['applicant_phone'], $message);
+            $deliveryNote = $smsResult['success']
+                ? 'approval SMS sent to ' . $application['applicant_phone']
+                : 'approval SMS not sent (' . $smsResult['error'] . ')';
+        }
+
+        Audit::log('Approve', 'Applications', 'Approved application #' . $id . ' (' . $deliveryNote . ')');
+        Session::flash('success', 'Application approved (' . $deliveryNote . '). Convert it to a borrower/loan below when ready.');
         $this->redirect('/applications/' . $id);
     }
 

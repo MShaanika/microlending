@@ -3,7 +3,7 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">New Debit Order Run</h4>
-    <p class="text-muted small">Sweeps every Active debit order mandate (on a loan still Active/Current) that's due within the selected month into a new collection run.</p>
+    <p class="text-muted small">Batches every Active mandate on this branch's loans that hasn't yet been registered with Collexia into an EnDo Batch file. Registration is one-time per mandate -- Collexia collects every period on its own afterwards, so already-registered mandates won't appear here again.</p>
 
     <form method="post" action="<?= url('/debit-order-runs') ?>">
       <?= csrf_field() ?>
@@ -11,17 +11,13 @@
       <div class="row">
         <div class="col-md-4 mb-3">
           <label class="form-label">Branch <span class="text-danger">*</span></label>
-          <select name="branch_id" class="form-select">
+          <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>">
             <option value="">Select branch</option>
             <?php foreach ($branches as $b): ?>
               <option value="<?= (int) $b['id'] ?>" <?= (($old['branch_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
             <?php endforeach; ?>
           </select>
-        </div>
-        <div class="col-md-4 mb-3">
-          <label class="form-label">Debit Month <span class="text-danger">*</span></label>
-          <input type="month" name="debit_month" class="form-control <?= isset($errors['debit_month']) ? 'is-invalid' : '' ?>" value="<?= old('debit_month', $old, date('Y-m')) ?>">
-          <?php if (isset($errors['debit_month'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_month']) ?></div><?php endif; ?>
+          <?php if (isset($errors['branch_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['branch_id']) ?></div><?php endif; ?>
         </div>
       </div>
 

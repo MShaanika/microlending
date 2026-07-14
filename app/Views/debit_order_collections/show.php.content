@@ -1,0 +1,72 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Collection Report <?= e($import['filename']) ?></h4>
+    <p class="text-muted small mb-3">Imported by <?= e($import['imported_by_name'] ?: '&mdash;') ?> on <?= e(date('d M Y H:i', strtotime($import['imported_at']))) ?></p>
+
+    <div class="row text-center">
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Rows</div>
+          <div class="fs-5 fw-bold"><?= (int) $import['total_rows'] ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Matched to a Mandate</div>
+          <div class="fs-5 fw-bold"><?= (int) $import['matched_rows'] ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded">
+          <div class="text-muted small">Payments Posted</div>
+          <div class="fs-5 fw-bold text-success"><?= (int) $import['posted_payments'] ?></div>
+        </div>
+      </div>
+    </div>
+
+    <a href="<?= url('/debit-order-collections') ?>" class="btn btn-outline-secondary mt-3">Back to List</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Rows</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr><th>Contract No</th><th>Loan</th><th>Installment #</th><th>Scheduled</th><th>Amount</th><th>Collexia Status</th><th>Payment Date</th><th>Payment Amount</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-3">No rows.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <tr>
+              <td><?= e($r['merchant_system_contract_no']) ?></td>
+              <td><?= e($r['loan_no'] ?: '&mdash;') ?></td>
+              <td><?= (int) $r['installment_no'] ?></td>
+              <td><?= e($r['scheduled_date']) ?></td>
+              <td><?= format_money($r['installment_amount']) ?></td>
+              <td><?= e($r['installment_status']) ?></td>
+              <td><?= e($r['payment_date'] ?: '&mdash;') ?></td>
+              <td><?= $r['payment_amount'] !== null ? format_money($r['payment_amount']) : '&mdash;' ?></td>
+              <td>
+                <?php if ($r['payment_id']): ?>
+                  <span class="badge bg-success">Payment Posted</span>
+                <?php elseif (!$r['matched']): ?>
+                  <span class="badge bg-secondary">No Matching Mandate</span>
+                <?php elseif ($r['payment_date']): ?>
+                  <span class="badge bg-info">Already Posted Previously</span>
+                <?php else: ?>
+                  <span class="badge bg-warning">Not Yet Collected</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -25,7 +25,7 @@ class DebitOrder extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT d.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT d.*, l.loan_no, b.id_number, b.phone, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
              FROM debit_orders d
              JOIN loans l ON l.id = d.loan_id
              JOIN borrowers b ON b.id = d.borrower_id
@@ -40,30 +40,52 @@ class DebitOrder extends Model
     }
 
     /**
-     * Every Active mandate due for collection in a given month: within its
-     * start/end window, and on a loan that's still actually being
-     * collected against (a written-off or completed loan shouldn't be
-     * swept into a new run just because its old mandate is still marked
-     * Active).
+     * Active mandates on this branch's loans that have never been
+     * registered with Collexia yet -- registration is a one-time EnDo Batch
+     * submission per contract (Collexia then collects every period on its
+     * own), so this is not month-scoped the way the old bank-CSV workflow
+     * was.
      */
-    public function activeForMonth(int $branchId, string $yearMonth): array
+    public function unregistered(int $branchId): array
     {
-        $monthStart = $yearMonth . '-01';
-        $monthEnd = date('Y-m-t', strtotime($monthStart));
-
         return $this->all(
-            "SELECT d.*, l.loan_no, l.branch_id AS loan_branch_id, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT d.*, l.loan_no, l.branch_id AS loan_branch_id, l.payment_day,
+                    b.first_name, b.last_name, b.id_number, b.phone,
+                    CONCAT(b.first_name,' ',b.last_name) AS borrower_name
              FROM debit_orders d
              JOIN loans l ON l.id = d.loan_id
              JOIN borrowers b ON b.id = d.borrower_id
              WHERE d.status = 'Active'
+               AND d.collexia_status = 'Not Registered'
                AND l.loan_status IN ('Active', 'Current')
                AND l.branch_id = ?
-               AND d.start_date <= ?
-               AND (d.end_date IS NULL OR d.end_date >= ?)
              ORDER BY d.debit_day, d.id",
-            [$branchId, $monthEnd, $monthStart]
+            [$branchId]
         );
+    }
+
+    public function findByContractNo(string $contractNo): ?array
+    {
+        return $this->one(
+            "SELECT d.*, l.loan_no FROM debit_orders d JOIN loans l ON l.id = d.loan_id WHERE d.merchant_system_contract_no = ?",
+            [$contractNo]
+        );
+    }
+
+    public function remainingInstallments(int $loanId): int
+    {
+        return (int) $this->scalar("SELECT COUNT(*) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);
+    }
+
+    public function nextCollectionDate(int $loanId): ?string
+    {
+        $date = $this->scalar("SELECT MIN(due_date) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);
+        return $date ?: null;
+    }
+
+    public function markRegistered(int $id): bool
+    {
+        return $this->update('debit_orders', ['collexia_status' => 'Registered'], 'id', $id);
     }
 
     public function create(array $data): int

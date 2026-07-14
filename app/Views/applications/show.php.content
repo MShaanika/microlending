@@ -11,6 +11,7 @@
   $canApprove = !in_array($application['status'], ['Approved', 'Converted to Loan', 'Rejected', 'Cancelled'], true);
   $canReject = !in_array($application['status'], ['Rejected', 'Converted to Loan', 'Cancelled'], true);
   $canConvert = $application['status'] === 'Approved';
+  $bankStatementDocs = array_filter($documents, fn ($d) => in_array($d['document_type'], ['Bank Statement (Merged)', 'Bank Statement'], true));
 ?>
 
 <div class="row">
@@ -84,6 +85,13 @@
             <label class="form-label small">Notes</label>
             <textarea name="screening_notes" class="form-control form-control-sm mb-2" rows="2"></textarea>
             <button type="submit" class="btn btn-sm btn-outline-info w-100"><i class="mdi mdi-calculator"></i> Record Screening</button>
+          </form>
+        <?php endif; ?>
+
+        <?php if (!empty($bankStatementDocs)): ?>
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/analyze-bank-statements') ?>" class="mb-3">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="mdi mdi-robot-outline"></i> Analyze Bank Statements with AI</button>
           </form>
         <?php endif; ?>
 
@@ -181,15 +189,70 @@
     </div>
 
     <?php if ($screening): ?>
+      <?php
+        $riskBand = match ($screening['risk_level']) {
+          'Low' => ['label' => 'Healthy', 'badge' => 'success'],
+          'Medium' => ['label' => 'Manageable', 'badge' => 'warning'],
+          default => ['label' => 'High Risk', 'badge' => 'danger'],
+        };
+      ?>
       <div class="card">
         <div class="card-body">
           <h4 class="card-title"><i class="mdi mdi-calculator me-1"></i> Latest Screening</h4>
           <div class="row">
-            <div class="col-md-4"><p class="mb-1 text-muted small">Disposable Income</p><p class="mb-0"><strong><?= format_money($screening['disposable_income']) ?></strong></p></div>
-            <div class="col-md-4"><p class="mb-1 text-muted small">Debt-to-Income Ratio</p><p class="mb-0"><strong><?= e($screening['debt_to_income_ratio']) ?>%</strong></p></div>
-            <div class="col-md-4"><p class="mb-1 text-muted small">Recommendation</p><p class="mb-0"><strong><?= e($screening['recommendation']) ?></strong></p></div>
+            <div class="col-md-3"><p class="mb-1 text-muted small">Disposable Income</p><p class="mb-0"><strong><?= format_money($screening['disposable_income']) ?></strong></p></div>
+            <div class="col-md-3">
+              <p class="mb-1 text-muted small">Debt-to-Income Ratio</p>
+              <p class="mb-0"><strong><?= e($screening['debt_to_income_ratio']) ?>%</strong> <span class="badge bg-<?= $riskBand['badge'] ?>"><?= $riskBand['label'] ?></span></p>
+            </div>
+            <div class="col-md-3"><p class="mb-1 text-muted small">Recommendation</p><p class="mb-0"><strong><?= e($screening['recommendation']) ?></strong></p></div>
+            <div class="col-md-3"><p class="mb-1 text-muted small">Screened</p><p class="mb-0"><strong><?= e(date('d M Y', strtotime($screening['screened_at']))) ?></strong></p></div>
           </div>
+          <p class="text-muted small mt-2 mb-0">DTI = (Existing Deductions + Proposed Installment) &divide; Gross Salary &times; 100. Under 50% Healthy, 50-70% Manageable, 70%+ High Risk.</p>
           <?php if ($screening['screening_notes']): ?><p class="mt-2 mb-0 text-muted"><?= e($screening['screening_notes']) ?></p><?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+
+    <?php if ($bankAnalysis): ?>
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <h4 class="card-title"><i class="mdi mdi-robot-outline me-1"></i> AI Bank Statement Analysis</h4>
+            <span class="badge bg-<?= $bankAnalysis['status'] === 'Completed' ? 'success' : 'danger' ?>"><?= e($bankAnalysis['status']) ?></span>
+          </div>
+
+          <?php if ($bankAnalysis['status'] === 'Failed'): ?>
+            <p class="text-danger mb-0"><?= e($bankAnalysis['error_message']) ?></p>
+          <?php else: ?>
+            <p class="text-muted small mb-3">
+              Based on <?= (int) $bankAnalysis['months_covered'] ?> month(s) of activity from
+              <?= $bankAnalysis['statement_format'] === 'Merged' ? 'one merged statement file' : 'separate statement files' ?>.
+            </p>
+            <div class="row">
+              <div class="col-md-3"><p class="mb-1 text-muted small">Avg. Monthly Income</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_monthly_income']) ?></strong></p></div>
+              <div class="col-md-3"><p class="mb-1 text-muted small">Avg. Monthly Expenses</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_monthly_expenses']) ?></strong></p></div>
+              <div class="col-md-3"><p class="mb-1 text-muted small">Avg. Closing Balance</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_closing_balance']) ?></strong></p></div>
+              <div class="col-md-3"><p class="mb-1 text-muted small">NSF / Bounced Events</p><p class="mb-0"><strong><?= (int) $bankAnalysis['nsf_count'] ?></strong></p></div>
+            </div>
+
+            <?php $commitments = json_decode($bankAnalysis['existing_commitments'] ?: '[]', true); ?>
+            <?php if (!empty($commitments)): ?>
+              <p class="mt-3 mb-1 text-muted small">Existing Commitments Detected (Total: <?= format_money($bankAnalysis['existing_commitments_total']) ?>/month)</p>
+              <table class="table table-sm">
+                <tbody>
+                  <?php foreach ($commitments as $c): ?>
+                    <tr><td><?= e($c['description'] ?? '') ?></td><td class="text-end"><?= format_money($c['monthly_amount'] ?? 0) ?></td></tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            <?php endif; ?>
+
+            <?php if ($bankAnalysis['ai_summary']): ?>
+              <p class="mt-2 mb-0 text-muted"><?= e($bankAnalysis['ai_summary']) ?></p>
+            <?php endif; ?>
+            <p class="text-muted small mt-2 mb-0">Model: <?= e($bankAnalysis['model_used']) ?> &bull; Analyzed <?= e(date('d M Y H:i', strtotime($bankAnalysis['analyzed_at']))) ?></p>
+          <?php endif; ?>
         </div>
       </div>
     <?php endif; ?>

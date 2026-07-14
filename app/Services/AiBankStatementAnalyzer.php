@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\NotificationSetting;
+
+/**
+ * Sends an applicant's uploaded bank statement document(s) to OpenAI for
+ * structured extraction, so staff get one consolidated picture of income,
+ * spending, and existing debt commitments to inform screening -- instead of
+ * manually reading through PDFs.
+ *
+ * An applicant may have uploaded their bank statements in either shape:
+ *   - ONE file covering all months (document_type = 'Bank Statement (Merged)'), or
+ *   - UP TO THREE separate files, one per month (document_type = 'Bank Statement').
+ * Both shapes are sent to the model together in a single request with an
+ * explicit instruction not to double-count months, so the result is always
+ * one consolidated analysis regardless of which shape the applicant used.
+ *
+ * Never throws -- always returns a result array so a bad/missing API key or
+ * a flaky request degrades to a visible error rather than a fatal.
+ */
+class AiBankStatementAnalyzer
+{
+    private const ALLOWED_DOCUMENT_TYPES = ['Bank Statement (Merged)', 'Bank Statement'];
+    private const MAX_FILES = 3;
+
+    private const RESPONSE_SCHEMA = [
+        'type' => 'object',
+        'properties' => [
+            'months_covered' => ['type' => 'integer'],
+            'average_monthly_income' => ['type' => 'number'],
+            'average_monthly_expenses' => ['type' => 'number'],
+            'average_closing_balance' => ['type' => 'number'],
+            'existing_commitments_total' => ['type' => 'number'],
+            'existing_commitments' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'description' => ['type' => 'string'],
+                        'monthly_amount' => ['type' => 'number'],
+                    ],
+                    'required' => ['description', 'monthly_amount'],
+                    'additionalProperties' => false,
+                ],
+            ],
+            'nsf_count' => ['type' => 'integer'],
+            'summary' => ['type' => 'string'],
+        ],
+        'required' => [
+            'months_covered', 'average_monthly_income', 'average_monthly_expenses',
+            'average_closing_balance', 'existing_commitments_total', 'existing_commitments',
+            'nsf_count', 'summary',
+        ],
+        'additionalProperties' => false,
+    ];
+
+    /**
+     * @param array $documents Rows from loan_application_documents (any document_type; irrelevant ones are filtered out here)
+     * @return array{success: bool, format?: string, documentIds?: int[], data?: array, modelUsed?: string, error?: string}
+     */
+    public static function analyze(array $documents): array
+    {
+        $settings = new NotificationSetting();
+        $apiKey = $settings->get('OPENAI_API_KEY');
+        $model = $settings->get('OPENAI_MODEL', 'gpt-4o-mini');
+
+        if ($apiKey === '') {
+            return ['success' => false, 'error' => 'AI analysis is not configured yet -- add an OpenAI API key under Settings > AI Settings.'];
+        }
+
+        $statements = array_values(array_filter($documents, fn ($d) => in_array($d['document_type'], self::ALLOWED_DOCUMENT_TYPES, true)));
+        if (empty($statements)) {
+            return ['success' => false, 'error' => 'No bank statement documents have been uploaded for this application yet.'];
+        }
+
+        $merged = array_values(array_filter($statements, fn ($d) => $d['document_type'] === 'Bank Statement (Merged)'));
+        if (!empty($merged)) {
+            $format = 'Merged';
+            $toSend = [$merged[0]];
+        } else {
+            $format = 'Separate';
+            $toSend = array_slice($statements, 0, self::MAX_FILES);
+        }
+
+        $fileParts = [];
+        foreach ($toSend as $doc) {
+            $fullPath = STORAGE_PATH . '/' . $doc['file_path'];
+            if (!is_file($fullPath)) {
+                continue;
+            }
+            $bytes = file_get_contents($fullPath);
+            if ($bytes === false) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+            $mime = match ($ext) {
+                'pdf' => 'application/pdf',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                default => null,
+            };
+            if ($mime === null) {
+                continue;
+            }
+
+            $fileParts[] = [
+                'type' => 'input_file',
+                'filename' => $doc['document_name'] ?: basename($fullPath),
+                'file_data' => 'data:' . $mime . ';base64,' . base64_encode($bytes),
+            ];
+        }
+
+        if (empty($fileParts)) {
+            return ['success' => false, 'error' => 'The uploaded bank statement file(s) could not be read from storage.'];
+        }
+
+        $instructions = $format === 'Merged'
+            ? 'You are given ONE bank statement file that itself covers multiple consecutive months for one applicant. Analyze all months it contains as a single consolidated period.'
+            : 'You are given up to THREE SEPARATE bank statement files for the SAME applicant, each typically covering one month. Treat them together as one consolidated multi-month period -- do NOT report figures per-file, and do NOT double count any month if files happen to overlap.';
+
+        $prompt = $instructions . "\n\n"
+            . "From the statement(s), determine:\n"
+            . "- months_covered: how many distinct calendar months of activity are present overall.\n"
+            . "- average_monthly_income: average of recurring salary/income deposits per month (exclude one-off transfers between the applicant's own accounts).\n"
+            . "- average_monthly_expenses: average total monthly outflows (all debits).\n"
+            . "- average_closing_balance: average of the closing/end-of-month balance across the covered months.\n"
+            . "- existing_commitments: a list of recurring monthly debit-order/loan-repayment/subscription-style deductions you can identify (e.g. 'Existing loan repayment - XYZ Finance', 'Insurance premium'), each with its typical monthly_amount. Do not include normal living expenses like groceries or fuel here.\n"
+            . "- existing_commitments_total: sum of all existing_commitments monthly_amount values.\n"
+            . "- nsf_count: number of insufficient-funds / bounced-payment / dishonoured-debit events visible in the statement(s).\n"
+            . "- summary: a short (2-4 sentence) plain-English narrative a loan officer can read directly, calling out anything of concern (irregular income, frequent NSFs, high existing debt load) or reassuring (stable income, healthy balance).\n\n"
+            . 'If a figure cannot be determined from the document(s), use 0 (or an empty list) rather than guessing.';
+
+        $payload = [
+            'model' => $model,
+            'input' => [[
+                'role' => 'user',
+                'content' => array_merge([['type' => 'input_text', 'text' => $prompt]], $fileParts),
+            ]],
+            'text' => [
+                'format' => [
+                    'type' => 'json_schema',
+                    'name' => 'bank_statement_analysis',
+                    'schema' => self::RESPONSE_SCHEMA,
+                    'strict' => true,
+                ],
+            ],
+        ];
+
+        $ch = curl_init('https://api.openai.com/v1/responses');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $apiKey,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_TIMEOUT => 120,
+        ]);
+
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'error' => 'Could not reach OpenAI: ' . $curlError];
+        }
+
+        $body = json_decode($response, true);
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            $error = $body['error']['message'] ?? ('OpenAI returned HTTP ' . $httpCode);
+            return ['success' => false, 'error' => $error];
+        }
+
+        $jsonText = self::extractOutputText($body);
+        if ($jsonText === null) {
+            return ['success' => false, 'error' => 'OpenAI response did not contain the expected analysis output.'];
+        }
+
+        $data = json_decode($jsonText, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'error' => 'OpenAI returned analysis that could not be parsed.'];
+        }
+
+        return [
+            'success' => true,
+            'format' => $format,
+            'documentIds' => array_map(fn ($d) => (int) $d['id'], $toSend),
+            'data' => $data,
+            'modelUsed' => $model,
+        ];
+    }
+
+    private static function extractOutputText(array $body): ?string
+    {
+        if (isset($body['output_text']) && is_string($body['output_text'])) {
+            return $body['output_text'];
+        }
+
+        foreach ($body['output'] ?? [] as $item) {
+            foreach ($item['content'] ?? [] as $content) {
+                if (($content['type'] ?? '') === 'output_text' && isset($content['text'])) {
+                    return $content['text'];
+                }
+            }
+        }
+
+        return null;
+    }
+}

@@ -1,0 +1,27 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Import Collection Report</h4>
+    <p class="text-muted small">Upload the "Scheduled Installments" report downloaded from Collexia's portal (.xlsx). Any row showing a Payment Date and Payment Amount that matches one of our registered mandates and hasn't already been posted will be recorded as a real payment against that loan.</p>
+
+    <form method="post" action="<?= url('/debit-order-collections') ?>" enctype="multipart/form-data">
+      <?= csrf_field() ?>
+      <div class="mb-3">
+        <label class="form-label">Scheduled Installments File <span class="text-danger">*</span></label>
+        <input type="file" name="report_file" class="form-control" accept=".xlsx,.xls" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Bank Account (optional)</label>
+        <select name="bank_account_id" class="form-select">
+          <option value="">No specific bank account</option>
+          <?php foreach ($bankAccounts as $ba): ?>
+            <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-upload"></i> Import</button>
+      <a href="<?= url('/debit-order-collections') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

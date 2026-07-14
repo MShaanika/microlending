@@ -1,0 +1,38 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h4 class="card-title mb-0">OpenAI (Bank Statement Analysis)</h4>
+          <span class="badge bg-<?= $configured ? 'success' : 'secondary' ?>"><?= $configured ? 'Configured' : 'Not Configured' ?></span>
+        </div>
+        <p class="text-muted small">Used by the "Analyze Bank Statements with AI" action on loan applications to read
+          uploaded bank statement PDFs/images and summarize income, expenses, and existing debt commitments for
+          screening. Get an API key from your OpenAI account -- leave the key blank to keep the current one.</p>
+
+        <form method="post" action="<?= url('/settings/ai') ?>" class="row g-2 mb-3">
+          <?= csrf_field() ?>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">API Key</label>
+            <input type="password" name="openai_api_key" class="form-control form-control-sm" value="" placeholder="<?= $configured ? 'Leave blank to keep current key' : 'sk-...' ?>">
+          </div>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">Model</label>
+            <input type="text" name="openai_model" class="form-control form-control-sm" value="<?= e($ai['OPENAI_MODEL'] ?? 'gpt-4o-mini') ?>" placeholder="gpt-4o-mini">
+            <div class="form-text">gpt-4o-mini is cheaper and usually sufficient; use gpt-4o for higher accuracy on harder-to-read statements.</div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save AI Settings</button>
+          </div>
+        </form>
+
+        <form method="post" action="<?= url('/settings/ai/test') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-connection"></i> Test Connection</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

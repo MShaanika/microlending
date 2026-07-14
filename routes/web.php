@@ -46,8 +46,10 @@ use App\Controllers\RescheduleController;
 use App\Controllers\DebitOrderController;
 use App\Controllers\DebitOrderCancellationController;
 use App\Controllers\DebitOrderRunController;
+use App\Controllers\DebitOrderCollectionController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ExpenseCategoryController;
+use App\Controllers\AiSettingController;
 
 $router->get('/', [AuthController::class, 'showLogin']);
 $router->get('/login', [AuthController::class, 'showLogin']);
@@ -120,10 +122,12 @@ $router->post('/debit-order-runs', [DebitOrderRunController::class, 'store']);
 $router->get('/debit-order-runs/{id}', [DebitOrderRunController::class, 'show']);
 $router->get('/debit-order-runs/{id}/export', [DebitOrderRunController::class, 'export']);
 $router->post('/debit-order-runs/{id}/submit', [DebitOrderRunController::class, 'submit']);
-$router->get('/debit-order-runs/{id}/import-response', [DebitOrderRunController::class, 'importResponseForm']);
-$router->post('/debit-order-runs/{id}/import-response', [DebitOrderRunController::class, 'importResponse']);
-$router->post('/debit-order-runs/{id}/post', [DebitOrderRunController::class, 'post']);
 $router->post('/debit-order-runs/{id}/cancel', [DebitOrderRunController::class, 'cancel']);
+
+$router->get('/debit-order-collections', [DebitOrderCollectionController::class, 'index']);
+$router->get('/debit-order-collections/create', [DebitOrderCollectionController::class, 'create']);
+$router->post('/debit-order-collections', [DebitOrderCollectionController::class, 'store']);
+$router->get('/debit-order-collections/{id}', [DebitOrderCollectionController::class, 'show']);
 
 // Expenses
 $router->get('/expenses', [ExpenseController::class, 'index']);
@@ -161,6 +165,7 @@ $router->get('/loan-requests/{id}/documents/{documentId}', [LoanRequestControlle
 $router->get('/applications', [ApplicationController::class, 'index']);
 $router->get('/applications/{id}', [ApplicationController::class, 'show']);
 $router->post('/applications/{id}/screen', [ApplicationController::class, 'screen']);
+$router->post('/applications/{id}/analyze-bank-statements', [ApplicationController::class, 'analyzeBankStatements']);
 $router->post('/applications/{id}/approve', [ApplicationController::class, 'approve']);
 $router->post('/applications/{id}/reject', [ApplicationController::class, 'reject']);
 $router->post('/applications/{id}/convert', [ApplicationController::class, 'convert']);
@@ -234,6 +239,10 @@ $router->post('/notifications/settings/email', [NotificationSettingController::c
 $router->post('/notifications/settings/sms', [NotificationSettingController::class, 'storeSmsSettings']);
 $router->post('/notifications/settings/email/test', [NotificationSettingController::class, 'testEmail']);
 $router->post('/notifications/settings/sms/test', [NotificationSettingController::class, 'testSms']);
+
+$router->get('/settings/ai', [AiSettingController::class, 'index']);
+$router->post('/settings/ai', [AiSettingController::class, 'store']);
+$router->post('/settings/ai/test', [AiSettingController::class, 'test']);
 
 // Refund claims (submitted via the self-service portal, reviewed by staff)
 $router->get('/refund-claims', [RefundClaimController::class, 'index']);
