@@ -557,6 +557,7 @@ CREATE TABLE loan_application_screening (
     debt_to_income_ratio DECIMAL(10,2) DEFAULT 0,
     screening_notes TEXT,
     recommendation ENUM('Approve','Reject','Request More Info') DEFAULT 'Request More Info',
+    data_source ENUM('AI Bank Statement','Self-Reported') DEFAULT 'Self-Reported',
     screened_by INT NULL,
     screened_at DATETIME NULL,
     FOREIGN KEY (application_id) REFERENCES loan_applications(id) ON DELETE CASCADE,

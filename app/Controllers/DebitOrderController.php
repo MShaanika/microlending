@@ -59,7 +59,6 @@ class DebitOrderController extends Controller
             'old' => [],
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
-            'idTypes' => CollexiaCodes::ID_TYPES,
             'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
         ]);
     }
@@ -100,7 +99,6 @@ class DebitOrderController extends Controller
                 'old' => $_POST,
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
-                'idTypes' => CollexiaCodes::ID_TYPES,
                 'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
             ]);
             return;
@@ -120,7 +118,8 @@ class DebitOrderController extends Controller
             'debit_amount' => (float) $_POST['debit_amount'],
             'start_date' => $_POST['start_date'],
             'status' => 'Active',
-            'id_type' => (int) ($_POST['id_type'] ?? 1),
+            // Collexia's EnDo IDType is always 1 (ID Number) for this business.
+            'id_type' => 1,
             'account_type' => (int) ($_POST['account_type'] ?? 1),
             'bank_code' => $_POST['bank_code'],
             'no_of_days_tracking' => $trackingDays,

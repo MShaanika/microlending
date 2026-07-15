@@ -69,11 +69,20 @@
       <div class="card-body">
         <h4 class="card-title"><i class="mdi mdi-cog me-1"></i> Actions</h4>
 
+        <?php $hasAiData = $bankAnalysis && $bankAnalysis['status'] === 'Completed' && (float) $bankAnalysis['average_monthly_income'] > 0; ?>
         <?php if ($canScreen): ?>
           <form method="post" action="<?= url('/applications/' . $application['id'] . '/screen') ?>" class="mb-3">
             <?= csrf_field() ?>
-            <label class="form-label small">Existing Monthly Deductions</label>
-            <input type="number" step="0.01" name="existing_deductions" class="form-control form-control-sm mb-2" value="<?= $screening['existing_deductions'] ?? '' ?>">
+            <?php if ($hasAiData): ?>
+              <div class="alert alert-info py-2 px-2 small mb-2">
+                <i class="mdi mdi-robot-outline"></i> AI bank statement analysis will be used for income, existing commitments &amp; disposable income &mdash;
+                income <strong><?= format_money($bankAnalysis['average_monthly_income']) ?></strong>,
+                existing commitments <strong><?= format_money($bankAnalysis['existing_commitments_total']) ?></strong>.
+              </div>
+            <?php else: ?>
+              <label class="form-label small">Existing Monthly Deductions</label>
+              <input type="number" step="0.01" name="existing_deductions" class="form-control form-control-sm mb-2" value="<?= $screening['existing_deductions'] ?? '' ?>">
+            <?php endif; ?>
             <label class="form-label small">Proposed Installment</label>
             <input type="number" step="0.01" name="proposed_installment" class="form-control form-control-sm mb-2" value="<?= $screening['proposed_installment'] ?? '' ?>">
             <label class="form-label small">Recommendation</label>
@@ -198,7 +207,12 @@
       ?>
       <div class="card">
         <div class="card-body">
-          <h4 class="card-title"><i class="mdi mdi-calculator me-1"></i> Latest Screening</h4>
+          <div class="d-flex justify-content-between align-items-start">
+            <h4 class="card-title"><i class="mdi mdi-calculator me-1"></i> Latest Screening</h4>
+            <span class="badge bg-<?= ($screening['data_source'] ?? 'Self-Reported') === 'AI Bank Statement' ? 'primary' : 'secondary' ?>">
+              <?= ($screening['data_source'] ?? 'Self-Reported') === 'AI Bank Statement' ? 'AI Bank Statement' : 'Self-Reported' ?>
+            </span>
+          </div>
           <div class="row">
             <div class="col-md-3"><p class="mb-1 text-muted small">Disposable Income</p><p class="mb-0"><strong><?= format_money($screening['disposable_income']) ?></strong></p></div>
             <div class="col-md-3">

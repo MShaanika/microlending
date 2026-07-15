@@ -93,11 +93,28 @@ class ApplicationController extends Controller
             return;
         }
 
-        $grossSalary = (float) ($_POST['gross_salary'] ?? $application['gross_salary'] ?? 0);
-        $netSalary = (float) ($_POST['net_salary'] ?? $application['net_salary'] ?? 0);
-        $existingDeductions = (float) ($_POST['existing_deductions'] ?? 0);
         $proposedInstallment = (float) ($_POST['proposed_installment'] ?? 0);
-        $disposable = $netSalary - $existingDeductions - $proposedInstallment;
+
+        // A completed AI bank statement analysis is authoritative once it
+        // exists -- real bank activity is far harder to misstate than a
+        // self-reported salary, so it overrides the applicant's own figures
+        // rather than staff needing to remember to prefer it manually.
+        $bankAnalysis = $this->bankAnalyses->forApplication($id);
+        $hasAiData = $bankAnalysis && $bankAnalysis['status'] === 'Completed' && (float) $bankAnalysis['average_monthly_income'] > 0;
+
+        if ($hasAiData) {
+            $grossSalary = (float) $bankAnalysis['average_monthly_income'];
+            $netSalary = $grossSalary;
+            $existingDeductions = (float) $bankAnalysis['existing_commitments_total'];
+            $disposable = $grossSalary - (float) $bankAnalysis['average_monthly_expenses'] - $proposedInstallment;
+            $dataSource = 'AI Bank Statement';
+        } else {
+            $grossSalary = (float) ($_POST['gross_salary'] ?? $application['gross_salary'] ?? 0);
+            $netSalary = (float) ($_POST['net_salary'] ?? $application['net_salary'] ?? 0);
+            $existingDeductions = (float) ($_POST['existing_deductions'] ?? 0);
+            $disposable = $netSalary - $existingDeductions - $proposedInstallment;
+            $dataSource = 'Self-Reported';
+        }
 
         // DTI_BE = (Total Monthly Debt / Gross Monthly Income) * 100 -- total
         // monthly debt is existing deductions plus the new loan's proposed
@@ -125,6 +142,7 @@ class ApplicationController extends Controller
             'debt_to_income_ratio' => $dti,
             'screening_notes' => trim($_POST['screening_notes'] ?? '') ?: null,
             'recommendation' => $_POST['recommendation'] ?: 'Request More Info',
+            'data_source' => $dataSource,
             'screened_by' => $userId,
             'screened_at' => date('Y-m-d H:i:s'),
         ]);
