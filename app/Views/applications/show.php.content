@@ -252,11 +252,28 @@
 
             <?php $commitments = json_decode($bankAnalysis['existing_commitments'] ?: '[]', true); ?>
             <?php if (!empty($commitments)): ?>
-              <p class="mt-3 mb-1 text-muted small">Existing Commitments Detected (Total: <?= format_money($bankAnalysis['existing_commitments_total']) ?>/month)</p>
+              <p class="mt-3 mb-1 text-muted small">Existing Loans, Policies &amp; Accounts Detected (Total: <?= format_money($bankAnalysis['existing_commitments_total']) ?>/month)</p>
               <table class="table table-sm">
+                <thead>
+                  <tr><th>Type</th><th>Creditor / Company</th><th>Detail</th><th class="text-end">Monthly Amount</th></tr>
+                </thead>
                 <tbody>
                   <?php foreach ($commitments as $c): ?>
-                    <tr><td><?= e($c['description'] ?? '') ?></td><td class="text-end"><?= format_money($c['monthly_amount'] ?? 0) ?></td></tr>
+                    <?php
+                      $typeBadge = match ($c['type'] ?? '') {
+                        'Loan' => 'danger',
+                        'Insurance Policy' => 'info',
+                        'Retail/Furniture Account', 'Store Card' => 'warning',
+                        'Credit Card' => 'dark',
+                        default => 'secondary',
+                      };
+                    ?>
+                    <tr>
+                      <td><span class="badge bg-<?= $typeBadge ?>"><?= e($c['type'] ?? 'Other') ?></span></td>
+                      <td><?= e($c['creditor_name'] ?? 'Unknown') ?></td>
+                      <td class="text-muted small"><?= e($c['description'] ?? '') ?></td>
+                      <td class="text-end"><?= format_money($c['monthly_amount'] ?? 0) ?></td>
+                    </tr>
                   <?php endforeach; ?>
                 </tbody>
               </table>

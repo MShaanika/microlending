@@ -38,10 +38,15 @@ class AiBankStatementAnalyzer
                 'items' => [
                     'type' => 'object',
                     'properties' => [
+                        'type' => [
+                            'type' => 'string',
+                            'enum' => ['Loan', 'Insurance Policy', 'Retail/Furniture Account', 'Credit Card', 'Store Card', 'Other'],
+                        ],
+                        'creditor_name' => ['type' => 'string'],
                         'description' => ['type' => 'string'],
                         'monthly_amount' => ['type' => 'number'],
                     ],
-                    'required' => ['description', 'monthly_amount'],
+                    'required' => ['type', 'creditor_name', 'description', 'monthly_amount'],
                     'additionalProperties' => false,
                 ],
             ],
@@ -126,7 +131,7 @@ class AiBankStatementAnalyzer
             . "- average_monthly_income: average of recurring salary/income deposits per month (exclude one-off transfers between the applicant's own accounts).\n"
             . "- average_monthly_expenses: average total monthly outflows (all debits).\n"
             . "- average_closing_balance: average of the closing/end-of-month balance across the covered months.\n"
-            . "- existing_commitments: a list of recurring monthly debit-order/loan-repayment/subscription-style deductions you can identify (e.g. 'Existing loan repayment - XYZ Finance', 'Insurance premium'), each with its typical monthly_amount. Do not include normal living expenses like groceries or fuel here.\n"
+            . "- existing_commitments: every recurring monthly obligation to another company you can identify from debit order / recurring payment lines -- this is the client's existing debt/obligation picture, so be thorough. In particular look for and separately list: (1) repayments to OTHER lenders/loan/finance companies, (2) insurance or funeral policy premiums, (3) monthly accounts with retail or furniture stores (e.g. a furniture store account, appliance store account, clothing account), (4) credit card or store card payments, (5) any other recurring third-party debit order. For each one, set type to the closest match (Loan, Insurance Policy, Retail/Furniture Account, Credit Card, Store Card, or Other), creditor_name to the actual company/institution name as it appears on the statement (e.g. 'XYZ Finance', 'Old Mutual', 'Furniture City') -- use 'Unknown' only if the statement genuinely gives no identifiable name, description for any extra detail (e.g. policy/account number if visible), and monthly_amount for its typical monthly deduction. Do not include normal living expenses like groceries, fuel, or airtime here -- only recurring obligations to a specific third-party creditor.\n"
             . "- existing_commitments_total: sum of all existing_commitments monthly_amount values.\n"
             . "- nsf_count: number of insufficient-funds / bounced-payment / dishonoured-debit events visible in the statement(s).\n"
             . "- summary: a short (2-4 sentence) plain-English narrative a loan officer can read directly, calling out anything of concern (irregular income, frequent NSFs, high existing debt load) or reassuring (stable income, healthy balance).\n\n"
