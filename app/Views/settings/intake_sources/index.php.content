@@ -38,6 +38,11 @@
           </div>
           <div class="form-text text-danger">Treat this like a password -- anyone with it can submit applications as this source. Don't paste it into chat, tickets, or commit it to a public repo.</div>
         </div>
+
+        <form method="post" action="<?= url('/settings/intake-sources/' . (int) $s['id'] . '/regenerate') ?>" class="mt-2" onsubmit="return confirm('Regenerate this token? The old token will stop working immediately -- you must update the external form with the new one right after.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-refresh"></i> Regenerate Token</button>
+        </form>
       </div>
     <?php endforeach; ?>
   </div>

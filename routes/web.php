@@ -242,6 +242,7 @@ $router->post('/notifications/settings/email/test', [NotificationSettingControll
 $router->post('/notifications/settings/sms/test', [NotificationSettingController::class, 'testSms']);
 
 $router->get('/settings/intake-sources', [IntakeSourceController::class, 'index']);
+$router->post('/settings/intake-sources/{id}/regenerate', [IntakeSourceController::class, 'regenerateToken']);
 $router->get('/settings/ai', [AiSettingController::class, 'index']);
 $router->post('/settings/ai', [AiSettingController::class, 'store']);
 $router->post('/settings/ai/test', [AiSettingController::class, 'test']);

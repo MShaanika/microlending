@@ -27,6 +27,11 @@ class IntakeSource extends Model
         );
     }
 
+    public function updateToken(int $id, string $newToken): bool
+    {
+        return $this->update('intake_sources', ['api_token' => $newToken], 'id', $id);
+    }
+
     public function fieldMappings(int $sourceId): array
     {
         return $this->all("SELECT * FROM intake_field_mappings WHERE intake_source_id = ?", [$sourceId]);
