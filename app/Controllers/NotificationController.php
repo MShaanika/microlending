@@ -97,7 +97,7 @@ class NotificationController extends Controller
         $this->view('notifications/compose', [
             'title' => 'Compose Notification',
             'channels' => self::COMPOSE_CHANNELS,
-            'templates' => $this->templates->allTemplates($channel, true),
+            'templates' => $this->availableTemplates($channel, $application, $claim),
             'borrowers' => $this->borrowers->paginated('', '', 500),
             'borrower' => $borrower,
             'loan' => $loan,
@@ -112,6 +112,33 @@ class NotificationController extends Controller
             'old' => [],
             'errors' => [],
         ]);
+    }
+
+    /**
+     * Templates whose placeholders can actually resolve given what's
+     * linked -- a template referencing {{application_no}} is hidden from
+     * the picker unless an application is linked (via the "Notify
+     * Applicant" button, not a bare borrower/loan pick), same for
+     * {{claim_no}}. Without this, staff can select e.g. "Application
+     * Approved SMS" from a generic borrower+loan compose and send the
+     * literal, unresolved placeholder text -- exactly what happened before
+     * this existed.
+     */
+    private function availableTemplates(string $channel, ?array $application, ?array $claim): array
+    {
+        return array_values(array_filter(
+            $this->templates->allTemplates($channel, true),
+            function (array $t) use ($application, $claim): bool {
+                $text = $t['message_body'] . ' ' . (string) ($t['subject'] ?? '');
+                if (!$application && str_contains($text, '{{application_no}}')) {
+                    return false;
+                }
+                if (!$claim && str_contains($text, '{{claim_no}}')) {
+                    return false;
+                }
+                return true;
+            }
+        ));
     }
 
     public function store(): void
@@ -137,6 +164,12 @@ class NotificationController extends Controller
         }
         if ($message === '') {
             $errors['message'] = 'Message is required.';
+        } elseif (preg_match('/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/', $message)) {
+            // Last line of defense: whatever got this message here (a
+            // template picked without the right context linked, or a manual
+            // edit that reintroduced a placeholder), never let a literal
+            // {{...}} go out to a real recipient.
+            $errors['message'] = 'Message still has an unresolved placeholder (e.g. {{application_no}}) -- link the right application/claim/loan above, or remove it from the message.';
         }
 
         $borrowerId = (int) ($_POST['borrower_id'] ?? 0);
@@ -153,7 +186,7 @@ class NotificationController extends Controller
             $this->view('notifications/compose', [
                 'title' => 'Compose Notification',
                 'channels' => self::COMPOSE_CHANNELS,
-                'templates' => $this->templates->allTemplates($channel ?: 'SMS', true),
+                'templates' => $this->availableTemplates($channel ?: 'SMS', $application, $claim),
                 'borrowers' => $this->borrowers->paginated('', '', 500),
                 'borrower' => $borrower,
                 'loan' => $loan,
