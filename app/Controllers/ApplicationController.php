@@ -15,6 +15,8 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationBankAnalysis;
 use App\Models\LoanApplicationScreening;
 use App\Services\AiBankStatementAnalyzer;
+use App\Services\BankStatementKeywordCategorizer;
+use App\Services\BorrowerBankStatementCsvParser;
 use App\Services\DocumentGenerationService;
 use App\Services\TemplatedSmsService;
 
@@ -158,12 +160,102 @@ class ApplicationController extends Controller
         $this->redirect('/applications/' . $id);
     }
 
+    private const BANK_STATEMENT_UPLOAD_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'csv'];
+    private const BANK_STATEMENT_UPLOAD_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'];
+    private const BANK_STATEMENT_UPLOAD_MAX_SIZE = 5 * 1024 * 1024; // 5MB, matching the public intake endpoint
+
     /**
-     * Sends the applicant's uploaded bank statement document(s) to OpenAI for
+     * Staff-facing manual attach for a bank statement, alongside whatever an
+     * applicant already submitted through the public intake form (which
+     * only accepts PDF/JPG/PNG today) -- lets staff attach one a borrower
+     * sent directly (email/WhatsApp), including a CSV export, without
+     * needing the external client website's own form to support it yet.
+     */
+    public function uploadBankStatement(string $id): void
+    {
+        Auth::authorize('applications.screen');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $application = $this->applications->find($id);
+        if (!$application) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+
+        $documentType = ($_POST['document_type'] ?? '') === 'Bank Statement (Merged)' ? 'Bank Statement (Merged)' : 'Bank Statement';
+
+        $file = $_FILES['bank_statement_file'] ?? null;
+        if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
+            Session::flash('error', 'Choose a bank statement file to upload.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+        if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name']) || $file['size'] <= 0 || $file['size'] > self::BANK_STATEMENT_UPLOAD_MAX_SIZE) {
+            Session::flash('error', 'Upload failed: invalid or oversized file (max 5MB).');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, self::BANK_STATEMENT_UPLOAD_EXTENSIONS, true)) {
+            Session::flash('error', 'Only PDF, JPG, PNG, or CSV files are accepted.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $realMime = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+        if (!in_array($realMime, self::BANK_STATEMENT_UPLOAD_MIMES, true)) {
+            Session::flash('error', 'Upload failed: the file content does not match an accepted PDF/image/CSV type.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $safeFolder = preg_replace('/[^A-Za-z0-9_-]/', '_', $application['application_no']);
+        $targetDir = STORAGE_PATH . '/uploads/loan_applications/' . $safeFolder;
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+        $storedName = 'bank_statement_' . uniqid('', true) . '.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $targetDir . '/' . $storedName)) {
+            Session::flash('error', 'Could not save the uploaded file.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $this->applications->addDocument([
+            'application_id' => $id,
+            'borrower_id' => $application['borrower_id'] ?: null,
+            'document_type' => $documentType,
+            'document_name' => $file['name'],
+            'file_path' => 'uploads/loan_applications/' . $safeFolder . '/' . $storedName,
+            'status' => 'Pending',
+            'uploaded_by' => Auth::user()['id'] ?? null,
+        ]);
+
+        Audit::log('Upload', 'Applications', 'Uploaded bank statement (' . $documentType . ') for application #' . $id);
+        Session::flash('success', 'Bank statement uploaded.');
+        $this->redirect('/applications/' . $id);
+    }
+
+    /**
+     * Sends the applicant's uploaded bank statement document(s) for
      * structured extraction (income, expenses, existing commitments, NSF
      * count) so staff get one consolidated read whether the applicant
-     * uploaded a single merged statement or up to three separate ones -- see
-     * AiBankStatementAnalyzer for how the two shapes are reconciled.
+     * uploaded a single merged statement or up to three separate ones.
+     * Routes to whichever pipeline matches the file format: a CSV is
+     * already structured data, so it goes through the deterministic
+     * keyword-based BorrowerBankStatementCsvParser + BankStatementKeywordCategorizer
+     * pipeline rather than the AI -- see AiBankStatementAnalyzer for the
+     * PDF/image path and how its two upload shapes are reconciled.
      */
     public function analyzeBankStatements(string $id): void
     {
@@ -183,45 +275,111 @@ class ApplicationController extends Controller
             return;
         }
 
-        $result = AiBankStatementAnalyzer::analyze($this->applications->documents($id));
         $userId = Auth::user()['id'] ?? null;
+        $bankStatementDocs = array_values(array_filter(
+            $this->applications->documents($id),
+            fn ($d) => in_array($d['document_type'], ['Bank Statement (Merged)', 'Bank Statement'], true)
+        ));
+        $csvDocs = array_values(array_filter(
+            $bankStatementDocs,
+            fn ($d) => strtolower(pathinfo($d['file_path'], PATHINFO_EXTENSION)) === 'csv'
+        ));
 
-        if (!$result['success']) {
-            $this->bankAnalyses->create([
-                'application_id' => $id,
-                'statement_format' => 'Separate',
-                'status' => 'Failed',
-                'error_message' => $result['error'],
-                'analyzed_by' => $userId,
-                'analyzed_at' => date('Y-m-d H:i:s'),
-            ]);
-            Audit::log('AI Analysis', 'Applications', 'Bank statement analysis failed for application #' . $id . ': ' . $result['error']);
-            Session::flash('error', 'AI analysis failed: ' . $result['error']);
-            $this->redirect('/applications/' . $id);
-            return;
+        if (!empty($csvDocs)) {
+            // A CSV is already structured data and analyzed alone through the
+            // deterministic keyword pipeline -- it can't be merged with a
+            // PDF/image in one run. The most recently uploaded CSV is used;
+            // any PDF/image files present are simply not part of this run
+            // (still available to analyze separately).
+            $csvDoc = end($csvDocs);
+            $parsed = BorrowerBankStatementCsvParser::parse(STORAGE_PATH . '/' . $csvDoc['file_path']);
+
+            if (!empty($parsed['errors'])) {
+                $errorMessage = implode(' ', $parsed['errors']);
+                $this->bankAnalyses->create([
+                    'application_id' => $id,
+                    'statement_format' => $csvDoc['document_type'] === 'Bank Statement (Merged)' ? 'Merged' : 'Separate',
+                    'ingestion_method' => 'CSV Keyword Rules',
+                    'status' => 'Failed',
+                    'error_message' => $errorMessage,
+                    'analyzed_by' => $userId,
+                    'analyzed_at' => date('Y-m-d H:i:s'),
+                ]);
+                Audit::log('AI Analysis', 'Applications', 'CSV bank statement analysis failed for application #' . $id . ': ' . $errorMessage);
+                Session::flash('error', 'CSV analysis failed: ' . $errorMessage);
+                $this->redirect('/applications/' . $id);
+                return;
+            }
+
+            $data = BankStatementKeywordCategorizer::categorize($parsed['rows']);
+            $ingestionMethod = 'CSV Keyword Rules';
+            $statementFormat = $csvDoc['document_type'] === 'Bank Statement (Merged)' ? 'Merged' : 'Separate';
+            $documentIds = [(int) $csvDoc['id']];
+            $modelUsed = null;
+        } else {
+            if (empty($bankStatementDocs)) {
+                Session::flash('error', 'No bank statement documents have been uploaded for this application yet.');
+                $this->redirect('/applications/' . $id);
+                return;
+            }
+
+            $result = AiBankStatementAnalyzer::analyze($bankStatementDocs);
+
+            if (!$result['success']) {
+                $this->bankAnalyses->create([
+                    'application_id' => $id,
+                    'statement_format' => 'Separate',
+                    'ingestion_method' => 'AI Document Analysis',
+                    'status' => 'Failed',
+                    'error_message' => $result['error'],
+                    'analyzed_by' => $userId,
+                    'analyzed_at' => date('Y-m-d H:i:s'),
+                ]);
+                Audit::log('AI Analysis', 'Applications', 'Bank statement analysis failed for application #' . $id . ': ' . $result['error']);
+                Session::flash('error', 'AI analysis failed: ' . $result['error']);
+                $this->redirect('/applications/' . $id);
+                return;
+            }
+
+            $data = $result['data'];
+            $ingestionMethod = 'AI Document Analysis';
+            $statementFormat = $result['format'];
+            $documentIds = $result['documentIds'];
+            $modelUsed = $result['modelUsed'];
         }
 
-        $data = $result['data'];
+        $income = (float) ($data['average_monthly_income'] ?? 0);
+        $expenses = (float) ($data['average_monthly_expenses'] ?? 0);
+        $periodStart = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($data['analysis_period_start'] ?? '')) ? $data['analysis_period_start'] : null;
+        $periodEnd = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($data['analysis_period_end'] ?? '')) ? $data['analysis_period_end'] : null;
+
         $this->bankAnalyses->create([
             'application_id' => $id,
-            'source_document_ids' => json_encode($result['documentIds']),
-            'statement_format' => $result['format'],
+            'source_document_ids' => json_encode($documentIds),
+            'statement_format' => $statementFormat,
+            'ingestion_method' => $ingestionMethod,
             'months_covered' => (int) ($data['months_covered'] ?? 0),
-            'average_monthly_income' => (float) ($data['average_monthly_income'] ?? 0),
-            'average_monthly_expenses' => (float) ($data['average_monthly_expenses'] ?? 0),
+            'analysis_period_start' => $periodStart,
+            'analysis_period_end' => $periodEnd,
+            'average_monthly_income' => $income,
+            'average_monthly_expenses' => $expenses,
+            'net_monthly_cash_flow' => round($income - $expenses, 2),
             'average_closing_balance' => (float) ($data['average_closing_balance'] ?? 0),
             'existing_commitments_total' => (float) ($data['existing_commitments_total'] ?? 0),
             'existing_commitments' => json_encode($data['existing_commitments'] ?? []),
+            'expense_breakdown' => json_encode($data['expense_breakdown'] ?? []),
+            'transactions' => json_encode($data['transactions'] ?? []),
+            'risk_flags' => json_encode($data['risk_flags'] ?? []),
             'nsf_count' => (int) ($data['nsf_count'] ?? 0),
             'ai_summary' => (string) ($data['summary'] ?? ''),
-            'model_used' => $result['modelUsed'],
+            'model_used' => $modelUsed,
             'status' => 'Completed',
             'analyzed_by' => $userId,
             'analyzed_at' => date('Y-m-d H:i:s'),
         ]);
 
-        Audit::log('AI Analysis', 'Applications', 'Bank statement analysis completed for application #' . $id . ' (' . $result['format'] . ', ' . count($result['documentIds']) . ' file(s))');
-        Session::flash('success', 'AI bank statement analysis complete.');
+        Audit::log('AI Analysis', 'Applications', 'Bank statement analysis completed for application #' . $id . ' (' . $ingestionMethod . ', ' . $statementFormat . ', ' . count($documentIds) . ' file(s))');
+        Session::flash('success', 'Bank statement analysis complete.');
         $this->redirect('/applications/' . $id);
     }
 

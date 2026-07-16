@@ -25,6 +25,12 @@ class ApplicationIntakeController extends Controller
 
     private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
     private const ALLOWED_DOCUMENT_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
+    // Bank statement fields alone also accept a CSV export -- it's already
+    // structured data, so it skips the AI/OCR path entirely (see
+    // ApplicationController::analyzeBankStatements()). Real-world CSV saves
+    // get reported under several different MIME types depending on OS/app.
+    private const BANK_STATEMENT_EXTRA_EXTENSIONS = ['csv'];
+    private const BANK_STATEMENT_EXTRA_MIMES = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'];
     private const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024; // 5MB
     private const MAX_SUBMISSIONS_PER_HOUR = 10;
 
@@ -202,8 +208,16 @@ class ApplicationIntakeController extends Controller
             return null;
         }
 
+        $isBankStatementField = str_starts_with($fieldName, 'bank_statement');
+        $allowedExtensions = $isBankStatementField
+            ? [...self::ALLOWED_DOCUMENT_EXTENSIONS, ...self::BANK_STATEMENT_EXTRA_EXTENSIONS]
+            : self::ALLOWED_DOCUMENT_EXTENSIONS;
+        $allowedMimes = $isBankStatementField
+            ? [...self::ALLOWED_DOCUMENT_MIMES, ...self::BANK_STATEMENT_EXTRA_MIMES]
+            : self::ALLOWED_DOCUMENT_MIMES;
+
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, self::ALLOWED_DOCUMENT_EXTENSIONS, true)) {
+        if (!in_array($ext, $allowedExtensions, true)) {
             return null;
         }
 
@@ -212,7 +226,7 @@ class ApplicationIntakeController extends Controller
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $realMime = finfo_file($finfo, $file['tmp_name']);
         finfo_close($finfo);
-        if (!in_array($realMime, self::ALLOWED_DOCUMENT_MIMES, true)) {
+        if (!in_array($realMime, $allowedMimes, true)) {
             return null;
         }
 

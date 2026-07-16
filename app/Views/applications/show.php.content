@@ -97,10 +97,21 @@
           </form>
         <?php endif; ?>
 
+        <form method="post" action="<?= url('/applications/' . $application['id'] . '/upload-bank-statement') ?>" enctype="multipart/form-data" class="mb-2">
+          <?= csrf_field() ?>
+          <label class="form-label small mb-1">Upload Bank Statement (PDF, JPG, PNG, or CSV)</label>
+          <select name="document_type" class="form-select form-select-sm mb-1">
+            <option value="Bank Statement">Statement (one of up to 3 files)</option>
+            <option value="Bank Statement (Merged)">Merged Statement (single file, all months)</option>
+          </select>
+          <input type="file" name="bank_statement_file" class="form-control form-control-sm mb-1" accept=".pdf,.jpg,.jpeg,.png,.csv" required>
+          <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="mdi mdi-upload"></i> Upload</button>
+        </form>
+
         <?php if (!empty($bankStatementDocs)): ?>
           <form method="post" action="<?= url('/applications/' . $application['id'] . '/analyze-bank-statements') ?>" class="mb-3">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="mdi mdi-robot-outline"></i> Analyze Bank Statements with AI</button>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="mdi mdi-robot-outline"></i> Analyze Bank Statements</button>
           </form>
         <?php endif; ?>
 
@@ -233,24 +244,66 @@
     <?php if ($bankAnalysis): ?>
       <div class="card">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <h4 class="card-title"><i class="mdi mdi-robot-outline me-1"></i> AI Bank Statement Analysis</h4>
-            <span class="badge bg-<?= $bankAnalysis['status'] === 'Completed' ? 'success' : 'danger' ?>"><?= e($bankAnalysis['status']) ?></span>
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+            <h4 class="card-title"><i class="mdi mdi-robot-outline me-1"></i> Bank Statement Analysis</h4>
+            <div>
+              <span class="badge bg-<?= $bankAnalysis['status'] === 'Completed' ? 'success' : 'danger' ?>"><?= e($bankAnalysis['status']) ?></span>
+              <span class="badge bg-secondary"><?= e($bankAnalysis['ingestion_method'] ?? 'AI Document Analysis') ?></span>
+            </div>
           </div>
 
           <?php if ($bankAnalysis['status'] === 'Failed'): ?>
             <p class="text-danger mb-0"><?= e($bankAnalysis['error_message']) ?></p>
           <?php else: ?>
             <p class="text-muted small mb-3">
-              Based on <?= (int) $bankAnalysis['months_covered'] ?> month(s) of activity from
-              <?= $bankAnalysis['statement_format'] === 'Merged' ? 'one merged statement file' : 'separate statement files' ?>.
+              <?php if (!empty($bankAnalysis['analysis_period_start']) && !empty($bankAnalysis['analysis_period_end'])): ?>
+                Analysis Period: <?= e(date('d M Y', strtotime($bankAnalysis['analysis_period_start']))) ?> &ndash; <?= e(date('d M Y', strtotime($bankAnalysis['analysis_period_end']))) ?>
+                (<?= (int) $bankAnalysis['months_covered'] ?> month(s))
+              <?php else: ?>
+                Based on <?= (int) $bankAnalysis['months_covered'] ?> month(s) of activity from
+                <?= $bankAnalysis['statement_format'] === 'Merged' ? 'one merged statement file' : 'separate statement files' ?>.
+              <?php endif; ?>
             </p>
+
+            <?php
+              $currentDti = (float) $bankAnalysis['average_monthly_income'] > 0
+                ? round(((float) $bankAnalysis['existing_commitments_total'] / (float) $bankAnalysis['average_monthly_income']) * 100, 2)
+                : 0.0;
+              $dtiBand = $currentDti < 50 ? ['success', 'Healthy'] : ($currentDti < 70 ? ['warning', 'Manageable'] : ['danger', 'High Risk']);
+              $netFlowPositive = (float) $bankAnalysis['net_monthly_cash_flow'] >= 0;
+            ?>
             <div class="row">
-              <div class="col-md-3"><p class="mb-1 text-muted small">Avg. Monthly Income</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_monthly_income']) ?></strong></p></div>
-              <div class="col-md-3"><p class="mb-1 text-muted small">Avg. Monthly Expenses</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_monthly_expenses']) ?></strong></p></div>
-              <div class="col-md-3"><p class="mb-1 text-muted small">Avg. Closing Balance</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_closing_balance']) ?></strong></p></div>
-              <div class="col-md-3"><p class="mb-1 text-muted small">NSF / Bounced Events</p><p class="mb-0"><strong><?= (int) $bankAnalysis['nsf_count'] ?></strong></p></div>
+              <div class="col-md-3 mb-2"><p class="mb-1 text-muted small">Avg. Monthly Income</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_monthly_income']) ?></strong></p></div>
+              <div class="col-md-3 mb-2"><p class="mb-1 text-muted small">Avg. Monthly Expenses</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_monthly_expenses']) ?></strong></p></div>
+              <div class="col-md-3 mb-2"><p class="mb-1 text-muted small">Net Monthly Cash Flow</p><p class="mb-0"><strong class="<?= $netFlowPositive ? 'text-success' : 'text-danger' ?>"><?= format_money($bankAnalysis['net_monthly_cash_flow']) ?></strong></p></div>
+              <div class="col-md-3 mb-2">
+                <p class="mb-1 text-muted small">Current DTI</p>
+                <p class="mb-0"><strong><?= $currentDti ?>%</strong> <span class="badge bg-<?= $dtiBand[0] ?>"><?= $dtiBand[1] ?></span></p>
+              </div>
             </div>
+            <div class="row">
+              <div class="col-md-3 mb-2"><p class="mb-1 text-muted small">Avg. Closing Balance</p><p class="mb-0"><strong><?= format_money($bankAnalysis['average_closing_balance']) ?></strong></p></div>
+              <div class="col-md-3 mb-2"><p class="mb-1 text-muted small">NSF / Bounced Events</p><p class="mb-0"><strong><?= (int) $bankAnalysis['nsf_count'] ?></strong></p></div>
+            </div>
+            <p class="text-muted small mt-1 mb-0">Current DTI = Existing Commitments &divide; Avg. Monthly Income &times; 100 (before any new loan). Under 50% Healthy, 50-70% Manageable, 70%+ High Risk.</p>
+
+            <?php $riskFlags = json_decode($bankAnalysis['risk_flags'] ?? '[]', true) ?: []; ?>
+            <?php if (!empty($riskFlags)): ?>
+              <p class="mt-3 mb-1 text-muted small">Key Risk Flags</p>
+              <ul class="mb-0">
+                <?php foreach ($riskFlags as $flag): ?>
+                  <li class="text-danger"><?= e($flag) ?></li>
+                <?php endforeach; ?>
+              </ul>
+            <?php elseif ($bankAnalysis['ai_summary']): ?>
+              <p class="mt-2 mb-0 text-muted"><?= e($bankAnalysis['ai_summary']) ?></p>
+            <?php endif; ?>
+
+            <?php $expenseBreakdown = json_decode($bankAnalysis['expense_breakdown'] ?? '[]', true) ?: []; ?>
+            <?php if (!empty($expenseBreakdown) && array_sum($expenseBreakdown) > 0): ?>
+              <p class="mt-3 mb-1 text-muted small">Expense Breakdown</p>
+              <div id="expenseBreakdownChart" data-breakdown='<?= e(json_encode($expenseBreakdown)) ?>'></div>
+            <?php endif; ?>
 
             <?php $commitments = json_decode($bankAnalysis['existing_commitments'] ?: '[]', true); ?>
             <?php if (!empty($commitments)): ?>
@@ -281,10 +334,40 @@
               </table>
             <?php endif; ?>
 
-            <?php if ($bankAnalysis['ai_summary']): ?>
-              <p class="mt-2 mb-0 text-muted"><?= e($bankAnalysis['ai_summary']) ?></p>
+            <?php $transactions = json_decode($bankAnalysis['transactions'] ?? '[]', true) ?: []; ?>
+            <?php if (!empty($transactions)): ?>
+              <p class="mt-3 mb-1">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#transactionsCollapse">
+                  <i class="mdi mdi-format-list-bulleted"></i> Show Transactions (<?= count($transactions) ?>)
+                </button>
+              </p>
+              <div class="collapse" id="transactionsCollapse">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr><th>Date</th><th>Description</th><th>Type</th><th>Category</th><th class="text-end">Amount</th><th class="text-end">Balance</th></tr>
+                    </thead>
+                    <tbody>
+                      <?php foreach ($transactions as $t): ?>
+                        <tr>
+                          <td><?= e($t['date'] ?? '') ?></td>
+                          <td><?= e($t['description'] ?? '') ?></td>
+                          <td><span class="badge bg-<?= ($t['type'] ?? '') === 'Credit' ? 'success' : 'secondary' ?>"><?= e($t['type'] ?? '') ?></span></td>
+                          <td><?= e($t['category'] ?? '') ?></td>
+                          <td class="text-end"><?= format_money($t['amount'] ?? 0) ?></td>
+                          <td class="text-end"><?= ($t['running_balance'] ?? null) !== null ? format_money($t['running_balance']) : '&mdash;' ?></td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             <?php endif; ?>
-            <p class="text-muted small mt-2 mb-0">Model: <?= e($bankAnalysis['model_used']) ?> &bull; Analyzed <?= e(date('d M Y H:i', strtotime($bankAnalysis['analyzed_at']))) ?></p>
+
+            <p class="text-muted small mt-2 mb-0">
+              <?php if ($bankAnalysis['model_used']): ?>Model: <?= e($bankAnalysis['model_used']) ?> &bull; <?php endif; ?>
+              Analyzed <?= e(date('d M Y H:i', strtotime($bankAnalysis['analyzed_at']))) ?>
+            </p>
           <?php endif; ?>
         </div>
       </div>
@@ -306,3 +389,29 @@
     </div>
   </div>
 </div>
+
+<?php if ($bankAnalysis && !empty(json_decode($bankAnalysis['expense_breakdown'] ?? '[]', true))): ?>
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var el = document.getElementById('expenseBreakdownChart');
+  if (!el) return;
+  var breakdown = JSON.parse(el.dataset.breakdown);
+  var labels = { bank_fees: 'Bank Fees', transfers: 'Transfers', cash_withdrawals: 'Cash Withdrawals', living_expenses: 'Living Expenses', other: 'Other' };
+  var series = [];
+  var chartLabels = [];
+  Object.keys(labels).forEach(function (key) {
+    if (breakdown[key] > 0) {
+      series.push(breakdown[key]);
+      chartLabels.push(labels[key]);
+    }
+  });
+  new ApexCharts(el, {
+    chart: { type: 'pie', height: 300 },
+    series: series,
+    labels: chartLabels,
+    legend: { position: 'bottom' },
+  }).render();
+})();
+</script>
+<?php endif; ?>

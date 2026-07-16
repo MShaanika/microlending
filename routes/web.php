@@ -166,6 +166,7 @@ $router->get('/loan-requests/{id}/documents/{documentId}', [LoanRequestControlle
 $router->get('/applications', [ApplicationController::class, 'index']);
 $router->get('/applications/{id}', [ApplicationController::class, 'show']);
 $router->post('/applications/{id}/screen', [ApplicationController::class, 'screen']);
+$router->post('/applications/{id}/upload-bank-statement', [ApplicationController::class, 'uploadBankStatement']);
 $router->post('/applications/{id}/analyze-bank-statements', [ApplicationController::class, 'analyzeBankStatements']);
 $router->post('/applications/{id}/approve', [ApplicationController::class, 'approve']);
 $router->post('/applications/{id}/reject', [ApplicationController::class, 'reject']);

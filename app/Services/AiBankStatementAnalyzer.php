@@ -29,6 +29,8 @@ class AiBankStatementAnalyzer
         'type' => 'object',
         'properties' => [
             'months_covered' => ['type' => 'integer'],
+            'analysis_period_start' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
+            'analysis_period_end' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
             'average_monthly_income' => ['type' => 'number'],
             'average_monthly_expenses' => ['type' => 'number'],
             'average_closing_balance' => ['type' => 'number'],
@@ -50,13 +52,43 @@ class AiBankStatementAnalyzer
                     'additionalProperties' => false,
                 ],
             ],
+            'expense_breakdown' => [
+                'type' => 'object',
+                'properties' => [
+                    'bank_fees' => ['type' => 'number'],
+                    'transfers' => ['type' => 'number'],
+                    'cash_withdrawals' => ['type' => 'number'],
+                    'living_expenses' => ['type' => 'number'],
+                    'other' => ['type' => 'number'],
+                ],
+                'required' => ['bank_fees', 'transfers', 'cash_withdrawals', 'living_expenses', 'other'],
+                'additionalProperties' => false,
+            ],
+            'transactions' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'date' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
+                        'description' => ['type' => 'string'],
+                        'amount' => ['type' => 'number', 'description' => 'Always positive'],
+                        'type' => ['type' => 'string', 'enum' => ['Debit', 'Credit']],
+                        'category' => ['type' => 'string', 'enum' => ['Income', 'Bank Fees', 'Transfer', 'Cash Withdrawal', 'Living Expenses', 'Other']],
+                        'running_balance' => ['type' => ['number', 'null']],
+                    ],
+                    'required' => ['date', 'description', 'amount', 'type', 'category', 'running_balance'],
+                    'additionalProperties' => false,
+                ],
+            ],
+            'risk_flags' => ['type' => 'array', 'items' => ['type' => 'string']],
             'nsf_count' => ['type' => 'integer'],
             'summary' => ['type' => 'string'],
         ],
         'required' => [
-            'months_covered', 'average_monthly_income', 'average_monthly_expenses',
-            'average_closing_balance', 'existing_commitments_total', 'existing_commitments',
-            'nsf_count', 'summary',
+            'months_covered', 'analysis_period_start', 'analysis_period_end',
+            'average_monthly_income', 'average_monthly_expenses', 'average_closing_balance',
+            'existing_commitments_total', 'existing_commitments', 'expense_breakdown',
+            'transactions', 'risk_flags', 'nsf_count', 'summary',
         ],
         'additionalProperties' => false,
     ];
@@ -128,11 +160,15 @@ class AiBankStatementAnalyzer
         $prompt = $instructions . "\n\n"
             . "From the statement(s), determine:\n"
             . "- months_covered: how many distinct calendar months of activity are present overall.\n"
+            . "- analysis_period_start / analysis_period_end: the earliest and latest transaction dates visible across the statement(s), as YYYY-MM-DD.\n"
             . "- average_monthly_income: average of recurring salary/income deposits per month (exclude one-off transfers between the applicant's own accounts).\n"
             . "- average_monthly_expenses: average total monthly outflows (all debits).\n"
             . "- average_closing_balance: average of the closing/end-of-month balance across the covered months.\n"
             . "- existing_commitments: every recurring monthly obligation to another company you can identify from debit order / recurring payment lines -- this is the client's existing debt/obligation picture, so be thorough. In particular look for and separately list: (1) repayments to OTHER lenders/loan/finance companies, (2) insurance or funeral policy premiums, (3) monthly accounts with retail or furniture stores (e.g. a furniture store account, appliance store account, clothing account), (4) credit card or store card payments, (5) any other recurring third-party debit order. For each one, set type to the closest match (Loan, Insurance Policy, Retail/Furniture Account, Credit Card, Store Card, or Other), creditor_name to the actual company/institution name as it appears on the statement (e.g. 'XYZ Finance', 'Old Mutual', 'Furniture City') -- use 'Unknown' only if the statement genuinely gives no identifiable name, description for any extra detail (e.g. policy/account number if visible), and monthly_amount for its typical monthly deduction. Do not include normal living expenses like groceries, fuel, or airtime here -- only recurring obligations to a specific third-party creditor.\n"
             . "- existing_commitments_total: sum of all existing_commitments monthly_amount values.\n"
+            . "- expense_breakdown: total (not averaged) expenses across the whole period, split into exactly these five buckets: bank_fees (account/service/monthly fees), transfers (send money, debit orders, collections -- including the existing_commitments debit orders above), cash_withdrawals (ATM/cash withdrawals), living_expenses (purchases, payments to stores, electricity, airtime), and other (anything not fitting the above). Every debit transaction must land in exactly one bucket, and the five bucket totals must sum to the total of all debits across the period.\n"
+            . "- transactions: every transaction line you can read from the statement(s), each with date (YYYY-MM-DD), description (the narration as printed), amount (always positive), type (Debit or Credit), category (Income for income credits, otherwise the matching expense_breakdown bucket name: Bank Fees, Transfer, Cash Withdrawal, Living Expenses, or Other), and running_balance (the balance shown after that line, or null if not printed).\n"
+            . "- risk_flags: short plain-English flags for anything a loan officer should notice, e.g. \"High bank fees\", \"Low balance mid-month\", \"Irregular income\", \"Frequent NSF events\" -- empty list if nothing stands out.\n"
             . "- nsf_count: number of insufficient-funds / bounced-payment / dishonoured-debit events visible in the statement(s).\n"
             . "- summary: a short (2-4 sentence) plain-English narrative a loan officer can read directly, calling out anything of concern (irregular income, frequent NSFs, high existing debt load) or reassuring (stable income, healthy balance).\n\n"
             . 'If a figure cannot be determined from the document(s), use 0 (or an empty list) rather than guessing.';
