@@ -5,7 +5,16 @@
     <h4 class="card-title mb-3">Compose Notification</h4>
     <p class="text-muted small mb-3">Pick a borrower/loan and a template to auto-fill the message below, then edit freely before queuing. Nothing sends automatically &mdash; you'll send it yourself, then mark it as Sent from the queue.</p>
 
+    <?php if ($application || $claim): ?>
+      <div class="alert alert-info py-2 mb-3">
+        <?php if ($application): ?>Linked to application <strong><?= e($application['application_no']) ?></strong> -- <code>{{application_no}}</code> will resolve to this.<?php endif; ?>
+        <?php if ($claim): ?>Linked to refund claim <strong><?= e($claim['claim_no']) ?></strong> -- <code>{{claim_no}}</code> will resolve to this.<?php endif; ?>
+      </div>
+    <?php endif; ?>
+
     <form method="get" action="<?= url('/notifications/compose') ?>" id="pickerForm">
+      <input type="hidden" name="application_id" value="<?= $application ? (int) $application['id'] : '' ?>">
+      <input type="hidden" name="claim_id" value="<?= $claim ? (int) $claim['id'] : '' ?>">
       <div class="row">
         <div class="col-md-4 mb-3">
           <label class="form-label">Borrower</label>
@@ -56,6 +65,8 @@
       <?= csrf_field() ?>
       <input type="hidden" name="borrower_id" value="<?= $borrower ? (int) $borrower['id'] : '' ?>">
       <input type="hidden" name="loan_id" value="<?= $loan ? (int) $loan['id'] : '' ?>">
+      <input type="hidden" name="application_id" value="<?= $application ? (int) $application['id'] : '' ?>">
+      <input type="hidden" name="claim_id" value="<?= $claim ? (int) $claim['id'] : '' ?>">
       <input type="hidden" name="template_id" value="<?= $selectedTemplateId ?: '' ?>">
 
       <div class="row">

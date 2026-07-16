@@ -84,6 +84,7 @@
                   </ul>
                 </div>
                 <a href="<?= url('/letters') ?>" class="btn btn-sm btn-outline-info mt-1"><i class="mdi mdi-download"></i></a>
+                <a href="<?= url('/notifications/compose?claim_id=' . $c['id'] . '&borrower_id=' . (int) $c['borrower_id']) ?>" class="btn btn-sm btn-outline-secondary mt-1" title="Notify borrower about this claim"><i class="mdi mdi-bell-ring-outline"></i></a>
               </td>
             </tr>
           <?php endforeach; ?>

@@ -9,9 +9,11 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\Borrower;
 use App\Models\Loan;
+use App\Models\LoanApplication;
 use App\Models\NotificationLog;
 use App\Models\NotificationQueue;
 use App\Models\NotificationTemplate;
+use App\Models\RefundClaim;
 use App\Services\EmailSenderService;
 use App\Services\NotificationMergeService;
 use App\Services\SmsSenderService;
@@ -23,6 +25,8 @@ class NotificationController extends Controller
     private NotificationLog $logs;
     private Borrower $borrowers;
     private Loan $loans;
+    private LoanApplication $applications;
+    private RefundClaim $refundClaims;
 
     /** Compose is scoped to the two channels that actually have a queue
      *  screen to review them in -- Templates can define WhatsApp/Portal
@@ -36,6 +40,8 @@ class NotificationController extends Controller
         $this->logs = new NotificationLog();
         $this->borrowers = new Borrower();
         $this->loans = new Loan();
+        $this->applications = new LoanApplication();
+        $this->refundClaims = new RefundClaim();
     }
 
     public function smsQueue(): void
@@ -70,17 +76,23 @@ class NotificationController extends Controller
 
         $borrowerId = (int) ($_GET['borrower_id'] ?? 0);
         $loanId = (int) ($_GET['loan_id'] ?? 0);
+        $applicationId = (int) ($_GET['application_id'] ?? 0);
+        $claimId = (int) ($_GET['claim_id'] ?? 0);
         $channel = in_array($_GET['channel'] ?? '', self::COMPOSE_CHANNELS, true) ? $_GET['channel'] : 'SMS';
         $templateId = (int) ($_GET['template_id'] ?? 0);
 
         $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
         $loan = $loanId ? $this->loans->find($loanId) : null;
+        $application = $applicationId ? $this->applications->find($applicationId) : null;
+        $claim = $claimId ? $this->refundClaims->find($claimId) : null;
         $borrowerLoans = $borrower ? $this->loans->forBorrower((int) $borrower['id']) : [];
 
+        $context = $this->buildContext($borrower, $loan, $application, $claim);
         $template = $templateId ? $this->templates->find($templateId) : null;
-        $previewBody = $template ? NotificationMergeService::render($template['message_body'], $this->buildContext($borrower, $loan)) : '';
-        $previewSubject = $template ? NotificationMergeService::render((string) ($template['subject'] ?? ''), $this->buildContext($borrower, $loan)) : '';
-        $defaultContact = $borrower ? ($channel === 'Email' ? (string) ($borrower['email'] ?? '') : (string) ($borrower['phone'] ?? '')) : '';
+        $previewBody = $template ? NotificationMergeService::render($template['message_body'], $context) : '';
+        $previewSubject = $template ? NotificationMergeService::render((string) ($template['subject'] ?? ''), $context) : '';
+        $defaultContact = $borrower ? ($channel === 'Email' ? (string) ($borrower['email'] ?? '') : (string) ($borrower['phone'] ?? ''))
+            : ($application ? (string) ($application['applicant_phone'] ?? '') : '');
 
         $this->view('notifications/compose', [
             'title' => 'Compose Notification',
@@ -89,6 +101,8 @@ class NotificationController extends Controller
             'borrowers' => $this->borrowers->paginated('', '', 500),
             'borrower' => $borrower,
             'loan' => $loan,
+            'application' => $application,
+            'claim' => $claim,
             'borrowerLoans' => $borrowerLoans,
             'selectedChannel' => $channel,
             'selectedTemplateId' => $templateId,
@@ -127,8 +141,12 @@ class NotificationController extends Controller
 
         $borrowerId = (int) ($_POST['borrower_id'] ?? 0);
         $loanId = (int) ($_POST['loan_id'] ?? 0);
+        $applicationId = (int) ($_POST['application_id'] ?? 0);
+        $claimId = (int) ($_POST['claim_id'] ?? 0);
         $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
         $loan = $loanId ? $this->loans->find($loanId) : null;
+        $application = $applicationId ? $this->applications->find($applicationId) : null;
+        $claim = $claimId ? $this->refundClaims->find($claimId) : null;
 
         if (!empty($errors)) {
             $templateId = (int) ($_POST['template_id'] ?? 0);
@@ -139,6 +157,8 @@ class NotificationController extends Controller
                 'borrowers' => $this->borrowers->paginated('', '', 500),
                 'borrower' => $borrower,
                 'loan' => $loan,
+                'application' => $application,
+                'claim' => $claim,
                 'borrowerLoans' => $borrower ? $this->loans->forBorrower((int) $borrower['id']) : [],
                 'selectedChannel' => $channel ?: 'SMS',
                 'selectedTemplateId' => $templateId,
@@ -162,8 +182,8 @@ class NotificationController extends Controller
             'subject' => $channel === 'Email' ? (trim($_POST['subject'] ?? '') ?: null) : null,
             'message' => $message,
             'source_module' => 'Manual',
-            'source_table' => $loan ? 'loans' : ($borrower ? 'borrowers' : null),
-            'source_id' => $loan['id'] ?? $borrower['id'] ?? null,
+            'source_table' => $application ? 'loan_applications' : ($claim ? 'refund_claims' : ($loan ? 'loans' : ($borrower ? 'borrowers' : null))),
+            'source_id' => $application['id'] ?? $claim['id'] ?? $loan['id'] ?? $borrower['id'] ?? null,
             'status' => 'Pending',
             'created_by' => Auth::user()['id'] ?? null,
         ]);
@@ -282,11 +302,11 @@ class NotificationController extends Controller
     /**
      * Merge context for NotificationMergeService -- flat map of whichever
      * of the seeded templates' placeholders can actually be resolved from
-     * the borrower/loan in hand. Missing pieces (e.g. no loan selected)
-     * simply leave that placeholder unresolved, handled gracefully by the
-     * merge service rather than erroring.
+     * the borrower/loan/application/claim in hand. Missing pieces (e.g. no
+     * loan selected) simply leave that placeholder unresolved, handled
+     * gracefully by the merge service rather than erroring.
      */
-    private function buildContext(?array $borrower, ?array $loan): array
+    private function buildContext(?array $borrower, ?array $loan, ?array $application = null, ?array $claim = null): array
     {
         $context = [
             'current_date' => date('d F Y'),
@@ -294,6 +314,11 @@ class NotificationController extends Controller
 
         if ($borrower) {
             $context['borrower_full_name'] = trim($borrower['first_name'] . ' ' . $borrower['last_name']);
+        } elseif ($application) {
+            // An application may predate a borrower record existing at all
+            // (e.g. still Pending/Rejected) -- fall back to the applicant's
+            // own name so {{borrower_full_name}} still resolves.
+            $context['borrower_full_name'] = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
         }
 
         if ($loan) {
@@ -312,6 +337,14 @@ class NotificationController extends Controller
             if (($arrears['days_in_arrears'] ?? 0) > 0) {
                 $context['arrears_amount'] = format_money($arrears['outstanding_balance']);
             }
+        }
+
+        if ($application) {
+            $context['application_no'] = $application['application_no'];
+        }
+
+        if ($claim) {
+            $context['claim_no'] = $claim['claim_no'];
         }
 
         return $context;

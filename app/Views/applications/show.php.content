@@ -115,6 +115,8 @@
           <?php if ($canReject): ?>
             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
           <?php endif; ?>
+
+          <a href="<?= url('/notifications/compose?application_id=' . $application['id'] . ($application['borrower_id'] ? '&borrower_id=' . (int) $application['borrower_id'] : '')) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-bell-ring-outline"></i> Notify Applicant</a>
         </div>
 
         <?php if ($canReject): ?>
