@@ -11,6 +11,7 @@ use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
 use App\Models\RefundClaim;
 use App\Services\DocumentGenerationService;
+use App\Services\TemplatedSmsService;
 
 class RefundClaimController extends Controller
 {
@@ -54,10 +55,19 @@ class RefundClaimController extends Controller
         }
 
         $approvedAmount = (float) ($_POST['approved_amount'] ?? $claim['claim_amount']);
-        $this->refundClaims->updateStatus($id, 'Approved', Auth::user()['id'] ?? null, null, $approvedAmount);
+        $userId = Auth::user()['id'] ?? null;
+        $this->refundClaims->updateStatus($id, 'Approved', $userId, null, $approvedAmount);
 
-        Audit::log('Approve', 'Refund Claims', 'Approved refund claim #' . $id . ' for ' . format_money($approvedAmount));
-        Session::flash('success', 'Refund claim approved.');
+        $smsResult = TemplatedSmsService::send(
+            'REFUND_APPROVED_SMS',
+            (string) ($claim['borrower_phone'] ?? ''),
+            ['borrower_full_name' => $claim['borrower_name'], 'claim_no' => $claim['claim_no']],
+            (int) $claim['borrower_id'],
+            $userId
+        );
+
+        Audit::log('Approve', 'Refund Claims', 'Approved refund claim #' . $id . ' for ' . format_money($approvedAmount) . ' (' . $smsResult['note'] . ')');
+        Session::flash('success', 'Refund claim approved (' . $smsResult['note'] . ').');
         $this->redirect('/refund-claims');
     }
 

@@ -9,7 +9,6 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\Borrower;
 use App\Models\Branch;
-use App\Models\Company;
 use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
 use App\Models\LoanApplication;
@@ -17,7 +16,7 @@ use App\Models\LoanApplicationBankAnalysis;
 use App\Models\LoanApplicationScreening;
 use App\Services\AiBankStatementAnalyzer;
 use App\Services\DocumentGenerationService;
-use App\Services\SmsSenderService;
+use App\Services\TemplatedSmsService;
 
 class ApplicationController extends Controller
 {
@@ -252,17 +251,15 @@ class ApplicationController extends Controller
         ]);
         $this->applications->addStatusHistory($id, $application['status'], 'Approved', $userId, trim($_POST['notes'] ?? '') ?: null);
 
-        $deliveryNote = 'no phone number on file -- SMS not sent';
-        if (!empty($application['applicant_phone'])) {
-            $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
-            $company = (new Company())->primary();
-            $brandName = ($company['brand_name'] ?? '') ?: ($company['company_name'] ?? '') ?: 'us';
-            $message = "Dear $applicantName, good news! Your loan application {$application['application_no']} with $brandName has been approved. Our team will contact you shortly to finalize your loan.";
-            $smsResult = SmsSenderService::send((string) $application['applicant_phone'], $message);
-            $deliveryNote = $smsResult['success']
-                ? 'approval SMS sent to ' . $application['applicant_phone']
-                : 'approval SMS not sent (' . $smsResult['error'] . ')';
-        }
+        $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
+        $smsResult = TemplatedSmsService::send(
+            'APPLICATION_APPROVED_SMS',
+            (string) ($application['applicant_phone'] ?? ''),
+            ['borrower_full_name' => $applicantName, 'application_no' => $application['application_no']],
+            $application['borrower_id'] ?? null,
+            $userId
+        );
+        $deliveryNote = $smsResult['note'];
 
         Audit::log('Approve', 'Applications', 'Approved application #' . $id . ' (' . $deliveryNote . ')');
         Session::flash('success', 'Application approved (' . $deliveryNote . '). Convert it to a borrower/loan below when ready.');
@@ -310,8 +307,17 @@ class ApplicationController extends Controller
         ]);
         $this->applications->addStatusHistory($id, $application['status'], 'Rejected', $userId, $reason);
 
-        Audit::log('Reject', 'Applications', 'Rejected application #' . $id);
-        Session::flash('success', 'Application rejected.');
+        $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
+        $smsResult = TemplatedSmsService::send(
+            'APPLICATION_REJECTED_SMS',
+            (string) ($application['applicant_phone'] ?? ''),
+            ['borrower_full_name' => $applicantName, 'application_no' => $application['application_no']],
+            $application['borrower_id'] ?? null,
+            $userId
+        );
+
+        Audit::log('Reject', 'Applications', 'Rejected application #' . $id . ' (' . $smsResult['note'] . ')');
+        Session::flash('success', 'Application rejected (' . $smsResult['note'] . ').');
         $this->redirect('/applications/' . $id);
     }
 

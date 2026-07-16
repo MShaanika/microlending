@@ -37,7 +37,7 @@ class RefundClaim extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.id AS borrower_id, l.loan_no
+            "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.id AS borrower_id, b.phone AS borrower_phone, l.loan_no
              FROM refund_claims r
              JOIN borrowers b ON b.id = r.borrower_id
              LEFT JOIN loans l ON l.id = r.loan_id
