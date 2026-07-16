@@ -5,20 +5,17 @@ namespace App\Services;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
- * Parses Collexia's "Scheduled Installments" report export -- one row per
- * installment across all registered contracts (Active, Completed, Rejected,
- * Insufficient Funds, etc.), whatever their current processing state.
- *
- * Unlike its name suggests, this report carries no collection date/amount at
- * all -- only a status per installment -- so it cannot be used to post real
- * payments (see CollexiaSuccessfulTransactionsParser for that). It's purely
- * a broad status snapshot across every installment, due or not yet due.
+ * Parses Collexia's "Unsuccessful Transactions" report export -- one row per
+ * installment collection attempt that failed (e.g. Insufficient Funds), with
+ * the rejection reason and date. No payment is ever posted from this report;
+ * rows are recorded purely so staff/collectors can see and follow up on
+ * failed collections.
  */
-class CollexiaScheduledInstallmentsParser
+class CollexiaUnsuccessfulTransactionsParser
 {
     private const REQUIRED_HEADERS = [
-        'Merchant System Contract No', 'Installment Status', 'Scheduled Date',
-        'Installment Amount', 'No', 'Contract Status',
+        'Merchant System Contract No', 'Number Of Installment', 'Installment Amount',
+        'Installment Status', 'Rejection Date', 'Scheduled Date', 'Client Number', 'Client Name',
     ];
 
     /**
@@ -32,7 +29,7 @@ class CollexiaScheduledInstallmentsParser
             return ['rows' => [], 'errors' => ['Could not read the file: ' . $e->getMessage()]];
         }
 
-        $sheet = CollexiaReportReader::findSheet($spreadsheet, 'Scheduled Installments');
+        $sheet = CollexiaReportReader::findSheet($spreadsheet, 'Unsuccessful Transactions');
         [$headerRow, $colByHeader, $error] = CollexiaReportReader::locateHeaders($sheet, self::REQUIRED_HEADERS);
         if ($error !== null) {
             return ['rows' => [], 'errors' => [$error]];
@@ -49,11 +46,13 @@ class CollexiaScheduledInstallmentsParser
 
             $rows[] = [
                 'merchant_system_contract_no' => $contractNo,
-                'installment_status' => trim((string) $sheet->getCell($colByHeader['Installment Status'] . $r)->getValue()),
-                'contract_status' => trim((string) $sheet->getCell($colByHeader['Contract Status'] . $r)->getValue()),
-                'scheduled_date' => CollexiaReportReader::readDate($sheet->getCell($colByHeader['Scheduled Date'] . $r)),
+                'installment_no' => (int) $sheet->getCell($colByHeader['Number Of Installment'] . $r)->getValue(),
                 'installment_amount' => (float) $sheet->getCell($colByHeader['Installment Amount'] . $r)->getValue(),
-                'installment_no' => (int) $sheet->getCell($colByHeader['No'] . $r)->getValue(),
+                'installment_status' => trim((string) $sheet->getCell($colByHeader['Installment Status'] . $r)->getValue()),
+                'rejection_date' => CollexiaReportReader::readDate($sheet->getCell($colByHeader['Rejection Date'] . $r)),
+                'scheduled_date' => CollexiaReportReader::readDate($sheet->getCell($colByHeader['Scheduled Date'] . $r)),
+                'client_number' => trim((string) $sheet->getCell($colByHeader['Client Number'] . $r)->getValue()),
+                'client_name' => trim((string) $sheet->getCell($colByHeader['Client Name'] . $r)->getValue()),
             ];
         }
 

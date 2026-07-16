@@ -6,20 +6,22 @@
       <h4 class="card-title mb-0">Collexia Collection Reports</h4>
       <a href="<?= url('/debit-order-collections/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Report</a>
     </div>
-    <p class="text-muted small">Upload Collexia's "Scheduled Installments" export here periodically to reconcile which installments were actually collected -- matched, already-collected rows are posted as real payments automatically.</p>
+    <p class="text-muted small">Upload any of Collexia's Successful Transactions, Unsuccessful Transactions, or Scheduled Installments exports here -- the report type is detected automatically. Matched Successful Transactions rows are posted as real payments automatically.</p>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>File</th><th>Rows</th><th>Matched</th><th>Payments Posted</th><th>Imported By</th><th>Imported At</th><th class="text-end">Action</th></tr>
+          <tr><th>File</th><th>Report Type</th><th>Rows</th><th>Matched</th><th>Payments Posted</th><th>Imported By</th><th>Imported At</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($imports)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No collection reports imported yet.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No collection reports imported yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($imports as $i): ?>
+            <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary'][$i['report_type']] ?? 'secondary'; ?>
             <tr>
               <td><?= e($i['filename']) ?></td>
+              <td><span class="badge bg-<?= $typeBadge ?>"><?= e($i['report_type']) ?></span></td>
               <td><?= (int) $i['total_rows'] ?></td>
               <td><?= (int) $i['matched_rows'] ?></td>
               <td><span class="badge bg-success"><?= (int) $i['posted_payments'] ?></span></td>

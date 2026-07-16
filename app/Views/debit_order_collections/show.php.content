@@ -2,7 +2,8 @@
 
 <div class="card mb-3">
   <div class="card-body">
-    <h4 class="card-title mb-1">Collection Report <?= e($import['filename']) ?></h4>
+    <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary'][$import['report_type']] ?? 'secondary'; ?>
+    <h4 class="card-title mb-1">Collection Report <?= e($import['filename']) ?> <span class="badge bg-<?= $typeBadge ?>"><?= e($import['report_type']) ?></span></h4>
     <p class="text-muted small mb-3">Imported by <?= e($import['imported_by_name'] ?: '&mdash;') ?> on <?= e(date('d M Y H:i', strtotime($import['imported_at']))) ?></p>
 
     <div class="row text-center">
@@ -57,8 +58,10 @@
                   <span class="badge bg-success">Payment Posted</span>
                 <?php elseif (!$r['matched']): ?>
                   <span class="badge bg-secondary">No Matching Mandate</span>
-                <?php elseif ($r['payment_date']): ?>
+                <?php elseif ($r['installment_status'] === 'Successful' && $r['payment_date']): ?>
                   <span class="badge bg-info">Already Posted Previously</span>
+                <?php elseif ($r['installment_status'] && $r['installment_status'] !== 'Successful'): ?>
+                  <span class="badge bg-warning"><?= e($r['installment_status']) ?></span>
                 <?php else: ?>
                   <span class="badge bg-warning">Not Yet Collected</span>
                 <?php endif; ?>

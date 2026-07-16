@@ -3,12 +3,12 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">Import Collection Report</h4>
-    <p class="text-muted small">Upload the "Scheduled Installments" report downloaded from Collexia's portal (.xlsx). Any row showing a Payment Date and Payment Amount that matches one of our registered mandates and hasn't already been posted will be recorded as a real payment against that loan.</p>
+    <p class="text-muted small">Upload any of Collexia's three collection report exports (.xlsx) -- the report type is detected automatically from the file. <strong>Successful Transactions</strong> posts a real payment for every row matched to one of our registered mandates. <strong>Unsuccessful Transactions</strong> and <strong>Scheduled Installments</strong> are recorded for visibility only -- neither carries a real collected amount, so neither ever posts a payment.</p>
 
     <form method="post" action="<?= url('/debit-order-collections') ?>" enctype="multipart/form-data">
       <?= csrf_field() ?>
       <div class="mb-3">
-        <label class="form-label">Scheduled Installments File <span class="text-danger">*</span></label>
+        <label class="form-label">Collexia Report File <span class="text-danger">*</span></label>
         <input type="file" name="report_file" class="form-control" accept=".xlsx,.xls" required>
       </div>
       <div class="mb-3">

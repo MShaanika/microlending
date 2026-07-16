@@ -13,14 +13,26 @@ use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderCollectionImport;
 use App\Models\Loan;
 use App\Models\Payment;
+use App\Services\CollexiaReportReader;
 use App\Services\CollexiaScheduledInstallmentsParser;
+use App\Services\CollexiaSuccessfulTransactionsParser;
+use App\Services\CollexiaUnsuccessfulTransactionsParser;
 
 /**
- * Reconciles Collexia's "Scheduled Installments" report against our own
- * mandates: for every row that shows a Payment Date/Amount (meaning
- * Collexia actually collected it), post a real Payment against the
- * matching loan -- exactly once per installment, even if the same or an
- * overlapping report is imported again later.
+ * Reconciles any of Collexia's three collection report exports against our
+ * own mandates. Which parser runs is auto-detected from the file's sheet
+ * name, since staff shouldn't have to know which report type they're
+ * uploading:
+ *  - Successful Transactions: the authoritative source of what was actually
+ *    collected -- posts a real Payment against the matching loan, exactly
+ *    once per installment even if the same or an overlapping report is
+ *    imported again later.
+ *  - Unsuccessful Transactions: failed collection attempts (e.g.
+ *    Insufficient Funds) -- recorded for staff/collector follow-up, never
+ *    posts a payment.
+ *  - Scheduled Installments: a broad status snapshot across every
+ *    installment, due or not -- carries no collection date/amount at all,
+ *    so it's informational only.
  */
 class DebitOrderCollectionController extends Controller
 {
@@ -75,7 +87,7 @@ class DebitOrderCollectionController extends Controller
 
         $file = $_FILES['report_file'] ?? null;
         if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
-            Session::flash('error', 'Choose the Scheduled Installments .xlsx file to import.');
+            Session::flash('error', 'Choose a Collexia report .xlsx file to import.');
             $this->redirect('/debit-order-collections/create');
             return;
         }
@@ -91,7 +103,18 @@ class DebitOrderCollectionController extends Controller
             return;
         }
 
-        $result = CollexiaScheduledInstallmentsParser::parse($file['tmp_name']);
+        $reportType = CollexiaReportReader::detectReportType($file['tmp_name']);
+        if ($reportType === null) {
+            Session::flash('error', 'Could not recognize this file as a Collexia Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export.');
+            $this->redirect('/debit-order-collections/create');
+            return;
+        }
+
+        $result = match ($reportType) {
+            'Successful' => CollexiaSuccessfulTransactionsParser::parse($file['tmp_name']),
+            'Unsuccessful' => CollexiaUnsuccessfulTransactionsParser::parse($file['tmp_name']),
+            default => CollexiaScheduledInstallmentsParser::parse($file['tmp_name']),
+        };
         if (!empty($result['errors'])) {
             Session::flash('error', 'Import failed: ' . implode(' ', $result['errors']));
             $this->redirect('/debit-order-collections/create');
@@ -103,6 +126,7 @@ class DebitOrderCollectionController extends Controller
 
         $importId = $this->imports->create([
             'filename' => $file['name'],
+            'report_type' => $reportType,
             'total_rows' => count($result['rows']),
             'imported_by' => $userId,
         ]);
@@ -118,41 +142,61 @@ class DebitOrderCollectionController extends Controller
 
             if ($mandate) {
                 $matched++;
+            }
 
-                $collected = $row['payment_date'] !== null && $row['payment_amount'] !== null;
-                $alreadyPosted = $collected && $this->collections->alreadyPosted((int) $debitOrderId, (int) $row['installment_no']);
+            if ($reportType === 'Successful') {
+                $alreadyPosted = $mandate && $this->collections->alreadyPosted((int) $debitOrderId, (int) $row['installment_no']);
 
-                if ($collected && !$alreadyPosted) {
+                if ($mandate && !$alreadyPosted) {
                     $loan = $this->loans->find((int) $loanId);
                     if ($loan) {
-                        $paymentId = $this->payments->recordAndAllocate($loan, (float) $row['payment_amount'], [
-                            'payment_date' => $row['payment_date'],
+                        $paymentId = $this->payments->recordAndAllocate($loan, (float) $row['collection_amount'], [
+                            'payment_date' => $row['successful_date'],
                             'payment_source' => 'Debit Order',
                             'bank_account_id' => $bankAccountId,
                             'reference_no' => $row['merchant_system_contract_no'] . '-' . $row['installment_no'],
-                            'payer_name' => $loan['borrower_name'] ?? null,
-                            'notes' => 'Collexia collection report: ' . $file['name'],
+                            'payer_name' => $loan['borrower_name'] ?? $row['client_name'],
+                            'notes' => 'Collexia Successful Transactions report: ' . $file['name'],
                             'user_id' => $userId,
                         ]);
                         $posted++;
                     }
                 }
-            }
 
-            $this->collections->create([
-                'import_id' => $importId,
-                'debit_order_id' => $debitOrderId,
-                'loan_id' => $loanId,
-                'merchant_system_contract_no' => $row['merchant_system_contract_no'],
-                'installment_no' => $row['installment_no'],
-                'scheduled_date' => $row['scheduled_date'],
-                'installment_amount' => $row['installment_amount'],
-                'payment_date' => $row['payment_date'],
-                'payment_amount' => $row['payment_amount'],
-                'installment_status' => $row['installment_status'],
-                'matched' => $mandate ? 1 : 0,
-                'payment_id' => $paymentId,
-            ]);
+                $this->collections->create([
+                    'import_id' => $importId,
+                    'debit_order_id' => $debitOrderId,
+                    'loan_id' => $loanId,
+                    'merchant_system_contract_no' => $row['merchant_system_contract_no'],
+                    'installment_no' => $row['installment_no'],
+                    'scheduled_date' => $row['scheduled_date'],
+                    'installment_amount' => $row['installment_amount'],
+                    'payment_date' => $row['successful_date'],
+                    'payment_amount' => $row['collection_amount'],
+                    'installment_status' => 'Successful',
+                    'matched' => $mandate ? 1 : 0,
+                    'payment_id' => $paymentId,
+                ]);
+            } else {
+                // Unsuccessful (rejection reason in installment_status) and
+                // Scheduled (broad status snapshot) both carry no collection
+                // date/amount, so neither ever posts a payment -- recorded
+                // purely for visibility.
+                $this->collections->create([
+                    'import_id' => $importId,
+                    'debit_order_id' => $debitOrderId,
+                    'loan_id' => $loanId,
+                    'merchant_system_contract_no' => $row['merchant_system_contract_no'],
+                    'installment_no' => $row['installment_no'],
+                    'scheduled_date' => $row['scheduled_date'],
+                    'installment_amount' => $row['installment_amount'],
+                    'payment_date' => null,
+                    'payment_amount' => null,
+                    'installment_status' => $row['installment_status'],
+                    'matched' => $mandate ? 1 : 0,
+                    'payment_id' => null,
+                ]);
+            }
         }
 
         $this->imports->updateRecord($importId, [
@@ -160,8 +204,8 @@ class DebitOrderCollectionController extends Controller
             'posted_payments' => $posted,
         ]);
 
-        Audit::log('Import', 'Debit Order Collections', 'Imported collection report ' . $file['name'] . ' (' . $matched . ' matched, ' . $posted . ' payment(s) posted)');
-        Session::flash('success', count($result['rows']) . ' row(s) processed: ' . $matched . ' matched to a mandate, ' . $posted . ' new payment(s) posted.');
+        Audit::log('Import', 'Debit Order Collections', 'Imported ' . $reportType . ' Transactions report ' . $file['name'] . ' (' . $matched . ' matched, ' . $posted . ' payment(s) posted)');
+        Session::flash('success', count($result['rows']) . ' row(s) processed from the ' . $reportType . ' report: ' . $matched . ' matched to a mandate, ' . $posted . ' new payment(s) posted.');
         $this->redirect('/debit-order-collections/' . $importId);
     }
 

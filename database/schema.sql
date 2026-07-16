@@ -1040,6 +1040,7 @@ CREATE TABLE debit_order_run_lines (
 CREATE TABLE debit_order_collection_imports (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     filename VARCHAR(255),
+    report_type ENUM('Successful','Unsuccessful','Scheduled') NOT NULL DEFAULT 'Successful',
     total_rows INT DEFAULT 0,
     matched_rows INT DEFAULT 0,
     posted_payments INT DEFAULT 0,
