@@ -81,7 +81,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-bordered">
           <thead>
-            <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th></tr>
+            <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>NAMFISA Levy</th><th>Duty Stamp</th><th>Total Due</th></tr>
           </thead>
           <tbody>
             <?php foreach ($preview['rows'] as $row): ?>
@@ -90,6 +90,8 @@
                 <td><?= e($row['due_date']) ?></td>
                 <td><?= format_money($row['principal_due']) ?></td>
                 <td><?= format_money($row['interest_due']) ?></td>
+                <td><?= format_money($row['namfisa_levy_due'] ?? 0) ?></td>
+                <td><?= format_money($row['duty_stamp_due'] ?? 0) ?></td>
                 <td><?= format_money($row['total_due']) ?></td>
               </tr>
             <?php endforeach; ?>

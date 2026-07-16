@@ -1510,6 +1510,8 @@ CREATE TABLE loan_reschedule_schedules (
     principal_due DECIMAL(18,2) DEFAULT 0,
     interest_due DECIMAL(18,2) DEFAULT 0,
     fees_due DECIMAL(18,2) DEFAULT 0,
+    namfisa_levy_due DECIMAL(18,2) DEFAULT 0,
+    duty_stamp_due DECIMAL(18,2) DEFAULT 0,
     penalty_due DECIMAL(18,2) DEFAULT 0,
     total_due DECIMAL(18,2) DEFAULT 0,
     status ENUM('Pending','Active','Cancelled') DEFAULT 'Pending',

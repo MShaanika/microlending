@@ -175,6 +175,8 @@ class RescheduleController extends Controller
                 'principal_due' => $row['principal_due'],
                 'interest_due' => $row['interest_due'],
                 'fees_due' => $row['fees_due'],
+                'namfisa_levy_due' => $row['namfisa_levy_due'] ?? 0,
+                'duty_stamp_due' => $row['duty_stamp_due'] ?? 0,
                 'penalty_due' => 0,
                 'total_due' => $row['total_due'],
                 'status' => 'Pending',

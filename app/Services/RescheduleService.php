@@ -13,10 +13,40 @@ use App\Models\LoanRescheduleSchedule;
  * is just "generate a fresh schedule from the outstanding balance instead of
  * the original principal," which that method already supports by passing
  * namfisaLevyRate=0/dutyStampAmount=0 (those statutory charges were already
- * raised in full on the original loan and are not re-charged on reschedule).
+ * raised in full on the original loan and are not re-charged/re-interested
+ * on reschedule). Any portion of that original levy/duty stamp the borrower
+ * had not yet paid (normally still sitting on installment #1) is carried
+ * forward as a flat addition onto the new schedule's first installment --
+ * see uncollectedStatutoryCharges() -- so it isn't silently dropped when
+ * that unpaid installment is replaced.
  */
 class RescheduleService
 {
+    /**
+     * Sum of namfisa_levy_due/duty_stamp_due not yet collected across the
+     * loan's not-yet-fully-paid installments -- i.e. the portion that will
+     * be lost if those rows are deleted/closed by implement() without being
+     * re-added to the new schedule.
+     *
+     * @return array{levy: float, stamp: float}
+     */
+    private static function uncollectedStatutoryCharges(int $loanId): array
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT COALESCE(SUM(namfisa_levy_due - namfisa_levy_paid), 0) AS levy,
+                    COALESCE(SUM(duty_stamp_due - duty_stamp_paid), 0) AS stamp
+             FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'"
+        );
+        $stmt->execute([$loanId]);
+        $row = $stmt->fetch();
+
+        return [
+            'levy' => round((float) $row['levy'], 2),
+            'stamp' => round((float) $row['stamp'], 2),
+        ];
+    }
+
     /**
      * Sum of principal still owed across every not-yet-fully-paid
      * installment, regardless of whether it's overdue yet. Deliberately not
@@ -72,6 +102,14 @@ class RescheduleService
         foreach ($schedule['rows'] as &$row) {
             $row['installment_no'] = $startingInstallmentNo++;
         }
+        unset($row);
+
+        $carried = self::uncollectedStatutoryCharges((int) $loan['id']);
+        if (($carried['levy'] > 0 || $carried['stamp'] > 0) && !empty($schedule['rows'])) {
+            $schedule['rows'][0]['namfisa_levy_due'] = round($schedule['rows'][0]['namfisa_levy_due'] + $carried['levy'], 2);
+            $schedule['rows'][0]['duty_stamp_due'] = round($schedule['rows'][0]['duty_stamp_due'] + $carried['stamp'], 2);
+            $schedule['rows'][0]['total_due'] = round($schedule['rows'][0]['total_due'] + $carried['levy'] + $carried['stamp'], 2);
+        }
 
         return [
             'rows' => $schedule['rows'],
@@ -122,11 +160,22 @@ class RescheduleService
             $loanModel->insertScheduleRows($loanId, $newRows);
             $rescheduleSchedules->activateForReschedule((int) $reschedule['id']);
 
+            // total_payable must reflect the schedule as it now stands --
+            // retained Paid/closed-Partial rows plus the freshly inserted
+            // rows (which already carry forward any previously-uncollected
+            // levy/duty stamp, see preview()) -- rather than the stale
+            // pre-reschedule figure, which would otherwise still include
+            // interest/charges no longer present in the new schedule.
+            $totalStmt = $db->prepare("SELECT COALESCE(SUM(total_due), 0) FROM loan_schedules WHERE loan_id = ?");
+            $totalStmt->execute([$loanId]);
+            $newTotalPayable = round((float) $totalStmt->fetchColumn(), 2);
+
             $loanModel->updateFields($loanId, [
                 'term_months' => count($newRows) + self::retainedInstallmentCount($loanId),
                 'installment_amount' => $reschedule['new_installment_amount'],
                 'payment_day' => $reschedule['new_payment_day'] ?: null,
                 'maturity_date' => $reschedule['new_maturity_date'],
+                'total_payable' => $newTotalPayable,
             ]);
             // loans.loan_status is unaffected by a reschedule (still Active/Current) --
             // loan_status_history.new_status is free-text, not FK'd to that enum, so
