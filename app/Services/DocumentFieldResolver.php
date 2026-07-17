@@ -57,6 +57,7 @@ class DocumentFieldResolver
         $application = !empty($document['application_id']) ? (new LoanApplication())->find((int) $document['application_id']) : null;
         $reschedule = !empty($document['reschedule_id']) ? (new LoanReschedule())->find((int) $document['reschedule_id']) : null;
         $debitOrderCancellation = !empty($document['debit_order_cancellation_id']) ? (new DebitOrderCancellation())->find((int) $document['debit_order_cancellation_id']) : null;
+        $bankAnalysis = $application ? self::latestBankAnalysis((int) $application['id']) : null;
 
         // "All loans" consolidation: no single loan_id, aggregate every
         // currently-active loan for this borrower instead. Deliberately
@@ -80,6 +81,7 @@ class DocumentFieldResolver
             'all_loans' => $allLoans,
             'refund_claim' => $refundClaim,
             'application' => $application,
+            'bank_analysis' => $bankAnalysis,
             'reschedule' => $reschedule,
             'debit_order_cancellation' => $debitOrderCancellation,
         ];
@@ -160,9 +162,55 @@ class DocumentFieldResolver
                 $amount = self::refundAmount($context);
                 return $amount === null ? null : self::numberToWords($amount);
 
+            case 'total_monthly_income':
+                $bankAnalysis = $context['bank_analysis'];
+                $application = $context['application'];
+                if ($bankAnalysis && (float) $bankAnalysis['average_monthly_income'] > 0) {
+                    return format_money($bankAnalysis['average_monthly_income']);
+                }
+                return $application && (float) $application['gross_salary'] > 0 ? format_money($application['gross_salary']) : null;
+
+            case 'total_monthly_expenses':
+                $bankAnalysis = $context['bank_analysis'];
+                return $bankAnalysis ? format_money($bankAnalysis['average_monthly_expenses']) : null;
+
+            case 'net_monthly_cash_flow':
+                $bankAnalysis = $context['bank_analysis'];
+                return $bankAnalysis ? format_money($bankAnalysis['net_monthly_cash_flow']) : null;
+
+            case 'existing_commitments_total':
+                $bankAnalysis = $context['bank_analysis'];
+                return $bankAnalysis ? format_money($bankAnalysis['existing_commitments_total']) : null;
+
+            case 'lender_name':
+                return self::lenderName();
+
+            case 'salary_formatted':
+                $application = $context['application'];
+                return $application && (float) $application['gross_salary'] > 0 ? format_money($application['gross_salary']) : null;
+
+            case 'requested_amount_formatted':
+                $application = $context['application'];
+                return $application ? format_money($application['requested_amount']) : null;
+
             default:
                 return null;
         }
+    }
+
+    private static function latestBankAnalysis(int $applicationId): ?array
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare("SELECT * FROM loan_application_bank_analysis WHERE application_id = ? AND status = 'Completed' ORDER BY analyzed_at DESC LIMIT 1");
+        $stmt->execute([$applicationId]);
+        return $stmt->fetch() ?: null;
+    }
+
+    private static function lenderName(): string
+    {
+        $db = Database::connection();
+        $name = $db->query("SELECT company_name FROM companies WHERE is_active = 1 ORDER BY id LIMIT 1")->fetchColumn();
+        return $name ?: 'Solid Desert Cash Loan Express cc';
     }
 
     private static function outstandingBalance(array $context): ?float
