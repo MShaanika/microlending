@@ -31,7 +31,10 @@
       </table>
     </div>
 
-    <p class="mb-1"><strong>Outstanding Balance at Request:</strong> <?= format_money($reschedule['outstanding_balance']) ?></p>
+    <p class="mb-1"><strong>Amount Borrowed:</strong> <?= format_money($reschedule['outstanding_balance']) ?></p>
+    <p class="mb-1"><strong>Principal Amount:</strong> <?= format_money($principalAmount) ?></p>
+    <p class="mb-1"><strong>Interest Charge:</strong> <?= format_money($interestCharge) ?></p>
+    <p class="mb-1"><strong>Opening Balance:</strong> <?= format_money($openingBalance) ?></p>
     <?php if ((float) $reschedule['waived_amount'] > 0): ?>
       <p class="mb-1"><strong>Waived Amount:</strong> <?= format_money($reschedule['waived_amount']) ?></p>
     <?php endif; ?>
@@ -76,7 +79,7 @@
     <h4 class="card-title">New Schedule</h4>
     <div class="table-responsive">
       <table class="table table-sm table-bordered">
-        <thead><tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>NAMFISA Levy</th><th>Duty Stamp</th><th>Total Due</th><th>Status</th></tr></thead>
+        <thead><tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th><th>Status</th></tr></thead>
         <tbody>
           <?php foreach ($newSchedule as $row): ?>
             <tr>
@@ -84,8 +87,6 @@
               <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
               <td><?= format_money($row['principal_due']) ?></td>
               <td><?= format_money($row['interest_due']) ?></td>
-              <td><?= format_money($row['namfisa_levy_due'] ?? 0) ?></td>
-              <td><?= format_money($row['duty_stamp_due'] ?? 0) ?></td>
               <td><?= format_money($row['total_due']) ?></td>
               <td><span class="badge bg-<?= $row['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($row['status']) ?></span></td>
             </tr>

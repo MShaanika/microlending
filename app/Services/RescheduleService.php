@@ -10,15 +10,20 @@ use App\Models\LoanRescheduleSchedule;
  * Recalculates a loan's remaining amortization schedule against a new term
  * (and optionally a waived amount), then swaps it into loan_schedules once
  * approved. Reuses LoanScheduleService::generate() unchanged -- a reschedule
- * is just "generate a fresh schedule from the outstanding balance instead of
- * the original principal," which that method already supports by passing
- * namfisaLevyRate=0/dutyStampAmount=0 (those statutory charges were already
- * raised in full on the original loan and are not re-charged/re-interested
- * on reschedule). Any portion of that original levy/duty stamp the borrower
- * had not yet paid (normally still sitting on installment #1) is carried
- * forward as a flat addition onto the new schedule's first installment --
- * see uncollectedStatutoryCharges() -- so it isn't silently dropped when
- * that unpaid installment is replaced.
+ * is just "generate a fresh schedule from a new basis instead of the
+ * original principal."
+ *
+ * Any portion of the original NAMFISA levy/duty stamp the borrower had not
+ * yet paid (normally still sitting on installment #1, which gets deleted
+ * when it's still Pending at reschedule time -- see uncollectedStatutoryCharges())
+ * is folded into that basis before generating the new schedule, exactly
+ * like outstanding principal: it's still money the borrower owes, so it's
+ * amortized evenly across the new term and accrues the new interest right
+ * alongside the principal, rather than being dumped fee-like onto a single
+ * installment. generate() itself is still called with namfisaLevyRate=0/
+ * dutyStampAmount=0 -- those statutory charges were already raised as a
+ * one-time transaction on the original loan and are not re-raised as a new
+ * levy/stamp event, just carried forward as part of what's owed.
  */
 class RescheduleService
 {
@@ -79,12 +84,25 @@ class RescheduleService
     }
 
     /**
-     * @return array{rows: array, new_installment_amount: float, new_maturity_date: string, outstanding_balance: float}
+     * @return array{
+     *     rows: array,
+     *     new_installment_amount: float,
+     *     new_maturity_date: string,
+     *     outstanding_balance: float,
+     *     principal_amount: float,
+     *     interest_charge: float,
+     *     opening_balance: float
+     * }
      */
     public static function preview(array $loan, string $interestMethod, int $newTermMonths, float $waivedAmount, string $effectiveDate, ?int $paymentDay = null): array
     {
         $outstanding = self::outstandingPrincipal((int) $loan['id']);
-        $basis = max(0, round($outstanding - $waivedAmount, 2));
+        $carried = self::uncollectedStatutoryCharges((int) $loan['id']);
+        // The new schedule's basis is outstanding principal (less any
+        // waiver) plus whatever statutory charge is still uncollected --
+        // both are amounts the borrower still owes, so both accrue the new
+        // interest together.
+        $basis = max(0, round($outstanding - $waivedAmount, 2)) + $carried['levy'] + $carried['stamp'];
 
         $schedule = LoanScheduleService::generate(
             $basis,
@@ -104,18 +122,14 @@ class RescheduleService
         }
         unset($row);
 
-        $carried = self::uncollectedStatutoryCharges((int) $loan['id']);
-        if (($carried['levy'] > 0 || $carried['stamp'] > 0) && !empty($schedule['rows'])) {
-            $schedule['rows'][0]['namfisa_levy_due'] = round($schedule['rows'][0]['namfisa_levy_due'] + $carried['levy'], 2);
-            $schedule['rows'][0]['duty_stamp_due'] = round($schedule['rows'][0]['duty_stamp_due'] + $carried['stamp'], 2);
-            $schedule['rows'][0]['total_due'] = round($schedule['rows'][0]['total_due'] + $carried['levy'] + $carried['stamp'], 2);
-        }
-
         return [
             'rows' => $schedule['rows'],
             'new_installment_amount' => $schedule['installment_amount'],
             'new_maturity_date' => end($schedule['rows'])['due_date'],
             'outstanding_balance' => $outstanding,
+            'principal_amount' => $basis,
+            'interest_charge' => $schedule['interest_amount'],
+            'opening_balance' => $schedule['total_payable'],
         ];
     }
 

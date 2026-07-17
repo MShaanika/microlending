@@ -199,10 +199,19 @@ class RescheduleController extends Controller
             return;
         }
 
+        $newSchedule = $this->rescheduleSchedules->forReschedule((int) $id);
+
         $this->view('reschedules/show', [
             'title' => 'Reschedule ' . $reschedule['reschedule_no'],
             'reschedule' => $reschedule,
-            'newSchedule' => $this->rescheduleSchedules->forReschedule((int) $id),
+            'newSchedule' => $newSchedule,
+            // Amount Borrowed / Principal Amount / Interest Charge / Opening
+            // Balance -- derived from the actual persisted new schedule
+            // rows rather than stored separately, so they can never drift
+            // from what's really there. See RescheduleService::preview().
+            'principalAmount' => array_sum(array_column($newSchedule, 'principal_due')),
+            'interestCharge' => array_sum(array_column($newSchedule, 'interest_due')),
+            'openingBalance' => array_sum(array_column($newSchedule, 'total_due')),
         ]);
     }
 

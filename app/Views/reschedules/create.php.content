@@ -65,23 +65,36 @@
       <hr>
       <h5 class="mt-3">Preview</h5>
       <div class="row text-center mb-3">
-        <div class="col-md-6">
+        <div class="col-md-3">
+          <div class="p-3 border rounded border-success">
+            <div class="text-muted small">Principal Amount</div>
+            <div class="fs-5 fw-bold"><?= format_money($preview['principal_amount']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 border rounded border-success">
+            <div class="text-muted small">Interest Charge</div>
+            <div class="fs-5 fw-bold"><?= format_money($preview['interest_charge']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 border rounded border-success">
+            <div class="text-muted small">Opening Balance</div>
+            <div class="fs-5 fw-bold"><?= format_money($preview['opening_balance']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
           <div class="p-3 border rounded border-success">
             <div class="text-muted small">New Installment</div>
             <div class="fs-5 fw-bold"><?= format_money($preview['new_installment_amount']) ?></div>
           </div>
         </div>
-        <div class="col-md-6">
-          <div class="p-3 border rounded border-success">
-            <div class="text-muted small">New Maturity Date</div>
-            <div class="fs-5 fw-bold"><?= e(date('d M Y', strtotime($preview['new_maturity_date']))) ?></div>
-          </div>
-        </div>
       </div>
+      <p class="text-muted small">New Maturity Date: <strong><?= e(date('d M Y', strtotime($preview['new_maturity_date']))) ?></strong></p>
       <div class="table-responsive">
         <table class="table table-sm table-bordered">
           <thead>
-            <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>NAMFISA Levy</th><th>Duty Stamp</th><th>Total Due</th></tr>
+            <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th></tr>
           </thead>
           <tbody>
             <?php foreach ($preview['rows'] as $row): ?>
@@ -90,8 +103,6 @@
                 <td><?= e($row['due_date']) ?></td>
                 <td><?= format_money($row['principal_due']) ?></td>
                 <td><?= format_money($row['interest_due']) ?></td>
-                <td><?= format_money($row['namfisa_levy_due'] ?? 0) ?></td>
-                <td><?= format_money($row['duty_stamp_due'] ?? 0) ?></td>
                 <td><?= format_money($row['total_due']) ?></td>
               </tr>
             <?php endforeach; ?>
