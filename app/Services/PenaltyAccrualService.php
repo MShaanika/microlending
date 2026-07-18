@@ -13,6 +13,19 @@ use App\Models\Penalty;
  * penalty due on each. A penalty is charged once per installment (the
  * first time this run sees it overdue) -- it does not compound daily.
  *
+ * Two further caps apply per loan, regardless of how many installments
+ * are overdue:
+ *  - At most one penalty per calendar month (a loan already penalized in
+ *    the current month doesn't get a second one even if a different
+ *    installment falls overdue in the same month).
+ *  - At most MAX_PENALTIES_PER_LOAN penalties over the loan's lifetime --
+ *    once reached, no further penalty is ever charged on that loan no
+ *    matter how much is later paid or how overdue it becomes.
+ * Both are lifetime/monthly properties of the loan, not the installment,
+ * so they're enforced in PHP after fetching candidates (a single accrue()
+ * run can see several installments newly overdue for the same loan at
+ * once, before any of them has a penalties row yet to check against).
+ *
  * This is the accrual half of the deferred-income pattern: charging a
  * penalty here only raises a Penalty Receivable against Deferred Penalty
  * Income. It is not recognized as P&L income until actually collected
@@ -33,11 +46,15 @@ class PenaltyAccrualService
     /** Days of grace after due_date before a penalty is charged. */
     public const GRACE_DAYS = 5;
 
+    /** Lifetime cap on penalty charges per loan -- see class doc-comment. */
+    public const MAX_PENALTIES_PER_LOAN = 3;
+
     /**
      * Every overdue, unpaid installment (optionally scoped to one loan)
      * that does not already have a 'Charged' or 'Paid' penalties row
      * against it, with the penalty amount that would be charged as of
-     * $asOfDate.
+     * $asOfDate -- after applying the per-loan once-a-month and lifetime
+     * caps, so at most one row per loan comes back per call.
      */
     public static function chargeableInstallments(string $asOfDate, ?int $loanId = null): array
     {
@@ -68,7 +85,15 @@ class PenaltyAccrualService
                       SELECT 1 FROM penalties p
                       WHERE p.schedule_id = ls.id AND p.status IN ('Charged', 'Paid')
                   )
+                  AND (SELECT COUNT(*) FROM penalties p2 WHERE p2.loan_id = l.id AND p2.status IN ('Charged', 'Paid')) < ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM penalties p3
+                      WHERE p3.loan_id = l.id AND p3.status IN ('Charged', 'Paid')
+                        AND DATE_FORMAT(p3.penalty_date, '%Y-%m') = DATE_FORMAT(?, '%Y-%m')
+                  )
                   ORDER BY ls.due_date";
+        $params[] = self::MAX_PENALTIES_PER_LOAN;
+        $params[] = $asOfDate;
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
@@ -82,7 +107,20 @@ class PenaltyAccrualService
         }
         unset($row);
 
-        return array_values(array_filter($rows, fn ($r) => $r['penalty_amount'] > 0));
+        $rows = array_values(array_filter($rows, fn ($r) => $r['penalty_amount'] > 0));
+
+        // The SQL caps above only see penalties already in the table, so
+        // several installments on the same loan can still both qualify in
+        // one run (neither has a penalties row yet). Keep only the
+        // earliest-due one per loan -- rows are already due_date-ordered.
+        $seenLoans = [];
+        return array_values(array_filter($rows, function ($r) use (&$seenLoans) {
+            if (isset($seenLoans[$r['loan_id']])) {
+                return false;
+            }
+            $seenLoans[$r['loan_id']] = true;
+            return true;
+        }));
     }
 
     /**
