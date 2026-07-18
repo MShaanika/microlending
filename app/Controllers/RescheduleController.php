@@ -199,19 +199,46 @@ class RescheduleController extends Controller
             return;
         }
 
-        $newSchedule = $this->rescheduleSchedules->forReschedule((int) $id);
+        $loan = $this->loans->find((int) $reschedule['loan_id']);
+
+        // Once Implemented, the new schedule lives on (and is paid down via)
+        // the loan's own loan_schedules -- showing that instead of the frozen
+        // loan_reschedule_schedules preview means Paid/Arrears here reflect
+        // reality. Before that, there's nothing live yet, so the frozen
+        // preview (with Paid/Arrears both 0) is all there is to show.
+        $isLive = $reschedule['status'] === 'Implemented';
+        $newSchedule = $isLive
+            ? $this->loans->schedule((int) $reschedule['loan_id'])
+            : $this->rescheduleSchedules->forReschedule((int) $id);
+
+        $today = date('Y-m-d');
+        foreach ($newSchedule as &$row) {
+            $paid = (float) ($row['total_paid'] ?? 0);
+            $due = (float) $row['total_due'];
+            $row['paid_amount'] = $paid;
+            $row['arrears'] = ($row['due_date'] < $today && $due > $paid) ? round($due - $paid, 2) : 0.0;
+        }
+        unset($row);
+
+        $totalPayable = array_sum(array_column($newSchedule, 'total_due'));
+        $collectedSoFar = array_sum(array_column($newSchedule, 'paid_amount'));
 
         $this->view('reschedules/show', [
             'title' => 'Reschedule ' . $reschedule['reschedule_no'],
             'reschedule' => $reschedule,
+            'loan' => $loan,
             'newSchedule' => $newSchedule,
+            'isLive' => $isLive,
             // Amount Borrowed / Principal Amount / Interest Charge / Opening
             // Balance -- derived from the actual persisted new schedule
             // rows rather than stored separately, so they can never drift
             // from what's really there. See RescheduleService::preview().
             'principalAmount' => array_sum(array_column($newSchedule, 'principal_due')),
             'interestCharge' => array_sum(array_column($newSchedule, 'interest_due')),
-            'openingBalance' => array_sum(array_column($newSchedule, 'total_due')),
+            'openingBalance' => $totalPayable,
+            'totalPayable' => $totalPayable,
+            'collectedSoFar' => $collectedSoFar,
+            'currentOutstandingBalance' => round($totalPayable - $collectedSoFar, 2),
         ]);
     }
 

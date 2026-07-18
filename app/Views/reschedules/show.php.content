@@ -19,6 +19,15 @@
       <span class="badge fs-6 bg-<?= $badge ?>"><?= e($reschedule['status']) ?></span>
     </div>
 
+    <div class="row mt-3 gy-1">
+      <div class="col-md-3"><strong>Loan Type:</strong> <?= e($loan['product_name']) ?></div>
+      <div class="col-md-3"><strong>New Term:</strong> <?= (int) $reschedule['new_term_months'] ?> months</div>
+      <div class="col-md-3"><strong>Effective Date:</strong> <?= e(date('d M Y', strtotime($reschedule['effective_date']))) ?></div>
+      <div class="col-md-3"><strong>New Maturity:</strong> <?= $reschedule['new_maturity_date'] ? e(date('d M Y', strtotime($reschedule['new_maturity_date']))) : '&mdash;' ?></div>
+      <div class="col-md-3"><strong>New Installment:</strong> <?= format_money($reschedule['new_installment_amount']) ?> / month</div>
+      <div class="col-md-3"><strong>Penalty Rate:</strong> <?= format_money($loan['penalty_rate']) ?>% per month (if overdue)</div>
+    </div>
+
     <div class="table-responsive mt-3">
       <table class="table table-sm table-bordered">
         <thead><tr><th></th><th>Before</th><th>After</th></tr></thead>
@@ -39,6 +48,22 @@
       <p class="mb-1"><strong>Waived Amount:</strong> <?= format_money($reschedule['waived_amount']) ?></p>
     <?php endif; ?>
     <p class="mb-1"><strong>Reason:</strong> <?= e($reschedule['reason']) ?></p>
+
+    <div class="border rounded p-3 mt-3">
+      <h5 class="mb-2">Collection Status &amp; Balances</h5>
+      <div class="row gy-1">
+        <div class="col-md-4"><strong>Total Payable (Sum of all installments):</strong> <?= format_money($totalPayable) ?></div>
+        <div class="col-md-4"><strong>Collected so far (Cash received):</strong> <?= format_money($collectedSoFar) ?></div>
+        <div class="col-md-4"><strong>Current Outstanding Balance:</strong> <?= format_money($currentOutstandingBalance) ?></div>
+      </div>
+      <?php $percent = $totalPayable > 0 ? min(100, round($collectedSoFar / $totalPayable * 100)) : 0; ?>
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $percent ?>%;" aria-valuenow="<?= $percent ?>" aria-valuemin="0" aria-valuemax="100"><?= $percent ?>%</div>
+      </div>
+      <?php if (!$isLive): ?>
+        <p class="text-muted small mt-2 mb-0">This reschedule hasn't been implemented yet -- these figures are the planned schedule, not live collections.</p>
+      <?php endif; ?>
+    </div>
     <?php if ($reschedule['rejection_reason']): ?>
       <p class="mb-1 text-danger"><strong>Rejection Reason:</strong> <?= e($reschedule['rejection_reason']) ?></p>
     <?php endif; ?>
@@ -79,16 +104,29 @@
     <h4 class="card-title">New Schedule</h4>
     <div class="table-responsive">
       <table class="table table-sm table-bordered">
-        <thead><tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th><th>Status</th></tr></thead>
+        <thead><tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th><th>Paid</th><th>Arrears</th><th>Status</th></tr></thead>
         <tbody>
           <?php foreach ($newSchedule as $row): ?>
+            <?php
+              $rowBadge = $isLive
+                  ? match ($row['status']) {
+                      'Paid' => 'success',
+                      'Partial' => 'info',
+                      'In Arrears' => 'danger',
+                      'Written Off' => 'dark',
+                      default => 'warning',
+                  }
+                  : ($row['status'] === 'Active' ? 'success' : 'secondary');
+            ?>
             <tr>
               <td><?= (int) $row['installment_no'] ?></td>
               <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
               <td><?= format_money($row['principal_due']) ?></td>
               <td><?= format_money($row['interest_due']) ?></td>
               <td><?= format_money($row['total_due']) ?></td>
-              <td><span class="badge bg-<?= $row['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($row['status']) ?></span></td>
+              <td><?= format_money($row['paid_amount']) ?></td>
+              <td class="<?= $row['arrears'] > 0 ? 'text-danger fw-bold' : '' ?>"><?= format_money($row['arrears']) ?></td>
+              <td><span class="badge bg-<?= $rowBadge ?>"><?= e($row['status']) ?></span></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
