@@ -9,9 +9,15 @@ use App\Models\Loan;
 use App\Models\Penalty;
 
 /**
- * Identifies overdue, not-yet-penalized installments and computes the
- * penalty due on each. A penalty is charged once per installment (the
- * first time this run sees it overdue) -- it does not compound daily.
+ * Identifies overdue installments whose shortfall hasn't yet been rolled
+ * into a penalty, and computes that penalty: 5% (the loan's penalty_rate)
+ * of specifically the amount left unpaid on that installment -- not the
+ * installment's full original amount. The penalty is charged onto the
+ * *next* installment's total (raising its penalty_due/total_due), not the
+ * overdue installment itself, which keeps its original total unchanged
+ * forever and only shows what was actually paid against it. If there is
+ * no next installment (the loan's last one was missed), the penalty lands
+ * on that same row instead, since there's nowhere else to roll it.
  *
  * Two further caps apply per loan, regardless of how many installments
  * are overdue:
@@ -25,6 +31,13 @@ use App\Models\Penalty;
  * so they're enforced in PHP after fetching candidates (a single accrue()
  * run can see several installments newly overdue for the same loan at
  * once, before any of them has a penalties row yet to check against).
+ *
+ * loan_schedules.opening_balance/closing_balance are deliberately left
+ * untouched here -- they track each row's principal-only amortization
+ * balance (set once at generation, already correctly displayed in the
+ * loan's own schedule table) and are a different concept from "total
+ * still owed including any rolled-forward penalty". Rolling a penalty
+ * forward only changes the target row's penalty_due/total_due.
  *
  * This is the accrual half of the deferred-income pattern: charging a
  * penalty here only raises a Penalty Receivable against Deferred Penalty
@@ -50,27 +63,27 @@ class PenaltyAccrualService
     public const MAX_PENALTIES_PER_LOAN = 3;
 
     /**
-     * Every overdue, unpaid installment (optionally scoped to one loan)
-     * that does not already have a 'Charged' or 'Paid' penalties row
-     * against it, with the penalty amount that would be charged as of
-     * $asOfDate -- after applying the per-loan once-a-month and lifetime
-     * caps, so at most one row per loan comes back per call.
+     * Every overdue installment (optionally scoped to one loan) that
+     * still has an unpaid shortfall and doesn't already have a 'Charged'
+     * or 'Paid' penalties row against it, with the penalty amount that
+     * shortfall would roll forward as of $asOfDate, and which row (its
+     * own, or the next installment) that penalty lands on -- after
+     * applying the per-loan once-a-month and lifetime caps, so at most
+     * one row per loan comes back per call.
      */
     public static function chargeableInstallments(string $asOfDate, ?int $loanId = null): array
     {
         $db = Database::connection();
-        $sql = "SELECT ls.id AS schedule_id, ls.loan_id, ls.installment_no, ls.due_date, ls.total_due,
+        $sql = "SELECT ls.id AS schedule_id, ls.loan_id, ls.installment_no, ls.due_date, ls.total_due, ls.total_paid,
+                       nxt.id AS target_schedule_id,
                        l.borrower_id, l.branch_id, l.loan_no, l.penalty_rate,
                        CONCAT(b.first_name,' ',b.last_name) AS borrower_name,
                        DATEDIFF(?, ls.due_date) AS days_overdue,
-                       (ls.principal_due - ls.principal_paid)
-                       + (ls.interest_due - ls.interest_paid)
-                       + (ls.fees_due - ls.fees_paid)
-                       + (ls.namfisa_levy_due - ls.namfisa_levy_paid)
-                       + (ls.duty_stamp_due - ls.duty_stamp_paid) AS base_amount
+                       (ls.total_due - ls.total_paid) AS base_amount
                 FROM loan_schedules ls
                 JOIN loans l ON l.id = ls.loan_id
                 JOIN borrowers b ON b.id = l.borrower_id
+                LEFT JOIN loan_schedules nxt ON nxt.loan_id = ls.loan_id AND nxt.installment_no = ls.installment_no + 1
                 WHERE l.loan_status IN ('Active', 'Current', 'Released')
                   AND ls.total_due > ls.total_paid
                   AND DATEDIFF(?, ls.due_date) > ?";
@@ -104,6 +117,7 @@ class PenaltyAccrualService
             $row['base_amount'] = round((float) $row['base_amount'], 2);
             $row['penalty_rate'] = (float) $row['penalty_rate'];
             $row['penalty_amount'] = round($row['base_amount'] * $row['penalty_rate'] / 100, 2);
+            $row['target_schedule_id'] = $row['target_schedule_id'] !== null ? (int) $row['target_schedule_id'] : (int) $row['schedule_id'];
         }
         unset($row);
 
@@ -125,8 +139,11 @@ class PenaltyAccrualService
 
     /**
      * Charges every chargeable installment as of $asOfDate (optionally
-     * scoped to one loan): inserts a 'Charged' penalties row per
-     * installment, raises loan_schedules.penalty_due/total_due, and posts
+     * scoped to one loan): inserts a 'Charged' penalties row per source
+     * installment (audit trail of *which* shortfall triggered it), rolls
+     * the amount onto the target installment's penalty_due/total_due
+     * (the next installment, or the same row if there is none), rolls
+     * forward opening/closing balances downstream of that row, and posts
      * one combined accrual journal (Dr Penalty Receivable / Cr Deferred
      * Penalty Income) for the total. Returns the installments charged --
      * empty if there was nothing to charge.
@@ -170,16 +187,28 @@ class PenaltyAccrualService
                 'base_amount' => $line['base_amount'],
                 'penalty_rate' => $line['penalty_rate'],
                 'penalty_amount' => $line['penalty_amount'],
-                'reason' => 'Installment #' . $line['installment_no'] . ' ' . $line['days_overdue'] . ' days overdue as at ' . $asOfDate,
+                'reason' => 'Installment #' . $line['installment_no'] . ' ' . $line['days_overdue']
+                    . ' days overdue as at ' . $asOfDate . ' -- ' . $line['base_amount'] . ' unpaid, '
+                    . ($line['target_schedule_id'] === $line['schedule_id']
+                        ? 'rolled onto this same installment (no next one)'
+                        : 'rolled onto installment #' . ($line['installment_no'] + 1)),
                 'status' => 'Charged',
                 'charged_by' => $userId,
             ]);
 
-            // penalty_due is only ever set here, so it is guaranteed 0 going
-            // into this run -- no need to re-fetch the row first.
-            $loans->updateScheduleRow((int) $line['schedule_id'], [
-                'penalty_due' => $line['penalty_amount'],
-                'total_due' => round((float) $line['total_due'] + $line['penalty_amount'], 2),
+            $target = $loans->schedule($line['loan_id']);
+            $targetRow = null;
+            foreach ($target as $row) {
+                if ((int) $row['id'] === $line['target_schedule_id']) {
+                    $targetRow = $row;
+                    break;
+                }
+            }
+
+            $newPenaltyDue = round((float) $targetRow['penalty_due'] + $line['penalty_amount'], 2);
+            $loans->updateScheduleRow($line['target_schedule_id'], [
+                'penalty_due' => $newPenaltyDue,
+                'total_due' => round((float) $targetRow['total_due'] + $line['penalty_amount'], 2),
             ]);
         }
 
