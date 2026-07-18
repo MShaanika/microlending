@@ -63,7 +63,7 @@
 <h4>Amortization Schedule</h4>
 <table class="table table-bordered invoice-table">
   <thead class="table-light">
-    <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>NAMFISA Levy</th><th>Duty Stamp</th><th>Total Due</th><th>Paid</th><th>Balance</th></tr>
+    <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th><th>Paid</th><th>Balance</th></tr>
   </thead>
   <tbody>
     <?php foreach ($schedule as $row): ?>
@@ -72,8 +72,6 @@
         <td><?= e($row['due_date']) ?></td>
         <td><?= format_money($row['principal_due']) ?></td>
         <td><?= format_money($row['interest_due']) ?></td>
-        <td><?= format_money($row['namfisa_levy_due']) ?></td>
-        <td><?= format_money($row['duty_stamp_due']) ?></td>
         <td><?= format_money($row['total_due']) ?></td>
         <td><?= format_money($row['total_paid']) ?></td>
         <td><?= format_money($row['total_due'] - $row['total_paid']) ?></td>
@@ -82,7 +80,7 @@
   </tbody>
   <tfoot>
     <tr class="fw-bold">
-      <td colspan="6" class="text-end">Total</td>
+      <td colspan="4" class="text-end">Total</td>
       <td><?= format_money($totalDue) ?></td>
       <td><?= format_money($totalPaid) ?></td>
       <td><?= format_money($balance) ?></td>

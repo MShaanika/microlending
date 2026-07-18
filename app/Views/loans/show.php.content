@@ -23,7 +23,16 @@
         <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
 
         <p class="mb-1"><strong>Borrower:</strong> <a href="<?= url('/borrowers/' . $loan['borrower_id']) ?>"><?= e($loan['borrower_name']) ?></a></p>
-        <p class="mb-1"><strong>Principal:</strong> <?= format_money($loan['principal_amount']) ?></p>
+        <p class="mb-1"><strong>Amount Borrowed:</strong> <?= format_money($loan['principal_amount']) ?></p>
+        <?php if ($namfisaLevy > 0): ?>
+          <p class="mb-1 ps-3 text-muted small">+ NAMFISA Levy: <?= format_money($namfisaLevy) ?></p>
+        <?php endif; ?>
+        <?php if ($dutyStamp > 0): ?>
+          <p class="mb-1 ps-3 text-muted small">+ Duty Stamp: <?= format_money($dutyStamp) ?></p>
+        <?php endif; ?>
+        <?php if ($namfisaLevy > 0 || $dutyStamp > 0): ?>
+          <p class="mb-1"><strong>Opening Principal Balance:</strong> <?= format_money($loan['principal_amount'] + $namfisaLevy + $dutyStamp) ?></p>
+        <?php endif; ?>
         <p class="mb-1"><strong>Interest (<?= e($loan['interest_method']) ?>):</strong> <?= format_money($loan['interest_amount']) ?></p>
         <p class="mb-1"><strong>Admin Fee:</strong> <?= format_money($loan['admin_fee']) ?></p>
         <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($loan['total_payable']) ?></p>
@@ -136,7 +145,7 @@
           <table class="table table-sm table-hover">
             <thead>
               <tr>
-                <th>#</th><th>Due Date</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Fees</th><th>NAMFISA Levy</th><th>Duty Stamp</th><th>Total Due</th><th>Paid</th><th>Closing</th><th>Status</th>
+                <th>#</th><th>Due Date</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing</th><th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -157,8 +166,6 @@
                   <td><?= format_money($row['principal_due']) ?></td>
                   <td><?= format_money($row['interest_due']) ?></td>
                   <td><?= format_money($row['fees_due']) ?></td>
-                  <td><?= format_money($row['namfisa_levy_due']) ?></td>
-                  <td><?= format_money($row['duty_stamp_due']) ?></td>
                   <td><?= format_money($row['total_due']) ?></td>
                   <td><?= format_money($row['total_paid']) ?></td>
                   <td><?= format_money($row['closing_balance']) ?></td>

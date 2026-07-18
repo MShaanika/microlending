@@ -354,6 +354,8 @@ class LoanController extends Controller
 
         $originalLoan = $loan['topup_of_loan_id'] ? $this->loans->find((int) $loan['topup_of_loan_id']) : null;
         $latestTopup = $this->topups->latestActiveForLoan((int) $id);
+        $levyTxn = $this->statutoryCharges->findNamfisaLevyByLoan((int) $id);
+        $stampTxn = $this->statutoryCharges->findDutyStampByLoan((int) $id);
 
         $this->view('loans/show', [
             'title' => 'Loan ' . $loan['loan_no'],
@@ -365,6 +367,8 @@ class LoanController extends Controller
             'latestTopup' => $latestTopup,
             'latestTopupReversible' => $latestTopup ? !TopUpService::hasAnyPayment((int) $id) : false,
             'hasReschedule' => (new \App\Models\LoanReschedule())->hasImplementedReschedule((int) $id),
+            'namfisaLevy' => $levyTxn ? (float) $levyTxn['levy_amount'] : 0.0,
+            'dutyStamp' => $stampTxn ? (float) $stampTxn['stamp_amount'] : 0.0,
         ]);
     }
 
