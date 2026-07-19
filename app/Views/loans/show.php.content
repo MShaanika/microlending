@@ -146,7 +146,7 @@
           <table class="table table-sm table-hover">
             <thead>
               <tr>
-                <th>#</th><th>Due Date</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing</th><th>Status</th>
+                <th>#</th><th>Due Date</th><th>Starting Balance</th><th>Principal</th><th>Interest</th><th>Penalty Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Outstanding Balance</th><th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -166,6 +166,7 @@
                   <td><?= format_money($row['opening_balance']) ?></td>
                   <td><?= format_money($row['principal_due']) ?></td>
                   <td><?= format_money($row['interest_due']) ?></td>
+                  <td><?= format_money($row['penalty_due']) ?></td>
                   <td><?= format_money($row['fees_due']) ?></td>
                   <td><?= format_money($row['total_due']) ?></td>
                   <td><?= format_money($row['total_paid']) ?></td>
