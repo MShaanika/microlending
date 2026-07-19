@@ -89,10 +89,10 @@
 </table>
 <p class="text-muted small mt-2">NAMFISA Levy and Duty Stamp are statutory charges remitted to the relevant Namibian authorities and are included in your total repayable amount.</p>
 
-<h4 class="mt-4">Transaction History</h4>
+<h4 class="mt-4">Loan Statement (Transaction History)</h4>
 <table class="table table-bordered invoice-table">
   <thead class="table-light">
-    <tr><th>Date</th><th>Type</th><th>Description</th><th class="text-end">Charged</th><th class="text-end">Paid</th><th class="text-end">Balance</th></tr>
+    <tr><th>Date</th><th>Type</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th></tr>
   </thead>
   <tbody>
     <?php foreach ($ledger['events'] as $event): ?>

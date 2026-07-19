@@ -61,12 +61,12 @@ class LoanStatementExcelExporter
         }
 
         $row += 2;
-        $sheet->setCellValue("A{$row}", 'TRANSACTION HISTORY');
+        $sheet->setCellValue("A{$row}", 'LOAN STATEMENT (TRANSACTION HISTORY)');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
         $row++;
 
         $ledgerHeaderRow = $row;
-        $sheet->fromArray(['Date', 'Type', 'Description', 'Charged', 'Paid', 'Balance'], null, "A{$ledgerHeaderRow}");
+        $sheet->fromArray(['Date', 'Type', 'Description', 'Debit', 'Credit', 'Balance'], null, "A{$ledgerHeaderRow}");
         $sheet->getStyle("A{$ledgerHeaderRow}:F{$ledgerHeaderRow}")->getFont()->setBold(true);
         $row++;
 

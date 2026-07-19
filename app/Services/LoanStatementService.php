@@ -6,16 +6,23 @@ use App\Core\Database;
 
 /**
  * Builds a chronological transaction ledger for a loan -- disbursement,
- * every posted payment, and every penalty charge, each with the running
- * balance the borrower still owes after that event. This is the actual
- * "statement of account" content; the existing invoice view only ever
- * showed the planned schedule, not what actually happened and when.
+ * every posted payment, every penalty charge, and every missed due date,
+ * each with the running balance the borrower still owes after that event.
+ * This is the actual "statement of account" content; the existing invoice
+ * view only ever showed the planned schedule, not what actually happened
+ * and when.
  *
  * The opening balance is the loan's original contractual amount (principal
  * + interest + fees + NAMFISA levy + duty stamp) taken from the schedule's
  * own due columns, which never change after creation -- only penalty_due
  * and the *_paid tracking columns move later, so summing those columns is
  * immune to penalties added after disbursement.
+ *
+ * "Payment Missed" events are a neutral factual record ("nothing had
+ * arrived against this installment by its due date"), not a business rule
+ * -- unlike PenaltyAccrualService::GRACE_DAYS, there's no grace buffer
+ * here, and the event isn't retracted if a late payment eventually shows
+ * up (that just adds its own, separate "Payment received" line later).
  */
 class LoanStatementService
 {
@@ -38,8 +45,14 @@ class LoanStatementService
         $disbursementRow = $disbursement->fetch();
 
         $payments = $db->prepare(
-            "SELECT payment_no, payment_date, payment_source, reference_no, amount_received
-             FROM payments WHERE loan_id = ? AND status = 'Posted' ORDER BY payment_date, id"
+            "SELECT p.id, p.payment_no, p.payment_date, p.payment_source, p.reference_no, p.amount_received,
+                    GROUP_CONCAT(DISTINCT ls.installment_no ORDER BY ls.installment_no) AS installments
+             FROM payments p
+             LEFT JOIN payment_allocations pa ON pa.payment_id = p.id
+             LEFT JOIN loan_schedules ls ON ls.id = pa.schedule_id
+             WHERE p.loan_id = ? AND p.status = 'Posted'
+             GROUP BY p.id
+             ORDER BY p.payment_date, p.id"
         );
         $payments->execute([$loanId]);
         $paymentRows = $payments->fetchAll();
@@ -50,6 +63,21 @@ class LoanStatementService
         );
         $penalties->execute([$loanId]);
         $penaltyRows = $penalties->fetchAll();
+
+        $today = date('Y-m-d');
+        $missed = $db->prepare(
+            "SELECT ls.installment_no, ls.due_date
+             FROM loan_schedules ls
+             WHERE ls.loan_id = ? AND ls.due_date <= ?
+               AND NOT EXISTS (
+                   SELECT 1 FROM payment_allocations pa
+                   JOIN payments p ON p.id = pa.payment_id
+                   WHERE pa.schedule_id = ls.id AND p.status = 'Posted' AND p.payment_date <= ls.due_date
+               )
+             ORDER BY ls.installment_no"
+        );
+        $missed->execute([$loanId, $today]);
+        $missedRows = $missed->fetchAll();
 
         $events = [];
 
@@ -76,10 +104,15 @@ class LoanStatementService
         }
 
         foreach ($paymentRows as $p) {
+            $installmentLabel = '';
+            if (!empty($p['installments'])) {
+                $nums = explode(',', $p['installments']);
+                $installmentLabel = ' - Installment' . (count($nums) > 1 ? 's ' : ' ') . implode(', ', $nums);
+            }
             $events[] = [
                 'date' => $p['payment_date'],
                 'type' => 'Payment',
-                'description' => 'Payment received (' . $p['payment_source'] . ')'
+                'description' => 'Payment received (' . $p['payment_source'] . ')' . $installmentLabel
                     . ($p['reference_no'] ? ' - Ref ' . $p['reference_no'] : '') . ' - ' . $p['payment_no'],
                 'debit' => 0.0,
                 'credit' => round((float) $p['amount_received'], 2),
@@ -92,6 +125,16 @@ class LoanStatementService
                 'type' => 'Penalty',
                 'description' => 'Penalty charged - ' . $pen['reason'],
                 'debit' => round((float) $pen['penalty_amount'], 2),
+                'credit' => 0.0,
+            ];
+        }
+
+        foreach ($missedRows as $m) {
+            $events[] = [
+                'date' => $m['due_date'],
+                'type' => 'Missed',
+                'description' => 'Payment missed - Installment ' . $m['installment_no'],
+                'debit' => 0.0,
                 'credit' => 0.0,
             ];
         }
