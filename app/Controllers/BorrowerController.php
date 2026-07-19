@@ -543,7 +543,7 @@ class BorrowerController extends Controller
         $borrowerName = trim($borrower['first_name'] . ' ' . $borrower['last_name']);
         $company = (new Company())->primary();
         $brandName = ($company['brand_name'] ?? '') ?: ($company['company_name'] ?? '') ?: 'the borrower portal';
-        $portalUrl = url('/portal/login');
+        $portalUrl = full_url('/portal/login');
         $message = "Hello $borrowerName, your $brandName borrower portal login is ready.\n"
             . "Username: $username\nPassword: $tempPassword\nLog in at: $portalUrl";
 

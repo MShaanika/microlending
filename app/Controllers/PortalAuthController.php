@@ -75,7 +75,7 @@ class PortalAuthController extends Controller
             $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::RESET_TOKEN_TTL_MINUTES . ' minutes'));
             $portalUsers->setResetToken((int) $user['id'], $tokenHash, $expiresAt);
 
-            $resetLink = url('/portal/reset-password/' . $rawToken);
+            $resetLink = full_url('/portal/reset-password/' . $rawToken);
             $message = "Hello,\n\nA password reset was requested for your borrower portal account. "
                 . "Click the link below to choose a new password. This link expires in " . self::RESET_TOKEN_TTL_MINUTES . " minutes.\n\n"
                 . $resetLink . "\n\nIf you didn't request this, you can safely ignore this email.";

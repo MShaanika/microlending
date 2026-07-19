@@ -65,7 +65,7 @@ class AuthController extends Controller
             $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::RESET_TOKEN_TTL_MINUTES . ' minutes'));
             $users->setResetToken((int) $user['id'], $tokenHash, $expiresAt);
 
-            $resetLink = url('/reset-password/' . $rawToken);
+            $resetLink = full_url('/reset-password/' . $rawToken);
             $message = "Hello {$user['name']},\n\nA password reset was requested for your account. "
                 . "Click the link below to choose a new password. This link expires in " . self::RESET_TOKEN_TTL_MINUTES . " minutes.\n\n"
                 . $resetLink . "\n\nIf you didn't request this, you can safely ignore this email.";
