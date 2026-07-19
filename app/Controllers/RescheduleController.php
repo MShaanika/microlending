@@ -172,6 +172,7 @@ class RescheduleController extends Controller
                 'loan_id' => $loanId,
                 'installment_no' => $row['installment_no'],
                 'due_date' => $row['due_date'],
+                'opening_balance' => $row['opening_balance'] ?? 0,
                 'principal_due' => $row['principal_due'],
                 'interest_due' => $row['interest_due'],
                 'fees_due' => $row['fees_due'],
@@ -179,6 +180,7 @@ class RescheduleController extends Controller
                 'duty_stamp_due' => $row['duty_stamp_due'] ?? 0,
                 'penalty_due' => 0,
                 'total_due' => $row['total_due'],
+                'closing_balance' => $row['closing_balance'] ?? 0,
                 'status' => 'Pending',
             ]);
         }
