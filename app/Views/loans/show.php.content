@@ -40,7 +40,8 @@
         <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
         <p class="mb-1"><strong>Penalty Rate:</strong> <?= format_money($loan['penalty_rate']) ?>% per month (if overdue)</p>
         <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
-        <p class="mb-3"><strong>Collected so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
+        <p class="mb-1"><strong>Collected so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
+        <p class="mb-3"><strong>Current Outstanding Balance:</strong> <?= format_money($totalDue - $totalPaid) ?></p>
 
         <?php if (!empty($originalLoan)): ?>
           <p class="mb-1"><i class="mdi mdi-arrow-up-bold-circle-outline text-info"></i> Top-up of loan
@@ -146,7 +147,7 @@
           <table class="table table-sm table-hover">
             <thead>
               <tr>
-                <th>#</th><th>Due Date</th><th>Starting Balance</th><th>Principal</th><th>Interest</th><th>Penalty Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Outstanding Balance</th><th>Status</th>
+                <th>#</th><th>Due Date</th><th>Opening Balance</th><th>Principal</th><th>Interest</th><th>Penalty Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing Balance</th><th>Status</th>
               </tr>
             </thead>
             <tbody>

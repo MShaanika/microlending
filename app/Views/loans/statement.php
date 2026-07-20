@@ -49,6 +49,7 @@
     <h5>Loan Summary</h5>
     <p class="mb-0">Product: <?= e($loan['product_name']) ?></p>
     <p class="mb-0">Principal: <?= format_money($loan['principal_amount']) ?></p>
+    <p class="mb-0">Opening Balance: <?= format_money($loan['principal_amount']) ?></p>
     <p class="mb-0">Total Payable: <?= format_money($loan['total_payable']) ?></p>
     <p class="mb-0">Status: <?= e($loan['loan_status']) ?></p>
   </div>
@@ -63,27 +64,32 @@
 <h4>Amortization Schedule</h4>
 <table class="table table-bordered invoice-table">
   <thead class="table-light">
-    <tr><th>#</th><th>Due Date</th><th>Principal</th><th>Interest</th><th>Total Due</th><th>Paid</th><th>Balance</th></tr>
+    <tr><th>#</th><th>Due Date</th><th>Opening Balance</th><th>Principal</th><th>Interest</th><th>Penalty Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing Balance</th><th>Status</th></tr>
   </thead>
   <tbody>
     <?php foreach ($schedule as $row): ?>
       <tr>
         <td><?= (int) $row['installment_no'] ?></td>
         <td><?= e($row['due_date']) ?></td>
+        <td><?= format_money($row['opening_balance']) ?></td>
         <td><?= format_money($row['principal_due']) ?></td>
         <td><?= format_money($row['interest_due']) ?></td>
+        <td><?= format_money($row['penalty_due']) ?></td>
+        <td><?= format_money($row['fees_due']) ?></td>
         <td><?= format_money($row['total_due']) ?></td>
         <td><?= format_money($row['total_paid']) ?></td>
-        <td><?= format_money($row['total_due'] - $row['total_paid']) ?></td>
+        <td><?= format_money($row['closing_balance']) ?></td>
+        <td><?= e($row['status']) ?></td>
       </tr>
     <?php endforeach; ?>
   </tbody>
   <tfoot>
     <tr class="fw-bold">
-      <td colspan="4" class="text-end">Total</td>
+      <td colspan="7" class="text-end">Total</td>
       <td><?= format_money($totalDue) ?></td>
       <td><?= format_money($totalPaid) ?></td>
       <td><?= format_money($balance) ?></td>
+      <td></td>
     </tr>
   </tfoot>
 </table>
