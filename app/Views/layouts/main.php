@@ -7,6 +7,11 @@ $brandName = $company['brand_name'] ?: ($company['company_name'] ?? '') ?: 'Dese
 $faviconUrl = !empty($company['favicon']) ? asset($company['favicon']) : (!empty($company['logo']) ? asset($company['logo']) : asset('assets/images/logo-icon.png'));
 $sidebarLogoUrl = !empty($company['logo']) ? asset($company['logo']) : asset('assets/images/logo-light-text.png');
 $primaryColor = $company['primary_color'] ?? '#25a9e0';
+$sidebarColor = !empty($company['sidebar_color']) ? $company['sidebar_color'] : $primaryColor;
+$sidebarRgb = array_map('hexdec', str_split(ltrim($sidebarColor, '#'), 2));
+// YIQ brightness formula: pick white or dark text so it stays readable against whatever color the admin picks.
+$sidebarYiq = (($sidebarRgb[0] * 299) + ($sidebarRgb[1] * 587) + ($sidebarRgb[2] * 114)) / 1000;
+$sidebarTextColor = $sidebarYiq >= 150 ? '#1a1a1a' : '#ffffff';
 $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 ?>
 <!DOCTYPE html>
@@ -44,6 +49,27 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     }
     .btn-outline-info { color: <?= e($primaryColor) ?> !important; border-color: <?= e($primaryColor) ?> !important; }
     .btn-outline-info:hover { background-color: <?= e($primaryColor) ?> !important; color: #fff !important; }
+    .topbar { background-color: <?= e($primaryColor) ?> !important;}
+
+    /* Sidebar background -- admin-set separately from the primary color above
+       (Settings > Company > Sidebar Background Color), defaulting to match
+       the primary color when no override is set. Text/icon color is picked
+       automatically for contrast against whatever color is chosen. */
+    .left-sidebar, .scroll-sidebar { background-color: <?= e($sidebarColor) ?> !important; }
+    .sidebar-nav ul .sidebar-item .sidebar-link,
+    .sidebar-nav ul .sidebar-item .sidebar-link i,
+    .sidebar-nav .nav-small-cap {
+      color: <?= e($sidebarTextColor) ?> !important;
+      opacity: .85;
+    }
+    .sidebar-nav ul .sidebar-item .sidebar-link:hover,
+    .sidebar-nav ul .sidebar-item.selected > .sidebar-link {
+      opacity: 1;
+    }
+    .sidebar-nav ul .sidebar-item.selected > .sidebar-link,
+    .sidebar-nav ul .sidebar-item.selected > .sidebar-link i {
+      color: #fff !important;
+    }
   </style>
 </head>
 
@@ -336,7 +362,15 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     <footer class="footer text-center">
 		<strong><?= e($brandName) ?></strong><br>
 		<small><?= e($footerTagline) ?></small><br>
-		<small>Proudly Powered by <strong>Kodecamp Technologies</strong> &copy; <?= date('Y') ?></small>
+		<small>
+			Proudly Powered by
+			<strong>
+				<a href="https://kodecamp.org/" target="_blank">
+					Kodecamp Technologies
+				</a>
+			</strong>
+			&copy; <?= date('Y') ?>
+		</small>
 	</footer>
   </div>
 </div>

@@ -60,6 +60,10 @@ class CompanySettingController extends Controller
         if ($primaryColor !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $primaryColor)) {
             $errors['primary_color'] = 'Enter a valid hex color (e.g. #25a9e0).';
         }
+        $sidebarColor = !empty($_POST['use_primary_for_sidebar']) ? '' : trim($_POST['sidebar_color'] ?? '');
+        if ($sidebarColor !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $sidebarColor)) {
+            $errors['sidebar_color'] = 'Enter a valid hex color (e.g. #1d2126).';
+        }
 
         $logoPath = $company['logo'];
         $logoFile = $_FILES['logo'] ?? null;
@@ -118,6 +122,7 @@ class CompanySettingController extends Controller
             'address' => trim($_POST['address'] ?? '') ?: null,
             'logo' => $logoPath,
             'primary_color' => $primaryColor ?: '#25a9e0',
+            'sidebar_color' => $sidebarColor ?: null,
             'footer_tagline' => trim($_POST['footer_tagline'] ?? '') ?: null,
             'favicon' => $faviconPath,
         ]);

@@ -141,6 +141,7 @@ CREATE TABLE companies (
     address TEXT,
     logo VARCHAR(255),
     primary_color VARCHAR(7) DEFAULT '#25a9e0',
+    sidebar_color VARCHAR(7) DEFAULT NULL,
     footer_tagline VARCHAR(255) DEFAULT 'Your trusted Loan Manager',
     favicon VARCHAR(255),
     is_active TINYINT(1) DEFAULT 1,

@@ -53,6 +53,7 @@
         <div class="col-md-3 mb-3">
           <label class="form-label">Primary Color</label>
           <input type="color" name="primary_color" class="form-control form-control-color <?= isset($errors['primary_color']) ? 'is-invalid' : '' ?>" value="<?= e($company['primary_color'] ?? '#25a9e0') ?>">
+          <div class="form-text">Buttons, links and the top bar.</div>
           <?php if (isset($errors['primary_color'])): ?><div class="invalid-feedback d-block"><?= e($errors['primary_color']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-5 mb-3">
@@ -60,6 +61,23 @@
           <input type="text" name="footer_tagline" class="form-control" value="<?= e($company['footer_tagline'] ?? '') ?>" placeholder="Your trusted Loan Manager">
         </div>
       </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Sidebar Background Color</label>
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" id="usePrimaryForSidebar" name="use_primary_for_sidebar" value="1" <?= empty($company['sidebar_color']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="usePrimaryForSidebar">Match Primary Color</label>
+          </div>
+          <input type="color" name="sidebar_color" id="sidebarColorInput" class="form-control form-control-color <?= isset($errors['sidebar_color']) ? 'is-invalid' : '' ?>" value="<?= e($company['sidebar_color'] ?? $company['primary_color'] ?? '#25a9e0') ?>" <?= empty($company['sidebar_color']) ? 'disabled' : '' ?>>
+          <div class="form-text">Left navigation menu. Leave "Match Primary Color" checked to reuse the color above, or untick it to set a different color.</div>
+          <?php if (isset($errors['sidebar_color'])): ?><div class="invalid-feedback d-block"><?= e($errors['sidebar_color']) ?></div><?php endif; ?>
+        </div>
+      </div>
+      <script>
+        document.getElementById('usePrimaryForSidebar').addEventListener('change', function () {
+          document.getElementById('sidebarColorInput').disabled = this.checked;
+        });
+      </script>
       <div class="row">
         <div class="col-md-4 mb-3 text-center">
           <?php if (!empty($company['favicon'])): ?>
