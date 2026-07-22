@@ -49,7 +49,16 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     }
     .btn-outline-info { color: <?= e($primaryColor) ?> !important; border-color: <?= e($primaryColor) ?> !important; }
     .btn-outline-info:hover { background-color: <?= e($primaryColor) ?> !important; color: #fff !important; }
-    .topbar { background-color: <?= e($primaryColor) ?> !important;}
+    /* The vendor template's own JS (app.js setnavbarbg()/setlogobg()) stamps
+       data-navbarbg="skin1"/data-logobg="skin1" on these elements on every
+       page load (unconditionally, since NavbarBg/LogoBg are never set in
+       app.init.js), which paints them with the template's default blue via
+       its own [data-navbarbg=skin1]/[data-logobg=skin1] CSS rules -- on top
+       of and independent of .topbar's own background. All three need the
+       override, not just .topbar itself. */
+    .topbar, .topbar .navbar-collapse, .topbar .top-navbar .navbar-header {
+      background-color: <?= e($primaryColor) ?> !important;
+    }
 
     /* Sidebar background -- admin-set separately from the primary color above
        (Settings > Company > Sidebar Background Color), defaulting to match
