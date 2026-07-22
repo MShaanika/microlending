@@ -60,7 +60,7 @@ class CompanySettingController extends Controller
         if ($primaryColor !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $primaryColor)) {
             $errors['primary_color'] = 'Enter a valid hex color (e.g. #25a9e0).';
         }
-        $sidebarColor = !empty($_POST['use_primary_for_sidebar']) ? '' : trim($_POST['sidebar_color'] ?? '');
+        $sidebarColor = !empty($_POST['use_default_sidebar']) ? '' : trim($_POST['sidebar_color'] ?? '');
         if ($sidebarColor !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $sidebarColor)) {
             $errors['sidebar_color'] = 'Enter a valid hex color (e.g. #1d2126).';
         }

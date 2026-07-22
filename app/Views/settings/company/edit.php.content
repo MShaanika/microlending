@@ -65,16 +65,16 @@
         <div class="col-md-4 mb-3">
           <label class="form-label">Sidebar Background Color</label>
           <div class="form-check mb-2">
-            <input type="checkbox" class="form-check-input" id="usePrimaryForSidebar" name="use_primary_for_sidebar" value="1" <?= empty($company['sidebar_color']) ? 'checked' : '' ?>>
-            <label class="form-check-label" for="usePrimaryForSidebar">Match Primary Color</label>
+            <input type="checkbox" class="form-check-input" id="useDefaultSidebar" name="use_default_sidebar" value="1" <?= empty($company['sidebar_color']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="useDefaultSidebar">White (Default)</label>
           </div>
-          <input type="color" name="sidebar_color" id="sidebarColorInput" class="form-control form-control-color <?= isset($errors['sidebar_color']) ? 'is-invalid' : '' ?>" value="<?= e($company['sidebar_color'] ?? $company['primary_color'] ?? '#25a9e0') ?>" <?= empty($company['sidebar_color']) ? 'disabled' : '' ?>>
-          <div class="form-text">Left navigation menu. Leave "Match Primary Color" checked to reuse the color above, or untick it to set a different color.</div>
+          <input type="color" name="sidebar_color" id="sidebarColorInput" class="form-control form-control-color <?= isset($errors['sidebar_color']) ? 'is-invalid' : '' ?>" value="<?= e($company['sidebar_color'] ?? '#ffffff') ?>" <?= empty($company['sidebar_color']) ? 'disabled' : '' ?>>
+          <div class="form-text">Left navigation menu. Leave "White (Default)" checked, or untick it to set a custom color (e.g. to match Primary Color).</div>
           <?php if (isset($errors['sidebar_color'])): ?><div class="invalid-feedback d-block"><?= e($errors['sidebar_color']) ?></div><?php endif; ?>
         </div>
       </div>
       <script>
-        document.getElementById('usePrimaryForSidebar').addEventListener('change', function () {
+        document.getElementById('useDefaultSidebar').addEventListener('change', function () {
           document.getElementById('sidebarColorInput').disabled = this.checked;
         });
       </script>

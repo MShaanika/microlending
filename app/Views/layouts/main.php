@@ -7,7 +7,7 @@ $brandName = $company['brand_name'] ?: ($company['company_name'] ?? '') ?: 'Dese
 $faviconUrl = !empty($company['favicon']) ? asset($company['favicon']) : (!empty($company['logo']) ? asset($company['logo']) : asset('assets/images/logo-icon.png'));
 $sidebarLogoUrl = !empty($company['logo']) ? asset($company['logo']) : asset('assets/images/logo-light-text.png');
 $primaryColor = $company['primary_color'] ?? '#25a9e0';
-$sidebarColor = !empty($company['sidebar_color']) ? $company['sidebar_color'] : $primaryColor;
+$sidebarColor = !empty($company['sidebar_color']) ? $company['sidebar_color'] : '#ffffff';
 $sidebarRgb = array_map('hexdec', str_split(ltrim($sidebarColor, '#'), 2));
 // YIQ brightness formula: pick white or dark text so it stays readable against whatever color the admin picks.
 $sidebarYiq = (($sidebarRgb[0] * 299) + ($sidebarRgb[1] * 587) + ($sidebarRgb[2] * 114)) / 1000;
