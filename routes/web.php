@@ -51,6 +51,7 @@ use App\Controllers\DebitOrderCollectionController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ExpenseCategoryController;
 use App\Controllers\AiSettingController;
+use App\Controllers\DocumentationController;
 
 $router->get('/', [AuthController::class, 'showLogin']);
 $router->get('/login', [AuthController::class, 'showLogin']);
@@ -62,6 +63,7 @@ $router->get('/reset-password/{token}', [AuthController::class, 'showResetForm']
 $router->post('/reset-password/{token}', [AuthController::class, 'resetPassword']);
 
 $router->get('/dashboard', [DashboardController::class, 'index']);
+$router->get('/documentation/{key}/download', [DocumentationController::class, 'download']);
 
 // Borrowers
 $router->get('/borrowers', [BorrowerController::class, 'index']);
