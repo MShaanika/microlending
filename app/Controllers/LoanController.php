@@ -17,6 +17,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanTopup;
 use App\Models\Company;
 use App\Models\StatutoryCharge;
+use App\Services\EmailSenderService;
 use App\Services\LoanScheduleService;
 use App\Services\LoanStatementExcelExporter;
 use App\Services\LoanStatementService;
@@ -460,6 +461,69 @@ class LoanController extends Controller
 
         LoanStatementExcelExporter::save($spreadsheet, 'php://output');
         exit;
+    }
+
+    /**
+     * Emails the same Statement of Account page (rendered exactly as staff
+     * see it -- same view, same ledger/schedule data) to any address typed
+     * in, not just the borrower's own -- e.g. a colleague asked to review a
+     * specific account.
+     */
+    public function emailStatement(string $id): void
+    {
+        Auth::authorize('loans.view');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/loans/' . $id . '/statement');
+            return;
+        }
+
+        $loan = $this->loans->find($id);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return;
+        }
+
+        $recipient = trim($_POST['recipient_email'] ?? '');
+        if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Enter a valid email address.');
+            $this->redirect('/loans/' . $id . '/statement');
+            return;
+        }
+
+        $borrower = $this->borrowers->find((int) $loan['borrower_id']);
+        $company = $this->companies->primary();
+        $schedule = $this->loans->schedule($id);
+        $ledger = LoanStatementService::ledger($id);
+        $title = 'Statement - ' . $loan['loan_no'];
+
+        ob_start();
+        \App\Core\View::render('loans/statement', [
+            'title' => $title, 'loan' => $loan, 'schedule' => $schedule,
+            'borrower' => $borrower, 'company' => $company, 'ledger' => $ledger,
+            'forEmail' => true,
+        ]);
+        $html = ob_get_clean();
+
+        $result = EmailSenderService::send(
+            $recipient,
+            'Statement of Account - ' . $loan['loan_no'],
+            $html,
+            null,
+            true
+        );
+
+        if ($result['success']) {
+            Audit::log('Email', 'Loans', 'Statement of Account for ' . $loan['loan_no'] . ' emailed to ' . $recipient);
+            Session::flash('success', 'Statement emailed to ' . $recipient . '.');
+        } else {
+            Session::flash('error', 'Could not send email: ' . $result['error']);
+        }
+
+        $this->redirect('/loans/' . $id . '/statement');
     }
 
     public function approve(string $id): void

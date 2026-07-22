@@ -215,17 +215,19 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title">Quick Access</h4>
-    <p class="text-muted">Core lending, collections and fixed-asset modules are live. Everything else below is on the roadmap.</p>
+    <p class="text-muted">Jump straight into any module.</p>
     <div class="row">
       <?php $modules = [
         ['Borrowers','Borrower profiles and status','mdi-account-multiple','info', url('/borrowers')],
         ['Loans','Applications, approvals, releases, amortization schedules','mdi-cash-multiple','success', url('/loans')],
+        ['Applications','Online intake, screening and approvals','mdi-telegram','primary', url('/applications')],
         ['Payments','Collections and schedule allocation','mdi-bank','primary', url('/payments')],
         ['Fixed Assets','Depreciation & amortization schedules','mdi-trending-up','warning', url('/fixed-assets')],
         ['Accounting','Chart of accounts, bank accounts, general ledger','mdi-calculator','secondary', url('/accounting/accounts')],
         ['Reports','Operational, financial, regulatory and audit reports','mdi-chart-bar','danger', url('/reports')],
-        ['Documents','Word templates, letters, statements and signatures','mdi-file-document','dark', null],
-        ['Compliance','NAMFISA, duty stamps and quarterly reports','mdi-gavel','info', null],
+        ['Documents','Word templates, letters, statements and signatures','mdi-file-document','dark', url('/templates')],
+        ['Compliance','NAMFISA, duty stamps and quarterly reports','mdi-gavel','info', url('/compliance/namfisa')],
+        ['Notifications','SMS and email queues, templates, settings','mdi-bell','dark', url('/notifications/sms')],
       ]; foreach($modules as $m): ?>
         <div class="col-lg-3 col-md-6"><div class="card border module-card"><div class="card-body text-center"><i class="mdi <?= $m[2] ?> display-5 text-<?= $m[3] ?>"></i><h4 class="mt-3"><?= $m[0] ?></h4><p class="text-muted small"><?= $m[1] ?></p>
           <?php if ($m[4]): ?>

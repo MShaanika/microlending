@@ -17,11 +17,20 @@
 </head>
 <body>
 
+<?php if (empty($forEmail)): ?>
 <div class="no-print mb-3">
+  <?= flash_messages() ?>
   <button class="btn btn-info" onclick="window.print()"><i class="mdi mdi-printer"></i> Print / Save as PDF</button>
   <a href="<?= url('/loans/' . $loan['id'] . '/statement.xlsx') ?>" class="btn btn-outline-success"><i class="mdi mdi-file-excel"></i> Download Excel</a>
   <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Back to Loan</a>
+
+  <form method="post" action="<?= url('/loans/' . $loan['id'] . '/statement/email') ?>" class="d-inline-flex align-items-center gap-2 ms-2">
+    <?= csrf_field() ?>
+    <input type="email" name="recipient_email" class="form-control form-control-sm" style="width: 260px; display: inline-block;" placeholder="Send to email address" required>
+    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-email-send"></i> Email Statement</button>
+  </form>
 </div>
+<?php endif; ?>
 
 <div class="invoice-header">
   <div>

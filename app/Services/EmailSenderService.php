@@ -18,7 +18,7 @@ class EmailSenderService
     /**
      * @return array{success: bool, providerReference: ?string, error: ?string}
      */
-    public static function send(string $to, string $subject, string $body, ?string $toName = null): array
+    public static function send(string $to, string $subject, string $body, ?string $toName = null, bool $isHtml = false): array
     {
         $settings = new NotificationSetting();
         $host = $settings->get('SMTP_HOST');
@@ -53,7 +53,7 @@ class EmailSenderService
             $mail->addAddress($to, $toName ?? '');
             $mail->Subject = $subject;
             $mail->Body = $body;
-            $mail->isHTML(false);
+            $mail->isHTML($isHtml);
 
             $mail->send();
 
