@@ -76,8 +76,8 @@ class CashBookController extends Controller
         header('Content-Disposition: attachment;filename="CashBook_' . ($account['account_code'] ?? 'account') . '_' . $fromDate . '_to_' . $toDate . '.csv"');
 
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['Date', 'Reference', 'Description', 'Debit (In)', 'Credit (Out)', 'Balance']);
-        fputcsv($out, ['', '', 'Opening Balance', '', '', number_format($cashBook['opening_balance'], 2)]);
+        fputcsv($out, ['Date', 'Reference', 'Description', 'Debit (In)', 'Credit (Out)', 'Balance'], ',', '"', '');
+        fputcsv($out, ['', '', 'Opening Balance', '', '', number_format($cashBook['opening_balance'], 2)], ',', '"', '');
         foreach ($cashBook['lines'] as $line) {
             fputcsv($out, [
                 $line['journal_date'],
@@ -86,9 +86,9 @@ class CashBookController extends Controller
                 $line['debit'] > 0 ? number_format($line['debit'], 2) : '',
                 $line['credit'] > 0 ? number_format($line['credit'], 2) : '',
                 number_format($line['running_balance'], 2),
-            ]);
+            ], ',', '"', '');
         }
-        fputcsv($out, ['', '', 'Closing Balance', '', '', number_format($cashBook['closing_balance'], 2)]);
+        fputcsv($out, ['', '', 'Closing Balance', '', '', number_format($cashBook['closing_balance'], 2)], ',', '"', '');
         fclose($out);
         exit;
     }
