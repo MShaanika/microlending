@@ -16,7 +16,7 @@
       <div class="d-flex gap-2 no-print">
         <?php if ($accountId): ?>
           <a href="<?= url('/accounting/journals/create?account_id=' . $accountId . '&return_to=cash-book') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> Add Transaction</a>
-          <a href="<?= url('/accounting/cash-book/export.csv?' . http_build_query(['account_id' => $accountId, 'from_date' => $fromDate, 'to_date' => $toDate])) ?>" class="btn btn-outline-success btn-sm"><i class="mdi mdi-file-delimited"></i> Export CSV</a>
+          <a href="<?= url('/accounting/cash-book/export.xlsx?' . http_build_query(['account_id' => $accountId, 'from_date' => $fromDate, 'to_date' => $toDate])) ?>" class="btn btn-outline-success btn-sm"><i class="mdi mdi-file-excel"></i> Export Excel</a>
         <?php endif; ?>
         <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
       </div>

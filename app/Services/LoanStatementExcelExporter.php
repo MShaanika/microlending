@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
@@ -13,8 +12,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class LoanStatementExcelExporter
 {
-    private const NUMBER_FORMAT = '#,##0.00;[Red](#,##0.00)';
-
     public static function build(array $loan, array $borrower, array $schedule, array $ledger, ?array $company): Spreadsheet
     {
         $spreadsheet = new Spreadsheet();
@@ -30,8 +27,7 @@ class LoanStatementExcelExporter
 
         $sheet->mergeCells('A1:F1');
         $sheet->setCellValue('A1', $company['company_name'] ?? 'Micro Lending System');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9EAF7');
+        ExcelBrandStyle::title($sheet, 'A1:F1');
 
         $sheet->setCellValue('A2', 'Statement of Account');
         $sheet->setCellValue('A3', 'Loan No: ' . $loan['loan_no']);
@@ -45,7 +41,7 @@ class LoanStatementExcelExporter
 
         $headerRow = $row;
         $sheet->fromArray(['#', 'Due Date', 'Principal', 'Interest', 'Total Due', 'Paid', 'Balance'], null, "A{$headerRow}");
-        $sheet->getStyle("A{$headerRow}:G{$headerRow}")->getFont()->setBold(true);
+        ExcelBrandStyle::header($sheet, "A{$headerRow}:G{$headerRow}");
         $row++;
 
         foreach ($schedule as $s) {
@@ -56,7 +52,8 @@ class LoanStatementExcelExporter
             $sheet->setCellValue("E{$row}", round((float) $s['total_due'], 2));
             $sheet->setCellValue("F{$row}", round((float) $s['total_paid'], 2));
             $sheet->setCellValue("G{$row}", round((float) $s['total_due'] - (float) $s['total_paid'], 2));
-            $sheet->getStyle("C{$row}:G{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $sheet->getStyle("C{$row}:G{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+            ExcelBrandStyle::border($sheet, "A{$row}:G{$row}");
             $row++;
         }
 
@@ -67,7 +64,7 @@ class LoanStatementExcelExporter
 
         $ledgerHeaderRow = $row;
         $sheet->fromArray(['Date', 'Type', 'Description', 'Debit', 'Credit', 'Balance'], null, "A{$ledgerHeaderRow}");
-        $sheet->getStyle("A{$ledgerHeaderRow}:F{$ledgerHeaderRow}")->getFont()->setBold(true);
+        ExcelBrandStyle::header($sheet, "A{$ledgerHeaderRow}:F{$ledgerHeaderRow}");
         $row++;
 
         foreach ($ledger['events'] as $event) {
@@ -77,14 +74,15 @@ class LoanStatementExcelExporter
             $sheet->setCellValue("D{$row}", round($event['debit'], 2));
             $sheet->setCellValue("E{$row}", round($event['credit'], 2));
             $sheet->setCellValue("F{$row}", round($event['balance'], 2));
-            $sheet->getStyle("D{$row}:F{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $sheet->getStyle("D{$row}:F{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+            ExcelBrandStyle::border($sheet, "A{$row}:F{$row}");
             $row++;
         }
 
         $sheet->setCellValue("C{$row}", 'Closing Balance');
         $sheet->setCellValue("F{$row}", round($ledger['closing_balance'], 2));
-        $sheet->getStyle("C{$row}:F{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("F{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+        $sheet->getStyle("F{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+        ExcelBrandStyle::totals($sheet, "C{$row}:F{$row}");
 
         return $spreadsheet;
     }

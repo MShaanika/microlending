@@ -8,6 +8,7 @@ use App\Models\AccountingAccount;
 use App\Models\BankAccount;
 use App\Models\BankReconciliation;
 use App\Models\JournalEntry;
+use App\Services\CashBookExcelExporter;
 
 class CashBookController extends Controller
 {
@@ -58,38 +59,26 @@ class CashBookController extends Controller
         ]);
     }
 
-    public function exportCsv(): void
+    public function exportExcel(): void
     {
         Auth::authorize('accounting.cashbook');
 
         $accountId = (int) ($_GET['account_id'] ?? 0);
         $fromDate = $_GET['from_date'] ?? date('Y-m-01');
         $toDate = $_GET['to_date'] ?? date('Y-m-d');
-        $account = $accountId ? $this->accounts->find($accountId) : null;
+        $account = $accountId ? $this->accounts->find($accountId) : [];
 
         $cashBook = $accountId ? $this->journalEntries->cashBook($accountId, $fromDate, $toDate) : ['opening_balance' => 0, 'closing_balance' => 0, 'lines' => []];
+
+        $spreadsheet = CashBookExcelExporter::build($account ?? [], $cashBook, $fromDate, $toDate);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment;filename="CashBook_' . ($account['account_code'] ?? 'account') . '_' . $fromDate . '_to_' . $toDate . '.csv"');
-
-        $out = fopen('php://output', 'w');
-        fputcsv($out, ['Date', 'Reference', 'Description', 'Debit (In)', 'Credit (Out)', 'Balance'], ',', '"', '');
-        fputcsv($out, ['', '', 'Opening Balance', '', '', number_format($cashBook['opening_balance'], 2)], ',', '"', '');
-        foreach ($cashBook['lines'] as $line) {
-            fputcsv($out, [
-                $line['journal_date'],
-                $line['reference_no'] ?: '',
-                $line['description'],
-                $line['debit'] > 0 ? number_format($line['debit'], 2) : '',
-                $line['credit'] > 0 ? number_format($line['credit'], 2) : '',
-                number_format($line['running_balance'], 2),
-            ], ',', '"', '');
-        }
-        fputcsv($out, ['', '', 'Closing Balance', '', '', number_format($cashBook['closing_balance'], 2)], ',', '"', '');
-        fclose($out);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="CashBook_' . ($account['account_code'] ?? 'account') . '_' . $fromDate . '_to_' . $toDate . '.xlsx"');
+        header('Cache-Control: max-age=0');
+        CashBookExcelExporter::save($spreadsheet, 'php://output');
         exit;
     }
 }

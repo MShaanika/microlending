@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
@@ -14,8 +13,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class RegulatoryReportExcelExporter
 {
-    private const NUMBER_FORMAT = '#,##0.00;[Red](#,##0.00)';
-
     private array $report;
     private array $lines;
 
@@ -39,8 +36,7 @@ class RegulatoryReportExcelExporter
 
         $sheet->mergeCells('A1:D1');
         $sheet->setCellValue('A1', $this->report['report_name']);
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9EAF7');
+        ExcelBrandStyle::title($sheet, 'A1:D1');
 
         $sheet->setCellValue('A2', 'Report No: ' . $this->report['report_no']);
         $sheet->setCellValue('A3', 'Period: ' . $this->report['period_start'] . ' to ' . $this->report['period_end']);
@@ -54,7 +50,7 @@ class RegulatoryReportExcelExporter
             null,
             "A{$row}"
         );
-        $sheet->getStyle("A{$row}:L{$row}")->getFont()->setBold(true);
+        ExcelBrandStyle::header($sheet, "A{$row}:L{$row}");
         $row++;
 
         foreach ($this->lines as $line) {
@@ -70,21 +66,21 @@ class RegulatoryReportExcelExporter
             $sheet->setCellValue("J{$row}", round((float) $line['recovery_amount'], 2));
             $sheet->setCellValue("K{$row}", round((float) $line['levy_amount'], 2));
             $sheet->setCellValue("L{$row}", round((float) $line['duty_stamp_amount'], 2));
-            $sheet->getStyle("G{$row}:L{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $sheet->getStyle("G{$row}:L{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+            ExcelBrandStyle::border($sheet, "A{$row}:L{$row}");
             $row++;
         }
 
         $row++;
         $sheet->setCellValue("A{$row}", 'Totals');
-        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
         $sheet->setCellValue("F{$row}", (int) $this->report['total_loans']);
         $sheet->setCellValue("G{$row}", round((float) $this->report['total_principal'], 2));
         $sheet->setCellValue("I{$row}", round((float) $this->report['total_bad_debts'], 2));
         $sheet->setCellValue("J{$row}", round((float) $this->report['total_recoveries'], 2));
         $sheet->setCellValue("K{$row}", round((float) $this->report['total_namfisa_levy'], 2));
         $sheet->setCellValue("L{$row}", round((float) $this->report['total_duty_stamp'], 2));
-        $sheet->getStyle("F{$row}:L{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("G{$row}:L{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+        $sheet->getStyle("G{$row}:L{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+        ExcelBrandStyle::totals($sheet, "A{$row}:L{$row}");
 
         return $spreadsheet;
     }

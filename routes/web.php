@@ -318,7 +318,7 @@ $router->post('/accounting/periods/{id}/reopen', [FiscalYearController::class, '
 $router->get('/accounting/trial-balance', [TrialBalanceController::class, 'index']);
 $router->get('/accounting/trial-balance/export.xlsx', [TrialBalanceController::class, 'exportExcel']);
 $router->get('/accounting/cash-book', [CashBookController::class, 'index']);
-$router->get('/accounting/cash-book/export.csv', [CashBookController::class, 'exportCsv']);
+$router->get('/accounting/cash-book/export.xlsx', [CashBookController::class, 'exportExcel']);
 $router->get('/accounting/afs-export', [AfsReportController::class, 'index']);
 $router->get('/accounting/afs-export/download', [AfsReportController::class, 'export']);
 

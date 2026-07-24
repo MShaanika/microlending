@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
@@ -12,8 +11,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class GeneralLedgerExcelExporter
 {
-    private const NUMBER_FORMAT = '#,##0.00;[Red](#,##0.00)';
-
     public static function build(array $account, array $ledger, string $fromDate, string $toDate): Spreadsheet
     {
         $spreadsheet = new Spreadsheet();
@@ -29,19 +26,18 @@ class GeneralLedgerExcelExporter
 
         $sheet->mergeCells('A1:E1');
         $sheet->setCellValue('A1', 'GENERAL LEDGER: ' . $account['account_code'] . ' - ' . $account['account_name']);
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9EAF7');
+        ExcelBrandStyle::title($sheet, 'A1:E1');
         $sheet->setCellValue('A2', 'Period: ' . $fromDate . ' to ' . $toDate);
 
         $row = 4;
         $sheet->fromArray(['Date', 'Reference / Description', 'Debit', 'Credit', 'Balance'], null, "A{$row}");
-        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setBold(true);
+        ExcelBrandStyle::header($sheet, "A{$row}:E{$row}");
         $row++;
 
         $sheet->setCellValue("B{$row}", 'Opening Balance');
         $sheet->setCellValue("E{$row}", round($ledger['opening_balance'], 2));
-        $sheet->getStyle("B{$row}:E{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("E{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+        $sheet->getStyle("E{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+        ExcelBrandStyle::totals($sheet, "A{$row}:E{$row}");
         $row++;
 
         foreach ($ledger['lines'] as $line) {
@@ -51,14 +47,15 @@ class GeneralLedgerExcelExporter
             $sheet->setCellValue("C{$row}", round((float) $line['debit'], 2));
             $sheet->setCellValue("D{$row}", round((float) $line['credit'], 2));
             $sheet->setCellValue("E{$row}", round((float) $line['running_balance'], 2));
-            $sheet->getStyle("C{$row}:E{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $sheet->getStyle("C{$row}:E{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+            ExcelBrandStyle::border($sheet, "A{$row}:E{$row}");
             $row++;
         }
 
         $sheet->setCellValue("B{$row}", 'Closing Balance');
         $sheet->setCellValue("E{$row}", round($ledger['closing_balance'], 2));
-        $sheet->getStyle("B{$row}:E{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("E{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+        $sheet->getStyle("E{$row}")->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+        ExcelBrandStyle::totals($sheet, "A{$row}:E{$row}");
 
         return $spreadsheet;
     }
