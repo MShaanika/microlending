@@ -1380,6 +1380,24 @@ CREATE TABLE accounting_bank_reconciliation (
     FOREIGN KEY (reconciled_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Records each "Complete Reconciliation" click: once completed, every
+-- posted journal line against that bank account's GL account dated on or
+-- before statement_date is locked (cannot be reversed) unless the row is
+-- later reopened, or the user holds accounting.reconciliation_override.
+-- Only the latest non-reopened row per bank_account_id is the active cutoff.
+CREATE TABLE bank_reconciliation_completions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bank_account_id BIGINT NOT NULL,
+    statement_date DATE NOT NULL,
+    completed_by INT NULL,
+    completed_at DATETIME NOT NULL,
+    reopened_by INT NULL,
+    reopened_at DATETIME NULL,
+    FOREIGN KEY (bank_account_id) REFERENCES accounting_bank_accounts(id),
+    FOREIGN KEY (completed_by) REFERENCES users(id),
+    FOREIGN KEY (reopened_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE accounting_cash_book (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     bank_account_id BIGINT NOT NULL,
@@ -2843,6 +2861,7 @@ INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
 ('accounting.cashbook', 'Manage Cash Book', 'Accounting'),
 ('accounting.bank_accounts', 'Manage Bank Accounts', 'Accounting'),
 ('accounting.bank_reconciliation', 'Manage Bank Reconciliation', 'Accounting'),
+('accounting.reconciliation_override', 'Override Completed Reconciliation Locks', 'Accounting'),
 ('accounting.ledger', 'View General Ledger', 'Accounting'),
 ('accounting.trial_balance', 'View Trial Balance', 'Accounting'),
 ('accounting.income_statement', 'View Income Statement', 'Accounting'),

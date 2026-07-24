@@ -30,6 +30,24 @@ class BankAccount extends Model
         );
     }
 
+    /**
+     * The accounting_bank_accounts row for a given GL (chart of accounts)
+     * account -- used to link a Cash Book screen (keyed by GL account) over
+     * to Bank Reconciliation (keyed by bank account). Null if that GL
+     * account has no formal bank account record (e.g. a petty cash account).
+     */
+    public function findByAccountId(int $glAccountId): ?array
+    {
+        return $this->one(
+            "SELECT ba.*, aa.account_code AS gl_account_code, aa.account_name AS gl_account_name
+             FROM accounting_bank_accounts ba
+             JOIN accounting_accounts aa ON aa.id = ba.account_id
+             WHERE ba.account_id = ? AND ba.is_active = 1
+             LIMIT 1",
+            [$glAccountId]
+        );
+    }
+
     public function accountNumberExists(string $accountNumber, ?int $excludeId = null): bool
     {
         if ($excludeId) {

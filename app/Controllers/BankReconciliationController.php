@@ -42,6 +42,23 @@ class BankReconciliationController extends Controller
         $bankAccountId = (int) ($_GET['bank_account_id'] ?? ($bankAccounts[0]['id'] ?? 0));
         $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
         $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
+        $showOnlyUnmatched = !empty($_GET['unmatched_only']);
+
+        $summary = $bankAccount ? $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $asOfDate) : null;
+        $lockedThrough = $bankAccount ? $this->reconciliation->lockedThrough($bankAccountId) : null;
+
+        $comparison = [];
+        if ($bankAccount) {
+            $comparison = $this->reconciliation->comparisonTable(
+                $bankAccountId,
+                (int) $bankAccount['account_id'],
+                $asOfDate,
+                $lockedThrough['statement_date'] ?? null
+            );
+            if ($showOnlyUnmatched) {
+                $comparison = array_values(array_filter($comparison, static fn ($r) => $r['status'] !== 'Matched'));
+            }
+        }
 
         $this->view('accounting/bank_reconciliation/index', [
             'title' => 'Bank Reconciliation',
@@ -49,12 +66,79 @@ class BankReconciliationController extends Controller
             'bankAccountId' => $bankAccountId,
             'bankAccount' => $bankAccount,
             'asOfDate' => $asOfDate,
-            'summary' => $bankAccount ? $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $asOfDate) : null,
-            'unreconciledStatementLines' => $bankAccount ? $this->statementLines->unreconciled($bankAccountId) : [],
+            'showOnlyUnmatched' => $showOnlyUnmatched,
+            'summary' => $summary,
+            'comparison' => $comparison,
+            'lockedThrough' => $lockedThrough,
+            'completionHistory' => $bankAccount ? $this->reconciliation->completionHistory($bankAccountId) : [],
             'unmatchedJournalLines' => $bankAccount ? $this->reconciliation->unmatchedJournalLines((int) $bankAccount['account_id']) : [],
-            'recentStatementLines' => $bankAccount ? $this->statementLines->forBankAccount($bankAccountId, 50) : [],
             'accounts' => $this->accounts->allAccounts(true),
+            'canOverride' => Auth::can('accounting.reconciliation_override'),
         ]);
+    }
+
+    public function complete(): void
+    {
+        Auth::authorize('accounting.bank_reconciliation');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/accounting/bank-reconciliation');
+            return;
+        }
+
+        $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
+        $asOfDate = $_POST['as_of_date'] ?? date('Y-m-d');
+        $bankAccount = $this->bankAccounts->find($bankAccountId);
+
+        if (!$bankAccount) {
+            Session::flash('error', 'Bank account not found.');
+            $this->redirect('/accounting/bank-reconciliation');
+            return;
+        }
+
+        $summary = $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $asOfDate);
+        if ($summary['difference'] === null || abs($summary['difference']) > 0.01) {
+            Session::flash('error', 'Reconciliation cannot be completed while there is a difference. Match or adjust every item first.');
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . '&as_of_date=' . $asOfDate);
+            return;
+        }
+
+        $this->reconciliation->complete($bankAccountId, $asOfDate, Auth::user()['id'] ?? null);
+
+        Audit::log('Complete', 'Accounting', "Completed bank reconciliation for {$bankAccount['bank_name']} - {$bankAccount['account_name']} as at {$asOfDate}");
+        Session::flash('success', 'Reconciliation completed. Transactions on or before ' . $asOfDate . ' are now locked.');
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . '&as_of_date=' . $asOfDate);
+    }
+
+    public function reopen(): void
+    {
+        Auth::authorize('accounting.reconciliation_override');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/accounting/bank-reconciliation');
+            return;
+        }
+
+        $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
+        $bankAccount = $this->bankAccounts->find($bankAccountId);
+        if (!$bankAccount) {
+            Session::flash('error', 'Bank account not found.');
+            $this->redirect('/accounting/bank-reconciliation');
+            return;
+        }
+
+        $reopened = $this->reconciliation->reopen($bankAccountId, Auth::user()['id'] ?? null);
+        if (!$reopened) {
+            Session::flash('error', 'This account has no completed reconciliation to reopen.');
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+            return;
+        }
+
+        Audit::log('Reopen', 'Accounting', "Reopened bank reconciliation for {$bankAccount['bank_name']} - {$bankAccount['account_name']} (admin override)");
+        Session::flash('success', 'Reconciliation reopened. Locked transactions can be reversed again.');
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
     }
 
     public function importForm(): void
@@ -208,6 +292,31 @@ class BankReconciliationController extends Controller
 
         Audit::log('Unmatch', 'Accounting', 'Unmatched bank statement line #' . $statementId);
         Session::flash('success', 'Match undone.');
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+    }
+
+    public function autoMatch(): void
+    {
+        Auth::authorize('accounting.bank_reconciliation');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/accounting/bank-reconciliation');
+            return;
+        }
+
+        $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
+        $bankAccount = $this->bankAccounts->find($bankAccountId);
+        if (!$bankAccount) {
+            Session::flash('error', 'Bank account not found.');
+            $this->redirect('/accounting/bank-reconciliation');
+            return;
+        }
+
+        $matched = $this->reconciliation->autoMatch($bankAccountId, (int) $bankAccount['account_id'], Auth::user()['id'] ?? null);
+
+        Audit::log('Match', 'Accounting', "Auto-matched $matched line(s) for {$bankAccount['bank_name']} - {$bankAccount['account_name']}");
+        Session::flash('success', "Auto-matched $matched line(s).");
         $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
     }
 

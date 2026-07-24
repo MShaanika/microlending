@@ -244,9 +244,12 @@ class JournalEntry extends Model
         $balance = round((float) ($openingRow['balance'] ?? 0), 2);
 
         $lines = $this->all(
-            "SELECT jl.debit, jl.credit, jl.description, je.id AS journal_id, je.journal_no, je.journal_date, je.reference_no, je.source_module
+            "SELECT jl.id AS journal_line_id, jl.debit, jl.credit, jl.description,
+                    je.id AS journal_id, je.journal_no, je.journal_date, je.reference_no, je.source_module, je.journal_type,
+                    br.id AS reconciliation_id
              FROM accounting_journal_lines jl
              JOIN accounting_journal_entries je ON je.id = jl.journal_id
+             LEFT JOIN accounting_bank_reconciliation br ON br.journal_line_id = jl.id
              WHERE jl.account_id = ? AND je.status = 'Posted' AND je.journal_date BETWEEN ? AND ?
              ORDER BY je.journal_date, je.id",
             [$accountId, $fromDate, $toDate]

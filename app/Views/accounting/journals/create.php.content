@@ -11,6 +11,10 @@
 
     <form method="post" action="<?= url('/accounting/journals') ?>" id="manual-journal-form">
       <?= csrf_field() ?>
+      <?php if (!empty($returnTo)): ?>
+        <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
+        <input type="hidden" name="preset_account_id" value="<?= (int) $presetAccountId ?>">
+      <?php endif; ?>
 
       <div class="row">
         <div class="col-md-3 mb-3">
@@ -105,5 +109,11 @@
   addBtn.addEventListener('click', addRow);
   addRow();
   addRow();
+
+  var presetAccountId = <?= (int) ($presetAccountId ?? 0) ?>;
+  if (presetAccountId) {
+    var firstSelect = tbody.querySelector('.account-select');
+    if (firstSelect) { firstSelect.value = String(presetAccountId); }
+  }
 })();
 </script>

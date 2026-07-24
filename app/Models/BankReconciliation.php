@@ -195,4 +195,179 @@ class BankReconciliation extends Model
             'difference' => $adjustedBankBalance === null ? null : round($adjustedBankBalance - $adjustedBookBalance, 2),
         ];
     }
+
+    /**
+     * One row per side-by-side comparison item, date order: Matched pairs
+     * (✅, or Review if the two sides' amounts don't quite agree -- a bank
+     * fee shaved off a deposit, say), statement-only lines with no journal
+     * match (Missing -- forgot to record it), and journal-only lines with
+     * no statement match yet (Unmatched -- an outstanding/uncashed item).
+     * Composed from the same underlying queries the rest of this model
+     * already uses, rather than one large UNION, so match/auto-match logic
+     * stays in one place.
+     */
+    public function comparisonTable(int $bankAccountId, int $glAccountId, string $asOfDate, ?string $sinceDate = null): array
+    {
+        $db = \App\Core\Database::connection();
+
+        $matchedStmt = $db->prepare(
+            "SELECT br.id AS reconciliation_id, br.bank_statement_id, br.journal_line_id,
+                    bs.transaction_date, bs.description AS statement_description, bs.money_in, bs.money_out,
+                    jl.debit, jl.credit, jl.description AS journal_description,
+                    je.journal_no, je.id AS journal_id
+             FROM accounting_bank_reconciliation br
+             JOIN accounting_bank_statement bs ON bs.id = br.bank_statement_id
+             JOIN accounting_journal_lines jl ON jl.id = br.journal_line_id
+             JOIN accounting_journal_entries je ON je.id = jl.journal_id
+             WHERE bs.bank_account_id = ?
+             ORDER BY bs.transaction_date"
+        );
+        $matchedStmt->execute([$bankAccountId]);
+
+        $rows = [];
+        foreach ($matchedStmt->fetchAll() as $m) {
+            $cashBookAmount = (float) $m['debit'] > 0 ? (float) $m['debit'] : -((float) $m['credit']);
+            $bankAmount = (float) $m['money_in'] > 0 ? (float) $m['money_in'] : -((float) $m['money_out']);
+            $rows[] = [
+                'status' => abs($cashBookAmount - $bankAmount) > 0.01 ? 'Review' : 'Matched',
+                'date' => $m['transaction_date'],
+                'description' => $m['journal_description'] ?: $m['statement_description'],
+                'cash_book_amount' => (float) $m['debit'] > 0 ? (float) $m['debit'] : ((float) $m['credit'] > 0 ? -(float) $m['credit'] : null),
+                'bank_amount' => (float) $m['money_in'] > 0 ? (float) $m['money_in'] : ((float) $m['money_out'] > 0 ? -(float) $m['money_out'] : null),
+                'journal_id' => (int) $m['journal_id'],
+                'journal_no' => $m['journal_no'],
+                'bank_statement_id' => (int) $m['bank_statement_id'],
+            ];
+        }
+
+        foreach ((new BankStatementLine())->unreconciled($bankAccountId) as $s) {
+            $rows[] = [
+                'status' => 'Missing',
+                'date' => $s['transaction_date'],
+                'description' => $s['description'] ?: $s['reference_no'],
+                'cash_book_amount' => null,
+                'bank_amount' => (float) $s['money_in'] > 0 ? (float) $s['money_in'] : -((float) $s['money_out']),
+                'journal_id' => null,
+                'journal_no' => null,
+                'bank_statement_id' => (int) $s['id'],
+            ];
+        }
+
+        foreach ($this->unmatchedJournalLines($glAccountId) as $jl) {
+            $rows[] = [
+                'status' => 'Unmatched',
+                'date' => $jl['journal_date'],
+                'description' => $jl['description'] ?: $jl['journal_description'],
+                'cash_book_amount' => (float) $jl['debit'] > 0 ? (float) $jl['debit'] : -((float) $jl['credit']),
+                'bank_amount' => null,
+                'journal_id' => (int) $jl['journal_id'],
+                'journal_no' => $jl['journal_no'],
+                'bank_statement_id' => null,
+            ];
+        }
+
+        $rows = array_values(array_filter($rows, static function ($r) use ($asOfDate, $sinceDate) {
+            if ($r['date'] > $asOfDate) {
+                return false;
+            }
+            if ($sinceDate !== null && $r['date'] <= $sinceDate) {
+                return false;
+            }
+            return true;
+        }));
+
+        usort($rows, static fn ($a, $b) => strcmp($a['date'], $b['date']));
+
+        return $rows;
+    }
+
+    /**
+     * "Complete Reconciliation": records the cutoff. Every posted journal
+     * line against $glAccountId dated on or before $statementDate is
+     * locked (see isLocked()) from that point on, unless this row is later
+     * reopened. Only call once the caller has confirmed difference = 0 --
+     * this method doesn't re-check it, so it can also be used to reopen/
+     * redo a period via reopen() + complete() again.
+     */
+    public function complete(int $bankAccountId, string $statementDate, int $userId): int
+    {
+        return $this->insert('bank_reconciliation_completions', [
+            'bank_account_id' => $bankAccountId,
+            'statement_date' => $statementDate,
+            'completed_by' => $userId,
+            'completed_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * Reopens the active (not already reopened) completion for a bank
+     * account, if any -- lifting the lock. Returns false if there was
+     * nothing active to reopen.
+     */
+    public function reopen(int $bankAccountId, int $userId): bool
+    {
+        $id = $this->scalar(
+            "SELECT id FROM bank_reconciliation_completions
+             WHERE bank_account_id = ? AND reopened_at IS NULL
+             ORDER BY statement_date DESC LIMIT 1",
+            [$bankAccountId]
+        );
+        if (!$id) {
+            return false;
+        }
+
+        return $this->update('bank_reconciliation_completions', [
+            'reopened_by' => $userId,
+            'reopened_at' => date('Y-m-d H:i:s'),
+        ], 'id', (int) $id);
+    }
+
+    /**
+     * The latest active (not reopened) completion cutoff for a bank
+     * account, or null if the account has never been completed / its last
+     * completion was reopened.
+     */
+    public function lockedThrough(int $bankAccountId): ?array
+    {
+        return $this->one(
+            "SELECT bc.*, u.name AS completed_by_name
+             FROM bank_reconciliation_completions bc
+             LEFT JOIN users u ON u.id = bc.completed_by
+             WHERE bc.bank_account_id = ? AND bc.reopened_at IS NULL
+             ORDER BY bc.statement_date DESC LIMIT 1",
+            [$bankAccountId]
+        );
+    }
+
+    public function completionHistory(int $bankAccountId): array
+    {
+        return $this->all(
+            "SELECT bc.*, u.name AS completed_by_name, ru.name AS reopened_by_name
+             FROM bank_reconciliation_completions bc
+             LEFT JOIN users u ON u.id = bc.completed_by
+             LEFT JOIN users ru ON ru.id = bc.reopened_by
+             WHERE bc.bank_account_id = ?
+             ORDER BY bc.id DESC",
+            [$bankAccountId]
+        );
+    }
+
+    /**
+     * Whether a journal dated $journalDate against $glAccountId falls
+     * within a completed (and not reopened) reconciliation for the bank
+     * account attached to that GL account -- i.e. reversing it would
+     * silently invalidate a reconciliation someone already signed off on.
+     */
+    public function isLockedForAccount(int $glAccountId, string $journalDate): bool
+    {
+        $cutoff = $this->scalar(
+            "SELECT MAX(bc.statement_date)
+             FROM bank_reconciliation_completions bc
+             JOIN accounting_bank_accounts ba ON ba.id = bc.bank_account_id
+             WHERE ba.account_id = ? AND bc.reopened_at IS NULL",
+            [$glAccountId]
+        );
+
+        return $cutoff !== null && $journalDate <= $cutoff;
+    }
 }

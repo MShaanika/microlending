@@ -95,6 +95,8 @@ class JournalEntryController extends Controller
             'accounts' => $this->accounts->allAccounts(true),
             'old' => [],
             'error' => null,
+            'presetAccountId' => (int) ($_GET['account_id'] ?? 0),
+            'returnTo' => trim((string) ($_GET['return_to'] ?? '')),
         ]);
     }
 
@@ -115,6 +117,8 @@ class JournalEntryController extends Controller
         $debits = $_POST['debit'] ?? [];
         $credits = $_POST['credit'] ?? [];
         $lineDescriptions = $_POST['line_description'] ?? [];
+        $returnTo = trim((string) ($_POST['return_to'] ?? ''));
+        $presetAccountId = (int) ($_POST['preset_account_id'] ?? 0);
 
         $error = null;
 
@@ -165,6 +169,8 @@ class JournalEntryController extends Controller
                 'accounts' => $this->accounts->allAccounts(true),
                 'old' => $_POST,
                 'error' => $error,
+                'presetAccountId' => $presetAccountId,
+                'returnTo' => $returnTo,
             ]);
             return;
         }
@@ -187,12 +193,19 @@ class JournalEntryController extends Controller
                 'accounts' => $this->accounts->allAccounts(true),
                 'old' => $_POST,
                 'error' => $e->getMessage(),
+                'presetAccountId' => $presetAccountId,
+                'returnTo' => $returnTo,
             ]);
             return;
         }
 
         Audit::log('Create', 'Accounting', 'Posted manual journal #' . $journalId . ': ' . $description);
         Session::flash('success', 'Manual journal posted.');
+
+        if ($returnTo === 'cash-book' && $presetAccountId) {
+            $this->redirect('/accounting/cash-book?account_id=' . $presetAccountId);
+            return;
+        }
         $this->redirect('/accounting/journals/' . $journalId);
     }
 
@@ -207,7 +220,7 @@ class JournalEntryController extends Controller
         }
 
         try {
-            $reversalId = $this->journal->reverse($id, Auth::user()['id'] ?? null);
+            $reversalId = $this->journal->reverse($id, Auth::user()['id'] ?? null, Auth::can('accounting.reconciliation_override'));
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
             $this->redirect('/accounting/journals/' . $id);

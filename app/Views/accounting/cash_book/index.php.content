@@ -1,62 +1,120 @@
 <?= flash_messages() ?>
 
+<?php
+  $selectedAccount = null;
+  foreach ($cashBankAccounts as $a) {
+      if ((int) $a['id'] === $accountId) { $selectedAccount = $a; break; }
+  }
+  $totalDebit = round(array_sum(array_column($cashBook['lines'], 'debit')), 2);
+  $totalCredit = round(array_sum(array_column($cashBook['lines'], 'credit')), 2);
+?>
+
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-3">Cash Book</h4>
+    <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Cash Book<?= $selectedAccount ? ' - ' . e($selectedAccount['account_name']) . ' (' . e($selectedAccount['account_code']) . ')' : '' ?></h4>
+      <div class="d-flex gap-2 no-print">
+        <?php if ($accountId): ?>
+          <a href="<?= url('/accounting/journals/create?account_id=' . $accountId . '&return_to=cash-book') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> Add Transaction</a>
+          <a href="<?= url('/accounting/cash-book/export.csv?' . http_build_query(['account_id' => $accountId, 'from_date' => $fromDate, 'to_date' => $toDate])) ?>" class="btn btn-outline-success btn-sm"><i class="mdi mdi-file-delimited"></i> Export CSV</a>
+        <?php endif; ?>
+        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+      </div>
+    </div>
+    <p class="text-muted small mb-3">This is your record: exactly when money came in (Debit) and went out (Credit), with the running balance after every transaction.</p>
 
     <?php if (empty($cashBankAccounts)): ?>
       <div class="alert alert-warning">No GL accounts are flagged as cash/bank accounts yet. <a href="<?= url('/accounting/accounts') ?>">Set one up</a> first.</div>
     <?php else: ?>
-      <form method="get" action="<?= url('/accounting/cash-book') ?>" class="row g-2 mb-3">
-        <div class="col-md-4">
+      <form method="get" action="<?= url('/accounting/cash-book') ?>" class="row g-2 mb-3 no-print">
+        <div class="col-md-3">
           <select name="account_id" class="form-select">
             <?php foreach ($cashBankAccounts as $a): ?>
               <option value="<?= $a['id'] ?>" <?= $accountId == $a['id'] ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <input type="date" name="from_date" class="form-control" value="<?= e($fromDate) ?>">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <input type="date" name="to_date" class="form-control" value="<?= e($toDate) ?>">
+        </div>
+        <div class="col-md-3">
+          <input type="text" name="q" class="form-control" placeholder="Search description, reference..." value="<?= e($search) ?>">
         </div>
         <div class="col-md-2">
           <button type="submit" class="btn btn-outline-secondary w-100">Run</button>
         </div>
       </form>
 
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <p class="mb-0"><strong>Opening Balance:</strong> <?= format_money($cashBook['opening_balance']) ?></p>
-        </div>
-        <div class="col-md-6 text-md-end">
-          <p class="mb-0"><strong>Closing Balance:</strong> <?= format_money($cashBook['closing_balance']) ?></p>
-        </div>
-      </div>
+      <?php if ($lockedThrough): ?>
+        <div class="alert alert-info small no-print"><i class="mdi mdi-lock"></i> Transactions on or before <strong><?= e(date('d/m/Y', strtotime($lockedThrough['statement_date']))) ?></strong> are locked by a completed bank reconciliation and can't be reversed from here without an admin override.</div>
+      <?php endif; ?>
 
       <div class="table-responsive">
         <table class="table table-sm table-hover">
-          <thead><tr><th>Date</th><th>Journal No</th><th>Reference</th><th>Description</th><th>Source</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th></tr></thead>
+          <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="text-end">Debit (In)</th><th class="text-end">Credit (Out)</th><th class="text-end">Balance</th><th class="no-print"></th></tr></thead>
           <tbody>
+            <tr class="table-light">
+              <td colspan="5"><em>Opening Balance</em></td>
+              <td class="text-end fw-bold"><?= format_money($cashBook['opening_balance']) ?></td>
+              <td class="no-print"></td>
+            </tr>
             <?php if (empty($cashBook['lines'])): ?>
-              <tr><td colspan="8" class="text-center text-muted py-4">No transactions in this period.</td></tr>
+              <tr><td colspan="7" class="text-center text-muted py-4">No transactions in this period.</td></tr>
             <?php endif; ?>
             <?php foreach ($cashBook['lines'] as $line): ?>
+              <?php
+                $isLocked = $lockedThrough && $line['journal_date'] <= $lockedThrough['statement_date'];
+                $isReversible = in_array($line['journal_type'], ['Manual', 'Adjustment'], true);
+              ?>
               <tr>
-                <td><?= e($line['journal_date']) ?></td>
-                <td><a href="<?= url('/accounting/journals') ?>"><?= e($line['journal_no']) ?></a></td>
+                <td><?= e(date('d/m/Y', strtotime($line['journal_date']))) ?></td>
                 <td><?= e($line['reference_no'] ?: '&mdash;') ?></td>
-                <td><?= e($line['description']) ?></td>
-                <td><span class="badge bg-light text-dark border"><?= e($line['source_module'] ?: '&mdash;') ?></span></td>
+                <td>
+                  <?= e($line['description']) ?>
+                  <?php if ($line['reconciliation_id']): ?><i class="mdi mdi-check-decagram text-success" title="Matched in bank reconciliation"></i><?php endif; ?>
+                  <?php if ($isLocked): ?><i class="mdi mdi-lock text-muted" title="Locked by a completed reconciliation"></i><?php endif; ?>
+                </td>
                 <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>
                 <td class="text-end"><?= $line['credit'] > 0 ? format_money($line['credit']) : '' ?></td>
                 <td class="text-end"><?= format_money($line['running_balance']) ?></td>
+                <td class="no-print">
+                  <?php if ($isReversible && !$isLocked): ?>
+                    <form method="post" action="<?= url('/accounting/journals/' . $line['journal_id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this transaction? A new offsetting entry will be posted.');">
+                      <?= csrf_field() ?>
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Reverse"><i class="mdi mdi-undo"></i></button>
+                    </form>
+                  <?php endif; ?>
+                </td>
               </tr>
             <?php endforeach; ?>
           </tbody>
+          <?php if (!empty($cashBook['lines'])): ?>
+          <tfoot>
+            <tr class="fw-bold">
+              <td colspan="3" class="text-end">Totals</td>
+              <td class="text-end"><?= format_money($totalDebit) ?></td>
+              <td class="text-end"><?= format_money($totalCredit) ?></td>
+              <td></td>
+              <td class="no-print"></td>
+            </tr>
+            <tr class="fw-bold table-light">
+              <td colspan="5">Closing Balance</td>
+              <td class="text-end"><?= format_money($cashBook['closing_balance']) ?></td>
+              <td class="no-print"></td>
+            </tr>
+          </tfoot>
+          <?php endif; ?>
         </table>
       </div>
+
+      <?php if ($bankAccount): ?>
+        <a href="<?= url('/accounting/bank-reconciliation?bank_account_id=' . (int) $bankAccount['id'] . '&as_of_date=' . $toDate) ?>" class="btn btn-primary no-print"><i class="mdi mdi-swap-horizontal"></i> Reconcile This Account</a>
+      <?php else: ?>
+        <p class="text-muted small no-print mb-0">This GL account has no linked bank account record, so it can't be reconciled against a statement.</p>
+      <?php endif; ?>
     <?php endif; ?>
   </div>
 </div>

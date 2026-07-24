@@ -270,7 +270,7 @@ class AdjustmentJournalController extends Controller
         }
 
         try {
-            $reversalId = $this->journal->reverse($id, Auth::user()['id'] ?? null);
+            $reversalId = $this->journal->reverse($id, Auth::user()['id'] ?? null, Auth::can('accounting.reconciliation_override'));
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
             $this->redirect('/accounting/adjustment-journals/' . $id);

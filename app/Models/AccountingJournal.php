@@ -229,8 +229,14 @@ class AccountingJournal extends Model
      * flipped on every line, marks the original as Reversed. Used for
      * manual journals (automatic postings are corrected by reversing the
      * originating business action instead, not the journal directly).
+     *
+     * Blocked if any line's account falls within a completed (and not
+     * reopened) bank reconciliation as of this journal's date -- reversing
+     * it would silently invalidate a reconciliation someone already signed
+     * off on. Pass $bypassLock=true for a user holding
+     * accounting.reconciliation_override.
      */
-    public function reverse(int $journalId, int $userId): int
+    public function reverse(int $journalId, int $userId, bool $bypassLock = false): int
     {
         $journal = $this->one("SELECT * FROM accounting_journal_entries WHERE id = ?", [$journalId]);
         if (!$journal) {
@@ -243,6 +249,15 @@ class AccountingJournal extends Model
         $lines = $this->all("SELECT * FROM accounting_journal_lines WHERE journal_id = ?", [$journalId]);
         if (empty($lines)) {
             throw new \RuntimeException('No lines found to reverse.');
+        }
+
+        if (!$bypassLock) {
+            $reconciliation = new BankReconciliation();
+            foreach ($lines as $l) {
+                if ($reconciliation->isLockedForAccount((int) $l['account_id'], $journal['journal_date'])) {
+                    throw new \RuntimeException('This transaction falls within a completed bank reconciliation and cannot be reversed. Reopen that reconciliation first, or ask an admin to override.');
+                }
+            }
         }
 
         $reversalLines = array_map(static fn ($l) => [

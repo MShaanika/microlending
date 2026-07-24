@@ -3,8 +3,17 @@
 <div class="card mb-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <h4 class="card-title mb-0">Bank Reconciliation</h4>
-      <a href="<?= url('/accounting/bank-reconciliation/import?bank_account_id=' . (int) $bankAccountId) ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Statement (CSV)</a>
+      <h4 class="card-title mb-0">Bank Reconciliation<?= $bankAccount ? ' - ' . e($bankAccount['bank_name']) . ' - ' . e($bankAccount['account_name']) . ' (' . e($bankAccount['gl_account_code']) . ')' : '' ?></h4>
+      <div class="d-flex gap-2">
+        <a href="<?= url('/accounting/bank-reconciliation/import?bank_account_id=' . (int) $bankAccountId) ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Load Statement</a>
+        <?php if ($bankAccount): ?>
+          <form method="post" action="<?= url('/accounting/bank-reconciliation/auto-match') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+            <button type="submit" class="btn btn-outline-info btn-sm"><i class="mdi mdi-auto-fix"></i> Auto-Match</button>
+          </form>
+        <?php endif; ?>
+      </div>
     </div>
 
     <form method="get" class="row g-3 mt-2">
@@ -19,9 +28,10 @@
         </select>
       </div>
       <div class="col-md-3">
-        <label class="form-label">As of Date</label>
+        <label class="form-label">Statement Date</label>
         <input type="date" name="as_of_date" class="form-control" value="<?= e($asOfDate) ?>" onchange="this.form.submit()">
       </div>
+      <input type="hidden" name="unmatched_only" value="<?= $showOnlyUnmatched ? '1' : '' ?>">
     </form>
   </div>
 </div>
@@ -30,124 +40,231 @@
   <div class="alert alert-info">No active bank accounts set up yet. <a href="<?= url('/accounting/bank-accounts/create') ?>">Add one</a> first.</div>
 <?php elseif ($summary): ?>
 
+<?php if ($lockedThrough): ?>
+  <div class="card mb-3 border-info">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <i class="mdi mdi-lock text-info"></i> Reconciliation completed through <strong><?= e(date('d/m/Y', strtotime($lockedThrough['statement_date']))) ?></strong>
+        by <?= e($lockedThrough['completed_by_name'] ?? 'a user') ?> on <?= e(date('d/m/Y', strtotime($lockedThrough['completed_at']))) ?>.
+        Transactions on or before that date can't be reversed.
+      </div>
+      <?php if ($canOverride): ?>
+        <form method="post" action="<?= url('/accounting/bank-reconciliation/reopen') ?>" onsubmit="return confirm('Reopen this reconciliation? Locked transactions will become reversible again.');">
+          <?= csrf_field() ?>
+          <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+          <button type="submit" class="btn btn-outline-warning btn-sm">Reopen (Admin Override)</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+<?php endif; ?>
+
+<?php
+  $isReconciled = $summary['difference'] !== null && abs($summary['difference']) < 0.01;
+?>
+
 <div class="card mb-3">
   <div class="card-body">
-    <h5 class="card-title">Reconciliation Summary</h5>
+    <h5 class="card-title"><i class="mdi mdi-information-outline text-info"></i> Reconciliation Summary</h5>
+    <div class="row text-center">
+      <div class="col-md-4 border-end">
+        <p class="text-muted small mb-1">Cash Book Balance (My Notebook)</p>
+        <h5><?= format_money($summary['gl_balance']) ?></h5>
+      </div>
+      <div class="col-md-4 border-end">
+        <p class="text-muted small mb-1">Bank Statement Balance (Bank)</p>
+        <h5><?= $summary['statement_balance'] === null ? '<span class="text-muted fs-6">no statement imported</span>' : format_money($summary['statement_balance']) ?></h5>
+      </div>
+      <div class="col-md-4">
+        <p class="text-muted small mb-1">Difference</p>
+        <h5 class="<?= $isReconciled ? 'text-success' : 'text-danger' ?>"><?= $summary['difference'] === null ? '&mdash;' : format_money($summary['difference']) ?></h5>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+      <h5 class="card-title mb-0">Transactions</h5>
+      <form method="get" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+        <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="unmatchedOnly" name="unmatched_only" value="1" <?= $showOnlyUnmatched ? 'checked' : '' ?> onchange="this.form.submit()">
+          <label class="form-check-label" for="unmatchedOnly">Show only unmatched</label>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle no-datatable">
+        <thead>
+          <tr><th></th><th>Date</th><th>Description</th><th class="text-end">Cash Book</th><th class="text-end">Bank Stmt</th><th>Match?</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($comparison)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">Nothing to show for this period.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($comparison as $row): ?>
+            <?php
+              $icon = match ($row['status']) {
+                'Matched' => '<span title="Matched">&#9989;</span>',
+                'Review' => '<span title="Amounts differ slightly - review">&#9888;&#65039;</span>',
+                'Unmatched' => '<span title="In your books, not yet on the statement">&#128308;</span>',
+                'Missing' => '<span title="On the statement, not yet recorded">&#9888;&#65039;</span>',
+                default => '',
+              };
+              $label = match ($row['status']) {
+                'Matched' => 'Matched',
+                'Review' => 'Review',
+                'Unmatched' => 'Unmatched (Outstanding)',
+                'Missing' => 'Missing (Not recorded)',
+                default => $row['status'],
+              };
+            ?>
+            <tr>
+              <td><?= $icon ?></td>
+              <td><?= e(date('d/m/Y', strtotime($row['date']))) ?></td>
+              <td><?= e($row['description']) ?></td>
+              <td class="text-end"><?= $row['cash_book_amount'] === null ? '' : format_money($row['cash_book_amount']) ?></td>
+              <td class="text-end"><?= $row['bank_amount'] === null ? '' : format_money($row['bank_amount']) ?></td>
+              <td><?= e($label) ?></td>
+              <td class="text-end">
+                <?php if ($row['status'] === 'Matched' || $row['status'] === 'Review'): ?>
+                  <form method="post" action="<?= url('/accounting/bank-reconciliation/unmatch') ?>" onsubmit="return confirm('Undo this match?');">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+                    <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Unmatch</button>
+                  </form>
+                <?php elseif ($row['status'] === 'Missing'): ?>
+                  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#resolve-<?= (int) $row['bank_statement_id'] ?>">Resolve</button>
+                <?php elseif ($row['status'] === 'Unmatched'): ?>
+                  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#matchjl-<?= (int) $row['journal_id'] ?>-<?= (int) $row['bank_statement_id'] ?>">Match</button>
+                <?php endif; ?>
+              </td>
+            </tr>
+            <?php if ($row['status'] === 'Missing'): ?>
+              <tr class="collapse" id="resolve-<?= (int) $row['bank_statement_id'] ?>">
+                <td colspan="7" class="bg-light">
+                  <form method="post" action="<?= url('/accounting/bank-reconciliation/match') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+                    <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
+                    <div class="flex-grow-1">
+                      <label class="form-label small mb-0">Already in the books under a different entry &mdash; match to</label>
+                      <select name="journal_line_id" class="form-select form-select-sm" required>
+                        <option value="">-- select --</option>
+                        <?php foreach ($unmatchedJournalLines as $jl): ?>
+                          <option value="<?= (int) $jl['journal_line_id'] ?>">
+                            <?= e($jl['journal_date'] . ' - ' . $jl['journal_no'] . ' - ' . ($jl['description'] ?: $jl['journal_description']) . ' (' . format_money($jl['debit'] > 0 ? $jl['debit'] : $jl['credit']) . ')') ?>
+                          </option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-info">Match</button>
+                  </form>
+                  <form method="post" action="<?= url('/accounting/bank-reconciliation/create-adjustment') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2 border-top">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+                    <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
+                    <div class="flex-grow-1">
+                      <label class="form-label small mb-0">...or I really did forget to record it &mdash; post a new entry against</label>
+                      <select name="contra_account_id" class="form-select form-select-sm" required>
+                        <option value="">-- select account --</option>
+                        <?php foreach ($accounts as $a): ?>
+                          <option value="<?= (int) $a['id'] ?>"><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Post a new journal entry for this transaction?');">Post &amp; Match</button>
+                  </form>
+                </td>
+              </tr>
+            <?php elseif ($row['status'] === 'Unmatched'): ?>
+              <tr class="collapse" id="matchjl-<?= (int) $row['journal_id'] ?>-<?= (int) $row['bank_statement_id'] ?>">
+                <td colspan="7" class="bg-light">
+                  <p class="text-muted small mb-0 py-2">This is in your books but hasn't shown up on a statement yet (e.g. an outstanding cheque). It will match itself once you load a statement that includes it, or use Auto-Match.</p>
+                </td>
+              </tr>
+            <?php endif; ?>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+      <p class="text-muted small"><?= count($comparison) ?> entr<?= count($comparison) === 1 ? 'y' : 'ies' ?><?= $lockedThrough ? ' since the last completed reconciliation' : '' ?>.</p>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title"><i class="mdi mdi-information-outline text-info"></i> Reconciliation Adjustments (Timing Differences)</h5>
     <div class="table-responsive">
       <table class="table table-sm align-middle no-datatable" style="max-width:640px">
         <tbody>
-          <tr><td>GL Balance (books, as at <?= e($asOfDate) ?>)</td><td class="text-end"><?= e(format_money($summary['gl_balance'])) ?></td></tr>
-          <tr><td class="text-muted small ps-3">+ Deposits on statement not yet in books</td><td class="text-end text-muted small"><?= e(format_money($summary['unrecorded_deposits'])) ?></td></tr>
-          <tr><td class="text-muted small ps-3">&minus; Payments on statement not yet in books</td><td class="text-end text-muted small">(<?= e(format_money($summary['unrecorded_payments'])) ?>)</td></tr>
-          <tr class="fw-bold border-top"><td>Adjusted Book Balance</td><td class="text-end"><?= e(format_money($summary['adjusted_book_balance'])) ?></td></tr>
-          <tr><td class="pt-3">Bank Statement Balance</td><td class="text-end pt-3"><?= $summary['statement_balance'] === null ? '<span class="text-muted">no statement imported</span>' : e(format_money($summary['statement_balance'])) ?></td></tr>
-          <tr><td class="text-muted small ps-3">+ Deposits in books not yet cleared</td><td class="text-end text-muted small"><?= e(format_money($summary['outstanding_deposits'])) ?></td></tr>
-          <tr><td class="text-muted small ps-3">&minus; Payments in books not yet cleared</td><td class="text-end text-muted small">(<?= e(format_money($summary['outstanding_payments'])) ?>)</td></tr>
-          <tr class="fw-bold border-top"><td>Adjusted Bank Balance</td><td class="text-end"><?= $summary['adjusted_bank_balance'] === null ? '&mdash;' : e(format_money($summary['adjusted_bank_balance'])) ?></td></tr>
-          <tr class="fw-bold <?= $summary['difference'] !== null && abs($summary['difference']) > 0.01 ? 'text-danger' : 'text-success' ?>">
-            <td>Difference (should be zero)</td>
-            <td class="text-end"><?= $summary['difference'] === null ? '&mdash;' : e(format_money($summary['difference'])) ?></td>
+          <tr>
+            <td>Outstanding Deposits (In Transit)</td>
+            <td class="text-end"><?= format_money($summary['unrecorded_deposits']) ?></td>
+            <td class="text-muted small">Add to Bank Balance: <?= format_money($summary['unrecorded_deposits']) ?></td>
+          </tr>
+          <tr>
+            <td>Outstanding Checks (Not Cashed)</td>
+            <td class="text-end"><?= format_money($summary['outstanding_payments']) ?></td>
+            <td class="text-muted small">Less from Bank Balance: <?= format_money($summary['outstanding_payments']) ?></td>
+          </tr>
+          <tr class="fw-bold border-top">
+            <td colspan="2">Adjusted Bank Balance</td>
+            <td><?= $summary['adjusted_bank_balance'] === null ? '&mdash;' : format_money($summary['adjusted_bank_balance']) ?></td>
+          </tr>
+          <tr class="fw-bold">
+            <td colspan="2">Cash Book Balance</td>
+            <td><?= format_money($summary['gl_balance']) ?></td>
+          </tr>
+          <tr>
+            <td colspan="3">
+              <?php if ($isReconciled): ?>
+                <span class="badge bg-success"><i class="mdi mdi-check-circle"></i> RECONCILED!</span>
+              <?php else: ?>
+                <span class="badge bg-warning text-dark">Not yet reconciled</span>
+              <?php endif; ?>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <form method="post" action="<?= url('/accounting/bank-reconciliation/complete') ?>" onsubmit="return confirm('Complete this reconciliation? Transactions on or before <?= e($asOfDate) ?> will be locked and can only be reversed by an admin override.');">
+      <?= csrf_field() ?>
+      <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+      <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+      <button type="submit" class="btn btn-primary" <?= $isReconciled ? '' : 'disabled' ?>><i class="mdi mdi-lock-check"></i> Complete Reconciliation</button>
+      <?php if (!$isReconciled): ?><span class="text-muted small ms-2">Only works once Difference = $0.00.</span><?php endif; ?>
+    </form>
   </div>
 </div>
 
-<div class="row">
-  <div class="col-lg-6 mb-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <h5 class="card-title">Unreconciled Bank Statement Lines</h5>
-        <p class="text-muted small">On the bank statement, not yet matched to a journal entry.</p>
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle no-datatable">
-            <thead><tr><th>Date</th><th>Description</th><th class="text-end">In</th><th class="text-end">Out</th><th></th></tr></thead>
-            <tbody>
-              <?php if (empty($unreconciledStatementLines)): ?>
-                <tr><td colspan="5" class="text-center text-muted py-3">All caught up.</td></tr>
-              <?php endif; ?>
-              <?php foreach ($unreconciledStatementLines as $line): ?>
-                <tr>
-                  <td><?= e($line['transaction_date']) ?></td>
-                  <td><?= e($line['description'] ?: $line['reference_no']) ?></td>
-                  <td class="text-end"><?= $line['money_in'] > 0 ? e(format_money($line['money_in'])) : '' ?></td>
-                  <td class="text-end"><?= $line['money_out'] > 0 ? e(format_money($line['money_out'])) : '' ?></td>
-                  <td>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#match-<?= (int) $line['id'] ?>">Match</button>
-                  </td>
-                </tr>
-                <tr class="collapse" id="match-<?= (int) $line['id'] ?>">
-                  <td colspan="5" class="bg-light">
-                    <form method="post" action="<?= url('/accounting/bank-reconciliation/match') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2">
-                      <?= csrf_field() ?>
-                      <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
-                      <input type="hidden" name="statement_id" value="<?= (int) $line['id'] ?>">
-                      <div class="flex-grow-1">
-                        <label class="form-label small mb-0">Match to journal line</label>
-                        <select name="journal_line_id" class="form-select form-select-sm" required>
-                          <option value="">-- select --</option>
-                          <?php foreach ($unmatchedJournalLines as $jl): ?>
-                            <option value="<?= (int) $jl['journal_line_id'] ?>">
-                              <?= e($jl['journal_date'] . ' - ' . $jl['journal_no'] . ' - ' . ($jl['description'] ?: $jl['journal_description']) . ' (' . format_money($jl['debit'] > 0 ? $jl['debit'] : $jl['credit']) . ')') ?>
-                            </option>
-                          <?php endforeach; ?>
-                        </select>
-                      </div>
-                      <button type="submit" class="btn btn-sm btn-info">Match</button>
-                    </form>
-                    <form method="post" action="<?= url('/accounting/bank-reconciliation/create-adjustment') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2 border-top">
-                      <?= csrf_field() ?>
-                      <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
-                      <input type="hidden" name="statement_id" value="<?= (int) $line['id'] ?>">
-                      <div class="flex-grow-1">
-                        <label class="form-label small mb-0">...or no matching entry exists &mdash; post a new one against</label>
-                        <select name="contra_account_id" class="form-select form-select-sm" required>
-                          <option value="">-- select account --</option>
-                          <?php foreach ($accounts ?? [] as $a): ?>
-                            <option value="<?= (int) $a['id'] ?>"><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
-                          <?php endforeach; ?>
-                        </select>
-                      </div>
-                      <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Post a new journal entry for this transaction?');">Post &amp; Match</button>
-                    </form>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
+<?php if (!empty($completionHistory)): ?>
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title">Completion History</h5>
+      <div class="table-responsive">
+        <table class="table table-sm no-datatable">
+          <thead class="table-light"><tr><th>Statement Date</th><th>Completed By</th><th>Completed At</th><th>Status</th></tr></thead>
+          <tbody>
+            <?php foreach ($completionHistory as $h): ?>
+              <tr>
+                <td><?= e(date('d/m/Y', strtotime($h['statement_date']))) ?></td>
+                <td><?= e($h['completed_by_name'] ?? '&mdash;') ?></td>
+                <td><?= e(date('d/m/Y H:i', strtotime($h['completed_at']))) ?></td>
+                <td><?= $h['reopened_at'] ? '<span class="badge bg-secondary">Reopened by ' . e($h['reopened_by_name'] ?? '?') . '</span>' : '<span class="badge bg-success">Active</span>' ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
-
-  <div class="col-lg-6 mb-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <h5 class="card-title">Unmatched Journal Lines</h5>
-        <p class="text-muted small">In the books, not yet seen on a bank statement.</p>
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle no-datatable">
-            <thead><tr><th>Date</th><th>Journal</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
-            <tbody>
-              <?php if (empty($unmatchedJournalLines)): ?>
-                <tr><td colspan="5" class="text-center text-muted py-3">All caught up.</td></tr>
-              <?php endif; ?>
-              <?php foreach ($unmatchedJournalLines as $jl): ?>
-                <tr>
-                  <td><?= e($jl['journal_date']) ?></td>
-                  <td><a href="<?= url('/accounting/journals/' . $jl['journal_id']) ?>"><?= e($jl['journal_no']) ?></a></td>
-                  <td><?= e($jl['description'] ?: $jl['journal_description']) ?></td>
-                  <td class="text-end"><?= $jl['debit'] > 0 ? e(format_money($jl['debit'])) : '' ?></td>
-                  <td class="text-end"><?= $jl['credit'] > 0 ? e(format_money($jl['credit'])) : '' ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<?php endif; ?>
 
 <?php endif; ?>

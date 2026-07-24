@@ -318,6 +318,7 @@ $router->post('/accounting/periods/{id}/reopen', [FiscalYearController::class, '
 $router->get('/accounting/trial-balance', [TrialBalanceController::class, 'index']);
 $router->get('/accounting/trial-balance/export.xlsx', [TrialBalanceController::class, 'exportExcel']);
 $router->get('/accounting/cash-book', [CashBookController::class, 'index']);
+$router->get('/accounting/cash-book/export.csv', [CashBookController::class, 'exportCsv']);
 $router->get('/accounting/afs-export', [AfsReportController::class, 'index']);
 $router->get('/accounting/afs-export/download', [AfsReportController::class, 'export']);
 
@@ -348,6 +349,9 @@ $router->post('/accounting/bank-reconciliation/import', [BankReconciliationContr
 $router->post('/accounting/bank-reconciliation/match', [BankReconciliationController::class, 'match']);
 $router->post('/accounting/bank-reconciliation/unmatch', [BankReconciliationController::class, 'unmatch']);
 $router->post('/accounting/bank-reconciliation/create-adjustment', [BankReconciliationController::class, 'createAdjustment']);
+$router->post('/accounting/bank-reconciliation/auto-match', [BankReconciliationController::class, 'autoMatch']);
+$router->post('/accounting/bank-reconciliation/complete', [BankReconciliationController::class, 'complete']);
+$router->post('/accounting/bank-reconciliation/reopen', [BankReconciliationController::class, 'reopen']);
 
 // Settings
 $router->get('/settings/users', [UserController::class, 'index']);
