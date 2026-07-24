@@ -79,6 +79,24 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     .sidebar-nav ul .sidebar-item.selected > .sidebar-link i {
       color: #fff !important;
     }
+
+    /* Printing a report page (Trial Balance, General Journal/Ledger, etc.)
+       should only print the report itself -- not the sidebar, topbar,
+       breadcrumb or footer chrome around it. Pages also use a .no-print
+       class on their own toolbar buttons/forms, which only takes effect
+       because of this rule. */
+    @media print {
+      .left-sidebar, .topbar, .page-titles, .footer, .no-print {
+        display: none !important;
+      }
+      .page-wrapper {
+        margin-left: 0 !important;
+        background: #fff !important;
+      }
+      body, .container-fluid {
+        padding: 0 !important;
+      }
+    }
   </style>
 </head>
 
