@@ -14,6 +14,7 @@ use App\Controllers\RefundClaimController;
 use App\Controllers\AccountingAccountController;
 use App\Controllers\BankAccountController;
 use App\Controllers\JournalEntryController;
+use App\Controllers\GeneralLedgerController;
 use App\Controllers\FiscalYearController;
 use App\Controllers\TrialBalanceController;
 use App\Controllers\CashBookController;
@@ -272,10 +273,14 @@ $router->get('/accounting/bank-accounts/{id}/edit', [BankAccountController::clas
 $router->post('/accounting/bank-accounts/{id}', [BankAccountController::class, 'update']);
 
 $router->get('/accounting/journals', [JournalEntryController::class, 'index']);
+$router->get('/accounting/journals/export.xlsx', [JournalEntryController::class, 'exportExcel']);
 $router->get('/accounting/journals/create', [JournalEntryController::class, 'create']);
 $router->post('/accounting/journals', [JournalEntryController::class, 'store']);
 $router->get('/accounting/journals/{id}', [JournalEntryController::class, 'show']);
 $router->post('/accounting/journals/{id}/reverse', [JournalEntryController::class, 'reverse']);
+
+$router->get('/accounting/general-ledger', [GeneralLedgerController::class, 'index']);
+$router->get('/accounting/general-ledger/export.xlsx', [GeneralLedgerController::class, 'exportExcel']);
 
 $router->get('/accounting/fiscal-years', [FiscalYearController::class, 'index']);
 $router->get('/accounting/fiscal-years/create', [FiscalYearController::class, 'create']);
@@ -287,6 +292,7 @@ $router->post('/accounting/periods/{id}/close', [FiscalYearController::class, 'c
 $router->post('/accounting/periods/{id}/reopen', [FiscalYearController::class, 'reopenPeriod']);
 
 $router->get('/accounting/trial-balance', [TrialBalanceController::class, 'index']);
+$router->get('/accounting/trial-balance/export.xlsx', [TrialBalanceController::class, 'exportExcel']);
 $router->get('/accounting/cash-book', [CashBookController::class, 'index']);
 $router->get('/accounting/afs-export', [AfsReportController::class, 'index']);
 $router->get('/accounting/afs-export/download', [AfsReportController::class, 'export']);

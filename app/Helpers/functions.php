@@ -43,6 +43,17 @@ function format_money(mixed $amount): string
     return number_format((float) $amount, 2);
 }
 
+/**
+ * Same as format_money() but renders negatives in parentheses, e.g.
+ * (332.10) instead of -332.10 -- the convention accounting reports (GL
+ * running balance) use for an overdrawn/credit balance.
+ */
+function format_balance(mixed $amount): string
+{
+    $amount = (float) $amount;
+    return $amount < 0 ? '(' . number_format(abs($amount), 2) . ')' : number_format($amount, 2);
+}
+
 function flash_messages(): string
 {
     $html = '';

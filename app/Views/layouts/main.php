@@ -254,7 +254,8 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             'Accounting' => ['icon' => 'mdi-calculator', 'items' => [
               ['label' => 'Chart of Accounts', 'url' => url('/accounting/accounts'), 'perm' => 'accounting.chart'],
               ['label' => 'Bank Accounts', 'url' => url('/accounting/bank-accounts'), 'perm' => 'accounting.bank_accounts'],
-              ['label' => 'General Ledger', 'url' => url('/accounting/journals'), 'perm' => 'accounting.journals'],
+              ['label' => 'General Journal', 'url' => url('/accounting/journals'), 'perm' => 'accounting.journals'],
+              ['label' => 'General Ledger', 'url' => url('/accounting/general-ledger'), 'perm' => 'accounting.journals'],
               ['label' => 'New Manual Journal', 'url' => url('/accounting/journals/create'), 'perm' => 'accounting.journals'],
               ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years'), 'perm' => 'accounting.settings'],
               ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance'), 'perm' => 'accounting.trial_balance'],

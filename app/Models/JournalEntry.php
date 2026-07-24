@@ -47,6 +47,37 @@ class JournalEntry extends Model
         );
     }
 
+    /**
+     * One row per journal line (not per transaction) in date order, for a
+     * true General Journal report -- distinct from paginated(), which
+     * collapses each transaction to a single row with a summed Amount.
+     */
+    public function journalLines(string $fromDate, string $toDate, string $status = '', string $search = ''): array
+    {
+        $sql = "SELECT je.id AS journal_id, je.journal_no, je.journal_date, je.reference_no, je.status,
+                       jl.debit, jl.credit, aa.account_code, aa.account_name
+                FROM accounting_journal_lines jl
+                JOIN accounting_journal_entries je ON je.id = jl.journal_id
+                JOIN accounting_accounts aa ON aa.id = jl.account_id
+                WHERE je.journal_date BETWEEN ? AND ?";
+        $params = [$fromDate, $toDate];
+
+        if ($status !== '') {
+            $sql .= " AND je.status = ?";
+            $params[] = $status;
+        }
+
+        if ($search !== '') {
+            $sql .= " AND (je.journal_no LIKE ? OR je.reference_no LIKE ? OR je.description LIKE ?)";
+            $like = '%' . $search . '%';
+            array_push($params, $like, $like, $like);
+        }
+
+        $sql .= " ORDER BY je.journal_date, je.id, jl.id";
+
+        return $this->all($sql, $params);
+    }
+
     public function sourceModules(): array
     {
         return array_column(
@@ -107,6 +138,76 @@ class JournalEntry extends Model
     }
 
     /**
+     * Trial balance grouped by account type (Assets/Liabilities/Equity/
+     * Income/Expenses) with a subtotal per group, plus a computed
+     * "Owner's Capital / Retained Earnings" line under Equity when Assets
+     * doesn't already reconcile to Liabilities + Equity + Net Income.
+     *
+     * This is a DISPLAY-ONLY figure, never a posted journal entry. Because
+     * every journal is validated balanced at post time (AccountingJournal::
+     * post()), the trial balance's raw Debit total always equals its Credit
+     * total already -- that identity is algebraically the same statement as
+     * "Assets = Liabilities + Equity + Net Income" once accounts are grouped
+     * by their normal side. So on a fully consistent ledger this computed
+     * line will correctly come out to ~0.00 and simply won't show -- it only
+     * appears (as intended) if something ever violates that consistency,
+     * e.g. an account with real posted history getting deactivated and
+     * silently dropped from trialBalance()'s active-only account list.
+     */
+    public function trialBalanceGrouped(string $asOfDate): array
+    {
+        $rows = $this->trialBalance($asOfDate);
+
+        $groupTypes = [
+            'Assets' => ['Asset', 'Contra Asset'],
+            'Liabilities' => ['Liability'],
+            'Equity' => ['Equity'],
+            'Income' => ['Income'],
+            'Expenses' => ['Expense'],
+        ];
+
+        $groups = [];
+        foreach ($groupTypes as $label => $types) {
+            $groupRows = array_values(array_filter($rows, fn ($r) => in_array($r['account_type'], $types, true)));
+            $groups[$label] = [
+                'rows' => $groupRows,
+                'debit_total' => round(array_sum(array_column($groupRows, 'debit_balance')), 2),
+                'credit_total' => round(array_sum(array_column($groupRows, 'credit_balance')), 2),
+            ];
+        }
+
+        $assetsNet = $groups['Assets']['debit_total'] - $groups['Assets']['credit_total'];
+        $liabilitiesNet = $groups['Liabilities']['credit_total'] - $groups['Liabilities']['debit_total'];
+        $equityNet = $groups['Equity']['credit_total'] - $groups['Equity']['debit_total'];
+        $incomeNet = $groups['Income']['credit_total'] - $groups['Income']['debit_total'];
+        $expenseNet = $groups['Expenses']['debit_total'] - $groups['Expenses']['credit_total'];
+        $netIncome = $incomeNet - $expenseNet;
+
+        $plug = round($assetsNet - $liabilitiesNet - $equityNet - $netIncome, 2);
+
+        if (abs($plug) > 0.01) {
+            $plugDebit = $plug < 0 ? abs($plug) : 0.0;
+            $plugCredit = $plug > 0 ? $plug : 0.0;
+            $groups['Equity']['rows'][] = [
+                'account_code' => null,
+                'account_name' => "Owner's Capital / Retained Earnings (computed)",
+                'account_type' => 'Equity',
+                'debit_balance' => $plugDebit,
+                'credit_balance' => $plugCredit,
+                'is_computed' => true,
+            ];
+            $groups['Equity']['debit_total'] = round($groups['Equity']['debit_total'] + $plugDebit, 2);
+            $groups['Equity']['credit_total'] = round($groups['Equity']['credit_total'] + $plugCredit, 2);
+        }
+
+        return [
+            'groups' => $groups,
+            'grand_total_debit' => round(array_sum(array_column($groups, 'debit_total')), 2),
+            'grand_total_credit' => round(array_sum(array_column($groups, 'credit_total')), 2),
+        ];
+    }
+
+    /**
      * All posted journal lines touching a single GL account within a date
      * range, in date order, with a running balance seeded from whatever
      * activity happened before $fromDate.
@@ -123,7 +224,7 @@ class JournalEntry extends Model
         $balance = round((float) ($openingRow['balance'] ?? 0), 2);
 
         $lines = $this->all(
-            "SELECT jl.debit, jl.credit, jl.description, je.journal_no, je.journal_date, je.reference_no, je.source_module
+            "SELECT jl.debit, jl.credit, jl.description, je.id AS journal_id, je.journal_no, je.journal_date, je.reference_no, je.source_module
              FROM accounting_journal_lines jl
              JOIN accounting_journal_entries je ON je.id = jl.journal_id
              WHERE jl.account_id = ? AND je.status = 'Posted' AND je.journal_date BETWEEN ? AND ?

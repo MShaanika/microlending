@@ -20,16 +20,32 @@ class TrialBalanceController extends Controller
         Auth::authorize('accounting.trial_balance');
         $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
 
-        $rows = $this->journalEntries->trialBalance($asOfDate);
-        $totalDebit = round(array_sum(array_column($rows, 'debit_balance')), 2);
-        $totalCredit = round(array_sum(array_column($rows, 'credit_balance')), 2);
+        $result = $this->journalEntries->trialBalanceGrouped($asOfDate);
 
         $this->view('accounting/trial_balance/index', [
             'title' => 'Trial Balance',
-            'rows' => $rows,
+            'groups' => $result['groups'],
             'asOfDate' => $asOfDate,
-            'totalDebit' => $totalDebit,
-            'totalCredit' => $totalCredit,
+            'totalDebit' => $result['grand_total_debit'],
+            'totalCredit' => $result['grand_total_credit'],
         ]);
+    }
+
+    public function exportExcel(): void
+    {
+        Auth::authorize('accounting.trial_balance');
+        $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
+
+        $result = $this->journalEntries->trialBalanceGrouped($asOfDate);
+
+        $spreadsheet = \App\Services\TrialBalanceExcelExporter::build($result, $asOfDate);
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="Trial_Balance_' . $asOfDate . '.xlsx"');
+        header('Cache-Control: max-age=0');
+        \App\Services\TrialBalanceExcelExporter::save($spreadsheet, 'php://output');
+        exit;
     }
 }

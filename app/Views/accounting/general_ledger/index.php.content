@@ -1,0 +1,90 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">General Ledger Report</h4>
+      <?php if ($account): ?>
+      <div class="d-flex gap-2 no-print">
+        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Export PDF</button>
+        <a href="<?= url('/accounting/general-ledger/export.xlsx?' . http_build_query(['account_id' => $accountId, 'from_date' => $fromDate, 'to_date' => $toDate])) ?>" class="btn btn-outline-success btn-sm"><i class="mdi mdi-file-excel"></i> Export Excel</a>
+      </div>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/accounting/general-ledger') ?>" class="row g-2 mb-3 no-print">
+      <div class="col-md-4">
+        <select name="account_id" class="form-select" required>
+          <option value="">Select account&hellip;</option>
+          <?php foreach ($allAccounts as $a): ?>
+            <option value="<?= $a['id'] ?>" <?= $accountId == $a['id'] ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="from_date" class="form-control" value="<?= e($fromDate) ?>">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="to_date" class="form-control" value="<?= e($toDate) ?>">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info w-100">Generate Report</button>
+      </div>
+    </form>
+
+    <?php if (!$account): ?>
+      <div class="alert alert-info">Select an account above and click "Generate Report" to view its ledger.</div>
+    <?php else: ?>
+      <p class="text-muted mb-3">
+        <strong>Account:</strong> <?= e($account['account_code'] . ' - ' . $account['account_name']) ?>
+        (Normal <?= e($account['normal_balance']) ?> Balance) &middot;
+        <strong>Period:</strong> <?= e($fromDate) ?> to <?= e($toDate) ?>
+      </p>
+
+      <div class="table-responsive">
+        <table class="table table-bordered no-datatable">
+          <thead class="table-light">
+            <tr><th>Date</th><th>Reference / Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Running Balance</th></tr>
+          </thead>
+          <tbody>
+            <tr class="table-light">
+              <td></td>
+              <td><em>Opening Balance</em></td>
+              <td></td>
+              <td></td>
+              <td class="text-end fw-bold"><?= format_balance($ledger['opening_balance']) ?></td>
+            </tr>
+            <?php if (empty($ledger['lines'])): ?>
+              <tr><td colspan="5" class="text-center text-muted py-4">No transactions in this period.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($ledger['lines'] as $line): ?>
+              <tr>
+                <td><?= e(date('d/m/Y', strtotime($line['journal_date']))) ?></td>
+                <td>
+                  <a href="<?= url('/accounting/journals/' . $line['journal_id']) ?>"><?= e($line['journal_no']) ?></a>
+                  <?= $line['reference_no'] ? ' (' . e($line['reference_no']) . ')' : '' ?>
+                  <?= $line['description'] ? '<br><span class="text-muted small">' . e($line['description']) . '</span>' : '' ?>
+                </td>
+                <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>
+                <td class="text-end"><?= $line['credit'] > 0 ? format_money($line['credit']) : '' ?></td>
+                <td class="text-end"><?= format_balance($line['running_balance']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <tr class="table-light">
+              <td></td>
+              <td><em>Closing Balance<?= $ledger['closing_balance'] < 0 ? ' (Overdrawn / Credit Balance)' : '' ?></em></td>
+              <td></td>
+              <td></td>
+              <td class="text-end fw-bold"><?= format_balance($ledger['closing_balance']) ?></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-muted small mt-2">
+        <strong>Balance legend:</strong> <?= format_balance(10000) ?> = positive (debit) balance &middot;
+        <?= format_balance(-332.10) ?> = overdrawn / credit balance (parentheses, not a minus sign).
+      </p>
+    <?php endif; ?>
+  </div>
+</div>

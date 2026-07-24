@@ -4,35 +4,49 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h4 class="card-title mb-0">Trial Balance</h4>
-      <form method="get" action="<?= url('/accounting/trial-balance') ?>" class="d-flex gap-2">
-        <input type="date" name="as_of_date" class="form-control form-control-sm" value="<?= e($asOfDate) ?>">
-        <button type="submit" class="btn btn-sm btn-outline-secondary">Run</button>
-      </form>
+      <div class="d-flex gap-2 align-items-center no-print">
+        <form method="get" action="<?= url('/accounting/trial-balance') ?>" class="d-flex gap-2 align-items-center">
+          <label class="form-label mb-0 me-1">As at:</label>
+          <input type="date" name="as_of_date" class="form-control form-control-sm" value="<?= e($asOfDate) ?>">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Run</button>
+        </form>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+        <a href="<?= url('/accounting/trial-balance/export.xlsx?as_of_date=' . urlencode($asOfDate)) ?>" class="btn btn-sm btn-outline-success"><i class="mdi mdi-file-excel"></i> Excel</a>
+      </div>
     </div>
     <p class="text-muted small">As at <?= e($asOfDate) ?>. A balanced ledger always has matching Debit and Credit totals below.</p>
 
     <div class="table-responsive">
       <table class="table table-bordered no-datatable">
         <thead class="table-light">
-          <tr><th>Code</th><th>Account</th><th>Type</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr>
+          <tr><th>Code</th><th>Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr>
         </thead>
         <tbody>
-          <?php if (empty($rows)): ?>
-            <tr><td colspan="5" class="text-center text-muted py-4">No posted activity as of this date.</td></tr>
-          <?php endif; ?>
-          <?php foreach ($rows as $r): ?>
-            <tr>
-              <td><code><?= e($r['account_code']) ?></code></td>
-              <td><?= e($r['account_name']) ?></td>
-              <td><?= e($r['account_type']) ?></td>
-              <td class="text-end"><?= $r['debit_balance'] > 0 ? format_money($r['debit_balance']) : '' ?></td>
-              <td class="text-end"><?= $r['credit_balance'] > 0 ? format_money($r['credit_balance']) : '' ?></td>
+          <?php $hasAnyRows = false; ?>
+          <?php foreach ($groups as $groupLabel => $group): ?>
+            <?php if (empty($group['rows'])) continue; ?>
+            <?php $hasAnyRows = true; ?>
+            <tr class="table-secondary fw-bold">
+              <td colspan="2"><?= e(strtoupper($groupLabel)) ?> &mdash; TOTALS</td>
+              <td class="text-end"><?= $group['debit_total'] > 0 ? format_money($group['debit_total']) : '' ?></td>
+              <td class="text-end"><?= $group['credit_total'] > 0 ? format_money($group['credit_total']) : '' ?></td>
             </tr>
+            <?php foreach ($group['rows'] as $r): ?>
+              <tr class="<?= !empty($r['is_computed']) ? 'fst-italic text-muted' : '' ?>">
+                <td><?= $r['account_code'] ? '<code>' . e($r['account_code']) . '</code>' : '&mdash;' ?></td>
+                <td class="ps-4"><?= e($r['account_name']) ?></td>
+                <td class="text-end"><?= $r['debit_balance'] > 0 ? format_money($r['debit_balance']) : '' ?></td>
+                <td class="text-end"><?= $r['credit_balance'] > 0 ? format_money($r['credit_balance']) : '' ?></td>
+              </tr>
+            <?php endforeach; ?>
           <?php endforeach; ?>
+          <?php if (!$hasAnyRows): ?>
+            <tr><td colspan="4" class="text-center text-muted py-4">No posted activity as of this date.</td></tr>
+          <?php endif; ?>
         </tbody>
         <tfoot>
           <tr class="fw-bold <?= abs($totalDebit - $totalCredit) > 0.01 ? 'table-danger' : 'table-success' ?>">
-            <td colspan="3" class="text-end">Total</td>
+            <td colspan="2" class="text-end">Grand Totals</td>
             <td class="text-end"><?= format_money($totalDebit) ?></td>
             <td class="text-end"><?= format_money($totalCredit) ?></td>
           </tr>

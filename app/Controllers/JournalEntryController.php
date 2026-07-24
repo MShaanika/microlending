@@ -24,19 +24,50 @@ class JournalEntryController extends Controller
         $this->journal = new AccountingJournal();
     }
 
+    private const STATUSES = ['Draft', 'Posted', 'Reversed', 'Cancelled'];
+
     public function index(): void
     {
         Auth::authorize('accounting.journals');
         $search = trim((string) ($_GET['q'] ?? ''));
-        $sourceModule = trim((string) ($_GET['source_module'] ?? ''));
+        $fromDate = $_GET['from_date'] ?? date('Y-m-01');
+        $toDate = $_GET['to_date'] ?? date('Y-m-d');
+        $status = trim((string) ($_GET['status'] ?? ''));
+
+        $lines = $this->journalEntries->journalLines($fromDate, $toDate, $status, $search);
 
         $this->view('accounting/journals/index', [
-            'title' => 'General Ledger',
-            'journals' => $this->journalEntries->paginated($search, $sourceModule),
-            'sourceModules' => $this->journalEntries->sourceModules(),
+            'title' => 'General Journal',
+            'lines' => $lines,
+            'totalDebit' => round(array_sum(array_column($lines, 'debit')), 2),
+            'totalCredit' => round(array_sum(array_column($lines, 'credit')), 2),
             'search' => $search,
-            'sourceModule' => $sourceModule,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'status' => $status,
+            'statuses' => self::STATUSES,
         ]);
+    }
+
+    public function exportExcel(): void
+    {
+        Auth::authorize('accounting.journals');
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $fromDate = $_GET['from_date'] ?? date('Y-m-01');
+        $toDate = $_GET['to_date'] ?? date('Y-m-d');
+        $status = trim((string) ($_GET['status'] ?? ''));
+
+        $lines = $this->journalEntries->journalLines($fromDate, $toDate, $status, $search);
+
+        $spreadsheet = \App\Services\GeneralJournalExcelExporter::build($lines, $fromDate, $toDate);
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="General_Journal_' . $fromDate . '_to_' . $toDate . '.xlsx"');
+        header('Cache-Control: max-age=0');
+        \App\Services\GeneralJournalExcelExporter::save($spreadsheet, 'php://output');
+        exit;
     }
 
     public function show(string $id): void

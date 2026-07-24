@@ -2,19 +2,32 @@
 
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-3">General Ledger</h4>
-
-    <form method="get" action="<?= url('/accounting/journals') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
-        <input type="text" name="q" class="form-control" placeholder="Search journal no, reference, description..." value="<?= e($search ?? '') ?>">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">General Journal</h4>
+      <div class="d-flex gap-2">
+        <a href="<?= url('/accounting/journals/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> New Journal Entry</a>
+        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+        <a href="<?= url('/accounting/journals/export.xlsx?' . http_build_query(['from_date' => $fromDate, 'to_date' => $toDate, 'status' => $status, 'q' => $search])) ?>" class="btn btn-outline-success btn-sm"><i class="mdi mdi-file-excel"></i> Excel</a>
       </div>
-      <div class="col-md-3">
-        <select name="source_module" class="form-select">
-          <option value="">All Sources</option>
-          <?php foreach ($sourceModules as $m): ?>
-            <option value="<?= e($m) ?>" <?= ($sourceModule ?? '') === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+    </div>
+
+    <form method="get" action="<?= url('/accounting/journals') ?>" class="row g-2 mb-3 no-print">
+      <div class="col-md-2">
+        <input type="date" name="from_date" class="form-control" value="<?= e($fromDate) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="to_date" class="form-control" value="<?= e($toDate) ?>">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
           <?php endforeach; ?>
         </select>
+      </div>
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search journal no, reference, description..." value="<?= e($search) ?>">
       </div>
       <div class="col-md-2">
         <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
@@ -22,37 +35,52 @@
     </form>
 
     <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead>
+      <table class="table table-bordered no-datatable">
+        <thead class="table-light">
           <tr>
-            <th>Journal No</th><th>Date</th><th>Source</th><th>Reference</th><th>Description</th><th class="text-end">Amount</th><th>Type</th><th>Status</th>
+            <th>Date</th><th>Journal No / Reference</th><th>Account Name</th><th class="text-end">Debit</th><th class="text-end">Credit</th>
           </tr>
         </thead>
         <tbody>
-          <?php if (empty($journals)): ?>
-            <tr><td colspan="8" class="text-center text-muted py-4">No journal entries yet.</td></tr>
+          <?php if (empty($lines)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No journal lines in this period.</td></tr>
           <?php endif; ?>
-          <?php foreach ($journals as $j): ?>
-            <?php
-              $badge = match ($j['status']) {
-                'Posted' => 'success',
-                'Reversed' => 'danger',
-                'Cancelled' => 'secondary',
-                default => 'warning',
-              };
-            ?>
-            <tr>
-              <td><a href="<?= url('/accounting/journals/' . $j['id']) ?>"><?= e($j['journal_no']) ?></a></td>
-              <td><?= e($j['journal_date']) ?></td>
-              <td><span class="badge bg-light text-dark border"><?= e($j['source_module'] ?: '&mdash;') ?></span></td>
-              <td><?= e($j['reference_no'] ?: '&mdash;') ?></td>
-              <td><?= e($j['description'] ?: '&mdash;') ?></td>
-              <td class="text-end"><?= format_money($j['total_debit']) ?></td>
-              <td><?= e($j['journal_type']) ?></td>
-              <td><span class="badge bg-<?= $badge ?>"><?= e($j['status']) ?></span></td>
-            </tr>
+          <?php
+            $groups = [];
+            foreach ($lines as $line) {
+                $groups[$line['journal_id']]['header'] = $line;
+                $groups[$line['journal_id']]['lines'][] = $line;
+            }
+          ?>
+          <?php foreach ($groups as $group): ?>
+            <?php $header = $group['header']; ?>
+            <?php foreach ($group['lines'] as $i => $line): ?>
+              <tr>
+                <td><?= $i === 0 ? e(date('d/m/Y', strtotime($header['journal_date']))) : '' ?></td>
+                <td>
+                  <?php if ($i === 0): ?>
+                    <a href="<?= url('/accounting/journals/' . $header['journal_id']) ?>"><?= e($header['journal_no']) ?></a>
+                  <?php elseif ($i === 1 && $header['reference_no']): ?>
+                    <span class="text-muted">(<?= e($header['reference_no']) ?>)</span>
+                  <?php endif; ?>
+                </td>
+                <td><?= e($line['account_code'] . ' - ' . $line['account_name']) ?></td>
+                <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>
+                <td class="text-end"><?= $line['credit'] > 0 ? format_money($line['credit']) : '' ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <tr class="no-print"><td colspan="5" style="height:4px;padding:0;border:0;"></td></tr>
           <?php endforeach; ?>
         </tbody>
+        <?php if (!empty($lines)): ?>
+        <tfoot>
+          <tr class="fw-bold">
+            <td colspan="3" class="text-end">Totals:</td>
+            <td class="text-end"><?= format_money($totalDebit) ?></td>
+            <td class="text-end"><?= format_money($totalCredit) ?></td>
+          </tr>
+        </tfoot>
+        <?php endif; ?>
       </table>
     </div>
   </div>
