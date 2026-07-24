@@ -39,6 +39,7 @@ class DashboardController extends Controller
             'cashPosition' => DashboardService::cashPosition(),
             'topArrears' => DashboardService::topArrears(5),
             'upcomingDue' => DashboardService::upcomingDue(7),
+            'promisesDueToday' => Auth::can('collections.arrears') ? DashboardService::promisesDueToday() : [],
             'recentActivity' => DashboardService::recentActivity(8),
         ]);
     }

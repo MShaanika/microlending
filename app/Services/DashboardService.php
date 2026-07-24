@@ -164,6 +164,11 @@ class DashboardService
         return $stmt->fetchAll();
     }
 
+    public static function promisesDueToday(): array
+    {
+        return (new \App\Models\PaymentPromise())->dueOn(date('Y-m-d'));
+    }
+
     public static function recentActivity(int $limit = 8): array
     {
         $db = Database::connection();

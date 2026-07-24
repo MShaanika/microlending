@@ -25,6 +25,23 @@ class PaymentPromise extends Model
         );
     }
 
+    /**
+     * All still-open promises for a single date -- the "who promised to pay
+     * today" list for the Dashboard widget.
+     */
+    public function dueOn(string $date): array
+    {
+        return $this->all(
+            "SELECT pp.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.phone AS borrower_phone
+             FROM payment_promises pp
+             JOIN loans l ON l.id = pp.loan_id
+             JOIN borrowers b ON b.id = pp.borrower_id
+             WHERE pp.status = 'Pending' AND pp.promise_date = ?
+             ORDER BY pp.id ASC",
+            [$date]
+        );
+    }
+
     public function find(int $id): ?array
     {
         return $this->one("SELECT * FROM payment_promises WHERE id = ?", [$id]);
