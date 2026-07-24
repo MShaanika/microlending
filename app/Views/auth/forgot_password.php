@@ -43,7 +43,13 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
         <div class="auth-box p-4 bg-white rounded shadow">
 
             <div class="logo text-center">
-                <img src="<?= $loginLogoUrl ?>" alt="logo" style="max-height: 204px; max-width: 260px; object-fit: contain;" class="mb-2">
+                <?php if (!empty($company['logo'])): ?>
+                    <div class="d-inline-block rounded p-3 mb-2" style="background-color: <?= htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8') ?>;">
+                        <img src="<?= $loginLogoUrl ?>" alt="logo" style="max-height: 180px; max-width: 240px; object-fit: contain;">
+                    </div>
+                <?php else: ?>
+                    <img src="<?= $loginLogoUrl ?>" alt="logo" style="max-height: 204px; max-width: 260px; object-fit: contain;" class="mb-2">
+                <?php endif; ?>
             </div>
 
             <h3 class="font-weight-medium mb-2 text-center">Forgot Password</h3>
