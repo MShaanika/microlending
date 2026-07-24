@@ -7,10 +7,13 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\AfsReportLine;
 use App\Models\MlrReportLine;
 use App\Models\RegulatoryReport;
 use App\Models\RegulatoryReportLine;
 use App\Models\RegulatoryReportType;
+use App\Services\AfsReportExcelExporter;
+use App\Services\AfsReportGenerationService;
 use App\Services\MlrReportExcelExporter;
 use App\Services\MlrReportGenerationService;
 use App\Services\RegulatoryReportExcelExporter;
@@ -20,11 +23,13 @@ use App\Services\ReportPeriod;
 class QuarterlyReportController extends Controller
 {
     private const MLR_CODE = 'MLR_SUMMARISED_QTR';
+    private const AFS_CODE = 'AFS_ANNUAL';
 
     private RegulatoryReport $reports;
     private RegulatoryReportLine $reportLines;
     private RegulatoryReportType $reportTypes;
     private MlrReportLine $mlrLines;
+    private AfsReportLine $afsLines;
 
     public function __construct()
     {
@@ -32,6 +37,7 @@ class QuarterlyReportController extends Controller
         $this->reportLines = new RegulatoryReportLine();
         $this->reportTypes = new RegulatoryReportType();
         $this->mlrLines = new MlrReportLine();
+        $this->afsLines = new AfsReportLine();
     }
 
     public function index(): void
@@ -78,10 +84,15 @@ class QuarterlyReportController extends Controller
         $errors = [];
 
         $type = $reportTypeId ? $this->reportTypes->find($reportTypeId) : null;
+        $isAfs = $type && $type['report_code'] === self::AFS_CODE;
+
         if (!$type) {
             $errors['report_type_id'] = 'Select a report type.';
         }
-        if ($quarter < 1 || $quarter > 4) {
+        // AFS_ANNUAL isn't quarter-scoped -- the "Year" field doubles as the
+        // financial year's start year (2025 = FY Apr 2025 - Mar 2026), so
+        // the Quarter field is hidden/ignored for this type (see create view JS).
+        if (!$isAfs && ($quarter < 1 || $quarter > 4)) {
             $errors['quarter'] = 'Select a valid quarter.';
         }
         if ($year < 2000) {
@@ -98,20 +109,25 @@ class QuarterlyReportController extends Controller
             return;
         }
 
-        $period = ReportPeriod::range('quarter', $year, 0, $quarter);
         $userId = Auth::user()['id'] ?? null;
 
         try {
-            $reportId = $type['report_code'] === self::MLR_CODE
-                ? MlrReportGenerationService::generate($period['start'], $period['end'], $userId)
-                : RegulatoryReportGenerationService::generate($type['report_code'], $period['start'], $period['end'], $userId);
+            if ($isAfs) {
+                $reportId = AfsReportGenerationService::generate($year, $userId);
+            } else {
+                $period = ReportPeriod::range('quarter', $year, 0, $quarter);
+                $reportId = $type['report_code'] === self::MLR_CODE
+                    ? MlrReportGenerationService::generate($period['start'], $period['end'], $userId)
+                    : RegulatoryReportGenerationService::generate($type['report_code'], $period['start'], $period['end'], $userId);
+            }
         } catch (\RuntimeException $e) {
             Session::flash('error', 'Could not generate report: ' . $e->getMessage());
             $this->redirect('/compliance/quarterly-reports/create');
             return;
         }
 
-        Audit::log('Create', 'Compliance', 'Generated ' . $type['report_name'] . ' for ' . $period['label']);
+        $periodLabel = $isAfs ? ('FY ' . $year . '-' . ($year + 1)) : $period['label'];
+        Audit::log('Create', 'Compliance', 'Generated ' . $type['report_name'] . ' for ' . $periodLabel);
         Session::flash('success', 'Report generated.');
         $this->redirect('/compliance/quarterly-reports/' . $reportId);
     }
@@ -136,11 +152,29 @@ class QuarterlyReportController extends Controller
             return;
         }
 
+        if ($report['report_code'] === self::AFS_CODE) {
+            $this->view('compliance/quarterly/show_afs', [
+                'title' => $report['report_name'],
+                'report' => $report,
+                'sections' => $this->groupAfsSections($this->afsLines->forReport((int) $id)),
+            ]);
+            return;
+        }
+
         $this->view('compliance/quarterly/show', [
             'title' => $report['report_name'],
             'report' => $report,
             'lines' => $this->reportLines->forReport((int) $id),
         ]);
+    }
+
+    private function groupAfsSections(array $lines): array
+    {
+        $sections = ['QUARTERLY_SUMMARY' => [], 'BANK_ACCOUNTS' => [], 'FIXED_ASSETS' => []];
+        foreach ($lines as $line) {
+            $sections[$line['section']][] = $line;
+        }
+        return $sections;
     }
 
     private function groupMlrSections(array $lines): array
@@ -209,6 +243,8 @@ class QuarterlyReportController extends Controller
 
         if ($report['report_code'] === self::MLR_CODE) {
             $exporter = new MlrReportExcelExporter($report, $this->groupMlrSections($this->mlrLines->forReport($id)));
+        } elseif ($report['report_code'] === self::AFS_CODE) {
+            $exporter = new AfsReportExcelExporter($report, $this->groupAfsSections($this->afsLines->forReport($id)));
         } else {
             $exporter = new RegulatoryReportExcelExporter($report, $this->reportLines->forReport($id));
         }

@@ -10,16 +10,16 @@
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Report Type <span class="text-danger">*</span></label>
-          <select name="report_type_id" class="form-select <?= isset($errors['report_type_id']) ? 'is-invalid' : '' ?>">
+          <select name="report_type_id" id="mlsReportTypeSelect" class="form-select <?= isset($errors['report_type_id']) ? 'is-invalid' : '' ?>">
             <option value="">Select report type</option>
             <?php foreach ($reportTypes as $t): ?>
-              <option value="<?= (int) $t['id'] ?>" <?= (($old['report_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['report_name']) ?></option>
+              <option value="<?= (int) $t['id'] ?>" data-code="<?= e($t['report_code']) ?>" <?= (($old['report_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['report_name']) ?></option>
             <?php endforeach; ?>
           </select>
           <?php if (isset($errors['report_type_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['report_type_id']) ?></div><?php endif; ?>
         </div>
 
-        <div class="col-md-3 mb-3">
+        <div class="col-md-3 mb-3" id="mlsQuarterField">
           <label class="form-label">Quarter <span class="text-danger">*</span></label>
           <select name="quarter" class="form-select <?= isset($errors['quarter']) ? 'is-invalid' : '' ?>">
             <?php foreach ([1 => 'Q1 (Jan-Mar)', 2 => 'Q2 (Apr-Jun)', 3 => 'Q3 (Jul-Sep)', 4 => 'Q4 (Oct-Dec)'] as $q => $qLabel): ?>
@@ -30,12 +30,13 @@
         </div>
 
         <div class="col-md-3 mb-3">
-          <label class="form-label">Year <span class="text-danger">*</span></label>
+          <label class="form-label" id="mlsYearLabel">Year <span class="text-danger">*</span></label>
           <select name="year" class="form-select <?= isset($errors['year']) ? 'is-invalid' : '' ?>">
             <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
               <option value="<?= $y ?>" <?= (((int) ($old['year'] ?? date('Y'))) === $y) ? 'selected' : '' ?>><?= $y ?></option>
             <?php endfor; ?>
           </select>
+          <small class="form-text text-muted d-none" id="mlsYearHelp">The calendar year the financial year starts in (e.g. 2025 = FY April 2025 - March 2026).</small>
           <?php if (isset($errors['year'])): ?><div class="invalid-feedback d-block"><?= e($errors['year']) ?></div><?php endif; ?>
         </div>
       </div>
@@ -45,3 +46,24 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  var typeSelect = document.getElementById('mlsReportTypeSelect');
+  var quarterField = document.getElementById('mlsQuarterField');
+  var yearLabel = document.getElementById('mlsYearLabel');
+  var yearHelp = document.getElementById('mlsYearHelp');
+  if (!typeSelect) { return; }
+
+  function toggle() {
+    var opt = typeSelect.options[typeSelect.selectedIndex];
+    var isAfs = opt && opt.getAttribute('data-code') === 'AFS_ANNUAL';
+    quarterField.style.display = isAfs ? 'none' : '';
+    yearLabel.firstChild.textContent = isAfs ? 'Financial Year Start ' : 'Year ';
+    yearHelp.classList.toggle('d-none', !isAfs);
+  }
+
+  typeSelect.addEventListener('change', toggle);
+  toggle();
+})();
+</script>

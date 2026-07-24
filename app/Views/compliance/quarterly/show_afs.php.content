@@ -1,0 +1,156 @@
+<?= flash_messages() ?>
+
+<?php
+  use App\Models\Company;
+  $badge = match ($report['status']) {
+    'Approved' => 'success',
+    'Submitted' => 'info',
+    'Rejected' => 'danger',
+    'Generated' => 'primary',
+    default => 'secondary',
+  };
+  $company = (new Company())->primary() ?: [];
+  $sum = fn (array $rows, string $key) => round(array_sum(array_column($rows, $key)), 2);
+?>
+
+<div class="card mb-3 no-print">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1"><?= e($report['report_name']) ?></h4>
+        <p class="text-muted mb-0"><?= e($report['report_no']) ?> &middot; <?= e($report['period_start']) ?> &rarr; <?= e($report['period_end']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($report['status']) ?></span>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+      <a href="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/download') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-excel"></i> Download Excel</a>
+
+      <?php if ($report['status'] === 'Generated'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/submit') ?>" onsubmit="return confirm('Mark this report as Submitted?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-info btn-sm"><i class="mdi mdi-send"></i> Mark as Submitted</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($report['status'] === 'Submitted'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/approve') ?>" onsubmit="return confirm('Approve this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/reject') ?>" onsubmit="return confirm('Reject this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-outline-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <p class="mb-1"><strong>Business Name:</strong> <?= e($company['company_name'] ?? '') ?></p>
+    <p class="mb-1"><strong>NAMFISA Reg. No.:</strong> <?= e($company['namfisa_license_no'] ?? '') ?></p>
+    <p class="mb-1"><strong>Annual Financial Statement Analysis:</strong> <?= e($report['report_period']) ?></p>
+    <p class="text-muted small mb-0">Financial year runs April&ndash;March, matching the company's own financial year (distinct from the calendar-quarter NAMFISA MLR filing).</p>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Summarised Report Quarterly</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light">
+          <tr>
+            <th>Quarter</th>
+            <th class="text-end">Expenditure (NAD)</th>
+            <th class="text-end">Interest Income (NAD)</th>
+            <th class="text-end">Disbursed Loans - Capital (NAD)</th>
+            <th class="text-end">NAMFISA Levies (NAD)</th>
+            <th class="text-end">Total Bad Debt Written Off (NAD)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($sections['QUARTERLY_SUMMARY'] as $r): ?>
+            <tr class="<?= $r['label'] === 'Total' ? 'fw-bold' : '' ?>">
+              <td><?= e($r['label']) ?></td>
+              <td class="text-end"><?= format_money($r['amount_1']) ?></td>
+              <td class="text-end"><?= format_money($r['amount_2']) ?></td>
+              <td class="text-end"><?= format_money($r['amount_3']) ?></td>
+              <td class="text-end"><?= format_money($r['amount_4']) ?></td>
+              <td class="text-end"><?= format_money($r['amount_5']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Bank Accounts</h5>
+        <p class="text-muted small">Current balance per the general ledger. Overdraft limit and accrued account interest aren't tracked in the system, so those columns show 0.</p>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Account</th><th>Account No.</th><th class="text-end">Balance (NAD)</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['BANK_ACCOUNTS'] as $r): ?>
+                <tr><td><?= e($r['label']) ?></td><td><?= e($r['sub_label']) ?></td><td class="text-end"><?= format_money($r['amount_1']) ?></td></tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold"><td colspan="2">Total</td><td class="text-end"><?= format_money($sum($sections['BANK_ACCOUNTS'], 'amount_1')) ?></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Assets</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Description</th><th class="text-end">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Total (NAD)</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['FIXED_ASSETS'] as $r): ?>
+                <tr>
+                  <td><?= e($r['label']) ?></td>
+                  <td class="text-end"><?= (int) $r['amount_1'] ?></td>
+                  <td class="text-end"><?= format_money($r['amount_2']) ?></td>
+                  <td class="text-end"><?= format_money($r['amount_3']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold"><td colspan="3">Total</td><td class="text-end"><?= format_money($sum($sections['FIXED_ASSETS'], 'amount_3')) ?></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <p class="mb-1">Signature of Representative: ________________________</p>
+        <p class="mb-1">Name of Representative: ________________________</p>
+        <p class="mb-1">Registration No.: <?= e($company['namfisa_license_no'] ?? '') ?></p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="mb-1">Date: ________________________</p>
+        <p class="mb-1">Compiled by: ________________________</p>
+        <p class="mb-1">Signature by Accountant: ________________________</p>
+      </div>
+    </div>
+  </div>
+</div>
