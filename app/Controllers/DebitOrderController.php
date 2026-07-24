@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\Borrower;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCancellation;
 use App\Models\Loan;
@@ -23,12 +24,14 @@ class DebitOrderController extends Controller
     private DebitOrder $debitOrders;
     private DebitOrderCancellation $cancellations;
     private Loan $loans;
+    private Borrower $borrowers;
 
     public function __construct()
     {
         $this->debitOrders = new DebitOrder();
         $this->cancellations = new DebitOrderCancellation();
         $this->loans = new Loan();
+        $this->borrowers = new Borrower();
     }
 
     public function index(): void
@@ -56,11 +59,54 @@ class DebitOrderController extends Controller
         $this->view('debit_orders/create', [
             'title' => 'Register Debit Order - ' . $loan['loan_no'],
             'loan' => $loan,
-            'old' => [],
+            'old' => $this->prefillFromBankDetails((int) $loan['borrower_id']),
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
             'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
         ]);
+    }
+
+    /**
+     * Pulls the borrower's bank details (captured at intake -- either typed
+     * on the borrower profile's Banking tab, or copied over automatically
+     * when an approved application was converted to a borrower) into the
+     * same $old array the view already reads via old($field, $old) for
+     * validation-failure repopulation, so staff don't have to retype
+     * information that's already on file. account_name/account_number/
+     * branch_code copy over directly; bank_code and account_type are stored
+     * as free text at intake but the form needs Collexia's fixed codes, so
+     * they're normalized here with a graceful fallback to blank/default
+     * when nothing matches (staff can still pick manually).
+     */
+    private function prefillFromBankDetails(int $borrowerId): array
+    {
+        $bank = $this->borrowers->bankDetails($borrowerId);
+        if (!$bank) {
+            return [];
+        }
+
+        $old = [
+            'account_name' => $bank['account_name'] ?? '',
+            'account_number' => $bank['account_number'] ?? '',
+            'branch_code' => $bank['branch_code'] ?? '',
+        ];
+
+        $bankName = trim((string) ($bank['bank_name'] ?? ''));
+        if ($bankName !== '') {
+            foreach (CollexiaCodes::BANKS as $code => $label) {
+                if (stripos($label, $bankName) !== false || stripos($bankName, $label) !== false) {
+                    $old['bank_code'] = $code;
+                    break;
+                }
+            }
+        }
+
+        $accountType = trim((string) ($bank['account_type'] ?? ''));
+        if ($accountType !== '') {
+            $old['account_type'] = stripos($accountType, 'saving') !== false ? '2' : '1';
+        }
+
+        return $old;
     }
 
     public function store(): void
