@@ -1,5 +1,6 @@
 <?php
 use App\Core\Session;
+use App\Services\TurnstileService;
 
 $error = class_exists(Session::class) ? Session::flash('error') : null;
 $success = class_exists(Session::class) ? Session::flash('success') : null;
@@ -14,6 +15,7 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
 
     <link rel="icon" type="image/png" href="<?= asset('assets/images/favicon.png') ?>">
     <link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         .preloader { display: flex; align-items: center; justify-content: center; }
     </style>
@@ -62,6 +64,10 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
 
                 <div class="form-group mb-0 text-end">
                     <a href="<?= url('/portal/forgot-password') ?>" class="small">Forgot password?</a>
+                </div>
+
+                <div class="form-group mb-3 mt-3">
+                    <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(TurnstileService::siteKey(), ENT_QUOTES, 'UTF-8') ?>"></div>
                 </div>
 
                 <div class="form-group text-center mt-4 mb-3">

@@ -8,6 +8,7 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\User;
 use App\Services\EmailSenderService;
+use App\Services\TurnstileService;
 
 class AuthController extends Controller
 {
@@ -23,6 +24,10 @@ class AuthController extends Controller
     {
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/login');
+        }
+        if (!TurnstileService::verify($_POST['cf-turnstile-response'] ?? null, $_SERVER['REMOTE_ADDR'] ?? null)) {
+            Session::flash('error', 'Please complete the verification challenge.');
             $this->redirect('/login');
         }
         $login = trim($_POST['login'] ?? '');
@@ -51,6 +56,11 @@ class AuthController extends Controller
     {
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/forgot-password');
+            return;
+        }
+        if (!TurnstileService::verify($_POST['cf-turnstile-response'] ?? null, $_SERVER['REMOTE_ADDR'] ?? null)) {
+            Session::flash('error', 'Please complete the verification challenge.');
             $this->redirect('/forgot-password');
             return;
         }

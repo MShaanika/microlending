@@ -9,6 +9,7 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\PortalUser;
 use App\Services\EmailSenderService;
+use App\Services\TurnstileService;
 
 class PortalAuthController extends Controller
 {
@@ -27,6 +28,10 @@ class PortalAuthController extends Controller
     {
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/portal/login');
+        }
+        if (!TurnstileService::verify($_POST['cf-turnstile-response'] ?? null, $_SERVER['REMOTE_ADDR'] ?? null)) {
+            Session::flash('error', 'Please complete the verification challenge.');
             $this->redirect('/portal/login');
         }
 
@@ -61,6 +66,11 @@ class PortalAuthController extends Controller
     {
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/portal/forgot-password');
+            return;
+        }
+        if (!TurnstileService::verify($_POST['cf-turnstile-response'] ?? null, $_SERVER['REMOTE_ADDR'] ?? null)) {
+            Session::flash('error', 'Please complete the verification challenge.');
             $this->redirect('/portal/forgot-password');
             return;
         }

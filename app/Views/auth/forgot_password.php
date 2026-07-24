@@ -1,6 +1,7 @@
 <?php
 use App\Core\Session;
 use App\Models\Company;
+use App\Services\TurnstileService;
 
 $error = class_exists(Session::class) ? Session::flash('error') : null;
 $success = class_exists(Session::class) ? Session::flash('success') : null;
@@ -20,6 +21,7 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
 
     <link rel="icon" type="image/png" href="<?= $faviconUrl ?>">
     <link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         .btn-info { background-color: <?= htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8') ?> !important; border-color: <?= htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8') ?> !important; }
         .btn-info:hover { filter: brightness(90%); }
@@ -63,6 +65,10 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
 
                 <div class="form-group mb-3">
                     <input class="form-control" name="login" type="text" required placeholder="Username or Email">
+                </div>
+
+                <div class="form-group mb-3">
+                    <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(TurnstileService::siteKey(), ENT_QUOTES, 'UTF-8') ?>"></div>
                 </div>
 
                 <div class="form-group text-center mt-4 mb-3">
