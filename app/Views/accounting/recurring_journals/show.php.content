@@ -1,0 +1,73 @@
+<?= flash_messages() ?>
+
+<?php $badge = match ($template['status']) { 'Active' => 'success', 'Expired' => 'secondary', default => 'warning' }; ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h4 class="card-title mb-1"><?= e($template['description']) ?></h4>
+        <p class="text-muted mb-0"><?= e($template['template_no']) ?></p>
+      </div>
+      <span class="badge bg-<?= $badge ?>"><?= e($template['status']) ?></span>
+    </div>
+
+    <div class="row mb-2">
+      <div class="col-md-4"><strong>Debit Account:</strong> <?= e($template['debit_account_code'] . ' - ' . $template['debit_account_name']) ?></div>
+      <div class="col-md-4"><strong>Credit Account:</strong> <?= e($template['credit_account_code'] . ' - ' . $template['credit_account_name']) ?></div>
+      <div class="col-md-4"><strong>Amount:</strong> <?= format_money($template['amount']) ?></div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-4"><strong>Frequency:</strong> <?= e($template['frequency']) ?></div>
+      <div class="col-md-4"><strong>Start Date:</strong> <?= e(date('d/m/Y', strtotime($template['start_date']))) ?></div>
+      <div class="col-md-4"><strong>End Date:</strong> <?= $template['end_date'] ? e(date('d/m/Y', strtotime($template['end_date']))) : '&mdash;' ?></div>
+    </div>
+    <div class="row mb-3">
+      <div class="col-md-4"><strong>Next Run:</strong> <?= e(date('d/m/Y', strtotime($template['next_run_date']))) ?></div>
+      <div class="col-md-4"><strong>Last Run:</strong> <?= $template['last_run_at'] ? e(date('d/m/Y H:i', strtotime($template['last_run_at']))) : 'Never' ?></div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="<?= url('/accounting/recurring-journals') ?>" class="btn btn-outline-secondary">Back</a>
+      <a href="<?= url('/accounting/recurring-journals/' . $template['id'] . '/edit') ?>" class="btn btn-outline-info"><i class="mdi mdi-pencil"></i> Edit</a>
+      <?php if ($template['status'] === 'Active'): ?>
+        <form method="post" action="<?= url('/accounting/recurring-journals/' . $template['id'] . '/pause') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-warning"><i class="mdi mdi-pause"></i> Pause</button>
+        </form>
+      <?php elseif ($template['status'] === 'Inactive'): ?>
+        <form method="post" action="<?= url('/accounting/recurring-journals/' . $template['id'] . '/resume') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-play"></i> Resume</button>
+        </form>
+      <?php endif; ?>
+      <form method="post" action="<?= url('/accounting/recurring-journals/' . $template['id'] . '/delete') ?>" onsubmit="return confirm('Delete this recurring journal template? Journals it already generated are unaffected.');">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-outline-danger"><i class="mdi mdi-delete"></i> Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Journal Entries Generated</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light"><tr><th>Date</th><th>Journal No</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php if (empty($journals)): ?>
+            <tr><td colspan="3" class="text-center text-muted py-3">No journal entries generated yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($journals as $j): ?>
+            <tr>
+              <td><?= e(date('d/m/Y', strtotime($j['journal_date']))) ?></td>
+              <td><a href="<?= url('/accounting/journals/' . $j['id']) ?>"><?= e($j['journal_no']) ?></a></td>
+              <td><?= e($j['status']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

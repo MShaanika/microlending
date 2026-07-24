@@ -1,0 +1,81 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Adjustment Journals</h4>
+      <div class="d-flex gap-2">
+        <a href="<?= url('/accounting/adjustment-journals/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> New</a>
+        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+      </div>
+    </div>
+    <p class="text-muted small">Manual one-off fixes: a single debit account and a single credit account per entry. Draft entries can still be edited; Posted entries can only be reversed.</p>
+
+    <form method="get" action="<?= url('/accounting/adjustment-journals') ?>" class="row g-2 mb-3 no-print">
+      <div class="col-md-2">
+        <input type="date" name="from_date" class="form-control" value="<?= e($filters['from_date']) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="to_date" class="form-control" value="<?= e($filters['to_date']) ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="account_id" class="form-select">
+          <option value="">All Accounts</option>
+          <?php foreach ($accounts as $a): ?>
+            <option value="<?= (int) $a['id'] ?>" <?= $filters['account_id'] === (int) $a['id'] ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= e($s) ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-bordered no-datatable">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th><th>Journal No</th><th>Description</th><th>Debit Account</th><th>Credit Account</th>
+            <th class="text-end">Debit Amount</th><th class="text-end">Credit Amount</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No adjustment journals in this period.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <?php $badge = match ($r['status']) { 'Posted' => 'success', 'Reversed' => 'danger', default => 'warning' }; ?>
+            <tr>
+              <td><?= e(date('d/m/Y', strtotime($r['journal_date']))) ?></td>
+              <td><a href="<?= url('/accounting/adjustment-journals/' . $r['id']) ?>"><?= e($r['journal_no']) ?></a></td>
+              <td><?= e($r['description']) ?></td>
+              <td><?= e($r['debit_account']) ?></td>
+              <td><?= e($r['credit_account']) ?></td>
+              <td class="text-end"><?= format_money($r['debit_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['credit_amount']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <?php if (!empty($rows)): ?>
+        <tfoot>
+          <tr class="fw-bold">
+            <td colspan="5" class="text-end">Totals:</td>
+            <td class="text-end"><?= format_money($totalDebit) ?></td>
+            <td class="text-end"><?= format_money($totalCredit) ?></td>
+            <td></td>
+          </tr>
+        </tfoot>
+        <?php endif; ?>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1324,6 +1324,31 @@ CREATE TABLE accounting_event_rules (
     FOREIGN KEY (credit_account_id) REFERENCES accounting_accounts(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Templates for automated repetitive postings (rent, subscriptions, etc.).
+-- A daily background job (see RecurringJournalService::processDue()) finds
+-- templates whose next_run_date is due, posts a standard journal entry via
+-- AccountingJournal::post(), then advances next_run_date -- or flips status
+-- to Expired once the new next_run_date would fall after end_date.
+CREATE TABLE recurring_journal_templates (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    template_no VARCHAR(80) NOT NULL UNIQUE,
+    description VARCHAR(255) NOT NULL,
+    debit_account_id BIGINT NOT NULL,
+    credit_account_id BIGINT NOT NULL,
+    amount DECIMAL(18,2) NOT NULL,
+    frequency ENUM('Weekly','Monthly','Quarterly','Annually') NOT NULL DEFAULT 'Monthly',
+    start_date DATE NOT NULL,
+    next_run_date DATE NOT NULL,
+    end_date DATE NULL,
+    status ENUM('Active','Inactive','Expired') NOT NULL DEFAULT 'Active',
+    last_run_at DATETIME NULL,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (debit_account_id) REFERENCES accounting_accounts(id),
+    FOREIGN KEY (credit_account_id) REFERENCES accounting_accounts(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE accounting_bank_statement (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     bank_account_id BIGINT NOT NULL,
@@ -2813,6 +2838,8 @@ INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
 ('accounting.view', 'View Accounting Module', 'Accounting'),
 ('accounting.chart', 'Manage Chart of Accounts', 'Accounting'),
 ('accounting.journals', 'Manage Journal Entries', 'Accounting'),
+('accounting.adjustment_journals', 'Manage Adjustment Journals', 'Accounting'),
+('accounting.recurring_journals', 'Manage Recurring Journals', 'Accounting'),
 ('accounting.cashbook', 'Manage Cash Book', 'Accounting'),
 ('accounting.bank_accounts', 'Manage Bank Accounts', 'Accounting'),
 ('accounting.bank_reconciliation', 'Manage Bank Reconciliation', 'Accounting'),

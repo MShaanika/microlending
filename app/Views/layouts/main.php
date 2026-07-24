@@ -283,6 +283,8 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'General Journal', 'url' => url('/accounting/journals'), 'perm' => 'accounting.journals'],
               ['label' => 'General Ledger', 'url' => url('/accounting/general-ledger'), 'perm' => 'accounting.journals'],
               ['label' => 'New Manual Journal', 'url' => url('/accounting/journals/create'), 'perm' => 'accounting.journals'],
+              ['label' => 'Adjustment Journals', 'url' => url('/accounting/adjustment-journals'), 'perm' => 'accounting.adjustment_journals'],
+              ['label' => 'Recurring Journals', 'url' => url('/accounting/recurring-journals'), 'perm' => 'accounting.recurring_journals'],
               ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years'), 'perm' => 'accounting.settings'],
               ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance'), 'perm' => 'accounting.trial_balance'],
               ['label' => 'Cash Book', 'url' => url('/accounting/cash-book'), 'perm' => 'accounting.cashbook'],

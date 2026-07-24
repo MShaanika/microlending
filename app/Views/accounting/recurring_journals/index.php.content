@@ -1,0 +1,85 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h4 class="card-title mb-0">Recurring Journals</h4>
+      <a href="<?= url('/accounting/recurring-journals/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> New</a>
+    </div>
+    <p class="text-muted small">Templates for automated repetitive transactions. A daily background job checks each template's Next Run date and, when it's due, posts a standard journal entry and advances the schedule.</p>
+
+    <form method="get" action="<?= url('/accounting/recurring-journals') ?>" class="row g-2 mb-3 no-print">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Active', 'Inactive', 'Expired'] as $s): ?>
+            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-bordered no-datatable">
+        <thead class="table-light">
+          <tr>
+            <th>Description</th><th>Debit Account</th><th>Credit Account</th><th class="text-end">Amount</th>
+            <th>Start Date</th><th>Next Run</th><th>End Date</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-4">No recurring journal templates yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <?php $badge = match ($r['status']) { 'Active' => 'success', 'Expired' => 'secondary', default => 'warning' }; ?>
+            <tr>
+              <td><a href="<?= url('/accounting/recurring-journals/' . $r['id']) ?>"><?= e($r['description']) ?></a></td>
+              <td><?= e($r['debit_account_code'] . ' - ' . $r['debit_account_name']) ?></td>
+              <td><?= e($r['credit_account_code'] . ' - ' . $r['credit_account_name']) ?></td>
+              <td class="text-end"><?= format_money($r['amount']) ?></td>
+              <td><?= e(date('d/m/Y', strtotime($r['start_date']))) ?></td>
+              <td><?= e(date('d/m/Y', strtotime($r['next_run_date']))) ?></td>
+              <td><?= $r['end_date'] ? e(date('d/m/Y', strtotime($r['end_date']))) : '&mdash;' ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+              <td>
+                <div class="btn-group">
+                  <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="<?= url('/accounting/recurring-journals/' . $r['id']) ?>">View</a></li>
+                    <li><a class="dropdown-item" href="<?= url('/accounting/recurring-journals/' . $r['id'] . '/edit') ?>">Edit</a></li>
+                    <?php if ($r['status'] === 'Active'): ?>
+                      <li>
+                        <form method="post" action="<?= url('/accounting/recurring-journals/' . $r['id'] . '/pause') ?>">
+                          <?= csrf_field() ?>
+                          <button type="submit" class="dropdown-item">Pause</button>
+                        </form>
+                      </li>
+                    <?php elseif ($r['status'] === 'Inactive'): ?>
+                      <li>
+                        <form method="post" action="<?= url('/accounting/recurring-journals/' . $r['id'] . '/resume') ?>">
+                          <?= csrf_field() ?>
+                          <button type="submit" class="dropdown-item">Resume</button>
+                        </form>
+                      </li>
+                    <?php endif; ?>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="post" action="<?= url('/accounting/recurring-journals/' . $r['id'] . '/delete') ?>" onsubmit="return confirm('Delete this recurring journal template? Journals it already generated are unaffected.');">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="dropdown-item text-danger">Delete</button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

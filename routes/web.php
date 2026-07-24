@@ -14,6 +14,8 @@ use App\Controllers\RefundClaimController;
 use App\Controllers\AccountingAccountController;
 use App\Controllers\BankAccountController;
 use App\Controllers\JournalEntryController;
+use App\Controllers\AdjustmentJournalController;
+use App\Controllers\RecurringJournalController;
 use App\Controllers\GeneralLedgerController;
 use App\Controllers\FiscalYearController;
 use App\Controllers\TrialBalanceController;
@@ -281,6 +283,25 @@ $router->get('/accounting/journals/create', [JournalEntryController::class, 'cre
 $router->post('/accounting/journals', [JournalEntryController::class, 'store']);
 $router->get('/accounting/journals/{id}', [JournalEntryController::class, 'show']);
 $router->post('/accounting/journals/{id}/reverse', [JournalEntryController::class, 'reverse']);
+
+$router->get('/accounting/adjustment-journals', [AdjustmentJournalController::class, 'index']);
+$router->get('/accounting/adjustment-journals/create', [AdjustmentJournalController::class, 'create']);
+$router->post('/accounting/adjustment-journals', [AdjustmentJournalController::class, 'store']);
+$router->get('/accounting/adjustment-journals/{id}', [AdjustmentJournalController::class, 'show']);
+$router->get('/accounting/adjustment-journals/{id}/edit', [AdjustmentJournalController::class, 'edit']);
+$router->post('/accounting/adjustment-journals/{id}', [AdjustmentJournalController::class, 'update']);
+$router->post('/accounting/adjustment-journals/{id}/post', [AdjustmentJournalController::class, 'post']);
+$router->post('/accounting/adjustment-journals/{id}/reverse', [AdjustmentJournalController::class, 'reverse']);
+
+$router->get('/accounting/recurring-journals', [RecurringJournalController::class, 'index']);
+$router->get('/accounting/recurring-journals/create', [RecurringJournalController::class, 'create']);
+$router->post('/accounting/recurring-journals', [RecurringJournalController::class, 'store']);
+$router->get('/accounting/recurring-journals/{id}', [RecurringJournalController::class, 'show']);
+$router->get('/accounting/recurring-journals/{id}/edit', [RecurringJournalController::class, 'edit']);
+$router->post('/accounting/recurring-journals/{id}', [RecurringJournalController::class, 'update']);
+$router->post('/accounting/recurring-journals/{id}/pause', [RecurringJournalController::class, 'pause']);
+$router->post('/accounting/recurring-journals/{id}/resume', [RecurringJournalController::class, 'resume']);
+$router->post('/accounting/recurring-journals/{id}/delete', [RecurringJournalController::class, 'delete']);
 
 $router->get('/accounting/general-ledger', [GeneralLedgerController::class, 'index']);
 $router->get('/accounting/general-ledger/export.xlsx', [GeneralLedgerController::class, 'exportExcel']);

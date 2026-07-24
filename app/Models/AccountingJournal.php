@@ -81,6 +81,136 @@ class AccountingJournal extends Model
     }
 
     /**
+     * Saves a journal as Draft -- no period/fiscal_year assignment and no
+     * posted_by/posted_at stamp, since it isn't in the GL yet. Balance is
+     * still validated (callers should only ever submit balanced lines, but
+     * this catches bugs early rather than persisting a bad draft).
+     *
+     * @param array<int, array{account_id:int, debit:float, credit:float, description?:string}> $lines
+     */
+    public function saveDraft(
+        string $sourceModule,
+        string $sourceTable,
+        ?int $sourceId,
+        string $referenceNo,
+        string $description,
+        array $lines,
+        ?int $userId,
+        string $journalDate,
+        string $journalType
+    ): int {
+        $totalDebit = round((float) array_sum(array_column($lines, 'debit')), 2);
+        $totalCredit = round((float) array_sum(array_column($lines, 'credit')), 2);
+        if ($totalDebit !== $totalCredit) {
+            throw new \RuntimeException("Journal not balanced. Debit: $totalDebit Credit: $totalCredit");
+        }
+
+        $journalId = $this->insert('accounting_journal_entries', [
+            'journal_no' => generate_reference('JRN'),
+            'journal_date' => $journalDate,
+            'source_module' => $sourceModule,
+            'source_table' => $sourceTable,
+            'source_id' => $sourceId,
+            'reference_no' => $referenceNo,
+            'description' => $description,
+            'journal_type' => $journalType,
+            'status' => 'Draft',
+            'created_by' => $userId,
+        ]);
+
+        foreach ($lines as $line) {
+            $this->insert('accounting_journal_lines', [
+                'journal_id' => $journalId,
+                'account_id' => $line['account_id'],
+                'description' => $line['description'] ?? $description,
+                'debit' => round((float) $line['debit'], 2),
+                'credit' => round((float) $line['credit'], 2),
+            ]);
+        }
+
+        return $journalId;
+    }
+
+    /**
+     * Replaces a Draft journal's header/lines wholesale. Throws if the
+     * journal isn't a Draft -- Posted journals are corrected via reverse(),
+     * never edited in place.
+     *
+     * @param array<int, array{account_id:int, debit:float, credit:float, description?:string}> $lines
+     */
+    public function updateDraft(int $journalId, string $journalDate, string $description, array $lines): void
+    {
+        $journal = $this->one("SELECT * FROM accounting_journal_entries WHERE id = ?", [$journalId]);
+        if (!$journal) {
+            throw new \RuntimeException('Journal not found.');
+        }
+        if ($journal['status'] !== 'Draft') {
+            throw new \RuntimeException('Only Draft journals can be edited.');
+        }
+
+        $totalDebit = round((float) array_sum(array_column($lines, 'debit')), 2);
+        $totalCredit = round((float) array_sum(array_column($lines, 'credit')), 2);
+        if ($totalDebit !== $totalCredit) {
+            throw new \RuntimeException("Journal not balanced. Debit: $totalDebit Credit: $totalCredit");
+        }
+
+        $this->update('accounting_journal_entries', [
+            'journal_date' => $journalDate,
+            'description' => $description,
+        ], 'id', $journalId);
+
+        $this->query("DELETE FROM accounting_journal_lines WHERE journal_id = ?", [$journalId]);
+        foreach ($lines as $line) {
+            $this->insert('accounting_journal_lines', [
+                'journal_id' => $journalId,
+                'account_id' => $line['account_id'],
+                'description' => $line['description'] ?? $description,
+                'debit' => round((float) $line['debit'], 2),
+                'credit' => round((float) $line['credit'], 2),
+            ]);
+        }
+    }
+
+    /**
+     * Transitions a Draft journal into the GL: resolves its fiscal
+     * period (blocked if that period is closed, same rule as post()),
+     * stamps posted_by/posted_at, and flips status to Posted.
+     */
+    public function postDraft(int $journalId, int $userId): void
+    {
+        $journal = $this->one("SELECT * FROM accounting_journal_entries WHERE id = ?", [$journalId]);
+        if (!$journal) {
+            throw new \RuntimeException('Journal not found.');
+        }
+        if ($journal['status'] !== 'Draft') {
+            throw new \RuntimeException('Only Draft journals can be posted.');
+        }
+
+        $lines = $this->all("SELECT * FROM accounting_journal_lines WHERE journal_id = ?", [$journalId]);
+        if (empty($lines)) {
+            throw new \RuntimeException('This journal has no lines to post.');
+        }
+        $totalDebit = round((float) array_sum(array_column($lines, 'debit')), 2);
+        $totalCredit = round((float) array_sum(array_column($lines, 'credit')), 2);
+        if ($totalDebit !== $totalCredit) {
+            throw new \RuntimeException("Journal not balanced. Debit: $totalDebit Credit: $totalCredit");
+        }
+
+        $period = (new AccountingPeriod())->findByDate($journal['journal_date']);
+        if ($period && (int) $period['is_closed'] === 1) {
+            throw new \RuntimeException("Cannot post to {$journal['journal_date']}: accounting period \"{$period['period_name']}\" is closed.");
+        }
+
+        $this->update('accounting_journal_entries', [
+            'fiscal_year_id' => $period['fiscal_year_id'] ?? null,
+            'period_id' => $period['id'] ?? null,
+            'status' => 'Posted',
+            'posted_by' => $userId,
+            'posted_at' => date('Y-m-d H:i:s'),
+        ], 'id', $journalId);
+    }
+
+    /**
      * The journal_line id for a given account within a just-posted journal
      * -- used to match a newly-created adjustment straight into
      * accounting_bank_reconciliation without a second round trip.

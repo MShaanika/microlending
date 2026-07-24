@@ -1,0 +1,77 @@
+<?= flash_messages() ?>
+
+<?php if ($error): ?>
+  <div class="alert alert-danger"><?= e($error) ?></div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Edit <?= e($template['template_no']) ?></h4>
+    <p class="text-muted mb-3">Next Run stays as-is unless this template hasn't posted yet and you change the Start Date.</p>
+
+    <form method="post" action="<?= url('/accounting/recurring-journals/' . $template['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <label class="form-label">Description <span class="text-danger">*</span></label>
+          <input type="text" name="description" class="form-control" value="<?= old('description', $old) ?>">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Debit Account <span class="text-danger">*</span></label>
+          <select name="debit_account_id" class="form-select">
+            <option value="">Select account</option>
+            <?php foreach ($accounts as $a): ?>
+              <option value="<?= (int) $a['id'] ?>" <?= (int) old('debit_account_id', $old) === (int) $a['id'] ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Credit Account <span class="text-danger">*</span></label>
+          <select name="credit_account_id" class="form-select">
+            <option value="">Select account</option>
+            <?php foreach ($accounts as $a): ?>
+              <option value="<?= (int) $a['id'] ?>" <?= (int) old('credit_account_id', $old) === (int) $a['id'] ? 'selected' : '' ?>><?= e($a['account_code'] . ' - ' . $a['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Amount <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" min="0.01" name="amount" class="form-control" value="<?= old('amount', $old) ?>">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Frequency</label>
+          <select name="frequency" class="form-select">
+            <?php foreach (['Weekly', 'Monthly', 'Quarterly', 'Annually'] as $f): ?>
+              <option value="<?= $f ?>" <?= (old('frequency', $old, 'Monthly') === $f) ? 'selected' : '' ?>><?= $f ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="start_date" class="form-control" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">End Date</label>
+          <input type="date" name="end_date" class="form-control" value="<?= old('end_date', $old) ?>">
+          <small class="form-text text-muted">Leave blank to repeat indefinitely.</small>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Next Run</label>
+          <input type="text" class="form-control" value="<?= e(date('d/m/Y', strtotime($template['next_run_date']))) ?>" disabled>
+        </div>
+      </div>
+
+      <div>
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+        <a href="<?= url('/accounting/recurring-journals/' . $template['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
