@@ -36,6 +36,7 @@ use App\Controllers\NotificationTemplateController;
 use App\Controllers\NotificationController;
 use App\Controllers\NotificationSettingController;
 use App\Controllers\NamfisaReportController;
+use App\Controllers\PaymentMethodReportController;
 use App\Controllers\DutyStampController;
 use App\Controllers\QuarterlyReportController;
 use App\Controllers\RegulatoryReportController;
@@ -214,6 +215,8 @@ $router->post('/compliance/namfisa/mark-submitted', [NamfisaReportController::cl
 
 $router->get('/compliance/duty-stamps', [DutyStampController::class, 'index']);
 $router->post('/compliance/duty-stamps/mark-submitted', [DutyStampController::class, 'markSubmitted']);
+
+$router->get('/compliance/payment-methods', [PaymentMethodReportController::class, 'index']);
 
 $router->get('/compliance/quarterly-reports', [QuarterlyReportController::class, 'index']);
 $router->get('/compliance/quarterly-reports/create', [QuarterlyReportController::class, 'create']);

@@ -2819,6 +2819,7 @@ INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
 ('compliance.namfisa', 'Manage NAMFISA Levy Reports', 'Compliance'),
 ('compliance.duty_stamp', 'Manage Duty Stamp Reports', 'Compliance'),
 ('compliance.quarterly', 'Generate Quarterly Reports', 'Compliance'),
+('compliance.payment_methods', 'View Payment Methods Report', 'Compliance'),
 ('compliance.exports', 'Export Regulatory Reports', 'Compliance'),
 ('reports.operational', 'View Operational Reports', 'Reports'),
 ('reports.financial', 'View Financial Reports', 'Reports'),

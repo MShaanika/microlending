@@ -72,6 +72,43 @@ class RegulatoryReportService
         ];
     }
 
+    /**
+     * Posted payments grouped by payment_source (Cash/Debit Order/Bank
+     * Transfer/Wallet/Manual Adjustment/Other) -- not payment_method_id,
+     * which the current write paths (Payment::recordAndAllocate()) never
+     * populate.
+     */
+    public static function paymentMethodSummary(string $start, string $end): array
+    {
+        $db = Database::connection();
+
+        $byMethod = $db->prepare(
+            "SELECT payment_source, COUNT(*) AS txn_count, COALESCE(SUM(amount_received),0) AS total_amount
+             FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?
+             GROUP BY payment_source ORDER BY total_amount DESC"
+        );
+        $byMethod->execute([$start, $end]);
+
+        $trend = $db->prepare(
+            "SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month_key, DATE_FORMAT(payment_date, '%M %Y') AS month_label,
+                    payment_source, COALESCE(SUM(amount_received),0) AS total_amount
+             FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?
+             GROUP BY month_key, month_label, payment_source ORDER BY month_key"
+        );
+        $trend->execute([$start, $end]);
+
+        $total = $db->prepare(
+            "SELECT COALESCE(SUM(amount_received),0) FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?"
+        );
+        $total->execute([$start, $end]);
+
+        return [
+            'total_amount' => round((float) $total->fetchColumn(), 2),
+            'by_method' => $byMethod->fetchAll(),
+            'trend' => $trend->fetchAll(),
+        ];
+    }
+
     public static function badDebtWriteOffSummary(string $start, string $end): array
     {
         $db = Database::connection();

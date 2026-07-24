@@ -1,0 +1,110 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Payment Methods Report</h4>
+    <p class="text-muted small mb-3">Showing <strong><?= e($period['label']) ?></strong>. Total collected this period: <strong><?= format_money($summary['total_amount']) ?></strong></p>
+
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small mb-0">View by</label>
+        <select name="period_type" id="period_type" class="form-select" onchange="mlsTogglePmReportPeriod(this.value)">
+          <option value="month" <?= $period['type'] === 'month' ? 'selected' : '' ?>>Month</option>
+          <option value="quarter" <?= $period['type'] === 'quarter' ? 'selected' : '' ?>>Quarter</option>
+          <option value="year" <?= $period['type'] === 'year' ? 'selected' : '' ?>>Year</option>
+        </select>
+      </div>
+      <div class="col-auto" id="pmReportMonthField" style="<?= $period['type'] === 'month' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Month</label>
+        <select name="month" class="form-select">
+          <?php for ($m = 1; $m <= 12; $m++): ?>
+            <option value="<?= $m ?>" <?= (int) $period['month'] === $m ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto" id="pmReportQuarterField" style="<?= $period['type'] === 'quarter' ? '' : 'display:none' ?>">
+        <label class="form-label small mb-0">Quarter</label>
+        <select name="quarter" class="form-select">
+          <?php foreach ([1 => 'Q1 (Jan-Mar)', 2 => 'Q2 (Apr-Jun)', 3 => 'Q3 (Jul-Sep)', 4 => 'Q4 (Oct-Dec)'] as $q => $qLabel): ?>
+            <option value="<?= $q ?>" <?= (int) $period['quarter'] === $q ? 'selected' : '' ?>><?= e($qLabel) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-0">Year</label>
+        <select name="year" class="form-select">
+          <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+            <option value="<?= $y ?>" <?= $period['year'] === $y ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-filter"></i> Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mlsTogglePmReportPeriod(type) {
+  document.getElementById('pmReportMonthField').style.display = type === 'month' ? '' : 'none';
+  document.getElementById('pmReportQuarterField').style.display = type === 'quarter' ? '' : 'none';
+}
+</script>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>By Payment Method</strong></div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered mb-0 no-datatable">
+        <thead><tr><th>Payment Method</th><th class="text-end">Transactions</th><th class="text-end">Amount</th><th class="text-end">% of Total</th></tr></thead>
+        <tbody>
+          <?php if (empty($summary['by_method'])): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No posted payments in this period.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($summary['by_method'] as $row): ?>
+            <tr>
+              <td><?= e($row['payment_source']) ?></td>
+              <td class="text-end"><?= (int) $row['txn_count'] ?></td>
+              <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+              <td class="text-end"><?= $summary['total_amount'] > 0 ? number_format($row['total_amount'] / $summary['total_amount'] * 100, 1) : '0.0' ?>%</td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <?php if (!empty($summary['by_method'])): ?>
+        <tfoot>
+          <tr class="fw-bold">
+            <td>Total</td>
+            <td class="text-end"><?= (int) array_sum(array_column($summary['by_method'], 'txn_count')) ?></td>
+            <td class="text-end"><?= format_money($summary['total_amount']) ?></td>
+            <td class="text-end">100.0%</td>
+          </tr>
+        </tfoot>
+        <?php endif; ?>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><strong>Monthly Trend</strong></div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered mb-0 no-datatable">
+        <thead><tr><th>Month</th><th>Payment Method</th><th class="text-end">Amount</th></tr></thead>
+        <tbody>
+          <?php if (empty($summary['trend'])): ?>
+            <tr><td colspan="3" class="text-center text-muted py-3">No posted payments in this period.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($summary['trend'] as $row): ?>
+            <tr>
+              <td><?= e($row['month_label']) ?></td>
+              <td><?= e($row['payment_source']) ?></td>
+              <td class="text-end"><?= format_money($row['total_amount']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

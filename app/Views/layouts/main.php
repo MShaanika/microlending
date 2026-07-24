@@ -308,6 +308,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             'Compliance' => ['icon' => 'mdi-gavel', 'items' => [
               ['label' => 'NAMFISA Reports', 'url' => url('/compliance/namfisa'), 'perm' => 'compliance.namfisa'],
               ['label' => 'Duty Stamps', 'url' => url('/compliance/duty-stamps'), 'perm' => 'compliance.duty_stamp'],
+              ['label' => 'Payment Methods', 'url' => url('/compliance/payment-methods'), 'perm' => 'compliance.payment_methods'],
               ['label' => 'Quarterly Reports', 'url' => url('/compliance/quarterly-reports'), 'perm' => 'compliance.quarterly'],
             ]],
             'Notifications' => ['icon' => 'mdi-bell', 'items' => [
