@@ -23,6 +23,7 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
         .btn-info { background-color: <?= htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8') ?> !important; border-color: <?= htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8') ?> !important; }
         .btn-info:hover { filter: brightness(90%); }
         .auth-box a.link { color: <?= htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8') ?> !important; }
+        .preloader { display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 

@@ -97,6 +97,14 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
         padding: 0 !important;
       }
     }
+
+    /* The preloader spinner had no centering rule at all -- it just sat at
+       the default top-left flow position inside its full-screen overlay. */
+    .preloader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 

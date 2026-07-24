@@ -13,6 +13,9 @@ $error = class_exists(Session::class) ? Session::flash('error') : null;
 
     <link rel="icon" type="image/png" href="<?= asset('assets/images/favicon.png') ?>">
     <link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet">
+    <style>
+        .preloader { display: flex; align-items: center; justify-content: center; }
+    </style>
 </head>
 
 <body>

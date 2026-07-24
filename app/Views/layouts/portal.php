@@ -24,6 +24,11 @@
       .portal-sidebar { width: 100%; height: auto; position: relative; }
       .portal-main { margin-left: 0; }
     }
+    .preloader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
