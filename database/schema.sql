@@ -1751,6 +1751,24 @@ CREATE TABLE regulatory_report_lines (
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- MLR Summarised Management Report -- one flexible table for all 8 sections
+-- of the real NAMFISA filing (month-grouped where the filing wants it), since
+-- regulatory_report_lines' flat category/gender/salary/size shape doesn't fit.
+CREATE TABLE mlr_report_lines (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    regulatory_report_id BIGINT NOT NULL,
+    section VARCHAR(30) NOT NULL,
+    month_key VARCHAR(7) NULL,
+    month_label VARCHAR(20) NULL,
+    label VARCHAR(150) NULL,
+    capital_amount DECIMAL(18,2) DEFAULT 0,
+    interest_amount DECIMAL(18,2) DEFAULT 0,
+    total_amount DECIMAL(18,2) DEFAULT 0,
+    loan_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (regulatory_report_id) REFERENCES regulatory_reports(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE quarterly_report_snapshots (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT NULL,
@@ -2546,7 +2564,8 @@ INSERT INTO regulatory_report_types (report_code, report_name, frequency, descri
 ('LOAN_SALARY_QTR', 'Loan Breakdown by Salary Quarterly Report', 'Quarterly', 'Breakdown of loans by borrower salary band.', 1),
 ('NAMFISA_LEVY_QTR', 'NAMFISA Levy Quarterly Report', 'Quarterly', 'Quarterly NAMFISA levy report.', 1),
 ('DUTY_STAMP_QTR', 'Duty Stamp Quarterly Report', 'Quarterly', 'Quarterly duty stamp report.', 1),
-('CURRENT_LOAN_QTR', 'Current Loan Quarterly Report', 'Quarterly', 'Quarterly current loan portfolio report.', 1);
+('CURRENT_LOAN_QTR', 'Current Loan Quarterly Report', 'Quarterly', 'Quarterly current loan portfolio report.', 1),
+('MLR_SUMMARISED_QTR', 'MLR Summarised Management Report', 'Quarterly', 'Consolidated NAMFISA quarterly filing: disbursements, gender/size breakdown, loan book balance, write-offs, expenses, interest income and levies, all by month.', 1);
 
 INSERT INTO loan_breakdown_size_bands (band_name, min_amount, max_amount, display_order, is_active) VALUES
 ('0 - 1,000', 0, 1000, 1, 1),

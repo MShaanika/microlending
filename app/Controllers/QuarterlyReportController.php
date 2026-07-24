@@ -7,24 +7,31 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\MlrReportLine;
 use App\Models\RegulatoryReport;
 use App\Models\RegulatoryReportLine;
 use App\Models\RegulatoryReportType;
+use App\Services\MlrReportExcelExporter;
+use App\Services\MlrReportGenerationService;
 use App\Services\RegulatoryReportExcelExporter;
 use App\Services\RegulatoryReportGenerationService;
 use App\Services\ReportPeriod;
 
 class QuarterlyReportController extends Controller
 {
+    private const MLR_CODE = 'MLR_SUMMARISED_QTR';
+
     private RegulatoryReport $reports;
     private RegulatoryReportLine $reportLines;
     private RegulatoryReportType $reportTypes;
+    private MlrReportLine $mlrLines;
 
     public function __construct()
     {
         $this->reports = new RegulatoryReport();
         $this->reportLines = new RegulatoryReportLine();
         $this->reportTypes = new RegulatoryReportType();
+        $this->mlrLines = new MlrReportLine();
     }
 
     public function index(): void
@@ -95,7 +102,9 @@ class QuarterlyReportController extends Controller
         $userId = Auth::user()['id'] ?? null;
 
         try {
-            $reportId = RegulatoryReportGenerationService::generate($type['report_code'], $period['start'], $period['end'], $userId);
+            $reportId = $type['report_code'] === self::MLR_CODE
+                ? MlrReportGenerationService::generate($period['start'], $period['end'], $userId)
+                : RegulatoryReportGenerationService::generate($type['report_code'], $period['start'], $period['end'], $userId);
         } catch (\RuntimeException $e) {
             Session::flash('error', 'Could not generate report: ' . $e->getMessage());
             $this->redirect('/compliance/quarterly-reports/create');
@@ -118,11 +127,32 @@ class QuarterlyReportController extends Controller
             return;
         }
 
+        if ($report['report_code'] === self::MLR_CODE) {
+            $this->view('compliance/quarterly/show_mlr', [
+                'title' => $report['report_name'],
+                'report' => $report,
+                'sections' => $this->groupMlrSections($this->mlrLines->forReport((int) $id)),
+            ]);
+            return;
+        }
+
         $this->view('compliance/quarterly/show', [
             'title' => $report['report_name'],
             'report' => $report,
             'lines' => $this->reportLines->forReport((int) $id),
         ]);
+    }
+
+    private function groupMlrSections(array $lines): array
+    {
+        $sections = [
+            'DISBURSED' => [], 'GENDER' => [], 'SIZE' => [], 'BOOK_BALANCE' => [],
+            'WRITTEN_OFF' => [], 'EXPENSES' => [], 'INTEREST_INCOME' => [], 'LEVY' => [],
+        ];
+        foreach ($lines as $line) {
+            $sections[$line['section']][] = $line;
+        }
+        return $sections;
     }
 
     public function submit(string $id): void
@@ -177,8 +207,11 @@ class QuarterlyReportController extends Controller
             return;
         }
 
-        $lines = $this->reportLines->forReport($id);
-        $exporter = new RegulatoryReportExcelExporter($report, $lines);
+        if ($report['report_code'] === self::MLR_CODE) {
+            $exporter = new MlrReportExcelExporter($report, $this->groupMlrSections($this->mlrLines->forReport($id)));
+        } else {
+            $exporter = new RegulatoryReportExcelExporter($report, $this->reportLines->forReport($id));
+        }
         $spreadsheet = $exporter->build();
 
         $targetDir = STORAGE_PATH . '/regulatory_exports';

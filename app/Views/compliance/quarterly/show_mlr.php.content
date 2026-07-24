@@ -1,0 +1,268 @@
+<?= flash_messages() ?>
+
+<?php
+  use App\Models\Company;
+  $badge = match ($report['status']) {
+    'Approved' => 'success',
+    'Submitted' => 'info',
+    'Rejected' => 'danger',
+    'Generated' => 'primary',
+    default => 'secondary',
+  };
+  $company = (new Company())->primary() ?: [];
+  $sum = fn (array $rows, string $key) => round(array_sum(array_column($rows, $key)), 2);
+  $sumInt = fn (array $rows, string $key) => (int) array_sum(array_column($rows, $key));
+?>
+
+<div class="card mb-3 no-print">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1"><?= e($report['report_name']) ?></h4>
+        <p class="text-muted mb-0"><?= e($report['report_no']) ?> &middot; <?= e($report['period_start']) ?> &rarr; <?= e($report['period_end']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($report['status']) ?></span>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+      <a href="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/download') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-excel"></i> Download Excel</a>
+
+      <?php if ($report['status'] === 'Generated'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/submit') ?>" onsubmit="return confirm('Mark this report as Submitted to NAMFISA?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-info btn-sm"><i class="mdi mdi-send"></i> Mark as Submitted</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($report['status'] === 'Submitted'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/approve') ?>" onsubmit="return confirm('Approve this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/reject') ?>" onsubmit="return confirm('Reject this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-outline-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <p class="mb-1"><strong>Business Name:</strong> <?= e($company['company_name'] ?? '') ?></p>
+    <p class="mb-1"><strong>NAMFISA Reg. No.:</strong> <?= e($company['namfisa_license_no'] ?? '') ?></p>
+    <p class="mb-1"><strong>Summarised Management Report:</strong> <?= e($report['report_period']) ?></p>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">1. Total Loans Disbursed</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light"><tr><th>Month</th><th class="text-end">Capital (NAD)</th><th class="text-end">Interest (NAD)</th><th class="text-end">Total (NAD)</th><th class="text-end">No.</th></tr></thead>
+        <tbody>
+          <?php foreach ($sections['DISBURSED'] as $r): ?>
+            <tr>
+              <td><?= e($r['month_label']) ?></td>
+              <td class="text-end"><?= format_money($r['capital_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['interest_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['total_amount']) ?></td>
+              <td class="text-end"><?= (int) $r['loan_count'] ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold">
+            <td>Total</td>
+            <td class="text-end"><?= format_money($sum($sections['DISBURSED'], 'capital_amount')) ?></td>
+            <td class="text-end"><?= format_money($sum($sections['DISBURSED'], 'interest_amount')) ?></td>
+            <td class="text-end"><?= format_money($sum($sections['DISBURSED'], 'total_amount')) ?></td>
+            <td class="text-end"><?= $sumInt($sections['DISBURSED'], 'loan_count') ?></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">2. Break-down by Gender</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Gender</th><th class="text-end">Amount (NAD)</th><th class="text-end">No.</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['GENDER'] as $r): ?>
+                <tr><td><?= e($r['label']) ?></td><td class="text-end"><?= format_money($r['total_amount']) ?></td><td class="text-end"><?= (int) $r['loan_count'] ?></td></tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= format_money($sum($sections['GENDER'], 'total_amount')) ?></td><td class="text-end"><?= $sumInt($sections['GENDER'], 'loan_count') ?></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">3. Break-down by Size</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Band</th><th class="text-end">Amount (NAD)</th><th class="text-end">No.</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['SIZE'] as $r): ?>
+                <tr><td><?= e($r['label']) ?></td><td class="text-end"><?= format_money($r['total_amount']) ?></td><td class="text-end"><?= (int) $r['loan_count'] ?></td></tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= format_money($sum($sections['SIZE'], 'total_amount')) ?></td><td class="text-end"><?= $sumInt($sections['SIZE'], 'loan_count') ?></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">4. Loan Book Balance as at End of Quarter (Including Interest)</h5>
+    <p class="text-muted small">Outstanding balance for loans disbursed on or before <?= e($report['period_end']) ?>. For a closed quarter this is the exact figure; for the current/still-open quarter it reflects today's live balance rather than a historical snapshot at that exact date.</p>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light"><tr><th class="text-end">Amount (NAD)</th><th class="text-end">No.</th></tr></thead>
+        <tbody>
+          <?php $bb = $sections['BOOK_BALANCE'][0] ?? ['total_amount' => 0, 'loan_count' => 0]; ?>
+          <tr><td class="text-end"><?= format_money($bb['total_amount']) ?></td><td class="text-end"><?= (int) $bb['loan_count'] ?></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">5. Total Loans Written Off (Bad Debts)</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light"><tr><th>Month</th><th class="text-end">Capital (NAD)</th><th class="text-end">Interest (NAD)</th><th class="text-end">Total (NAD)</th><th class="text-end">No.</th></tr></thead>
+        <tbody>
+          <?php foreach ($sections['WRITTEN_OFF'] as $r): ?>
+            <tr>
+              <td><?= e($r['month_label']) ?></td>
+              <td class="text-end"><?= format_money($r['capital_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['interest_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['total_amount']) ?></td>
+              <td class="text-end"><?= (int) $r['loan_count'] ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold">
+            <td>Total</td>
+            <td class="text-end"><?= format_money($sum($sections['WRITTEN_OFF'], 'capital_amount')) ?></td>
+            <td class="text-end"><?= format_money($sum($sections['WRITTEN_OFF'], 'interest_amount')) ?></td>
+            <td class="text-end"><?= format_money($sum($sections['WRITTEN_OFF'], 'total_amount')) ?></td>
+            <td class="text-end"><?= $sumInt($sections['WRITTEN_OFF'], 'loan_count') ?></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">6. Expenses</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Month</th><th class="text-end">Amount (NAD)</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['EXPENSES'] as $r): ?>
+                <tr><td><?= e($r['month_label']) ?></td><td class="text-end"><?= format_money($r['total_amount']) ?></td></tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= format_money($sum($sections['EXPENSES'], 'total_amount')) ?></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">7. Quarterly Interest Income - Segment</h5>
+        <p class="text-muted small">GL account 4010 (Interest Income), posted credits.</p>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Month</th><th class="text-end">Amount (NAD)</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['INTEREST_INCOME'] as $r): ?>
+                <tr><td><?= e($r['month_label']) ?></td><td class="text-end"><?= format_money($r['total_amount']) ?></td></tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold"><td>Total</td><td class="text-end"><?= format_money($sum($sections['INTEREST_INCOME'], 'total_amount')) ?></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">8. Levies Payable to NAMFISA (Less Bad Debts)</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm no-datatable">
+            <thead class="table-light"><tr><th>Month</th><th class="text-end">Levy</th><th class="text-end">Less: Bad Debts</th><th class="text-end">Net Payable</th></tr></thead>
+            <tbody>
+              <?php foreach ($sections['LEVY'] as $r): ?>
+                <tr>
+                  <td><?= e($r['month_label']) ?></td>
+                  <td class="text-end"><?= format_money($r['total_amount']) ?></td>
+                  <td class="text-end"><?= format_money($r['capital_amount']) ?></td>
+                  <td class="text-end"><?= format_money($r['total_amount'] - $r['capital_amount']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold">
+                <td>Total</td>
+                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'total_amount')) ?></td>
+                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'capital_amount')) ?></td>
+                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'total_amount') - $sum($sections['LEVY'], 'capital_amount')) ?></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <p class="mb-1">Signature: ________________________</p>
+        <p class="mb-1">Name of Representative: ________________________</p>
+        <p class="mb-1">PRINCIPAL OFFICER</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="mb-1">Date: ________________________</p>
+      </div>
+    </div>
+  </div>
+</div>

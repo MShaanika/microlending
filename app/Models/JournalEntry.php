@@ -208,6 +208,26 @@ class JournalEntry extends Model
     }
 
     /**
+     * Net credits to a single GL account, grouped by month -- the GL-posting
+     * basis for "Interest Income" on the MLR Summarised Management Report,
+     * mirroring RegulatoryReportService::namfisaLevySummary()'s trend query.
+     */
+    public function accountCreditsByMonth(int $accountId, string $fromDate, string $toDate): array
+    {
+        return $this->all(
+            "SELECT DATE_FORMAT(je.journal_date, '%Y-%m') AS month_key,
+                    DATE_FORMAT(je.journal_date, '%M %Y') AS month_label,
+                    COALESCE(SUM(jl.credit - jl.debit), 0) AS total_amount
+             FROM accounting_journal_lines jl
+             JOIN accounting_journal_entries je ON je.id = jl.journal_id
+             WHERE jl.account_id = ? AND je.status = 'Posted' AND je.journal_date BETWEEN ? AND ?
+             GROUP BY month_key, month_label
+             ORDER BY month_key",
+            [$accountId, $fromDate, $toDate]
+        );
+    }
+
+    /**
      * All posted journal lines touching a single GL account within a date
      * range, in date order, with a running balance seeded from whatever
      * activity happened before $fromDate.
