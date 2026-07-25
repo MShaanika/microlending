@@ -212,7 +212,7 @@ class BankReconciliation extends Model
 
         $matchedStmt = $db->prepare(
             "SELECT br.id AS reconciliation_id, br.bank_statement_id, br.journal_line_id,
-                    bs.transaction_date, bs.description AS statement_description, bs.money_in, bs.money_out,
+                    bs.transaction_date, bs.description AS statement_description, bs.reference_no AS bank_reference, bs.money_in, bs.money_out,
                     jl.debit, jl.credit, jl.description AS journal_description,
                     je.journal_no, je.id AS journal_id
              FROM accounting_bank_reconciliation br
@@ -232,6 +232,7 @@ class BankReconciliation extends Model
                 'status' => abs($cashBookAmount - $bankAmount) > 0.01 ? 'Review' : 'Matched',
                 'date' => $m['transaction_date'],
                 'description' => $m['journal_description'] ?: $m['statement_description'],
+                'bank_reference' => $m['bank_reference'],
                 'cash_book_amount' => (float) $m['debit'] > 0 ? (float) $m['debit'] : ((float) $m['credit'] > 0 ? -(float) $m['credit'] : null),
                 'bank_amount' => (float) $m['money_in'] > 0 ? (float) $m['money_in'] : ((float) $m['money_out'] > 0 ? -(float) $m['money_out'] : null),
                 'journal_id' => (int) $m['journal_id'],
@@ -245,6 +246,7 @@ class BankReconciliation extends Model
                 'status' => 'Missing',
                 'date' => $s['transaction_date'],
                 'description' => $s['description'] ?: $s['reference_no'],
+                'bank_reference' => $s['reference_no'],
                 'cash_book_amount' => null,
                 'bank_amount' => (float) $s['money_in'] > 0 ? (float) $s['money_in'] : -((float) $s['money_out']),
                 'journal_id' => null,
@@ -258,6 +260,7 @@ class BankReconciliation extends Model
                 'status' => 'Unmatched',
                 'date' => $jl['journal_date'],
                 'description' => $jl['description'] ?: $jl['journal_description'],
+                'bank_reference' => null,
                 'cash_book_amount' => (float) $jl['debit'] > 0 ? (float) $jl['debit'] : -((float) $jl['credit']),
                 'bank_amount' => null,
                 'journal_id' => (int) $jl['journal_id'],
@@ -336,6 +339,70 @@ class BankReconciliation extends Model
              WHERE bc.bank_account_id = ? AND bc.reopened_at IS NULL
              ORDER BY bc.statement_date DESC LIMIT 1",
             [$bankAccountId]
+        );
+    }
+
+    /**
+     * Every individual match record ever made (audit trail), regardless of
+     * whether its bank account has since been through a Complete/Reopen
+     * cycle -- distinct from completionHistory(), which tracks the
+     * period-lock cycle rather than each match itself.
+     *
+     * @param array{bank_account_id?:int, from_date?:string, to_date?:string, matched_by?:int} $filters
+     */
+    public function matchHistory(array $filters = []): array
+    {
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['bank_account_id'])) {
+            $where[] = 'bs.bank_account_id = ?';
+            $params[] = (int) $filters['bank_account_id'];
+        }
+        if (!empty($filters['from_date'])) {
+            $where[] = 'DATE(br.reconciled_at) >= ?';
+            $params[] = $filters['from_date'];
+        }
+        if (!empty($filters['to_date'])) {
+            $where[] = 'DATE(br.reconciled_at) <= ?';
+            $params[] = $filters['to_date'];
+        }
+        if (!empty($filters['matched_by'])) {
+            $where[] = 'br.reconciled_by = ?';
+            $params[] = (int) $filters['matched_by'];
+        }
+
+        $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+        return $this->all(
+            "SELECT br.id AS reconciliation_id, br.matched_amount, br.reconciliation_status, br.reconciled_at, br.notes,
+                    bs.transaction_date, bs.reference_no AS bank_reference, bs.description AS bank_description,
+                    ba.bank_name, ba.account_name AS bank_account_name, ba.account_number,
+                    je.id AS journal_id, je.journal_no,
+                    u.name AS matched_by_name
+             FROM accounting_bank_reconciliation br
+             JOIN accounting_bank_statement bs ON bs.id = br.bank_statement_id
+             LEFT JOIN accounting_bank_accounts ba ON ba.id = bs.bank_account_id
+             LEFT JOIN accounting_journal_lines jl ON jl.id = br.journal_line_id
+             LEFT JOIN accounting_journal_entries je ON je.id = jl.journal_id
+             LEFT JOIN users u ON u.id = br.reconciled_by
+             $whereSql
+             ORDER BY br.reconciled_at DESC, br.id DESC",
+            $params
+        );
+    }
+
+    /**
+     * Every staff member who has ever matched a bank transaction -- powers
+     * the "Matched By" filter dropdown on the history page.
+     */
+    public function matchers(): array
+    {
+        return $this->all(
+            "SELECT DISTINCT u.id, u.name
+             FROM accounting_bank_reconciliation br
+             JOIN users u ON u.id = br.reconciled_by
+             ORDER BY u.name"
         );
     }
 

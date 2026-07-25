@@ -294,6 +294,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Loan Write-Offs', 'url' => url('/accounting/loan-write-offs'), 'perm' => 'accounting.writeoffs'],
               ['label' => 'Penalty Accruals', 'url' => url('/accounting/penalty-accruals'), 'perm' => 'accounting.view'],
               ['label' => 'Bank Reconciliation', 'url' => url('/accounting/bank-reconciliation'), 'perm' => 'accounting.bank_reconciliation'],
+              ['label' => 'Reconciliation History', 'url' => url('/accounting/bank-reconciliation/history'), 'perm' => 'accounting.bank_reconciliation'],
               ['label' => 'Expenses', 'url' => url('/expenses'), 'perm' => 'expenses.view'],
               ['label' => 'Expense Categories', 'url' => url('/expense-categories'), 'perm' => 'expenses.view'],
             ]],

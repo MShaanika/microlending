@@ -344,6 +344,7 @@ $router->post('/accounting/penalty-accruals', [PenaltyAccrualController::class, 
 $router->get('/accounting/penalty-accruals/runs/{date}', [PenaltyAccrualController::class, 'show']);
 
 $router->get('/accounting/bank-reconciliation', [BankReconciliationController::class, 'index']);
+$router->get('/accounting/bank-reconciliation/history', [BankReconciliationController::class, 'history']);
 $router->get('/accounting/bank-reconciliation/import', [BankReconciliationController::class, 'importForm']);
 $router->post('/accounting/bank-reconciliation/import', [BankReconciliationController::class, 'import']);
 $router->post('/accounting/bank-reconciliation/match', [BankReconciliationController::class, 'match']);

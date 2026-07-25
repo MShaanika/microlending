@@ -77,6 +77,36 @@ class BankReconciliationController extends Controller
         ]);
     }
 
+    public function history(): void
+    {
+        Auth::authorize('accounting.bank_reconciliation');
+
+        $filters = [
+            'bank_account_id' => (int) ($_GET['bank_account_id'] ?? 0),
+            'from_date' => trim($_GET['from_date'] ?? ''),
+            'to_date' => trim($_GET['to_date'] ?? ''),
+            'matched_by' => (int) ($_GET['matched_by'] ?? 0),
+        ];
+
+        $matches = $this->reconciliation->matchHistory(array_filter($filters));
+
+        $totalAmount = 0.0;
+        foreach ($matches as $m) {
+            $totalAmount += (float) $m['matched_amount'];
+        }
+
+        $this->view('accounting/bank_reconciliation/history', [
+            'title' => 'Bank Reconciliation History',
+            'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
+            'matchers' => $this->reconciliation->matchers(),
+            'filters' => $filters,
+            'matches' => $matches,
+            'totalMatches' => count($matches),
+            'totalAmount' => $totalAmount,
+            'lastMatchDate' => $matches[0]['reconciled_at'] ?? null,
+        ]);
+    }
+
     public function complete(): void
     {
         Auth::authorize('accounting.bank_reconciliation');

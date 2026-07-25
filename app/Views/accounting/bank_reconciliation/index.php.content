@@ -5,6 +5,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h4 class="card-title mb-0">Bank Reconciliation<?= $bankAccount ? ' - ' . e($bankAccount['bank_name']) . ' - ' . e($bankAccount['account_name']) . ' (' . e($bankAccount['gl_account_code']) . ')' : '' ?></h4>
       <div class="d-flex gap-2">
+        <a href="<?= url('/accounting/bank-reconciliation/history') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-history"></i> History</a>
         <a href="<?= url('/accounting/bank-reconciliation/import?bank_account_id=' . (int) $bankAccountId) ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Load Statement</a>
         <?php if ($bankAccount): ?>
           <form method="post" action="<?= url('/accounting/bank-reconciliation/auto-match') ?>">
@@ -100,11 +101,11 @@
     <div class="table-responsive">
       <table class="table table-sm table-hover align-middle no-datatable">
         <thead>
-          <tr><th></th><th>Date</th><th>Description</th><th class="text-end">Cash Book</th><th class="text-end">Bank Stmt</th><th>Match?</th><th></th></tr>
+          <tr><th></th><th>Date</th><th>Bank Ref</th><th>Description</th><th class="text-end">Cash Book</th><th class="text-end">Bank Stmt</th><th>Matched Journal</th><th>Match?</th><th></th></tr>
         </thead>
         <tbody>
           <?php if (empty($comparison)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">Nothing to show for this period.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4">Nothing to show for this period.</td></tr>
           <?php endif; ?>
           <?php foreach ($comparison as $row): ?>
             <?php
@@ -126,9 +127,17 @@
             <tr>
               <td><?= $icon ?></td>
               <td><?= e(date('d/m/Y', strtotime($row['date']))) ?></td>
+              <td><strong><?= e($row['bank_reference'] ?: '-') ?></strong></td>
               <td><?= e($row['description']) ?></td>
               <td class="text-end"><?= $row['cash_book_amount'] === null ? '' : format_money($row['cash_book_amount']) ?></td>
               <td class="text-end"><?= $row['bank_amount'] === null ? '' : format_money($row['bank_amount']) ?></td>
+              <td>
+                <?php if ($row['journal_id']): ?>
+                  <a href="<?= url('/accounting/journals/' . (int) $row['journal_id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i> <?= e($row['journal_no']) ?></a>
+                <?php else: ?>
+                  &mdash;
+                <?php endif; ?>
+              </td>
               <td><?= e($label) ?></td>
               <td class="text-end">
                 <?php if ($row['status'] === 'Matched' || $row['status'] === 'Review'): ?>
@@ -147,7 +156,7 @@
             </tr>
             <?php if ($row['status'] === 'Missing'): ?>
               <tr class="collapse" id="resolve-<?= (int) $row['bank_statement_id'] ?>">
-                <td colspan="7" class="bg-light">
+                <td colspan="9" class="bg-light">
                   <form method="post" action="<?= url('/accounting/bank-reconciliation/match') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
@@ -184,7 +193,7 @@
               </tr>
             <?php elseif ($row['status'] === 'Unmatched'): ?>
               <tr class="collapse" id="matchjl-<?= (int) $row['journal_id'] ?>-<?= (int) $row['bank_statement_id'] ?>">
-                <td colspan="7" class="bg-light">
+                <td colspan="9" class="bg-light">
                   <p class="text-muted small mb-0 py-2">This is in your books but hasn't shown up on a statement yet (e.g. an outstanding cheque). It will match itself once you load a statement that includes it, or use Auto-Match.</p>
                 </td>
               </tr>
