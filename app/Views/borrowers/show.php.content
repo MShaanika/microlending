@@ -45,7 +45,7 @@
         <?php else: ?>
           <p class="text-muted mb-3">This borrower doesn't have portal access yet.</p>
         <?php endif; ?>
-        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" onsubmit="return confirm('<?= $portalUser ? 'Reset this borrower\'s portal password?' : 'Create portal access for this borrower?' ?>');">
+        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" onsubmit="return confirmSubmit(this, '<?= $portalUser ? 'Reset this borrower\'s portal password?' : 'Create portal access for this borrower?' ?>');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-key"></i> <?= $portalUser ? 'Reset Password' : 'Create Portal Access' ?></button>
         </form>

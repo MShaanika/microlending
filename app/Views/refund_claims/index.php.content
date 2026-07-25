@@ -46,18 +46,18 @@
               <td><?= e(date('d M Y', strtotime($c['claim_date']))) ?></td>
               <td class="text-end">
                 <?php if (in_array($c['status'], ['Pending', 'Under Review'], true)): ?>
-                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/approve') ?>" class="d-inline" onsubmit="return confirm('Approve this claim for ' + document.getElementById('amt-<?= $c['id'] ?>').value + '?');">
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/approve') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Approve this claim for ' + document.getElementById('amt-<?= $c['id'] ?>').value + '?');">
                     <?= csrf_field() ?>
                     <input type="number" step="0.01" id="amt-<?= $c['id'] ?>" name="approved_amount" value="<?= $c['claim_amount'] ?>" class="form-control form-control-sm d-inline-block" style="width:100px;">
                     <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i></button>
                   </form>
-                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/reject') ?>" class="d-inline" onsubmit="return confirm('Reject this claim?');">
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/reject') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Reject this claim?');">
                     <?= csrf_field() ?>
                     <input type="hidden" name="reason" value="Could not verify claim">
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>
                   </form>
                 <?php elseif ($c['status'] === 'Approved'): ?>
-                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/mark-paid') ?>" class="d-inline" onsubmit="return confirm('Mark this claim as paid?');">
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/mark-paid') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Mark this claim as paid?');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-cash-check"></i> Mark Paid</button>
                   </form>

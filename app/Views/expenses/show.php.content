@@ -40,11 +40,11 @@
         <?php if ($expense['status'] === 'Draft'): ?>
           <div class="d-flex gap-2 flex-wrap">
             <a href="<?= url('/expenses/' . $expense['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
-            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/submit') ?>" onsubmit="return confirm('Submit this expense for approval?');">
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/submit') ?>" onsubmit="return confirmSubmit(this, 'Submit this expense for approval?');">
               <?= csrf_field() ?>
               <button type="submit" class="btn btn-sm btn-info"><i class="mdi mdi-send"></i> Submit for Approval</button>
             </form>
-            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this draft expense?');">
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/cancel') ?>" onsubmit="return confirmSubmit(this, 'Cancel this draft expense?');">
               <?= csrf_field() ?>
               <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i> Cancel</button>
             </form>
@@ -53,12 +53,12 @@
 
         <?php if ($expense['status'] === 'Pending Approval'): ?>
           <div class="d-flex gap-2 flex-wrap">
-            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/approve') ?>" onsubmit="return confirm('Approve this expense?');">
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this expense?');">
               <?= csrf_field() ?>
               <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> Approve</button>
             </form>
             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
-            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this expense request?');">
+            <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/cancel') ?>" onsubmit="return confirmSubmit(this, 'Cancel this expense request?');">
               <?= csrf_field() ?>
               <button type="submit" class="btn btn-sm btn-outline-secondary">Withdraw</button>
             </form>
@@ -73,7 +73,7 @@
         <?php endif; ?>
 
         <?php if ($expense['status'] === 'Approved'): ?>
-          <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/pay') ?>" onsubmit="return confirm('Pay this expense? This posts a real accounting journal entry.');">
+          <form method="post" action="<?= url('/expenses/' . $expense['id'] . '/pay') ?>" onsubmit="return confirmSubmit(this, 'Pay this expense? This posts a real accounting journal entry.');">
             <?= csrf_field() ?>
             <label class="form-label small">Payment Method</label>
             <select name="payment_method_id" class="form-select form-select-sm mb-2">

@@ -32,11 +32,11 @@
 
     <div class="d-flex gap-2 flex-wrap mt-3">
       <?php if ($cancellation['status'] === 'Pending'): ?>
-        <form method="post" action="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/approve') ?>" onsubmit="return confirm('Cancel this debit order mandate now?');">
+        <form method="post" action="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Cancel this debit order mandate now?');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve &amp; Cancel Mandate</button>
         </form>
-        <form method="post" action="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/reject') ?>" onsubmit="return confirm('Reject this cancellation request? The mandate will keep running.');">
+        <form method="post" action="<?= url('/debit-order-cancellations/' . $cancellation['id'] . '/reject') ?>" onsubmit="return confirmSubmit(this, 'Reject this cancellation request? The mandate will keep running.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-outline-danger waves-effect waves-light"><i class="mdi mdi-close"></i> Reject (Keep Mandate Active)</button>
         </form>

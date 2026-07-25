@@ -51,7 +51,7 @@
               <td><span class="badge bg-<?= $pBadge ?>"><?= e($p['status']) ?></span></td>
               <td class="text-end">
                 <?php if ($p['status'] === 'Pending'): ?>
-                  <form method="post" action="<?= url('/payments/' . $p['id'] . '/confirm') ?>" class="d-inline-flex gap-1 align-items-center" onsubmit="return confirm('Confirm this payment and allocate it to the schedule?');">
+                  <form method="post" action="<?= url('/payments/' . $p['id'] . '/confirm') ?>" class="d-inline-flex gap-1 align-items-center" onsubmit="return confirmSubmit(this, 'Confirm this payment and allocate it to the schedule?');">
                     <?= csrf_field() ?>
                     <select name="bank_account_id" class="form-select form-select-sm" style="width:160px;">
                       <option value="">Default Bank</option>
@@ -61,7 +61,7 @@
                     </select>
                     <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> Confirm</button>
                   </form>
-                  <form method="post" action="<?= url('/payments/' . $p['id'] . '/reject') ?>" class="d-inline" onsubmit="return confirm('Reject this payment reference?');">
+                  <form method="post" action="<?= url('/payments/' . $p['id'] . '/reject') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Reject this payment reference?');">
                     <?= csrf_field() ?>
                     <input type="hidden" name="reason" value="Could not verify reference">
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>

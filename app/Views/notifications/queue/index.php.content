@@ -70,7 +70,7 @@
                     <?= csrf_field() ?>
                     <button class="btn btn-sm btn-outline-danger" title="Mark as Failed"><i class="mdi mdi-alert"></i></button>
                   </form>
-                  <form method="post" action="<?= url('/notifications/' . $item['id'] . '/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this queued notification?');">
+                  <form method="post" action="<?= url('/notifications/' . $item['id'] . '/cancel') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Cancel this queued notification?');">
                     <?= csrf_field() ?>
                     <button class="btn btn-sm btn-outline-secondary" title="Cancel"><i class="mdi mdi-close"></i></button>
                   </form>

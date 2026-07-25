@@ -41,7 +41,7 @@
           <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-play"></i> Resume</button>
         </form>
       <?php endif; ?>
-      <form method="post" action="<?= url('/accounting/recurring-journals/' . $template['id'] . '/delete') ?>" onsubmit="return confirm('Delete this recurring journal template? Journals it already generated are unaffected.');">
+      <form method="post" action="<?= url('/accounting/recurring-journals/' . $template['id'] . '/delete') ?>" onsubmit="return confirmSubmit(this, 'Delete this recurring journal template? Journals it already generated are unaffected.');">
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-outline-danger"><i class="mdi mdi-delete"></i> Delete</button>
       </form>

@@ -28,18 +28,18 @@
       <a href="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/download') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-excel"></i> Download Excel</a>
 
       <?php if ($report['status'] === 'Generated'): ?>
-        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/submit') ?>" onsubmit="return confirm('Mark this report as Submitted?');">
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/submit') ?>" onsubmit="return confirmSubmit(this, 'Mark this report as Submitted?');">
           <?= csrf_field() ?>
           <button class="btn btn-info btn-sm"><i class="mdi mdi-send"></i> Mark as Submitted</button>
         </form>
       <?php endif; ?>
 
       <?php if ($report['status'] === 'Submitted'): ?>
-        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/approve') ?>" onsubmit="return confirm('Approve this report?');">
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this report?');">
           <?= csrf_field() ?>
           <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
         </form>
-        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/reject') ?>" onsubmit="return confirm('Reject this report?');">
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/reject') ?>" onsubmit="return confirmSubmit(this, 'Reject this report?');">
           <?= csrf_field() ?>
           <button class="btn btn-outline-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
         </form>

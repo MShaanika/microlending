@@ -32,7 +32,7 @@
 
         <div class="d-flex gap-2 flex-wrap">
           <?php if ($asset['status'] === 'Active' && $hasPending): ?>
-            <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/depreciate') ?>" onsubmit="return confirm('Post the next <?= strtolower($label) ?> period to the ledger?');">
+            <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/depreciate') ?>" onsubmit="return confirmSubmit(this, 'Post the next <?= strtolower($label) ?> period to the ledger?');">
               <?= csrf_field() ?>
               <button class="btn btn-info btn-sm"><i class="mdi mdi-calculator"></i> Post Next <?= $label ?> Period</button>
             </form>
@@ -47,7 +47,7 @@
 
         <?php if ($asset['status'] !== 'Disposed'): ?>
         <div class="collapse mt-3" id="disposeForm">
-          <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/dispose') ?>" onsubmit="return confirm('Dispose this asset? This cannot be undone.');">
+          <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/dispose') ?>" onsubmit="return confirmSubmit(this, 'Dispose this asset? This cannot be undone.');">
             <?= csrf_field() ?>
             <div class="mb-2">
               <label class="form-label small mb-0">Disposal Date</label>

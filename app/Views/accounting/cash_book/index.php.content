@@ -82,7 +82,7 @@
                 <td class="text-end"><?= format_money($line['running_balance']) ?></td>
                 <td class="no-print">
                   <?php if ($isReversible && !$isLocked): ?>
-                    <form method="post" action="<?= url('/accounting/journals/' . $line['journal_id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this transaction? A new offsetting entry will be posted.');">
+                    <form method="post" action="<?= url('/accounting/journals/' . $line['journal_id'] . '/reverse') ?>" onsubmit="return confirmSubmit(this, 'Reverse this transaction? A new offsetting entry will be posted.');">
                       <?= csrf_field() ?>
                       <button type="submit" class="btn btn-sm btn-outline-danger" title="Reverse"><i class="mdi mdi-undo"></i></button>
                     </form>

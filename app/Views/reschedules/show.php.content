@@ -70,13 +70,13 @@
 
     <div class="d-flex gap-2 flex-wrap mt-3">
       <?php if ($reschedule['status'] === 'Pending'): ?>
-        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/approve') ?>" onsubmit="return confirm('Approve this reschedule?');">
+        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this reschedule?');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve</button>
         </form>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
       <?php elseif ($reschedule['status'] === 'Approved'): ?>
-        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/implement') ?>" onsubmit="return confirm('Implement this reschedule? This will replace the loan\'s remaining schedule now.');">
+        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/implement') ?>" onsubmit="return confirmSubmit(this, 'Implement this reschedule? This will replace the loan\'s remaining schedule now.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-calendar-sync"></i> Implement</button>
         </form>

@@ -160,7 +160,7 @@
             <label class="form-label small">Reason <span class="text-danger">*</span></label>
             <textarea name="reason" rows="3" class="form-control form-control-sm" required></textarea>
           </div>
-          <button type="submit" class="btn btn-sm btn-danger w-100" onclick="return confirm('Escalate this case?');">Escalate</button>
+          <button type="submit" class="btn btn-sm btn-danger w-100" onclick="return confirmSubmit(this.form, 'Escalate this case?');">Escalate</button>
         </form>
 
         <hr>

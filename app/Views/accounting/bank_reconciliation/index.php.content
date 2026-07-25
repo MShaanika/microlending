@@ -49,7 +49,7 @@
         Transactions on or before that date can't be reversed.
       </div>
       <?php if ($canOverride): ?>
-        <form method="post" action="<?= url('/accounting/bank-reconciliation/reopen') ?>" onsubmit="return confirm('Reopen this reconciliation? Locked transactions will become reversible again.');">
+        <form method="post" action="<?= url('/accounting/bank-reconciliation/reopen') ?>" onsubmit="return confirmSubmit(this, 'Reopen this reconciliation? Locked transactions will become reversible again.');">
           <?= csrf_field() ?>
           <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
           <button type="submit" class="btn btn-outline-warning btn-sm">Reopen (Admin Override)</button>
@@ -132,7 +132,7 @@
               <td><?= e($label) ?></td>
               <td class="text-end">
                 <?php if ($row['status'] === 'Matched' || $row['status'] === 'Review'): ?>
-                  <form method="post" action="<?= url('/accounting/bank-reconciliation/unmatch') ?>" onsubmit="return confirm('Undo this match?');">
+                  <form method="post" action="<?= url('/accounting/bank-reconciliation/unmatch') ?>" onsubmit="return confirmSubmit(this, 'Undo this match?');">
                     <?= csrf_field() ?>
                     <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
                     <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
@@ -178,7 +178,7 @@
                         <?php endforeach; ?>
                       </select>
                     </div>
-                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Post a new journal entry for this transaction?');">Post &amp; Match</button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmSubmit(this.form, 'Post a new journal entry for this transaction?');">Post &amp; Match</button>
                   </form>
                 </td>
               </tr>
@@ -234,7 +234,7 @@
       </table>
     </div>
 
-    <form method="post" action="<?= url('/accounting/bank-reconciliation/complete') ?>" onsubmit="return confirm('Complete this reconciliation? Transactions on or before <?= e($asOfDate) ?> will be locked and can only be reversed by an admin override.');">
+    <form method="post" action="<?= url('/accounting/bank-reconciliation/complete') ?>" onsubmit="return confirmSubmit(this, 'Complete this reconciliation? Transactions on or before <?= e($asOfDate) ?> will be locked and can only be reversed by an admin override.');">
       <?= csrf_field() ?>
       <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
       <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">

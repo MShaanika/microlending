@@ -416,6 +416,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
+<script src="<?= asset('dist/js/app-ui.js') ?>"></script>
 <script src="<?= asset('assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js') ?>"></script>
 <script src="<?= asset('dist/js/feather.min.js') ?>"></script>
 

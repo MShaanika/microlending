@@ -43,7 +43,7 @@
               <td class="text-end">
                 <a href="<?= url('/settings/users/' . $u['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
                 <a href="<?= url('/settings/users/' . $u['id'] . '/reset-password') ?>" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-key"></i></a>
-                <form method="post" action="<?= url('/settings/users/' . $u['id'] . '/toggle-active') ?>" class="d-inline" onsubmit="return confirm('<?= $u['is_active'] ? 'Deactivate' : 'Activate' ?> this user?');">
+                <form method="post" action="<?= url('/settings/users/' . $u['id'] . '/toggle-active') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $u['is_active'] ? 'Deactivate' : 'Activate' ?> this user?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-<?= $u['is_active'] ? 'danger' : 'success' ?>">
                     <i class="mdi mdi-<?= $u['is_active'] ? 'account-off' : 'account-check' ?>"></i>

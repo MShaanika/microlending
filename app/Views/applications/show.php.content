@@ -117,7 +117,7 @@
 
         <div class="d-flex gap-2 flex-wrap">
           <?php if ($canApprove): ?>
-            <form method="post" action="<?= url('/applications/' . $application['id'] . '/approve') ?>" onsubmit="return confirm('Approve this application?');">
+            <form method="post" action="<?= url('/applications/' . $application['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this application?');">
               <?= csrf_field() ?>
               <button type="submit" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> Approve</button>
             </form>
@@ -147,7 +147,7 @@
 
         <?php if ($canConvert): ?>
           <hr>
-          <form method="post" action="<?= url('/applications/' . $application['id'] . '/convert') ?>" class="mt-2" onsubmit="return confirm('Convert this application to a borrower and proceed to loan creation?');">
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/convert') ?>" class="mt-2" onsubmit="return confirmSubmit(this, 'Convert this application to a borrower and proceed to loan creation?');">
             <?= csrf_field() ?>
             <?php if (!$application['borrower_id']): ?>
               <label class="form-label small">Branch (for new borrower)</label>

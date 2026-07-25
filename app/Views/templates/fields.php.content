@@ -27,7 +27,7 @@
               <td><?= e($f['default_value']) ?: '&mdash;' ?></td>
               <td><?= $f['is_required'] ? '<span class="badge bg-warning">Required</span>' : '' ?></td>
               <td class="text-end">
-                <form method="post" action="<?= url('/templates/' . $template['id'] . '/fields/' . $f['id'] . '/delete') ?>" onsubmit="return confirm('Remove this field mapping?');">
+                <form method="post" action="<?= url('/templates/' . $template['id'] . '/fields/' . $f['id'] . '/delete') ?>" onsubmit="return confirmSubmit(this, 'Remove this field mapping?');">
                   <?= csrf_field() ?>
                   <button class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>

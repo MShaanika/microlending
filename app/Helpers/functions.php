@@ -60,10 +60,10 @@ function flash_messages(): string
     $success = \App\Core\Session::flash('success');
     $error = \App\Core\Session::flash('error');
     if ($success) {
-        $html .= '<div class="alert alert-success alert-dismissible fade show" role="alert">' . e($success) . '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+        $html .= '<div class="js-flash-toast d-none" data-toast-type="success" data-toast-message="' . e($success) . '"></div>';
     }
     if ($error) {
-        $html .= '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . e($error) . '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+        $html .= '<div class="js-flash-toast d-none" data-toast-type="danger" data-toast-message="' . e($error) . '"></div>';
     }
     return $html;
 }

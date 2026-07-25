@@ -41,12 +41,12 @@
 
     <div class="d-flex gap-2 flex-wrap">
       <?php if ($writeOff['status'] === 'Pending'): ?>
-        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/approve') ?>" onsubmit="return confirm('Approve this write-off?');">
+        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this write-off?');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve</button>
         </form>
       <?php elseif ($writeOff['status'] === 'Approved'): ?>
-        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/post') ?>" onsubmit="return confirm('Post this write-off? This will create a journal entry and mark the loan as written off.');">
+        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/post') ?>" onsubmit="return confirmSubmit(this, 'Post this write-off? This will create a journal entry and mark the loan as written off.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-danger waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Write-Off</button>
         </form>

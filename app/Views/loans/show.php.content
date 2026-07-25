@@ -62,7 +62,7 @@
               <?= e(date('d M Y', strtotime($latestTopup['created_at']))) ?> (consolidated into this loan).
             </div>
             <?php if ($latestTopupReversible): ?>
-              <form method="post" action="<?= url('/loan-topups/' . $latestTopup['id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this top-up? The incremental journal will be reversed and the loan restored to its principal, schedule and term from before the top-up.');">
+              <form method="post" action="<?= url('/loan-topups/' . $latestTopup['id'] . '/reverse') ?>" onsubmit="return confirmSubmit(this, 'Reverse this top-up? The incremental journal will be reversed and the loan restored to its principal, schedule and term from before the top-up.');">
                 <?= csrf_field() ?>
                 <button class="btn btn-sm btn-outline-danger"><i class="mdi mdi-undo"></i> Reverse Top-up</button>
               </form>
@@ -89,7 +89,7 @@
           <?php endif; ?>
 
           <?php if ($loan['loan_status'] === 'Pending Approval'): ?>
-            <form method="post" action="<?= url('/loans/' . $loan['id'] . '/approve') ?>" onsubmit="return confirm('Approve this loan?');">
+            <form method="post" action="<?= url('/loans/' . $loan['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this loan?');">
               <?= csrf_field() ?>
               <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
             </form>
@@ -108,7 +108,7 @@
 
         <?php if ($loan['loan_status'] === 'Approved'): ?>
         <div class="collapse mt-3" id="releaseForm">
-          <form method="post" action="<?= url('/loans/' . $loan['id'] . '/release') ?>" onsubmit="return confirm('Release / disburse this loan?');">
+          <form method="post" action="<?= url('/loans/' . $loan['id'] . '/release') ?>" onsubmit="return confirmSubmit(this, 'Release / disburse this loan?');">
             <?= csrf_field() ?>
             <div class="mb-2">
               <label class="form-label small mb-0">Disbursement Method</label>

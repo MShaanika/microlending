@@ -63,7 +63,7 @@
               <td class="text-end">
                 <a href="<?= url('/borrowers/' . $b['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
                 <a href="<?= url('/borrowers/' . $b['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
-                <form method="post" action="<?= url('/borrowers/' . $b['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Remove this borrower?');">
+                <form method="post" action="<?= url('/borrowers/' . $b['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Remove this borrower?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>

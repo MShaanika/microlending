@@ -56,14 +56,14 @@
 
       <?php if ($journal['status'] === 'Draft'): ?>
         <a href="<?= url('/accounting/adjustment-journals/' . $journal['id'] . '/edit') ?>" class="btn btn-outline-info"><i class="mdi mdi-pencil"></i> Edit</a>
-        <form method="post" action="<?= url('/accounting/adjustment-journals/' . $journal['id'] . '/post') ?>" onsubmit="return confirm('Post this journal to the ledger? It can only be reversed after this, not edited.');">
+        <form method="post" action="<?= url('/accounting/adjustment-journals/' . $journal['id'] . '/post') ?>" onsubmit="return confirmSubmit(this, 'Post this journal to the ledger? It can only be reversed after this, not edited.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-info"><i class="mdi mdi-check"></i> Post</button>
         </form>
       <?php endif; ?>
 
       <?php if ($journal['status'] === 'Posted'): ?>
-        <form method="post" action="<?= url('/accounting/adjustment-journals/' . $journal['id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this journal? A new offsetting journal will be posted and this one marked Reversed.');">
+        <form method="post" action="<?= url('/accounting/adjustment-journals/' . $journal['id'] . '/reverse') ?>" onsubmit="return confirmSubmit(this, 'Reverse this journal? A new offsetting journal will be posted and this one marked Reversed.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-outline-danger"><i class="mdi mdi-undo"></i> Reverse</button>
         </form>

@@ -56,7 +56,7 @@
     <div class="d-flex gap-2">
       <a href="<?= url('/accounting/journals') ?>" class="btn btn-outline-secondary">Back to General Ledger</a>
       <?php if ($journal['status'] === 'Posted' && in_array($journal['journal_type'], ['Manual', 'Adjustment'], true)): ?>
-        <form method="post" action="<?= url('/accounting/journals/' . $journal['id'] . '/reverse') ?>" onsubmit="return confirm('Reverse this journal? A new offsetting journal will be posted and this one marked Reversed.');">
+        <form method="post" action="<?= url('/accounting/journals/' . $journal['id'] . '/reverse') ?>" onsubmit="return confirmSubmit(this, 'Reverse this journal? A new offsetting journal will be posted and this one marked Reversed.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-outline-danger"><i class="mdi mdi-undo"></i> Reverse Journal</button>
         </form>

@@ -29,7 +29,7 @@
     <?php if (abs($delta) < 0.01): ?>
       <div class="alert alert-info">No adjustment needed &mdash; the provision already matches the required level.</div>
     <?php else: ?>
-      <form method="post" action="<?= url('/accounting/bad-debt-provisions') ?>" onsubmit="return confirm('Post this provisioning run? This will create a journal entry.');">
+      <form method="post" action="<?= url('/accounting/bad-debt-provisions') ?>" onsubmit="return confirmSubmit(this, 'Post this provisioning run? This will create a journal entry.');">
         <?= csrf_field() ?>
         <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
         <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Provisioning</button>

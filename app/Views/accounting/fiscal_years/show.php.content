@@ -12,12 +12,12 @@
 
     <div class="mb-3">
       <?php if ($fiscalYear['status'] === 'Open'): ?>
-        <form method="post" action="<?= url('/accounting/fiscal-years/' . $fiscalYear['id'] . '/close') ?>" class="d-inline" onsubmit="return confirm('Close this fiscal year and ALL its periods? No new journals will be able to post to any date in this year.');">
+        <form method="post" action="<?= url('/accounting/fiscal-years/' . $fiscalYear['id'] . '/close') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Close this fiscal year and ALL its periods? No new journals will be able to post to any date in this year.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-lock"></i> Close Entire Fiscal Year</button>
         </form>
       <?php else: ?>
-        <form method="post" action="<?= url('/accounting/fiscal-years/' . $fiscalYear['id'] . '/open') ?>" class="d-inline" onsubmit="return confirm('Reopen this fiscal year and all its periods?');">
+        <form method="post" action="<?= url('/accounting/fiscal-years/' . $fiscalYear['id'] . '/open') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Reopen this fiscal year and all its periods?');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-lock-open"></i> Reopen Entire Fiscal Year</button>
         </form>
@@ -37,12 +37,12 @@
               <td><?= $p['closed_at'] ? e(date('d M Y H:i', strtotime($p['closed_at']))) : '&mdash;' ?></td>
               <td class="text-end">
                 <?php if ($p['is_closed']): ?>
-                  <form method="post" action="<?= url('/accounting/periods/' . $p['id'] . '/reopen') ?>" class="d-inline" onsubmit="return confirm('Reopen this period?');">
+                  <form method="post" action="<?= url('/accounting/periods/' . $p['id'] . '/reopen') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Reopen this period?');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-lock-open"></i> Reopen</button>
                   </form>
                 <?php else: ?>
-                  <form method="post" action="<?= url('/accounting/periods/' . $p['id'] . '/close') ?>" class="d-inline" onsubmit="return confirm('Close this period? No new journals will be able to post to a date inside it.');">
+                  <form method="post" action="<?= url('/accounting/periods/' . $p['id'] . '/close') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Close this period? No new journals will be able to post to a date inside it.');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-lock"></i> Close</button>
                   </form>

@@ -121,7 +121,7 @@ function mlsToggleReportPeriod(type) {
         </table>
       </div>
       <?php if (!empty($transactions)): ?>
-        <button type="submit" class="btn btn-info btn-sm waves-effect waves-light" onclick="return confirm('Mark the selected transactions as Submitted to NAMFISA?');"><i class="mdi mdi-check-all"></i> Mark Selected as Submitted</button>
+        <button type="submit" class="btn btn-info btn-sm waves-effect waves-light" onclick="return confirmSubmit(this.form, 'Mark the selected transactions as Submitted to NAMFISA?');"><i class="mdi mdi-check-all"></i> Mark Selected as Submitted</button>
       <?php endif; ?>
     </form>
   </div>

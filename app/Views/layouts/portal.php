@@ -94,6 +94,7 @@
 
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
+<script src="<?= asset('dist/js/app-ui.js') ?>"></script>
 <script>
   $('.preloader').fadeOut();
 </script>
