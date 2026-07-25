@@ -14,10 +14,21 @@ class StatutoryCharge extends Model
 {
     public function currentNamfisaLevyRate(): float
     {
+        return $this->namfisaLevyRateAsOf(date('Y-m-d'));
+    }
+
+    /**
+     * The levy rate in effect on a given date -- used for month-by-month
+     * regulatory reports, where "today's" rate would be wrong for a
+     * quarter that spans a rate change.
+     */
+    public function namfisaLevyRateAsOf(string $date): float
+    {
         $rate = $this->scalar(
             "SELECT levy_rate FROM namfisa_levy_settings
-             WHERE is_active = 1 AND effective_from <= CURDATE() AND (effective_to IS NULL OR effective_to >= CURDATE())
-             ORDER BY effective_from DESC LIMIT 1"
+             WHERE is_active = 1 AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?)
+             ORDER BY effective_from DESC LIMIT 1",
+            [$date, $date]
         );
         return (float) ($rate ?: 0);
     }

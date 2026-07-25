@@ -3,10 +3,9 @@
 namespace App\Services;
 
 use App\Core\Database;
-use App\Models\AccountingAccount;
-use App\Models\JournalEntry;
 use App\Models\MlrReportLine;
 use App\Models\RegulatoryReport;
+use App\Models\StatutoryCharge;
 
 /**
  * Builds the consolidated "MLR Summarised Management Report" -- the client's
@@ -16,10 +15,13 @@ use App\Models\RegulatoryReport;
  * regulatory_report_lines, since the data (month-grouped, multi-section)
  * doesn't fit that flat table.
  *
- * "Quarterly Interest Income - Segment" (section 7) uses the GL-posting
- * basis -- credits to Interest Income (account 4010) -- confirmed with the
- * client as distinct from the interest embedded in section 1's disbursement
- * figures.
+ * "Quarterly Interest Income - Segment" (section 7), per the client's
+ * written spec ("Total Loans Disbursed.docx"), is Net Interest Income =
+ * total interest on that month's disbursed loans (section 1, flat 30% of
+ * capital) minus the interest portion of that same month's bad debts
+ * (section 5) -- not the GL-posting basis (credits to account 4010) used
+ * earlier, which double-counted/omitted differently and didn't match the
+ * client's own worked example (53,760 - 2,400 = 51,360).
  */
 class MlrReportGenerationService
 {
@@ -44,8 +46,8 @@ class MlrReportGenerationService
         $bookBalance = self::bookBalanceAsAt($periodEnd);
         $writtenOff = self::writtenOffByMonth($months, $periodStart, $periodEnd);
         $expenses = self::expensesByMonth($months, $periodStart, $periodEnd);
-        $interestIncome = self::interestIncomeByMonth($months, $periodStart, $periodEnd);
-        $levy = self::leviesLessBadDebtsByMonth($months, $periodStart, $periodEnd, $writtenOff);
+        $interestIncome = self::netInterestIncomeByMonth($months, $disbursed, $writtenOff);
+        $levy = self::leviesLessBadDebtsByMonth($months, $disbursed, $writtenOff);
 
         $lines = array_merge($disbursed, $gender, $size, $bookBalance, $writtenOff, $expenses, $interestIncome, $levy);
 
@@ -303,36 +305,83 @@ class MlrReportGenerationService
         return self::fillMonths($months, $stmt->fetchAll(), 'EXPENSES', ['total_amount' => 'total_amount']);
     }
 
-    private static function interestIncomeByMonth(array $months, string $start, string $end): array
+    /**
+     * Net Interest Income = interest on that month's disbursed loans minus
+     * the interest portion of that month's bad debts. Both inputs are
+     * already one row per month (via fillMonths), in the same order, so
+     * this is a simple zip-and-subtract rather than another DB query.
+     */
+    private static function netInterestIncomeByMonth(array $months, array $disbursed, array $writtenOff): array
     {
-        $accounts = new AccountingAccount();
-        $accountId = $accounts->idByCode('4010');
+        $writtenOffInterestByMonth = [];
+        foreach ($writtenOff as $w) {
+            $writtenOffInterestByMonth[$w['month_key']] = (float) $w['interest_amount'];
+        }
 
-        $rows = (new JournalEntry())->accountCreditsByMonth($accountId, $start, $end);
+        $lines = [];
+        foreach ($months as $i => $m) {
+            $disbursedInterest = (float) ($disbursed[$i]['interest_amount'] ?? 0);
+            $badDebtInterest = $writtenOffInterestByMonth[$m['month_key']] ?? 0.0;
 
-        return self::fillMonths($months, $rows, 'INTEREST_INCOME', ['total_amount' => 'total_amount']);
+            $lines[] = [
+                'section' => 'INTEREST_INCOME',
+                'month_key' => $m['month_key'],
+                'month_label' => $m['month_label'],
+                'label' => $m['month_label'],
+                'capital_amount' => 0.0,
+                'interest_amount' => 0.0,
+                'total_amount' => round($disbursedInterest - $badDebtInterest, 2),
+                'loan_count' => 0,
+            ];
+        }
+
+        return $lines;
     }
 
     /**
-     * Levy total per month, minus that same month's written-off capital
-     * (section 5) as a net figure. Both raw components are kept on the row
-     * (total_amount = levy, capital_amount = bad debts subtracted) rather
-     * than pre-subtracted, so the net can be shown/recomputed transparently.
+     * Per the client's written spec ("Total Loans Disbursed.docx"): Levy =
+     * (Capital Disbursed − Bad Debt Capital) × the current NAMFISA levy
+     * rate, i.e. computed fresh on net capital rather than summed from
+     * actual recorded namfisa_levy_transactions rows -- confirmed with the
+     * client after the two bases produced different figures for July 2026
+     * (1,763.36 by formula vs 1,246.30 from recorded transactions).
+     * capital_amount on the row is the bad-debt capital subtracted, kept
+     * separate from total_amount (the net levy) so it stays inspectable.
      */
-    private static function leviesLessBadDebtsByMonth(array $months, string $start, string $end, array $writtenOff): array
+    private static function leviesLessBadDebtsByMonth(array $months, array $disbursed, array $writtenOff): array
     {
-        $trend = RegulatoryReportService::namfisaLevySummary($start, $end)['trend'];
+        $statutoryCharges = new StatutoryCharge();
+
+        $disbursedCapitalByMonth = [];
+        foreach ($disbursed as $d) {
+            $disbursedCapitalByMonth[$d['month_key']] = (float) $d['capital_amount'];
+        }
         $badDebtsByMonth = [];
         foreach ($writtenOff as $w) {
-            $badDebtsByMonth[$w['month_key']] = $w['capital_amount'];
+            $badDebtsByMonth[$w['month_key']] = (float) $w['capital_amount'];
         }
 
-        $levyLines = self::fillMonths($months, $trend, 'LEVY', ['total_amount' => 'total_amount']);
-        foreach ($levyLines as &$line) {
-            $line['capital_amount'] = round((float) ($badDebtsByMonth[$line['month_key']] ?? 0), 2);
-        }
-        unset($line);
+        $lines = [];
+        foreach ($months as $m) {
+            $netCapital = ($disbursedCapitalByMonth[$m['month_key']] ?? 0) - ($badDebtsByMonth[$m['month_key']] ?? 0);
+            // The rate as of the last day of the month, not "today" -- a
+            // quarter can span a rate change (e.g. 1.03% through July,
+            // 1.25% from August), and each month's levy uses its own rate.
+            $monthEnd = date('Y-m-t', strtotime($m['month_key'] . '-01'));
+            $levyRate = $statutoryCharges->namfisaLevyRateAsOf($monthEnd);
 
-        return $levyLines;
+            $lines[] = [
+                'section' => 'LEVY',
+                'month_key' => $m['month_key'],
+                'month_label' => $m['month_label'],
+                'label' => $m['month_label'],
+                'capital_amount' => round($badDebtsByMonth[$m['month_key']] ?? 0, 2),
+                'interest_amount' => 0.0,
+                'total_amount' => round($netCapital * ($levyRate / 100), 2),
+                'loan_count' => 0,
+            ];
+        }
+
+        return $lines;
     }
 }
