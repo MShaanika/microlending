@@ -3,12 +3,12 @@
 namespace App\Services;
 
 use App\Core\Database;
-use App\Models\AccountingAccount;
 use App\Models\AfsReportLine;
 use App\Models\BankAccount;
 use App\Models\FixedAsset;
 use App\Models\JournalEntry;
 use App\Models\RegulatoryReport;
+use App\Models\StatutoryCharge;
 
 /**
  * Builds the "Annual Financial Statement Analysis" report -- mirrors the
@@ -103,13 +103,19 @@ class AfsReportGenerationService
      * Loans Capital, amount_4=NAMFISA Levies, amount_5=Total Bad Debt
      * Written Off. Returns 5 rows: the 4 FY quarters plus a Total row.
      *
+     * Interest Income and NAMFISA Levies are both flat percentages of
+     * Disbursed Capital, per the client's written spec ("Annual Financial
+     * Statement Analysis" formulas): Interest = Capital x 30%, Levy =
+     * Capital x the NAMFISA rate in effect for that quarter -- unlike the
+     * MLR report's levy figure, this sheet does NOT deduct bad debts from
+     * capital first (confirmed explicitly in the spec).
+     *
      * @return array<int, array<string, mixed>>
      */
     private static function quarterlySummary(int $fyStartYear): array
     {
         $db = Database::connection();
-        $accountId = (new AccountingAccount())->idByCode('4010');
-        $journal = new JournalEntry();
+        $statutoryCharges = new StatutoryCharge();
 
         $lines = [];
         $totals = ['amount_1' => 0.0, 'amount_2' => 0.0, 'amount_3' => 0.0, 'amount_4' => 0.0, 'amount_5' => 0.0];
@@ -121,11 +127,6 @@ class AfsReportGenerationService
             $expenditureStmt->execute([$q['start'], $q['end']]);
             $expenditure = (float) $expenditureStmt->fetchColumn();
 
-            $interestIncome = (float) array_sum(array_column(
-                $journal->accountCreditsByMonth($accountId, $q['start'], $q['end']),
-                'total_amount'
-            ));
-
             $disbursedStmt = $db->prepare(
                 "SELECT COALESCE(SUM(l.principal_amount),0)
                  FROM loan_disbursements ld JOIN loans l ON l.id = ld.loan_id
@@ -134,7 +135,10 @@ class AfsReportGenerationService
             $disbursedStmt->execute([$q['start'], $q['end']]);
             $disbursedCapital = (float) $disbursedStmt->fetchColumn();
 
-            $namfisaLevies = (float) RegulatoryReportService::namfisaLevySummary($q['start'], $q['end'])['total_amount'];
+            $interestIncome = round($disbursedCapital * 0.30, 2);
+
+            $levyRate = $statutoryCharges->namfisaLevyRateAsOf($q['end']);
+            $namfisaLevies = round($disbursedCapital * ($levyRate / 100), 2);
 
             $writeOffStmt = $db->prepare(
                 "SELECT COALESCE(SUM(sched.principal_outstanding + sched.interest_outstanding),0)
