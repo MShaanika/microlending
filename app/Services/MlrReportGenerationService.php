@@ -141,23 +141,37 @@ class MlrReportGenerationService
         return $lines;
     }
 
+    /**
+     * Capital = actual tranche amounts (ld.amount), not the loan's full
+     * principal_amount joined once per disbursement row -- a loan
+     * disbursed in multiple tranches (e.g. a top-up) used to have its
+     * whole principal counted once per tranche row, inflating the total.
+     * Interest is derived as a flat 30% of that (now-correct) capital
+     * figure rather than summed from loans.interest_amount, for the same
+     * reason and to stay consistent with the confirmed Interest = Capital
+     * x 30% formula. loan_count is COUNT(DISTINCT loan_id) so a loan with
+     * two tranches in the same month counts once, not twice.
+     */
     private static function disbursedByMonth(array $months, string $start, string $end): array
     {
         $db = Database::connection();
         $stmt = $db->prepare(
             "SELECT DATE_FORMAT(ld.disbursement_date, '%Y-%m') AS month_key,
-                    COALESCE(SUM(l.principal_amount), 0) AS capital_amount,
-                    COALESCE(SUM(l.interest_amount), 0) AS interest_amount,
-                    COALESCE(SUM(l.total_payable), 0) AS total_amount,
-                    COUNT(*) AS loan_count
+                    COALESCE(SUM(ld.amount), 0) AS capital_amount,
+                    COUNT(DISTINCT ld.loan_id) AS loan_count
              FROM loan_disbursements ld
-             JOIN loans l ON l.id = ld.loan_id
              WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?
              GROUP BY month_key"
         );
         $stmt->execute([$start, $end]);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['interest_amount'] = round((float) $row['capital_amount'] * 0.30, 2);
+            $row['total_amount'] = round((float) $row['capital_amount'] + $row['interest_amount'], 2);
+        }
+        unset($row);
 
-        return self::fillMonths($months, $stmt->fetchAll(), 'DISBURSED', [
+        return self::fillMonths($months, $rows, 'DISBURSED', [
             'capital_amount' => 'capital_amount',
             'interest_amount' => 'interest_amount',
             'total_amount' => 'total_amount',
