@@ -30,6 +30,7 @@ use App\Controllers\UserController;
 use App\Controllers\RoleController;
 use App\Controllers\PermissionController;
 use App\Controllers\CompanySettingController;
+use App\Controllers\SocialAnalyticsController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -376,6 +377,14 @@ $router->get('/settings/permissions', [PermissionController::class, 'index']);
 
 $router->get('/settings/company', [CompanySettingController::class, 'edit']);
 $router->post('/settings/company', [CompanySettingController::class, 'update']);
+
+$router->get('/settings/social-analytics', [SocialAnalyticsController::class, 'settingsEdit']);
+$router->post('/settings/social-analytics/{id}', [SocialAnalyticsController::class, 'settingsUpdate']);
+
+// Social & Web Analytics
+$router->get('/social-analytics', [SocialAnalyticsController::class, 'index']);
+$router->post('/social-analytics/{settingId}/entries', [SocialAnalyticsController::class, 'storeMetric']);
+$router->post('/social-analytics/entries/{id}/delete', [SocialAnalyticsController::class, 'deleteMetric']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

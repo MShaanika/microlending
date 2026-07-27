@@ -1,0 +1,66 @@
+<?php
+$platformMeta = [
+    'google_analytics' => ['icon' => 'mdi-google', 'color' => '#f9ab00'],
+    'facebook' => ['icon' => 'mdi-facebook', 'color' => '#1877f2'],
+    'instagram' => ['icon' => 'mdi-instagram', 'color' => '#e1306c'],
+    'linkedin' => ['icon' => 'mdi-linkedin', 'color' => '#0a66c2'],
+];
+?>
+<?= flash_messages() ?>
+
+<p class="text-muted">Enable a platform and set what its three logged metrics mean before staff start entering numbers on the <a href="<?= url('/social-analytics') ?>">Social & Web Analytics</a> page.</p>
+
+<div class="row">
+<?php foreach ($platforms as $platform):
+    $meta = $platformMeta[$platform['platform']] ?? ['icon' => 'mdi-chart-line', 'color' => '#635bff'];
+    $err = ($errors['labels'] ?? null);
+?>
+  <div class="col-lg-6 mb-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title mb-3">
+          <i class="mdi <?= $meta['icon'] ?>" style="color: <?= $meta['color'] ?>"></i>
+          <?= e($platform['display_name']) ?>
+        </h5>
+
+        <form method="post" action="<?= url('/settings/social-analytics/' . $platform['id']) ?>">
+          <?= csrf_field() ?>
+
+          <div class="form-check form-switch mb-3">
+            <input type="checkbox" class="form-check-input" role="switch" id="enabled_<?= $platform['id'] ?>" name="is_enabled" value="1" <?= (int) $platform['is_enabled'] === 1 ? 'checked' : '' ?>>
+            <label class="form-check-label" for="enabled_<?= $platform['id'] ?>">Enabled</label>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Handle / Page / Property</label>
+            <input type="text" name="handle_or_property" class="form-control" value="<?= e($platform['handle_or_property'] ?? '') ?>" placeholder="e.g. @solidesertcashloan or GA4 property name">
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Metric 1 Label</label>
+              <input type="text" name="metric_1_label" class="form-control <?= $err ? 'is-invalid' : '' ?>" value="<?= e($platform['metric_1_label']) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Metric 2 Label</label>
+              <input type="text" name="metric_2_label" class="form-control <?= $err ? 'is-invalid' : '' ?>" value="<?= e($platform['metric_2_label']) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Metric 3 Label</label>
+              <input type="text" name="metric_3_label" class="form-control <?= $err ? 'is-invalid' : '' ?>" value="<?= e($platform['metric_3_label']) ?>">
+            </div>
+            <?php if ($err): ?><div class="invalid-feedback d-block"><?= e($err) ?></div><?php endif; ?>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" rows="2" class="form-control"><?= e($platform['notes'] ?? '') ?></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+<?php endforeach; ?>
+</div>

@@ -217,6 +217,55 @@
 </div>
 <?php endif; ?>
 
+<?php if (!empty($socialAnalytics)): ?>
+<?php
+  $socialMeta = [
+      'google_analytics' => ['icon' => 'mdi-google', 'color' => '#f9ab00'],
+      'facebook' => ['icon' => 'mdi-facebook', 'color' => '#1877f2'],
+      'instagram' => ['icon' => 'mdi-instagram', 'color' => '#e1306c'],
+      'linkedin' => ['icon' => 'mdi-linkedin', 'color' => '#0a66c2'],
+  ];
+?>
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">Social &amp; Web Analytics</h4>
+      <a href="<?= url('/social-analytics') ?>" class="btn btn-outline-secondary btn-sm">Manage Entries</a>
+    </div>
+    <div class="row mt-2">
+      <?php foreach ($socialAnalytics as $platform):
+        $meta = $socialMeta[$platform['platform']] ?? ['icon' => 'mdi-chart-line', 'color' => '#635bff'];
+        $chartId = 'social_chart_' . $platform['platform'];
+        $deltaUp = $platform['delta_pct'] >= 0;
+      ?>
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="border rounded p-2 h-100">
+          <div class="d-flex justify-content-between align-items-start">
+            <span class="small">
+              <i class="mdi <?= $meta['icon'] ?>" style="color: <?= $meta['color'] ?>"></i>
+              <?= e($platform['display_name']) ?>
+            </span>
+          </div>
+          <h4 class="mb-0"><?= $platform['latest_value'] !== null ? number_format($platform['latest_value'], 0) : '&mdash;' ?></h4>
+          <span class="text-muted small"><?= e($platform['metric_1_label']) ?><?= $platform['latest_date'] ? ' &middot; ' . e(date('d M', strtotime($platform['latest_date']))) : '' ?></span>
+          <?php if ($platform['delta_pct'] != 0): ?>
+            <div>
+              <span class="badge bg-<?= $deltaUp ? 'success' : 'danger' ?>-subtle text-<?= $deltaUp ? 'success' : 'danger' ?> small">
+                <i class="mdi mdi-arrow-<?= $deltaUp ? 'up' : 'down' ?>"></i> <?= abs($platform['delta_pct']) ?>%
+              </span>
+            </div>
+          <?php endif; ?>
+          <?php if (count($platform['trend']) > 1): ?>
+            <div id="<?= $chartId ?>" class="mt-1"></div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="card">
   <div class="card-body">
     <h4 class="card-title">Quick Access</h4>
@@ -330,5 +379,22 @@
     dataLabels: { enabled: false },
     plotOptions: { bar: { columnWidth: '45%', borderRadius: 4, horizontal: true } },
   }).render();
+
+<?php foreach ($socialAnalytics as $platform):
+    if (count($platform['trend']) <= 1) {
+        continue;
+    }
+    $meta = $socialMeta[$platform['platform']] ?? ['color' => '#635bff'];
+    $chartId = 'social_chart_' . $platform['platform'];
+    $trend = $platform['trend'];
+?>
+  new ApexCharts(document.getElementById('<?= $chartId ?>'), {
+    chart: { type: 'line', height: 60, sparkline: { enabled: true } },
+    series: [{ data: <?= json_encode(array_map(fn ($r) => (float) $r['metric_1'], $trend)) ?> }],
+    colors: ['<?= $meta['color'] ?>'],
+    stroke: { curve: 'smooth', width: 2 },
+    tooltip: { enabled: false },
+  }).render();
+<?php endforeach; ?>
 })();
 </script>

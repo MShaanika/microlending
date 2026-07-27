@@ -40,6 +40,7 @@ class DashboardController extends Controller
             'topArrears' => DashboardService::topArrears(5),
             'upcomingDue' => DashboardService::upcomingDue(7),
             'promisesDueToday' => Auth::can('collections.arrears') ? DashboardService::promisesDueToday() : [],
+            'socialAnalytics' => Auth::can('social_analytics.view') ? DashboardService::socialAnalyticsSummary() : [],
             'recentActivity' => DashboardService::recentActivity(8),
         ]);
     }

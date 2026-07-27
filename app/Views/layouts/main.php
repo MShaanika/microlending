@@ -320,6 +320,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Templates', 'url' => url('/notifications/templates'), 'perm' => 'notifications.templates'],
               ['label' => 'Settings', 'url' => url('/notifications/settings'), 'perm' => 'notifications.settings'],
             ]],
+            'Marketing' => ['icon' => 'mdi-chart-line', 'items' => [
+              ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
+              ['label' => 'Analytics Settings', 'url' => url('/settings/social-analytics'), 'perm' => 'social_analytics.manage'],
+            ]],
             'Settings' => ['icon' => 'mdi-settings', 'items' => [
               ['label' => 'Users', 'url' => url('/settings/users'), 'perm' => 'admin.users'],
               ['label' => 'Roles', 'url' => url('/settings/roles'), 'perm' => 'admin.roles'],

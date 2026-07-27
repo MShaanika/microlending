@@ -6,6 +6,8 @@ use App\Core\Database;
 use App\Models\BankAccount;
 use App\Models\JournalEntry;
 use App\Models\Loan;
+use App\Models\SocialAnalyticsMetric;
+use App\Models\SocialAnalyticsSetting;
 use PDO;
 
 /**
@@ -167,6 +169,45 @@ class DashboardService
     public static function promisesDueToday(): array
     {
         return (new \App\Models\PaymentPromise())->dueOn(date('Y-m-d'));
+    }
+
+    /**
+     * One row per enabled platform, with its headline metric (metric_1)
+     * trend for a mini chart and the latest-vs-previous-entry delta.
+     * Platforms with fewer than 2 logged entries still show their latest
+     * value but omit the trend (nothing to chart yet).
+     */
+    public static function socialAnalyticsSummary(): array
+    {
+        $settingsModel = new SocialAnalyticsSetting();
+        $metricsModel = new SocialAnalyticsMetric();
+        $rows = [];
+
+        foreach ($settingsModel->enabledPlatforms() as $platform) {
+            $trend = $metricsModel->trend((int) $platform['id'], 12);
+            $latest = end($trend) ?: null;
+            $previous = count($trend) >= 2 ? $trend[count($trend) - 2] : null;
+
+            $deltaPct = 0.0;
+            if ($latest && $previous && (float) $previous['metric_1'] > 0) {
+                $deltaPct = round(
+                    (((float) $latest['metric_1'] - (float) $previous['metric_1']) / (float) $previous['metric_1']) * 100,
+                    1
+                );
+            }
+
+            $rows[] = [
+                'platform' => $platform['platform'],
+                'display_name' => $platform['display_name'],
+                'metric_1_label' => $platform['metric_1_label'],
+                'latest_value' => $latest ? (float) $latest['metric_1'] : null,
+                'latest_date' => $latest ? $latest['entry_date'] : null,
+                'delta_pct' => $deltaPct,
+                'trend' => $trend,
+            ];
+        }
+
+        return $rows;
     }
 
     public static function recentActivity(int $limit = 8): array
