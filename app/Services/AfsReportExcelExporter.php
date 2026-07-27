@@ -33,7 +33,7 @@ class AfsReportExcelExporter
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('AFS Summary');
 
-        foreach (['A' => 26, 'B' => 18, 'C' => 18, 'D' => 22, 'E' => 18, 'F' => 20] as $col => $width) {
+        foreach (['A' => 26, 'B' => 18, 'C' => 18, 'D' => 22, 'E' => 20, 'F' => 18, 'G' => 24] as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
 
@@ -60,7 +60,63 @@ class AfsReportExcelExporter
 
         $this->writeSignatureBlock($sheet, $row, $company);
 
+        $this->writeMonthlyDetail($spreadsheet);
+
         return $spreadsheet;
+    }
+
+    /**
+     * A second sheet mirroring the client's own workbook's monthly grid:
+     * one row per metric/category, one column per FY month, in the same
+     * order MONTHLY_DETAIL rows were generated in (see
+     * AfsReportGenerationService::monthlyDetail()).
+     */
+    private function writeMonthlyDetail(Spreadsheet $spreadsheet): void
+    {
+        $rows = $this->sections['MONTHLY_DETAIL'] ?? [];
+        if (empty($rows)) {
+            return;
+        }
+
+        $monthLabels = [];
+        $pivot = [];
+        foreach ($rows as $r) {
+            if (!in_array($r['sub_label'], $monthLabels, true)) {
+                $monthLabels[] = $r['sub_label'];
+            }
+            $pivot[$r['label']][$r['sub_label']] = (float) $r['amount_1'];
+        }
+
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Monthly Detail');
+        $sheet->getColumnDimension('A')->setWidth(42);
+        foreach (range('B', 'N') as $col) {
+            $sheet->getColumnDimension($col)->setWidth(14);
+        }
+
+        $headers = array_merge(['Category'], $monthLabels, ['Total']);
+        $sheet->fromArray($headers, null, 'A1');
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+        ExcelBrandStyle::header($sheet, "A1:{$lastCol}1");
+
+        $row = 2;
+        foreach ($pivot as $label => $byMonth) {
+            $sheet->setCellValue("A{$row}", $label);
+            $col = 2;
+            $total = 0.0;
+            foreach ($monthLabels as $ml) {
+                $value = round($byMonth[$ml] ?? 0, 2);
+                $coord = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
+                $this->amount($sheet, $coord, $value);
+                $total += $value;
+                $col++;
+            }
+            $totalCoord = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
+            $this->amount($sheet, $totalCoord, $total);
+            $sheet->getStyle($totalCoord)->getFont()->setBold(true);
+            ExcelBrandStyle::border($sheet, "A{$row}:{$lastCol}{$row}");
+            $row++;
+        }
     }
 
     private function writeQuarterlySummary($sheet, int $row): int
@@ -69,9 +125,9 @@ class AfsReportExcelExporter
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
         $row++;
 
-        $headers = ['Quarter', 'Expenditure (NAD)', 'Interest Income (NAD)', 'Disbursed Loans - Capital (NAD)', 'NAMFISA Levies (NAD)', 'Total Bad Debt Written Off (NAD)'];
+        $headers = ['Quarter', 'Expenditure (NAD)', 'Interest Income (NAD)', 'Disbursed Loans - Capital (NAD)', 'Members Contribution (NAD)', 'NAMFISA Levies (NAD)', 'Total Bad Debt Written Off (NAD)'];
         $sheet->fromArray($headers, null, "A{$row}");
-        ExcelBrandStyle::header($sheet, "A{$row}:F{$row}");
+        ExcelBrandStyle::header($sheet, "A{$row}:G{$row}");
         $row++;
 
         foreach ($this->sections['QUARTERLY_SUMMARY'] as $r) {
@@ -80,12 +136,13 @@ class AfsReportExcelExporter
             $this->amount($sheet, "B{$row}", $r['amount_1']);
             $this->amount($sheet, "C{$row}", $r['amount_2']);
             $this->amount($sheet, "D{$row}", $r['amount_3']);
-            $this->amount($sheet, "E{$row}", $r['amount_4']);
-            $this->amount($sheet, "F{$row}", $r['amount_5']);
+            $this->amount($sheet, "E{$row}", $r['amount_6']);
+            $this->amount($sheet, "F{$row}", $r['amount_4']);
+            $this->amount($sheet, "G{$row}", $r['amount_5']);
             if ($isTotal) {
-                ExcelBrandStyle::totals($sheet, "A{$row}:F{$row}");
+                ExcelBrandStyle::totals($sheet, "A{$row}:G{$row}");
             } else {
-                ExcelBrandStyle::border($sheet, "A{$row}:F{$row}");
+                ExcelBrandStyle::border($sheet, "A{$row}:G{$row}");
             }
             $row++;
         }

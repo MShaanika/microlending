@@ -1827,6 +1827,7 @@ CREATE TABLE afs_report_lines (
     amount_3 DECIMAL(18,2) DEFAULT 0,
     amount_4 DECIMAL(18,2) DEFAULT 0,
     amount_5 DECIMAL(18,2) DEFAULT 0,
+    amount_6 DECIMAL(18,2) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (regulatory_report_id) REFERENCES regulatory_reports(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -2107,6 +2108,14 @@ CREATE TABLE expense_categories (
     account_id BIGINT NULL,
     description TEXT,
     is_active TINYINT(1) DEFAULT 1,
+    -- Which Annual Financial Statement Analysis bucket this category counts
+    -- toward: Core = part of the AFS "Expenditure" total (client's sheet
+    -- columns F-AE), Other = tracked separately, NOT in Expenditure
+    -- (columns AF-AK: capital deposits, tax, insurance, car payment,
+    -- livestock, VAT), Excluded = Members Contribution / Fringe Benefits,
+    -- reported in its own quarterly column, not part of Expenditure at all.
+    -- NULL = not part of the AFS mapping.
+    afs_group ENUM('Core','Other','Excluded') NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounting_accounts(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

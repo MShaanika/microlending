@@ -170,7 +170,7 @@ class QuarterlyReportController extends Controller
 
     private function groupAfsSections(array $lines): array
     {
-        $sections = ['QUARTERLY_SUMMARY' => [], 'BANK_ACCOUNTS' => [], 'FIXED_ASSETS' => []];
+        $sections = ['QUARTERLY_SUMMARY' => [], 'BANK_ACCOUNTS' => [], 'FIXED_ASSETS' => [], 'MONTHLY_DETAIL' => []];
         foreach ($lines as $line) {
             $sections[$line['section']][] = $line;
         }

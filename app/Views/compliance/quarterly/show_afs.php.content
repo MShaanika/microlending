@@ -68,6 +68,7 @@
             <th class="text-end">Expenditure (NAD)</th>
             <th class="text-end">Interest Income (NAD)</th>
             <th class="text-end">Disbursed Loans - Capital (NAD)</th>
+            <th class="text-end">Members Contribution (NAD)</th>
             <th class="text-end">NAMFISA Levies (NAD)</th>
             <th class="text-end">Total Bad Debt Written Off (NAD)</th>
           </tr>
@@ -79,6 +80,7 @@
               <td class="text-end"><?= format_money($r['amount_1']) ?></td>
               <td class="text-end"><?= format_money($r['amount_2']) ?></td>
               <td class="text-end"><?= format_money($r['amount_3']) ?></td>
+              <td class="text-end"><?= format_money($r['amount_6']) ?></td>
               <td class="text-end"><?= format_money($r['amount_4']) ?></td>
               <td class="text-end"><?= format_money($r['amount_5']) ?></td>
             </tr>
@@ -88,6 +90,48 @@
     </div>
   </div>
 </div>
+
+<?php
+  $monthLabels = [];
+  $monthlyPivot = [];
+  foreach ($sections['MONTHLY_DETAIL'] as $r) {
+    if (!in_array($r['sub_label'], $monthLabels, true)) {
+      $monthLabels[] = $r['sub_label'];
+    }
+    $monthlyPivot[$r['label']][$r['sub_label']] = (float) $r['amount_1'];
+  }
+?>
+
+<?php if (!empty($monthlyPivot)): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Monthly Detail</h5>
+    <p class="text-muted small">Total Disbursed Amount, Interest Income, Bad Debts and every expense category, month by month for the financial year.</p>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable" style="font-size:0.8rem">
+        <thead class="table-light">
+          <tr>
+            <th>Category</th>
+            <?php foreach ($monthLabels as $ml): ?><th class="text-end"><?= e($ml) ?></th><?php endforeach; ?>
+            <th class="text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($monthlyPivot as $label => $byMonth): ?>
+            <tr>
+              <td><?= e($label) ?></td>
+              <?php foreach ($monthLabels as $ml): ?>
+                <td class="text-end"><?= format_money($byMonth[$ml] ?? 0) ?></td>
+              <?php endforeach; ?>
+              <td class="text-end fw-bold"><?= format_money(array_sum($byMonth)) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <div class="row">
   <div class="col-md-6">

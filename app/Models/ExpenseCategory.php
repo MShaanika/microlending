@@ -39,4 +39,20 @@ class ExpenseCategory extends Model
     {
         return $this->insert('expense_categories', $data);
     }
+
+    /**
+     * Active categories mapped into the Annual Financial Statement
+     * Analysis (afs_group set) -- powers the report's monthly detail grid
+     * and the Core/Other/Excluded split of the quarterly summary.
+     */
+    public function afsCategories(): array
+    {
+        return $this->query(
+            "SELECT c.id, c.category_name, c.afs_group, a.account_code
+             FROM expense_categories c
+             LEFT JOIN accounting_accounts a ON a.id = c.account_id
+             WHERE c.is_active = 1 AND c.afs_group IS NOT NULL
+             ORDER BY FIELD(c.afs_group, 'Core', 'Other', 'Excluded'), a.account_code"
+        )->fetchAll();
+    }
 }
