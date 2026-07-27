@@ -3,18 +3,82 @@
 namespace App\Services;
 
 use App\Models\Company;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
- * Excel export for the Annual Financial Statement Analysis report -- three
- * titled sub-tables (quarterly summary, bank accounts, fixed assets) plus a
- * signature block, mirroring the shape of the client's own manually
- * compiled workbook of the same name. $sections is the section-keyed array
- * QuarterlyReportController builds for the view (groupAfsSections()).
+ * Excel export for the Annual Financial Statement Analysis report -- one
+ * sheet, laid out and colored to match the client's own real workbook
+ * exactly (gray D8D8D8 header/total rows, orange FF9900 monthly data
+ * cells): the monthly grid (Month + Total Disbursed/Interest Income/every
+ * expense category, one row per FY month), the quarterly summary, bank
+ * accounts, fixed assets, and a signature block. $sections is the
+ * section-keyed array QuarterlyReportController builds for the view
+ * (groupAfsSections()).
+ *
+ * One deliberate deviation from the source file: its header row has
+ * textRotation=180 (literally upside-down), which reads as an artifact of
+ * whatever tool/version last touched that file rather than an intentional
+ * choice -- wrapped, non-rotated headers with a tall row are used instead
+ * so the column names stay legible.
  */
 class AfsReportExcelExporter
 {
+    private const FILL_HEADER = 'D8D8D8';
+    private const FILL_DATA = 'FF9900';
+    private const NUMBER_FORMAT = '#,##0.00';
+
+    /**
+     * (MONTHLY_DETAIL label => target column letter), in the exact column
+     * order of the client's real workbook (B onward; A is Month). The
+     * label is either a MONTHLY_DETAIL row label produced by
+     * AfsReportGenerationService::monthlyDetail(), or the literal string
+     * '__NOT_TRACKED__' for a column the system has no data source for
+     * yet (Interest Received from Investments) -- rendered as a
+     * structural placeholder, always 0.00, not fabricated data.
+     */
+    private const COLUMN_MAP = [
+        'Total Disbursed Amount' => 'Total Disbursed Amount',
+        'Interest Income' => 'Interest Income',
+        '__NOT_TRACKED__' => 'Interest Received from Investments',
+        'Fringe Benefits / Employee Benefits' => 'Fringe Benefits / Employee Benefits',
+        'Bank Charges' => 'Bank Charges',
+        'Debit Interest' => 'Debit Interest',
+        'Entertainment, Employee Benefits, Travel & Food Expenses' => 'Entertainment, Employee Benefits, Travel & Food Expenses',
+        'Accounting and Bookkeeping Fees' => 'Accounting and Bookkeeping Fees',
+        'Stationery' => 'Stationery',
+        'Document Warehouse Fees' => 'Document Warehouse Fees',
+        'Building Maintenance' => 'Building Maintenance',
+        'Marketing, Printing and Promotional Materials' => 'Marketing, Printing and Promotional Materials',
+        'Courier and Postage' => 'Courier and Postage',
+        'Salary Expenses' => 'Salaries / Wages',
+        'Social Security Expenses' => 'Social Security Expenses',
+        'Subscriptions and Annuities (Real Pay, Collexia & Compuscan)' => 'Subscriptions and Annuities (Real Pay, Collexia & Compuscan)',
+        'Administration Cost' => 'Administration Cost',
+        'NAMFISA Licence and Consulting Fees' => 'NAMFISA Licence and Consulting Fees',
+        'Internet and Telephone Expenses' => 'Internet and Telephone Expenses',
+        'Fuel and Car Maintenance' => 'Fuel and Car Maintenance',
+        'Office Supplies' => 'Office Supplies',
+        'Legal and Consulting Fees' => 'Legal and Consulting Fees',
+        'Medical Expenses' => 'Medical Expenses',
+        'Municipal Expenses (Water & Electricity)' => 'Municipal Expenses (Water & Electricity)',
+        'Technology and System Maintenance Fees' => 'Technology and System Maintenance Fees',
+        'Bad Debts' => 'Bad Debts',
+        'Household Expenses' => 'Household Expenses',
+        'Rent Payment' => 'Rent Payment',
+        'Furniture' => 'Furniture',
+        'Clothing' => 'Clothing',
+        'Deposit on Capital Goods (Movable Assets)' => 'Deposit on Capital Goods (Movable Assets)',
+        'Tax Paid' => 'Tax Paid',
+        'Insurance' => 'Insurance',
+        'Car Payment (Asset Finance)' => 'Car Payment (Asset Finance)',
+        'Livestock' => 'Livestock',
+        'VAT Paid or Refund' => 'VAT Paid or Refund',
+    ];
+
     private array $report;
     private array $sections;
 
@@ -29,15 +93,11 @@ class AfsReportExcelExporter
         $company = (new Company())->primary() ?: [];
 
         $spreadsheet = new Spreadsheet();
-        $spreadsheet->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Calibri')->setSize(10);
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('AFS Summary');
+        $sheet->setTitle('AFS');
 
-        foreach (['A' => 26, 'B' => 18, 'C' => 18, 'D' => 22, 'E' => 20, 'F' => 18, 'G' => 24] as $col => $width) {
-            $sheet->getColumnDimension($col)->setWidth($width);
-        }
-
-        $row = 2;
+        $row = 1;
         $sheet->setCellValue("A{$row}", 'Business Name:');
         $sheet->setCellValue("B{$row}", $company['company_name'] ?? '');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
@@ -51,8 +111,11 @@ class AfsReportExcelExporter
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
         $row += 2;
 
+        $monthlyGridHeaderRow = $row;
+        $row = $this->writeMonthlyGrid($sheet, $row);
+        $row += 2;
         $row = $this->writeQuarterlySummary($sheet, $row);
-        $row += 1;
+        $row += 2;
         $row = $this->writeBankAccounts($sheet, $row);
         $row += 1;
         $row = $this->writeFixedAssets($sheet, $row);
@@ -60,22 +123,27 @@ class AfsReportExcelExporter
 
         $this->writeSignatureBlock($sheet, $row, $company);
 
-        $this->writeMonthlyDetail($spreadsheet);
+        $sheet->getColumnDimension('A')->setWidth(14);
+        for ($i = 2; $i <= 2 + count(self::COLUMN_MAP); $i++) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setWidth(15);
+        }
+        $sheet->freezePane('B' . ($monthlyGridHeaderRow + 1));
 
         return $spreadsheet;
     }
 
     /**
-     * A second sheet mirroring the client's own workbook's monthly grid:
-     * one row per metric/category, one column per FY month, in the same
-     * order MONTHLY_DETAIL rows were generated in (see
-     * AfsReportGenerationService::monthlyDetail()).
+     * Month | Total Disbursed Amount | Interest Income | ... | VAT Paid or
+     * Refund, one row per FY month plus a TOTAL row -- same column order,
+     * same gray header/orange data/gray total styling as the client's
+     * real workbook. Pivoted from the MONTHLY_DETAIL section (one row per
+     * month x metric) rather than a schema change.
      */
-    private function writeMonthlyDetail(Spreadsheet $spreadsheet): void
+    private function writeMonthlyGrid($sheet, int $row): int
     {
         $rows = $this->sections['MONTHLY_DETAIL'] ?? [];
         if (empty($rows)) {
-            return;
+            return $row;
         }
 
         $monthLabels = [];
@@ -87,38 +155,61 @@ class AfsReportExcelExporter
             $pivot[$r['label']][$r['sub_label']] = (float) $r['amount_1'];
         }
 
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Monthly Detail');
-        $sheet->getColumnDimension('A')->setWidth(42);
-        foreach (range('B', 'N') as $col) {
-            $sheet->getColumnDimension($col)->setWidth(14);
+        $columns = self::COLUMN_MAP;
+        $lastColIndex = 1 + count($columns);
+        $lastCol = Coordinate::stringFromColumnIndex($lastColIndex);
+
+        $headerRow = $row;
+        $sheet->setCellValue("A{$headerRow}", 'Month');
+        $col = 2;
+        foreach ($columns as $header) {
+            $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $headerRow, $header);
+            $col++;
         }
+        $this->fill($sheet, "A{$headerRow}:{$lastCol}{$headerRow}", self::FILL_HEADER, true, Border::BORDER_MEDIUM, null);
+        $sheet->getStyle("A{$headerRow}:{$lastCol}{$headerRow}")->getAlignment()->setWrapText(true)->setVertical('bottom');
+        $sheet->getRowDimension($headerRow)->setRowHeight(60);
+        $row++;
 
-        $headers = array_merge(['Category'], $monthLabels, ['Total']);
-        $sheet->fromArray($headers, null, 'A1');
-        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
-        ExcelBrandStyle::header($sheet, "A1:{$lastCol}1");
+        $totals = array_fill(0, count($columns), 0.0);
+        foreach ($monthLabels as $ml) {
+            $sheet->setCellValue("A{$row}", $ml);
+            $this->fill($sheet, "A{$row}", self::FILL_HEADER, false, Border::BORDER_THIN, null);
 
-        $row = 2;
-        foreach ($pivot as $label => $byMonth) {
-            $sheet->setCellValue("A{$row}", $label);
             $col = 2;
-            $total = 0.0;
-            foreach ($monthLabels as $ml) {
-                $value = round($byMonth[$ml] ?? 0, 2);
-                $coord = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
-                $this->amount($sheet, $coord, $value);
-                $total += $value;
+            $i = 0;
+            foreach ($columns as $sourceLabel => $header) {
+                $value = $sourceLabel === '__NOT_TRACKED__' ? 0.0 : round($pivot[$sourceLabel][$ml] ?? 0, 2);
+                $coord = Coordinate::stringFromColumnIndex($col) . $row;
+                $sheet->setCellValue($coord, $value);
+                $sheet->getStyle($coord)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+                $this->fill($sheet, $coord, self::FILL_DATA, false, Border::BORDER_THIN, null);
+                $totals[$i] += $value;
                 $col++;
+                $i++;
             }
-            $totalCoord = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
-            $this->amount($sheet, $totalCoord, $total);
-            $sheet->getStyle($totalCoord)->getFont()->setBold(true);
-            ExcelBrandStyle::border($sheet, "A{$row}:{$lastCol}{$row}");
             $row++;
         }
+
+        $sheet->setCellValue("A{$row}", 'TOTAL');
+        $col = 2;
+        foreach ($totals as $t) {
+            $coord = Coordinate::stringFromColumnIndex($col) . $row;
+            $sheet->setCellValue($coord, round($t, 2));
+            $sheet->getStyle($coord)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $col++;
+        }
+        $this->fill($sheet, "A{$row}:{$lastCol}{$row}", self::FILL_HEADER, true, Border::BORDER_MEDIUM, Border::BORDER_MEDIUM);
+        $row++;
+
+        return $row;
     }
 
+    /**
+     * Same gray fill (D8D8D8) across the whole table -- header row and
+     * every data/total row -- matching the client's own quarterly summary
+     * styling exactly (not just the header).
+     */
     private function writeQuarterlySummary($sheet, int $row): int
     {
         $sheet->setCellValue("A{$row}", 'Summarised Report Quarterly');
@@ -127,7 +218,7 @@ class AfsReportExcelExporter
 
         $headers = ['Quarter', 'Expenditure (NAD)', 'Interest Income (NAD)', 'Disbursed Loans - Capital (NAD)', 'Members Contribution (NAD)', 'NAMFISA Levies (NAD)', 'Total Bad Debt Written Off (NAD)'];
         $sheet->fromArray($headers, null, "A{$row}");
-        ExcelBrandStyle::header($sheet, "A{$row}:G{$row}");
+        $this->fill($sheet, "A{$row}:G{$row}", self::FILL_HEADER, true, Border::BORDER_THIN, null);
         $row++;
 
         foreach ($this->sections['QUARTERLY_SUMMARY'] as $r) {
@@ -139,11 +230,8 @@ class AfsReportExcelExporter
             $this->amount($sheet, "E{$row}", $r['amount_6']);
             $this->amount($sheet, "F{$row}", $r['amount_4']);
             $this->amount($sheet, "G{$row}", $r['amount_5']);
-            if ($isTotal) {
-                ExcelBrandStyle::totals($sheet, "A{$row}:G{$row}");
-            } else {
-                ExcelBrandStyle::border($sheet, "A{$row}:G{$row}");
-            }
+            $this->fill($sheet, "A{$row}:G{$row}", self::FILL_HEADER, $isTotal, Border::BORDER_THIN, Border::BORDER_THIN);
+            $sheet->getStyle("A{$row}")->getFont()->setBold(true);
             $row++;
         }
 
@@ -225,7 +313,20 @@ class AfsReportExcelExporter
     private function amount($sheet, string $coord, $value): void
     {
         $sheet->setCellValue($coord, round((float) $value, 2));
-        $sheet->getStyle($coord)->getNumberFormat()->setFormatCode(ExcelBrandStyle::numberFormat());
+        $sheet->getStyle($coord)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+    }
+
+    private function fill($sheet, string $range, string $rgb, bool $bold, ?string $topBorder, ?string $bottomBorder): void
+    {
+        $style = $sheet->getStyle($range);
+        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($rgb);
+        $style->getFont()->setBold($bold);
+        if ($topBorder) {
+            $style->getBorders()->getTop()->setBorderStyle($topBorder);
+        }
+        if ($bottomBorder) {
+            $style->getBorders()->getBottom()->setBorderStyle($bottomBorder);
+        }
     }
 
     public function save(Spreadsheet $spreadsheet, string $path): void

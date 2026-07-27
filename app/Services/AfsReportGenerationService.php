@@ -165,8 +165,8 @@ class AfsReportGenerationService
             $membersContribution = (float) $expenseByGroupStmt->fetchColumn();
 
             $disbursedStmt = $db->prepare(
-                "SELECT COALESCE(SUM(l.principal_amount),0)
-                 FROM loan_disbursements ld JOIN loans l ON l.id = ld.loan_id
+                "SELECT COALESCE(SUM(ld.amount),0)
+                 FROM loan_disbursements ld
                  WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?"
             );
             $disbursedStmt->execute([$q['start'], $q['end']]);
@@ -239,8 +239,8 @@ class AfsReportGenerationService
         $categories = (new ExpenseCategory())->afsCategories();
 
         $disbursedStmt = $db->prepare(
-            "SELECT COALESCE(SUM(l.principal_amount),0)
-             FROM loan_disbursements ld JOIN loans l ON l.id = ld.loan_id
+            "SELECT COALESCE(SUM(ld.amount),0)
+             FROM loan_disbursements ld
              WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?"
         );
         $writeOffStmt = $db->prepare(
