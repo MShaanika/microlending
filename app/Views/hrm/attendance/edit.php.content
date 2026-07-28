@@ -1,0 +1,62 @@
+<?php
+$r = $record;
+$dateVal = isset($r['attendance_date']) ? substr($r['attendance_date'], 0, 10) : '';
+$clockInVal = isset($r['clock_in']) && $r['clock_in'] ? substr($r['clock_in'], 11, 5) : '';
+$clockOutVal = isset($r['clock_out']) && $r['clock_out'] ? substr($r['clock_out'], 11, 5) : '';
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Attendance</h4>
+    <p class="text-muted small">Hours, overtime and status are recalculated automatically on save.</p>
+
+    <form method="post" action="<?= url('/hrm/attendance/' . $r['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employee <span class="text-danger">*</span></label>
+          <select name="employee_id" class="form-select <?= isset($errors['employee_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select employee</option>
+            <?php foreach ($employees as $emp): ?>
+              <option value="<?= (int) $emp['id'] ?>" <?= ($r['employee_id'] ?? '') == $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['employee_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['employee_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Shift</label>
+          <select name="shift_id" class="form-select">
+            <option value="">No shift</option>
+            <?php foreach ($shifts as $s): ?>
+              <option value="<?= (int) $s['id'] ?>" <?= ($r['shift_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= e($s['shift_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Date <span class="text-danger">*</span></label>
+          <input type="date" name="attendance_date" class="form-control <?= isset($errors['attendance_date']) ? 'is-invalid' : '' ?>" value="<?= e($dateVal) ?>">
+          <?php if (isset($errors['attendance_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['attendance_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Clock In <span class="text-danger">*</span></label>
+          <input type="time" name="clock_in" class="form-control <?= isset($errors['clock_in']) ? 'is-invalid' : '' ?>" value="<?= e($clockInVal) ?>">
+          <?php if (isset($errors['clock_in'])): ?><div class="invalid-feedback d-block"><?= e($errors['clock_in']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Clock Out</label>
+          <input type="time" name="clock_out" class="form-control" value="<?= e($clockOutVal) ?>">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" rows="2" class="form-control"><?= e($r['notes'] ?? '') ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+      <a href="<?= url('/hrm/attendance') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

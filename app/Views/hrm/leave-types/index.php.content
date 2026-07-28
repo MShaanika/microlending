@@ -1,0 +1,45 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Leave Types</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/leave-types/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Leave Type</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Name</th><th>Max Days/Year</th><th>Paid</th><th>Status</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($leaveTypes)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No leave types yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($leaveTypes as $lt): ?>
+            <tr>
+              <td><span class="badge" style="background-color: <?= e($lt['color']) ?>">&nbsp;</span> <?= e($lt['name']) ?></td>
+              <td><?= (int) $lt['max_days_per_year'] ?></td>
+              <td><?= $lt['is_paid'] ? 'Yes' : 'No' ?></td>
+              <td><span class="badge bg-<?= $lt['is_active'] ? 'success' : 'secondary' ?>"><?= $lt['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <?php if (Auth::can('hrm.manage')): ?>
+              <td class="text-end">
+                <a href="<?= url('/hrm/leave-types/' . $lt['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <form method="post" action="<?= url('/hrm/leave-types/' . $lt['id'] . '/toggle-active') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-<?= $lt['is_active'] ? 'danger' : 'success' ?>">
+                    <?= $lt['is_active'] ? 'Deactivate' : 'Activate' ?>
+                  </button>
+                </form>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

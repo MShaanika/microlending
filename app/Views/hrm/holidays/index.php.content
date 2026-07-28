@@ -1,0 +1,44 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Holidays</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/holidays/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Holiday</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>From</th><th>To</th><th>Paid</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($holidays)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No holidays added yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($holidays as $h): ?>
+            <tr>
+              <td><?= e($h['name']) ?></td>
+              <td><?= e($h['holiday_type']) ?></td>
+              <td><?= e(date('d M Y', strtotime($h['start_date']))) ?></td>
+              <td><?= e(date('d M Y', strtotime($h['end_date']))) ?></td>
+              <td><?= $h['is_paid'] ? 'Yes' : 'No' ?></td>
+              <?php if (Auth::can('hrm.manage')): ?>
+              <td class="text-end">
+                <a href="<?= url('/hrm/holidays/' . $h['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <form method="post" action="<?= url('/hrm/holidays/' . $h['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this holiday?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

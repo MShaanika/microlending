@@ -1,0 +1,55 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Leave Balance</h4>
+
+    <form method="get" action="<?= url('/hrm/leave-balance') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <select name="employee_id" class="form-select">
+          <option value="">All active employees</option>
+          <?php foreach ($employees as $emp): ?>
+            <option value="<?= (int) $emp['id'] ?>" <?= $selectedEmployeeId === (int) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="year" class="form-select">
+          <?php for ($y = (int) date('Y') + 1; $y >= (int) date('Y') - 3; $y--): ?>
+            <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
+    <?php if (empty($balances)): ?>
+      <p class="text-muted text-center py-4">No active employees to show balances for.</p>
+    <?php endif; ?>
+
+    <?php foreach ($balances as $b): ?>
+      <div class="mb-4">
+        <h6><?= e($b['employee_name']) ?> <span class="text-muted small">(<?= e($b['employee_no']) ?>)</span></h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+              <tr><th>Leave Type</th><th class="text-end">Entitlement</th><th class="text-end">Used (<?= $year ?>)</th><th class="text-end">Available</th></tr>
+            </thead>
+            <tbody>
+              <?php foreach ($b['leave_types'] as $lt): ?>
+                <tr>
+                  <td><span class="badge" style="background-color: <?= e($lt['leave_type_color']) ?>">&nbsp;</span> <?= e($lt['leave_type_name']) ?></td>
+                  <td class="text-end"><?= $lt['total_days'] ?></td>
+                  <td class="text-end"><?= $lt['used_days'] ?></td>
+                  <td class="text-end fw-bold"><?= $lt['available_days'] ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>

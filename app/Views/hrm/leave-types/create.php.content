@@ -1,0 +1,41 @@
+<?php $isPaidChecked = $old === [] ? true : !empty($old['is_paid']); ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Leave Type</h4>
+
+    <form method="post" action="<?= url('/hrm/leave-types') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Name <span class="text-danger">*</span></label>
+          <input type="text" name="name" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= old('name', $old) ?>">
+          <?php if (isset($errors['name'])): ?><div class="invalid-feedback d-block"><?= e($errors['name']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Max Days / Year</label>
+          <input type="number" name="max_days_per_year" class="form-control" value="<?= $old['max_days_per_year'] ?? '0' ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Color</label>
+          <input type="color" name="color" class="form-control form-control-color" value="<?= $old['color'] ?? '#FF6B6B' ?>">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" rows="2" class="form-control"><?= old('description', $old) ?></textarea>
+      </div>
+
+      <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="isPaid" name="is_paid" value="1" <?= $isPaidChecked ? 'checked' : '' ?>>
+        <label class="form-check-label" for="isPaid">Paid leave</label>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Leave Type</button>
+      <a href="<?= url('/hrm/leave-types') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

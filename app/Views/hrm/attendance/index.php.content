@@ -1,0 +1,72 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Attendance</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/attendance/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Attendance</a>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/hrm/attendance') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="employee_id" class="form-select">
+          <option value="">All employees</option>
+          <?php foreach ($employees as $emp): ?>
+            <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" class="form-control" value="<?= e($filters['date_from']) ?>" placeholder="From">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" class="form-control" value="<?= e($filters['date_to']) ?>" placeholder="To">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach (['Present', 'Half Day', 'Absent'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Date</th><th>Employee</th><th>Shift</th><th>Clock In</th><th>Clock Out</th><th>Break (h)</th><th>Total (h)</th><th>Overtime (h)</th><th>Status</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($records)): ?>
+            <tr><td colspan="10" class="text-center text-muted py-4">No attendance records found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($records as $r):
+            $statusBadge = ['Present' => 'success', 'Half Day' => 'warning', 'Absent' => 'danger'][$r['status']] ?? 'secondary';
+          ?>
+            <tr>
+              <td><?= e(date('d M Y', strtotime($r['attendance_date']))) ?></td>
+              <td><?= e($r['employee_name']) ?></td>
+              <td><?= e($r['shift_name'] ?: '—') ?></td>
+              <td><?= e(date('H:i', strtotime($r['clock_in']))) ?></td>
+              <td><?= $r['clock_out'] ? e(date('H:i', strtotime($r['clock_out']))) : '—' ?></td>
+              <td><?= number_format((float) $r['break_hour'], 2) ?></td>
+              <td><?= number_format((float) $r['total_hour'], 2) ?></td>
+              <td><?= number_format((float) $r['overtime_hours'], 2) ?></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($r['status']) ?></span></td>
+              <?php if (Auth::can('hrm.manage')): ?>
+              <td class="text-end"><a href="<?= url('/hrm/attendance/' . $r['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a></td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

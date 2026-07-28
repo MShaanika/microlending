@@ -35,6 +35,11 @@ use App\Controllers\HrmDepartmentController;
 use App\Controllers\HrmDesignationController;
 use App\Controllers\HrmShiftController;
 use App\Controllers\HrmEmployeeController;
+use App\Controllers\HrmAttendanceController;
+use App\Controllers\HrmLeaveTypeController;
+use App\Controllers\HrmLeaveApplicationController;
+use App\Controllers\HrmLeaveBalanceController;
+use App\Controllers\HrmHolidayController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -421,6 +426,40 @@ $router->post('/hrm/employees', [HrmEmployeeController::class, 'store']);
 $router->get('/hrm/employees/{id}', [HrmEmployeeController::class, 'show']);
 $router->get('/hrm/employees/{id}/edit', [HrmEmployeeController::class, 'edit']);
 $router->post('/hrm/employees/{id}', [HrmEmployeeController::class, 'update']);
+
+// HRM: Attendance
+$router->get('/hrm/attendance', [HrmAttendanceController::class, 'index']);
+$router->get('/hrm/attendance/create', [HrmAttendanceController::class, 'create']);
+$router->post('/hrm/attendance', [HrmAttendanceController::class, 'store']);
+$router->get('/hrm/attendance/{id}/edit', [HrmAttendanceController::class, 'edit']);
+$router->post('/hrm/attendance/{id}', [HrmAttendanceController::class, 'update']);
+
+// HRM: Leave Types
+$router->get('/hrm/leave-types', [HrmLeaveTypeController::class, 'index']);
+$router->get('/hrm/leave-types/create', [HrmLeaveTypeController::class, 'create']);
+$router->post('/hrm/leave-types', [HrmLeaveTypeController::class, 'store']);
+$router->get('/hrm/leave-types/{id}/edit', [HrmLeaveTypeController::class, 'edit']);
+$router->post('/hrm/leave-types/{id}', [HrmLeaveTypeController::class, 'update']);
+$router->post('/hrm/leave-types/{id}/toggle-active', [HrmLeaveTypeController::class, 'toggleActive']);
+
+// HRM: Leave Applications
+$router->get('/hrm/leave-applications', [HrmLeaveApplicationController::class, 'index']);
+$router->get('/hrm/leave-applications/create', [HrmLeaveApplicationController::class, 'create']);
+$router->post('/hrm/leave-applications', [HrmLeaveApplicationController::class, 'store']);
+$router->get('/hrm/leave-applications/{id}', [HrmLeaveApplicationController::class, 'show']);
+$router->post('/hrm/leave-applications/{id}/approve', [HrmLeaveApplicationController::class, 'approve']);
+$router->post('/hrm/leave-applications/{id}/reject', [HrmLeaveApplicationController::class, 'reject']);
+
+// HRM: Leave Balance
+$router->get('/hrm/leave-balance', [HrmLeaveBalanceController::class, 'index']);
+
+// HRM: Holidays
+$router->get('/hrm/holidays', [HrmHolidayController::class, 'index']);
+$router->get('/hrm/holidays/create', [HrmHolidayController::class, 'create']);
+$router->post('/hrm/holidays', [HrmHolidayController::class, 'store']);
+$router->get('/hrm/holidays/{id}/edit', [HrmHolidayController::class, 'edit']);
+$router->post('/hrm/holidays/{id}', [HrmHolidayController::class, 'update']);
+$router->post('/hrm/holidays/{id}/delete', [HrmHolidayController::class, 'delete']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);
