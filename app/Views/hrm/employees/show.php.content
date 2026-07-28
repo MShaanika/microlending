@@ -1,0 +1,86 @@
+<?php
+use App\Core\Auth;
+$e = $employee;
+$statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => 'secondary', 'Terminated' => 'danger'][$e['status']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($e['first_name'] . ' ' . $e['last_name']) ?></h4>
+    <span class="text-muted"><?= e($e['employee_no']) ?> &middot; <?= e($e['designation_name'] ?: 'No designation') ?></span>
+  </div>
+  <div>
+    <span class="badge bg-<?= $statusBadge ?> me-2"><?= e($e['status']) ?></span>
+    <?php if (Auth::can('hrm.manage')): ?>
+      <a href="<?= url('/hrm/employees/' . $e['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+    <?php endif; ?>
+    <a href="<?= url('/hrm/employees') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Personal Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted" style="width:40%">Gender</th><td><?= e($e['gender']) ?></td></tr>
+          <tr><th class="text-muted">Date of Birth</th><td><?= $e['date_of_birth'] ? e(date('d M Y', strtotime($e['date_of_birth']))) : '—' ?></td></tr>
+          <tr><th class="text-muted">Email</th><td><?= e($e['email'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Phone</th><td><?= e($e['phone'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">System Login</th><td><?= $e['user_name'] ? e($e['user_name'] . ' (' . $e['user_email'] . ')') : 'Not linked' ?></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Employment Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted" style="width:40%">Branch</th><td><?= e($e['branch_name'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Department</th><td><?= e($e['department_name'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Designation</th><td><?= e($e['designation_name'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Shift</th><td><?= e($e['shift_name'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Employment Type</th><td><?= e($e['employment_type']) ?></td></tr>
+          <tr><th class="text-muted">Date of Joining</th><td><?= $e['date_of_joining'] ? e(date('d M Y', strtotime($e['date_of_joining']))) : '—' ?></td></tr>
+          <tr><th class="text-muted">Basic Salary</th><td><?= $e['basic_salary'] !== null ? format_money($e['basic_salary']) : '—' ?></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Address &amp; Emergency Contact</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted" style="width:40%">Address</th><td>
+            <?= e(trim(($e['address_line_1'] ?? '') . ' ' . ($e['address_line_2'] ?? ''))) ?: '—' ?><br>
+            <?= e(trim(($e['city'] ?? '') . ', ' . ($e['region'] ?? '') . ' ' . ($e['postal_code'] ?? ''), ', ')) ?>
+            <?= e($e['country'] ?? '') ?>
+          </td></tr>
+          <tr><th class="text-muted">Emergency Contact</th><td><?= e($e['emergency_contact_name'] ?: '—') ?><?= $e['emergency_contact_relationship'] ? ' (' . e($e['emergency_contact_relationship']) . ')' : '' ?></td></tr>
+          <tr><th class="text-muted">Contact Number</th><td><?= e($e['emergency_contact_number'] ?: '—') ?></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Banking Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted" style="width:40%">Bank</th><td><?= e($e['bank_name'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Account Holder</th><td><?= e($e['account_holder_name'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Account Number</th><td><?= e($e['account_number'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Branch Code</th><td><?= e($e['branch_code'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Tax Payer ID</th><td><?= e($e['tax_payer_id'] ?: '—') ?></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

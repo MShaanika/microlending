@@ -1,0 +1,41 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Designation</h4>
+
+    <form method="post" action="<?= url('/hrm/designations') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Designation Name <span class="text-danger">*</span></label>
+        <input type="text" name="designation_name" class="form-control <?= isset($errors['designation_name']) ? 'is-invalid' : '' ?>" value="<?= old('designation_name', $old) ?>">
+        <?php if (isset($errors['designation_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['designation_name']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Branch</label>
+          <select name="branch_id" class="form-select">
+            <option value="">All branches</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (($old['branch_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Department</label>
+          <select name="department_id" class="form-select">
+            <option value="">No department</option>
+            <?php foreach ($departments as $d): ?>
+              <option value="<?= (int) $d['id'] ?>" <?= (($old['department_id'] ?? '') == $d['id']) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Designation</button>
+      <a href="<?= url('/hrm/designations') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,51 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Shifts</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/shifts/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Shift</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Shift</th><th>Start</th><th>End</th><th>Break</th><th>Night Shift</th><th>Status</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($shifts)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No shifts yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($shifts as $s): ?>
+            <tr>
+              <td><?= e($s['shift_name']) ?></td>
+              <td><?= $s['start_time'] ? e(date('H:i', strtotime($s['start_time']))) : '—' ?></td>
+              <td><?= $s['end_time'] ? e(date('H:i', strtotime($s['end_time']))) : '—' ?></td>
+              <td>
+                <?php if ($s['break_start_time'] && $s['break_end_time']): ?>
+                  <?= e(date('H:i', strtotime($s['break_start_time']))) ?> &ndash; <?= e(date('H:i', strtotime($s['break_end_time']))) ?>
+                <?php else: ?>—<?php endif; ?>
+              </td>
+              <td><?= $s['is_night_shift'] ? '<span class="mdi mdi-weather-night text-primary"></span> Yes' : 'No' ?></td>
+              <td><span class="badge bg-<?= $s['is_active'] ? 'success' : 'secondary' ?>"><?= $s['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <?php if (Auth::can('hrm.manage')): ?>
+              <td class="text-end">
+                <a href="<?= url('/hrm/shifts/' . $s['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <form method="post" action="<?= url('/hrm/shifts/' . $s['id'] . '/toggle-active') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-<?= $s['is_active'] ? 'danger' : 'success' ?>">
+                    <?= $s['is_active'] ? 'Deactivate' : 'Activate' ?>
+                  </button>
+                </form>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -31,6 +31,10 @@ use App\Controllers\RoleController;
 use App\Controllers\PermissionController;
 use App\Controllers\CompanySettingController;
 use App\Controllers\SocialAnalyticsController;
+use App\Controllers\HrmDepartmentController;
+use App\Controllers\HrmDesignationController;
+use App\Controllers\HrmShiftController;
+use App\Controllers\HrmEmployeeController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -385,6 +389,38 @@ $router->post('/settings/social-analytics/{id}', [SocialAnalyticsController::cla
 $router->get('/social-analytics', [SocialAnalyticsController::class, 'index']);
 $router->post('/social-analytics/{settingId}/entries', [SocialAnalyticsController::class, 'storeMetric']);
 $router->post('/social-analytics/entries/{id}/delete', [SocialAnalyticsController::class, 'deleteMetric']);
+
+// HRM: Departments
+$router->get('/hrm/departments', [HrmDepartmentController::class, 'index']);
+$router->get('/hrm/departments/create', [HrmDepartmentController::class, 'create']);
+$router->post('/hrm/departments', [HrmDepartmentController::class, 'store']);
+$router->get('/hrm/departments/{id}/edit', [HrmDepartmentController::class, 'edit']);
+$router->post('/hrm/departments/{id}', [HrmDepartmentController::class, 'update']);
+$router->post('/hrm/departments/{id}/toggle-active', [HrmDepartmentController::class, 'toggleActive']);
+
+// HRM: Designations
+$router->get('/hrm/designations', [HrmDesignationController::class, 'index']);
+$router->get('/hrm/designations/create', [HrmDesignationController::class, 'create']);
+$router->post('/hrm/designations', [HrmDesignationController::class, 'store']);
+$router->get('/hrm/designations/{id}/edit', [HrmDesignationController::class, 'edit']);
+$router->post('/hrm/designations/{id}', [HrmDesignationController::class, 'update']);
+$router->post('/hrm/designations/{id}/toggle-active', [HrmDesignationController::class, 'toggleActive']);
+
+// HRM: Shifts
+$router->get('/hrm/shifts', [HrmShiftController::class, 'index']);
+$router->get('/hrm/shifts/create', [HrmShiftController::class, 'create']);
+$router->post('/hrm/shifts', [HrmShiftController::class, 'store']);
+$router->get('/hrm/shifts/{id}/edit', [HrmShiftController::class, 'edit']);
+$router->post('/hrm/shifts/{id}', [HrmShiftController::class, 'update']);
+$router->post('/hrm/shifts/{id}/toggle-active', [HrmShiftController::class, 'toggleActive']);
+
+// HRM: Employees
+$router->get('/hrm/employees', [HrmEmployeeController::class, 'index']);
+$router->get('/hrm/employees/create', [HrmEmployeeController::class, 'create']);
+$router->post('/hrm/employees', [HrmEmployeeController::class, 'store']);
+$router->get('/hrm/employees/{id}', [HrmEmployeeController::class, 'show']);
+$router->get('/hrm/employees/{id}/edit', [HrmEmployeeController::class, 'edit']);
+$router->post('/hrm/employees/{id}', [HrmEmployeeController::class, 'update']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

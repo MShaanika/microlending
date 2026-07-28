@@ -1,0 +1,98 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Total Employees</span>
+      <h3 class="mb-0"><?= (int) $counts['total'] ?></h3>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Active</span>
+      <h3 class="mb-0 text-success"><?= (int) $counts['active'] ?></h3>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">On Leave</span>
+      <h3 class="mb-0 text-warning"><?= (int) $counts['on_leave'] ?></h3>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Terminated</span>
+      <h3 class="mb-0 text-danger"><?= (int) $counts['terminated'] ?></h3>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Employees</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/employees/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Employee</a>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/hrm/employees') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <input type="text" name="search" class="form-control" placeholder="Search name, no., email" value="<?= e($filters['search']) ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="branch_id" class="form-select">
+          <option value="">All branches</option>
+          <?php foreach ($branches as $b): ?>
+            <option value="<?= (int) $b['id'] ?>" <?= (string) $filters['branch_id'] === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="department_id" class="form-select">
+          <option value="">All departments</option>
+          <?php foreach ($departments as $d): ?>
+            <option value="<?= (int) $d['id'] ?>" <?= (string) $filters['department_id'] === (string) $d['id'] ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach (['Active', 'On Leave', 'Suspended', 'Terminated'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Employee No.</th><th>Name</th><th>Department</th><th>Designation</th><th>Branch</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($employees)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No employees found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($employees as $emp):
+            $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => 'secondary', 'Terminated' => 'danger'][$emp['status']] ?? 'secondary';
+          ?>
+            <tr>
+              <td><a href="<?= url('/hrm/employees/' . $emp['id']) ?>"><?= e($emp['employee_no']) ?></a></td>
+              <td><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></td>
+              <td><?= e($emp['department_name'] ?: '—') ?></td>
+              <td><?= e($emp['designation_name'] ?: '—') ?></td>
+              <td><?= e($emp['branch_name'] ?: '—') ?></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($emp['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

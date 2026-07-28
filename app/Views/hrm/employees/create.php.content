@@ -1,0 +1,210 @@
+<?= flash_messages() ?>
+
+<form method="post" action="<?= url('/hrm/employees') ?>">
+  <?= csrf_field() ?>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Personal Details</h5>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">First Name <span class="text-danger">*</span></label>
+          <input type="text" name="first_name" class="form-control <?= isset($errors['first_name']) ? 'is-invalid' : '' ?>" value="<?= old('first_name', $old) ?>">
+          <?php if (isset($errors['first_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['first_name']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Last Name <span class="text-danger">*</span></label>
+          <input type="text" name="last_name" class="form-control <?= isset($errors['last_name']) ? 'is-invalid' : '' ?>" value="<?= old('last_name', $old) ?>">
+          <?php if (isset($errors['last_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['last_name']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Gender</label>
+          <select name="gender" class="form-select">
+            <?php foreach (['Male', 'Female', 'Other'] as $g): ?>
+              <option value="<?= $g ?>" <?= ($old['gender'] ?? 'Male') === $g ? 'selected' : '' ?>><?= $g ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= old('email', $old) ?>">
+          <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" value="<?= old('phone', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" name="date_of_birth" class="form-control" value="<?= old('date_of_birth', $old) ?>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Employment Details</h5>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Branch</label>
+          <select name="branch_id" class="form-select">
+            <option value="">Select branch</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (($old['branch_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Department</label>
+          <select name="department_id" class="form-select">
+            <option value="">Select department</option>
+            <?php foreach ($departments as $d): ?>
+              <option value="<?= (int) $d['id'] ?>" <?= (($old['department_id'] ?? '') == $d['id']) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Designation</label>
+          <select name="designation_id" class="form-select">
+            <option value="">Select designation</option>
+            <?php foreach ($designations as $g): ?>
+              <option value="<?= (int) $g['id'] ?>" <?= (($old['designation_id'] ?? '') == $g['id']) ? 'selected' : '' ?>><?= e($g['designation_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Shift</label>
+          <select name="shift_id" class="form-select">
+            <option value="">Select shift</option>
+            <?php foreach ($shifts as $s): ?>
+              <option value="<?= (int) $s['id'] ?>" <?= (($old['shift_id'] ?? '') == $s['id']) ? 'selected' : '' ?>><?= e($s['shift_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Employment Type</label>
+          <select name="employment_type" class="form-select">
+            <?php foreach (['Full-Time', 'Part-Time', 'Contract', 'Intern'] as $t): ?>
+              <option value="<?= $t ?>" <?= ($old['employment_type'] ?? 'Full-Time') === $t ? 'selected' : '' ?>><?= $t ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Status</label>
+          <select name="status" class="form-select">
+            <?php foreach (['Active', 'On Leave', 'Suspended', 'Terminated'] as $s): ?>
+              <option value="<?= $s ?>" <?= ($old['status'] ?? 'Active') === $s ? 'selected' : '' ?>><?= $s ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Date of Joining</label>
+          <input type="date" name="date_of_joining" class="form-control" value="<?= old('date_of_joining', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Linked System User</label>
+          <select name="user_id" class="form-select <?= isset($errors['user_id']) ? 'is-invalid' : '' ?>">
+            <option value="">No login access</option>
+            <?php foreach ($availableUsers as $u): ?>
+              <option value="<?= (int) $u['id'] ?>" <?= (($old['user_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= e($u['name'] . ' (' . $u['email'] . ')') ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['user_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['user_id']) ?></div><?php endif; ?>
+          <div class="form-text">Optional -- links this employee record to their staff login for portal access.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Basic Salary (NAD)</label>
+          <input type="number" step="0.01" name="basic_salary" class="form-control" value="<?= old('basic_salary', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Hours per Day</label>
+          <input type="number" step="0.5" name="hours_per_day" class="form-control" value="<?= $old['hours_per_day'] ?? '8' ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Days per Week</label>
+          <input type="number" step="0.5" name="days_per_week" class="form-control" value="<?= $old['days_per_week'] ?? '5' ?>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Address &amp; Emergency Contact</h5>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Address Line 1</label>
+          <input type="text" name="address_line_1" class="form-control" value="<?= old('address_line_1', $old) ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Address Line 2</label>
+          <input type="text" name="address_line_2" class="form-control" value="<?= old('address_line_2', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">City</label>
+          <input type="text" name="city" class="form-control" value="<?= old('city', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Region</label>
+          <input type="text" name="region" class="form-control" value="<?= old('region', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Country</label>
+          <input type="text" name="country" class="form-control" value="<?= $old['country'] ?? 'Namibia' ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Postal Code</label>
+          <input type="text" name="postal_code" class="form-control" value="<?= old('postal_code', $old) ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Emergency Contact Name</label>
+          <input type="text" name="emergency_contact_name" class="form-control" value="<?= old('emergency_contact_name', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Relationship</label>
+          <input type="text" name="emergency_contact_relationship" class="form-control" value="<?= old('emergency_contact_relationship', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Contact Number</label>
+          <input type="text" name="emergency_contact_number" class="form-control" value="<?= old('emergency_contact_number', $old) ?>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Banking Details</h5>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank Name</label>
+          <input type="text" name="bank_name" class="form-control" value="<?= old('bank_name', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Holder Name</label>
+          <input type="text" name="account_holder_name" class="form-control" value="<?= old('account_holder_name', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Number</label>
+          <input type="text" name="account_number" class="form-control" value="<?= old('account_number', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Branch Code</label>
+          <input type="text" name="branch_code" class="form-control" value="<?= old('branch_code', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Tax Payer ID</label>
+          <input type="text" name="tax_payer_id" class="form-control" value="<?= old('tax_payer_id', $old) ?>">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Employee</button>
+  <a href="<?= url('/hrm/employees') ?>" class="btn btn-outline-secondary">Cancel</a>
+</form>

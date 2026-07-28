@@ -1,0 +1,45 @@
+<?php $t = fn ($v) => $v ? substr($v, 0, 5) : ''; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Shift</h4>
+
+    <form method="post" action="<?= url('/hrm/shifts/' . $shift['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Shift Name <span class="text-danger">*</span></label>
+        <input type="text" name="shift_name" class="form-control <?= isset($errors['shift_name']) ? 'is-invalid' : '' ?>" value="<?= e($shift['shift_name']) ?>">
+        <?php if (isset($errors['shift_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['shift_name']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Start Time</label>
+          <input type="time" name="start_time" class="form-control" value="<?= $t($shift['start_time'] ?? '') ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">End Time</label>
+          <input type="time" name="end_time" class="form-control" value="<?= $t($shift['end_time'] ?? '') ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Break Start</label>
+          <input type="time" name="break_start_time" class="form-control" value="<?= $t($shift['break_start_time'] ?? '') ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Break End</label>
+          <input type="time" name="break_end_time" class="form-control" value="<?= $t($shift['break_end_time'] ?? '') ?>">
+        </div>
+      </div>
+
+      <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="isNightShift" name="is_night_shift" value="1" <?= !empty($shift['is_night_shift']) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="isNightShift">Night shift</label>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+      <a href="<?= url('/hrm/shifts') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
