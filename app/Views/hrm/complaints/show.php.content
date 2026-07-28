@@ -1,0 +1,54 @@
+<?php
+use App\Core\Auth;
+$c = $complaint;
+$statusBadge = ['Pending' => 'warning', 'In Review' => 'info', 'Assigned' => 'info', 'In Progress' => 'primary', 'Resolved' => 'success'][$c['status']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($c['subject']) ?></h4>
+    <span class="text-muted">Filed by <?= e($c['employee_name']) ?> (<?= e($c['employee_no']) ?>)</span>
+  </div>
+  <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($c['status']) ?></span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Against Employee</th><td><?= e($c['against_employee_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Complaint Type</th><td><?= e($c['complaint_type_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Complaint Date</th><td><?= e(date('d M Y', strtotime($c['complaint_date']))) ?></td></tr>
+      <tr><th class="text-muted">Description</th><td><?= nl2br(e($c['description'] ?: '—')) ?></td></tr>
+      <?php if ($c['status'] === 'Resolved'): ?>
+        <tr><th class="text-muted">Resolved By</th><td><?= e($c['resolved_by_name'] ?: '—') ?> on <?= $c['resolution_date'] ? e(date('d M Y', strtotime($c['resolution_date']))) : '—' ?></td></tr>
+      <?php endif; ?>
+    </table>
+  </div>
+</div>
+
+<?php if (Auth::can('hrm.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Update Status</h5>
+    <form method="post" action="<?= url('/hrm/complaints/' . $c['id'] . '/status') ?>" class="row g-2 align-items-end">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <select name="status" class="form-select">
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= $s ?>" <?= $c['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+<form method="post" action="<?= url('/hrm/complaints/' . $c['id'] . '/delete') ?>" onsubmit="return confirm('Delete this complaint?');" class="d-inline">
+  <?= csrf_field() ?>
+  <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+</form>
+<?php endif; ?>
+<a href="<?= url('/hrm/complaints') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

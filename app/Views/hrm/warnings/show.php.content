@@ -1,0 +1,75 @@
+<?php
+use App\Core\Auth;
+$w = $warning;
+$statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => 'danger'][$w['status']] ?? 'secondary';
+$sevBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$w['severity']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($w['employee_name']) ?> &middot; <?= e($w['subject']) ?></h4>
+    <span class="text-muted"><?= e($w['employee_no']) ?></span>
+  </div>
+  <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($w['status']) ?></span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Warning Type</th><td><?= e($w['warning_type_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Severity</th><td><span class="badge bg-<?= $sevBadge ?>"><?= e($w['severity']) ?></span></td></tr>
+      <tr><th class="text-muted">Warning Date</th><td><?= e(date('d M Y', strtotime($w['warning_date']))) ?></td></tr>
+      <tr><th class="text-muted">Issued By</th><td><?= e($w['warning_by_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Description</th><td><?= nl2br(e($w['description'] ?: '—')) ?></td></tr>
+      <tr><th class="text-muted">Employee Response</th><td><?= nl2br(e($w['employee_response'] ?: '—')) ?></td></tr>
+    </table>
+  </div>
+</div>
+
+<?php if ($w['status'] === 'Pending' && Auth::can('hrm.manage')): ?>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title text-success">Approve</h5>
+        <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/approve') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title text-danger">Reject</h5>
+        <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/reject') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<?php if (Auth::can('hrm.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Employee Response</h5>
+    <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/respond') ?>">
+      <?= csrf_field() ?>
+      <div class="mb-2">
+        <textarea name="employee_response" rows="3" class="form-control" placeholder="Record the employee's response to this warning"><?= e($w['employee_response'] ?? '') ?></textarea>
+      </div>
+      <button type="submit" class="btn btn-outline-primary btn-sm">Save Response</button>
+    </form>
+  </div>
+</div>
+<form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/delete') ?>" onsubmit="return confirm('Delete this warning?');" class="d-inline">
+  <?= csrf_field() ?>
+  <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+</form>
+<?php endif; ?>
+<a href="<?= url('/hrm/warnings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

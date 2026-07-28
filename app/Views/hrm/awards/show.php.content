@@ -1,0 +1,30 @@
+<?php use App\Core\Auth; $a = $award; ?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($a['employee_name']) ?> &middot; <?= e($a['award_type_name'] ?: 'Award') ?></h4>
+    <span class="text-muted"><?= e($a['employee_no']) ?></span>
+  </div>
+  <?php if (Auth::can('hrm.manage')): ?>
+    <a href="<?= url('/hrm/awards/' . $a['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+  <?php endif; ?>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Award Type</th><td><?= e($a['award_type_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Award Date</th><td><?= e(date('d M Y', strtotime($a['award_date']))) ?></td></tr>
+      <tr><th class="text-muted">Description</th><td><?= nl2br(e($a['description'] ?: '—')) ?></td></tr>
+    </table>
+  </div>
+</div>
+
+<?php if (Auth::can('hrm.manage')): ?>
+<form method="post" action="<?= url('/hrm/awards/' . $a['id'] . '/delete') ?>" onsubmit="return confirm('Delete this award?');" class="d-inline">
+  <?= csrf_field() ?>
+  <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+</form>
+<?php endif; ?>
+<a href="<?= url('/hrm/awards') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

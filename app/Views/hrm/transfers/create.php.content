@@ -1,0 +1,65 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Record a Transfer</h4>
+    <p class="text-muted small">The employee's branch, department and designation only change once this transfer is approved.</p>
+
+    <form method="post" action="<?= url('/hrm/transfers') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Employee <span class="text-danger">*</span></label>
+          <select name="employee_id" class="form-select <?= isset($errors['employee_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select employee</option>
+            <?php foreach ($employees as $emp): ?>
+              <option value="<?= (int) $emp['id'] ?>" <?= (($old['employee_id'] ?? '') == $emp['id']) ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['employee_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['employee_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Effective Date <span class="text-danger">*</span></label>
+          <input type="date" name="effective_date" class="form-control <?= isset($errors['effective_date']) ? 'is-invalid' : '' ?>" value="<?= old('effective_date', $old) ?>">
+          <?php if (isset($errors['effective_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['effective_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">To Branch</label>
+          <select name="to_branch_id" class="form-select">
+            <option value="">Select branch</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (($old['to_branch_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">To Department</label>
+          <select name="to_department_id" class="form-select">
+            <option value="">Select department</option>
+            <?php foreach ($departments as $d): ?>
+              <option value="<?= (int) $d['id'] ?>" <?= (($old['to_department_id'] ?? '') == $d['id']) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">To Designation</label>
+          <select name="to_designation_id" class="form-select">
+            <option value="">Select designation</option>
+            <?php foreach ($designations as $g): ?>
+              <option value="<?= (int) $g['id'] ?>" <?= (($old['to_designation_id'] ?? '') == $g['id']) ? 'selected' : '' ?>><?= e($g['designation_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Reason</label>
+        <textarea name="reason" rows="3" class="form-control"><?= old('reason', $old) ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Transfer</button>
+      <a href="<?= url('/hrm/transfers') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

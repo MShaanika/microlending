@@ -45,6 +45,16 @@ use App\Controllers\HrmDeductionTypeController;
 use App\Controllers\HrmAllowanceController;
 use App\Controllers\HrmDeductionController;
 use App\Controllers\HrmPayrollController;
+use App\Controllers\HrmAwardTypeController;
+use App\Controllers\HrmAwardController;
+use App\Controllers\HrmComplaintTypeController;
+use App\Controllers\HrmComplaintController;
+use App\Controllers\HrmWarningTypeController;
+use App\Controllers\HrmWarningController;
+use App\Controllers\HrmTerminationTypeController;
+use App\Controllers\HrmTerminationController;
+use App\Controllers\HrmPromotionController;
+use App\Controllers\HrmTransferController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -505,6 +515,89 @@ $router->post('/hrm/payrolls', [HrmPayrollController::class, 'store']);
 $router->get('/hrm/payrolls/{id}', [HrmPayrollController::class, 'show']);
 $router->post('/hrm/payrolls/{id}/run', [HrmPayrollController::class, 'run']);
 $router->post('/hrm/payrolls/{payrollId}/entries/{entryId}/mark-paid', [HrmPayrollController::class, 'markEntryPaid']);
+
+// HRM: Performance & Discipline -- lookup types
+$router->get('/hrm/award-types', [HrmAwardTypeController::class, 'index']);
+$router->get('/hrm/award-types/create', [HrmAwardTypeController::class, 'create']);
+$router->post('/hrm/award-types', [HrmAwardTypeController::class, 'store']);
+$router->get('/hrm/award-types/{id}/edit', [HrmAwardTypeController::class, 'edit']);
+$router->post('/hrm/award-types/{id}', [HrmAwardTypeController::class, 'update']);
+$router->post('/hrm/award-types/{id}/delete', [HrmAwardTypeController::class, 'delete']);
+
+$router->get('/hrm/complaint-types', [HrmComplaintTypeController::class, 'index']);
+$router->get('/hrm/complaint-types/create', [HrmComplaintTypeController::class, 'create']);
+$router->post('/hrm/complaint-types', [HrmComplaintTypeController::class, 'store']);
+$router->get('/hrm/complaint-types/{id}/edit', [HrmComplaintTypeController::class, 'edit']);
+$router->post('/hrm/complaint-types/{id}', [HrmComplaintTypeController::class, 'update']);
+$router->post('/hrm/complaint-types/{id}/delete', [HrmComplaintTypeController::class, 'delete']);
+
+$router->get('/hrm/warning-types', [HrmWarningTypeController::class, 'index']);
+$router->get('/hrm/warning-types/create', [HrmWarningTypeController::class, 'create']);
+$router->post('/hrm/warning-types', [HrmWarningTypeController::class, 'store']);
+$router->get('/hrm/warning-types/{id}/edit', [HrmWarningTypeController::class, 'edit']);
+$router->post('/hrm/warning-types/{id}', [HrmWarningTypeController::class, 'update']);
+$router->post('/hrm/warning-types/{id}/delete', [HrmWarningTypeController::class, 'delete']);
+
+$router->get('/hrm/termination-types', [HrmTerminationTypeController::class, 'index']);
+$router->get('/hrm/termination-types/create', [HrmTerminationTypeController::class, 'create']);
+$router->post('/hrm/termination-types', [HrmTerminationTypeController::class, 'store']);
+$router->get('/hrm/termination-types/{id}/edit', [HrmTerminationTypeController::class, 'edit']);
+$router->post('/hrm/termination-types/{id}', [HrmTerminationTypeController::class, 'update']);
+$router->post('/hrm/termination-types/{id}/delete', [HrmTerminationTypeController::class, 'delete']);
+
+// HRM: Performance & Discipline -- Awards
+$router->get('/hrm/awards', [HrmAwardController::class, 'index']);
+$router->get('/hrm/awards/create', [HrmAwardController::class, 'create']);
+$router->post('/hrm/awards', [HrmAwardController::class, 'store']);
+$router->get('/hrm/awards/{id}', [HrmAwardController::class, 'show']);
+$router->get('/hrm/awards/{id}/edit', [HrmAwardController::class, 'edit']);
+$router->post('/hrm/awards/{id}', [HrmAwardController::class, 'update']);
+$router->post('/hrm/awards/{id}/delete', [HrmAwardController::class, 'delete']);
+
+// HRM: Performance & Discipline -- Complaints
+$router->get('/hrm/complaints', [HrmComplaintController::class, 'index']);
+$router->get('/hrm/complaints/create', [HrmComplaintController::class, 'create']);
+$router->post('/hrm/complaints', [HrmComplaintController::class, 'store']);
+$router->get('/hrm/complaints/{id}', [HrmComplaintController::class, 'show']);
+$router->post('/hrm/complaints/{id}/status', [HrmComplaintController::class, 'updateStatus']);
+$router->post('/hrm/complaints/{id}/delete', [HrmComplaintController::class, 'delete']);
+
+// HRM: Performance & Discipline -- Warnings
+$router->get('/hrm/warnings', [HrmWarningController::class, 'index']);
+$router->get('/hrm/warnings/create', [HrmWarningController::class, 'create']);
+$router->post('/hrm/warnings', [HrmWarningController::class, 'store']);
+$router->get('/hrm/warnings/{id}', [HrmWarningController::class, 'show']);
+$router->post('/hrm/warnings/{id}/approve', [HrmWarningController::class, 'approve']);
+$router->post('/hrm/warnings/{id}/reject', [HrmWarningController::class, 'reject']);
+$router->post('/hrm/warnings/{id}/respond', [HrmWarningController::class, 'respond']);
+$router->post('/hrm/warnings/{id}/delete', [HrmWarningController::class, 'delete']);
+
+// HRM: Performance & Discipline -- Terminations
+$router->get('/hrm/terminations', [HrmTerminationController::class, 'index']);
+$router->get('/hrm/terminations/create', [HrmTerminationController::class, 'create']);
+$router->post('/hrm/terminations', [HrmTerminationController::class, 'store']);
+$router->get('/hrm/terminations/{id}', [HrmTerminationController::class, 'show']);
+$router->post('/hrm/terminations/{id}/approve', [HrmTerminationController::class, 'approve']);
+$router->post('/hrm/terminations/{id}/reject', [HrmTerminationController::class, 'reject']);
+$router->post('/hrm/terminations/{id}/delete', [HrmTerminationController::class, 'delete']);
+
+// HRM: Performance & Discipline -- Promotions
+$router->get('/hrm/promotions', [HrmPromotionController::class, 'index']);
+$router->get('/hrm/promotions/create', [HrmPromotionController::class, 'create']);
+$router->post('/hrm/promotions', [HrmPromotionController::class, 'store']);
+$router->get('/hrm/promotions/{id}', [HrmPromotionController::class, 'show']);
+$router->post('/hrm/promotions/{id}/approve', [HrmPromotionController::class, 'approve']);
+$router->post('/hrm/promotions/{id}/reject', [HrmPromotionController::class, 'reject']);
+$router->post('/hrm/promotions/{id}/delete', [HrmPromotionController::class, 'delete']);
+
+// HRM: Performance & Discipline -- Transfers
+$router->get('/hrm/transfers', [HrmTransferController::class, 'index']);
+$router->get('/hrm/transfers/create', [HrmTransferController::class, 'create']);
+$router->post('/hrm/transfers', [HrmTransferController::class, 'store']);
+$router->get('/hrm/transfers/{id}', [HrmTransferController::class, 'show']);
+$router->post('/hrm/transfers/{id}/approve', [HrmTransferController::class, 'approve']);
+$router->post('/hrm/transfers/{id}/reject', [HrmTransferController::class, 'reject']);
+$router->post('/hrm/transfers/{id}/delete', [HrmTransferController::class, 'delete']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

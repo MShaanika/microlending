@@ -1,0 +1,63 @@
+<?php
+use App\Core\Auth;
+$p = $promotion;
+$statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => 'danger'][$p['status']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($p['employee_name']) ?></h4>
+    <span class="text-muted"><?= e($p['employee_no']) ?></span>
+  </div>
+  <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($p['status']) ?></span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Effective Date</th><td><?= e(date('d M Y', strtotime($p['effective_date']))) ?></td></tr>
+      <tr><th class="text-muted">Previous</th><td><?= e($p['previous_branch_name'] ?: '—') ?> &middot; <?= e($p['previous_department_name'] ?: '—') ?> &middot; <?= e($p['previous_designation_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Current</th><td><?= e($p['current_branch_name'] ?: '—') ?> &middot; <?= e($p['current_department_name'] ?: '—') ?> &middot; <?= e($p['current_designation_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Reason</th><td><?= nl2br(e($p['reason'] ?: '—')) ?></td></tr>
+      <?php if ($p['status'] !== 'Pending'): ?>
+        <tr><th class="text-muted">Decision By</th><td><?= e($p['approved_by_name'] ?: '—') ?></td></tr>
+      <?php endif; ?>
+    </table>
+  </div>
+</div>
+
+<?php if ($p['status'] === 'Pending' && Auth::can('hrm.manage')): ?>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title text-success">Approve</h5>
+        <form method="post" action="<?= url('/hrm/promotions/' . $p['id'] . '/approve') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title text-danger">Reject</h5>
+        <form method="post" action="<?= url('/hrm/promotions/' . $p['id'] . '/reject') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<?php if (Auth::can('hrm.manage')): ?>
+<form method="post" action="<?= url('/hrm/promotions/' . $p['id'] . '/delete') ?>" onsubmit="return confirm('Delete this promotion record?');" class="d-inline">
+  <?= csrf_field() ?>
+  <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+</form>
+<?php endif; ?>
+<a href="<?= url('/hrm/promotions') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

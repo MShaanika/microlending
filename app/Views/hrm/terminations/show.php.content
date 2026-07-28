@@ -1,0 +1,65 @@
+<?php
+use App\Core\Auth;
+$t = $termination;
+$statusBadge = ['Pending' => 'warning', 'Approved' => 'danger', 'Rejected' => 'secondary'][$t['status']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($t['employee_name']) ?></h4>
+    <span class="text-muted"><?= e($t['employee_no']) ?></span>
+  </div>
+  <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($t['status']) ?></span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Termination Type</th><td><?= e($t['termination_type_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Notice Date</th><td><?= $t['notice_date'] ? e(date('d M Y', strtotime($t['notice_date']))) : '—' ?></td></tr>
+      <tr><th class="text-muted">Termination Date</th><td><?= $t['termination_date'] ? e(date('d M Y', strtotime($t['termination_date']))) : '—' ?></td></tr>
+      <tr><th class="text-muted">Reason</th><td><?= e($t['reason']) ?></td></tr>
+      <tr><th class="text-muted">Description</th><td><?= nl2br(e($t['description'] ?: '—')) ?></td></tr>
+      <?php if ($t['status'] !== 'Pending'): ?>
+        <tr><th class="text-muted">Decision By</th><td><?= e($t['approved_by_name'] ?: '—') ?></td></tr>
+      <?php endif; ?>
+    </table>
+  </div>
+</div>
+
+<?php if ($t['status'] === 'Pending' && Auth::can('hrm.manage')): ?>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title text-danger">Approve</h5>
+        <p class="text-muted small">This will mark the employee's status as Terminated.</p>
+        <form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/approve') ?>" onsubmit="return confirm('Approve this termination? The employee will be marked as Terminated.');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title text-secondary">Reject</h5>
+        <form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/reject') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<?php if (Auth::can('hrm.manage')): ?>
+<form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/delete') ?>" onsubmit="return confirm('Delete this termination record?');" class="d-inline">
+  <?= csrf_field() ?>
+  <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+</form>
+<?php endif; ?>
+<a href="<?= url('/hrm/terminations') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

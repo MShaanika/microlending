@@ -1,0 +1,59 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Issue a Warning</h4>
+
+    <form method="post" action="<?= url('/hrm/warnings') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Employee <span class="text-danger">*</span></label>
+          <select name="employee_id" class="form-select <?= isset($errors['employee_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select employee</option>
+            <?php foreach ($employees as $emp): ?>
+              <option value="<?= (int) $emp['id'] ?>" <?= (($old['employee_id'] ?? '') == $emp['id']) ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['employee_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['employee_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Warning Type</label>
+          <select name="warning_type_id" class="form-select">
+            <option value="">Select type</option>
+            <?php foreach ($warningTypes as $t): ?>
+              <option value="<?= (int) $t['id'] ?>" <?= (($old['warning_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Severity</label>
+          <select name="severity" class="form-select">
+            <?php foreach (['Low', 'Medium', 'High'] as $sev): ?>
+              <option value="<?= $sev ?>" <?= ($old['severity'] ?? 'Low') === $sev ? 'selected' : '' ?>><?= $sev ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Warning Date <span class="text-danger">*</span></label>
+          <input type="date" name="warning_date" class="form-control <?= isset($errors['warning_date']) ? 'is-invalid' : '' ?>" value="<?= old('warning_date', $old) ?>">
+          <?php if (isset($errors['warning_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['warning_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Subject <span class="text-danger">*</span></label>
+          <input type="text" name="subject" class="form-control <?= isset($errors['subject']) ? 'is-invalid' : '' ?>" value="<?= old('subject', $old) ?>">
+          <?php if (isset($errors['subject'])): ?><div class="invalid-feedback d-block"><?= e($errors['subject']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" rows="4" class="form-control"><?= old('description', $old) ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Issue Warning</button>
+      <a href="<?= url('/hrm/warnings') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

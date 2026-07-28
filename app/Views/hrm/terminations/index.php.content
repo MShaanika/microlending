@@ -1,0 +1,59 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Terminations</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/terminations/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Record a Termination</a>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/hrm/terminations') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <select name="employee_id" class="form-select">
+          <option value="">All employees</option>
+          <?php foreach ($employees as $emp): ?>
+            <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach (['Pending', 'Approved', 'Rejected'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Employee</th><th>Type</th><th>Termination Date</th><th>Reason</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($terminations)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No terminations recorded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($terminations as $t):
+            $statusBadge = ['Pending' => 'warning', 'Approved' => 'danger', 'Rejected' => 'secondary'][$t['status']] ?? 'secondary';
+          ?>
+            <tr>
+              <td><a href="<?= url('/hrm/terminations/' . $t['id']) ?>"><?= e($t['employee_name']) ?></a></td>
+              <td><?= e($t['termination_type_name'] ?: '—') ?></td>
+              <td><?= $t['termination_date'] ? e(date('d M Y', strtotime($t['termination_date']))) : '—' ?></td>
+              <td class="text-muted small"><?= e($t['reason']) ?></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($t['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

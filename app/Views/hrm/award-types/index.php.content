@@ -1,0 +1,41 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Award Types</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/award-types/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Award Type</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Name</th><th>Description</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($types)): ?>
+            <tr><td colspan="3" class="text-center text-muted py-4">No award types yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($types as $t): ?>
+            <tr>
+              <td><?= e($t['name']) ?></td>
+              <td class="text-muted small"><?= e($t['description'] ?: '—') ?></td>
+              <?php if (Auth::can('hrm.manage')): ?>
+              <td class="text-end">
+                <a href="<?= url('/hrm/award-types/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <form method="post" action="<?= url('/hrm/award-types/' . $t['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this award type?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
