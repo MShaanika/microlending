@@ -361,6 +361,11 @@ class MlrReportGenerationService
      * (1,763.36 by formula vs 1,246.30 from recorded transactions).
      * capital_amount on the row is the bad-debt capital subtracted, kept
      * separate from total_amount (the net levy) so it stays inspectable.
+     * interest_amount (otherwise unused for this section) holds the gross
+     * levy on the full disbursed capital, before bad-debt exclusion -- so
+     * a renderer showing Levy/Less Bad Debts/Net Payable can subtract in
+     * matching levy-rate units instead of subtracting raw bad-debt capital
+     * from an already-net levy figure.
      */
     private static function leviesLessBadDebtsByMonth(array $months, array $disbursed, array $writtenOff): array
     {
@@ -390,7 +395,7 @@ class MlrReportGenerationService
                 'month_label' => $m['month_label'],
                 'label' => $m['month_label'],
                 'capital_amount' => round($badDebtsByMonth[$m['month_key']] ?? 0, 2),
-                'interest_amount' => 0.0,
+                'interest_amount' => round(($disbursedCapitalByMonth[$m['month_key']] ?? 0) * ($levyRate / 100), 2),
                 'total_amount' => round($netCapital * ($levyRate / 100), 2),
                 'loan_count' => 0,
             ];

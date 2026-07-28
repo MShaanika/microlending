@@ -231,18 +231,18 @@
               <?php foreach ($sections['LEVY'] as $r): ?>
                 <tr>
                   <td><?= e($r['month_label']) ?></td>
+                  <td class="text-end"><?= format_money($r['interest_amount']) ?></td>
+                  <td class="text-end"><?= format_money($r['interest_amount'] - $r['total_amount']) ?></td>
                   <td class="text-end"><?= format_money($r['total_amount']) ?></td>
-                  <td class="text-end"><?= format_money($r['capital_amount']) ?></td>
-                  <td class="text-end"><?= format_money($r['total_amount'] - $r['capital_amount']) ?></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
             <tfoot>
               <tr class="fw-bold">
                 <td>Total</td>
+                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'interest_amount')) ?></td>
+                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'interest_amount') - $sum($sections['LEVY'], 'total_amount')) ?></td>
                 <td class="text-end"><?= format_money($sum($sections['LEVY'], 'total_amount')) ?></td>
-                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'capital_amount')) ?></td>
-                <td class="text-end"><?= format_money($sum($sections['LEVY'], 'total_amount') - $sum($sections['LEVY'], 'capital_amount')) ?></td>
               </tr>
             </tfoot>
           </table>

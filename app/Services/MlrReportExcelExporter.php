@@ -346,7 +346,10 @@ class MlrReportExcelExporter
             if (!isset($labels[$i])) {
                 break;
             }
-            $net = (float) $r['total_amount'] - (float) $r['capital_amount'];
+            // total_amount is already the net levy (computed on capital
+            // less that month's bad debts, see leviesLessBadDebtsByMonth())
+            // -- do not subtract capital_amount again here.
+            $net = (float) $r['total_amount'];
             $sheet->setCellValue($labels[$i], $r['month_label']);
             $this->style($sheet, $labels[$i], true, self::FILL_GRAY, true);
             $this->amount($sheet, $values[$i], $net);
