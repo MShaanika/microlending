@@ -1,0 +1,38 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Payroll</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/payrolls/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Payroll Run</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Title</th><th>Period</th><th>Frequency</th><th>Employees</th><th class="text-end">Net Pay</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($payrolls)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No payroll runs yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($payrolls as $p):
+            $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' => 'success', 'Cancelled' => 'danger'][$p['status']] ?? 'secondary';
+          ?>
+            <tr>
+              <td><a href="<?= url('/hrm/payrolls/' . $p['id']) ?>"><?= e($p['title']) ?></a></td>
+              <td><?= e(date('d M Y', strtotime($p['pay_period_start']))) ?> &ndash; <?= e(date('d M Y', strtotime($p['pay_period_end']))) ?></td>
+              <td><?= e($p['payroll_frequency']) ?></td>
+              <td><?= (int) $p['employee_count'] ?></td>
+              <td class="text-end"><?= format_money($p['total_net_pay']) ?></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($p['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -111,6 +111,11 @@ class CompanySettingController extends Controller
             }
         }
 
+        $workingDays = array_values(array_intersect(array_map('strval', $_POST['working_days'] ?? []), ['0', '1', '2', '3', '4', '5', '6']));
+        if (empty($workingDays)) {
+            $workingDays = ['1', '2', '3', '4', '5'];
+        }
+
         $this->company->updateRecord((int) $company['id'], [
             'company_name' => trim($_POST['company_name']),
             'brand_name' => trim($_POST['brand_name'] ?? '') ?: null,
@@ -125,6 +130,7 @@ class CompanySettingController extends Controller
             'sidebar_color' => $sidebarColor ?: null,
             'footer_tagline' => trim($_POST['footer_tagline'] ?? '') ?: null,
             'favicon' => $faviconPath,
+            'working_days' => implode(',', $workingDays),
         ]);
 
         Audit::log('Update', 'Admin', 'Updated company settings');

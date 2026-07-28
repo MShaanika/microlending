@@ -40,6 +40,11 @@ use App\Controllers\HrmLeaveTypeController;
 use App\Controllers\HrmLeaveApplicationController;
 use App\Controllers\HrmLeaveBalanceController;
 use App\Controllers\HrmHolidayController;
+use App\Controllers\HrmAllowanceTypeController;
+use App\Controllers\HrmDeductionTypeController;
+use App\Controllers\HrmAllowanceController;
+use App\Controllers\HrmDeductionController;
+use App\Controllers\HrmPayrollController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -460,6 +465,46 @@ $router->post('/hrm/holidays', [HrmHolidayController::class, 'store']);
 $router->get('/hrm/holidays/{id}/edit', [HrmHolidayController::class, 'edit']);
 $router->post('/hrm/holidays/{id}', [HrmHolidayController::class, 'update']);
 $router->post('/hrm/holidays/{id}/delete', [HrmHolidayController::class, 'delete']);
+
+// HRM: Allowance Types
+$router->get('/hrm/allowance-types', [HrmAllowanceTypeController::class, 'index']);
+$router->get('/hrm/allowance-types/create', [HrmAllowanceTypeController::class, 'create']);
+$router->post('/hrm/allowance-types', [HrmAllowanceTypeController::class, 'store']);
+$router->get('/hrm/allowance-types/{id}/edit', [HrmAllowanceTypeController::class, 'edit']);
+$router->post('/hrm/allowance-types/{id}', [HrmAllowanceTypeController::class, 'update']);
+$router->post('/hrm/allowance-types/{id}/delete', [HrmAllowanceTypeController::class, 'delete']);
+
+// HRM: Deduction Types
+$router->get('/hrm/deduction-types', [HrmDeductionTypeController::class, 'index']);
+$router->get('/hrm/deduction-types/create', [HrmDeductionTypeController::class, 'create']);
+$router->post('/hrm/deduction-types', [HrmDeductionTypeController::class, 'store']);
+$router->get('/hrm/deduction-types/{id}/edit', [HrmDeductionTypeController::class, 'edit']);
+$router->post('/hrm/deduction-types/{id}', [HrmDeductionTypeController::class, 'update']);
+$router->post('/hrm/deduction-types/{id}/delete', [HrmDeductionTypeController::class, 'delete']);
+
+// HRM: Allowances (employee assignments)
+$router->get('/hrm/allowances', [HrmAllowanceController::class, 'index']);
+$router->get('/hrm/allowances/create', [HrmAllowanceController::class, 'create']);
+$router->post('/hrm/allowances', [HrmAllowanceController::class, 'store']);
+$router->get('/hrm/allowances/{id}/edit', [HrmAllowanceController::class, 'edit']);
+$router->post('/hrm/allowances/{id}', [HrmAllowanceController::class, 'update']);
+$router->post('/hrm/allowances/{id}/delete', [HrmAllowanceController::class, 'delete']);
+
+// HRM: Deductions (employee assignments)
+$router->get('/hrm/deductions', [HrmDeductionController::class, 'index']);
+$router->get('/hrm/deductions/create', [HrmDeductionController::class, 'create']);
+$router->post('/hrm/deductions', [HrmDeductionController::class, 'store']);
+$router->get('/hrm/deductions/{id}/edit', [HrmDeductionController::class, 'edit']);
+$router->post('/hrm/deductions/{id}', [HrmDeductionController::class, 'update']);
+$router->post('/hrm/deductions/{id}/delete', [HrmDeductionController::class, 'delete']);
+
+// HRM: Payroll
+$router->get('/hrm/payrolls', [HrmPayrollController::class, 'index']);
+$router->get('/hrm/payrolls/create', [HrmPayrollController::class, 'create']);
+$router->post('/hrm/payrolls', [HrmPayrollController::class, 'store']);
+$router->get('/hrm/payrolls/{id}', [HrmPayrollController::class, 'show']);
+$router->post('/hrm/payrolls/{id}/run', [HrmPayrollController::class, 'run']);
+$router->post('/hrm/payrolls/{payrollId}/entries/{entryId}/mark-paid', [HrmPayrollController::class, 'markEntryPaid']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

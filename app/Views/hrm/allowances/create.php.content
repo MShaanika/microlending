@@ -1,0 +1,48 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Assign Allowance</h4>
+
+    <form method="post" action="<?= url('/hrm/allowances') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Employee <span class="text-danger">*</span></label>
+          <select name="employee_id" class="form-select <?= isset($errors['employee_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select employee</option>
+            <?php foreach ($employees as $emp): ?>
+              <option value="<?= (int) $emp['id'] ?>" <?= (($old['employee_id'] ?? '') == $emp['id']) ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['employee_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['employee_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Allowance Type <span class="text-danger">*</span></label>
+          <select name="allowance_type_id" class="form-select <?= isset($errors['allowance_type_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select type</option>
+            <?php foreach ($types as $t): ?>
+              <option value="<?= (int) $t['id'] ?>" <?= (($old['allowance_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['allowance_type_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['allowance_type_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Type</label>
+          <select name="type" class="form-select">
+            <option value="Fixed" <?= ($old['type'] ?? 'Fixed') === 'Fixed' ? 'selected' : '' ?>>Fixed Amount (NAD)</option>
+            <option value="Percentage" <?= ($old['type'] ?? '') === 'Percentage' ? 'selected' : '' ?>>Percentage of Basic Salary</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Amount</label>
+          <input type="number" step="0.01" name="amount" class="form-control" value="<?= old('amount', $old) ?>">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Allowance</button>
+      <a href="<?= url('/hrm/allowances') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

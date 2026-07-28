@@ -1,0 +1,98 @@
+<?php
+use App\Core\Auth;
+$p = $payroll;
+$statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' => 'success', 'Cancelled' => 'danger'][$p['status']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($p['title']) ?></h4>
+    <span class="text-muted"><?= e(date('d M Y', strtotime($p['pay_period_start']))) ?> &ndash; <?= e(date('d M Y', strtotime($p['pay_period_end']))) ?> &middot; <?= e($p['payroll_frequency']) ?></span>
+  </div>
+  <div>
+    <span class="badge bg-<?= $statusBadge ?> fs-6 me-2"><?= e($p['status']) ?></span>
+    <?php if ($p['status'] !== 'Completed' && Auth::can('hrm.manage')): ?>
+      <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/run') ?>" class="d-inline">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-play"></i> Run Payroll</button>
+      </form>
+    <?php endif; ?>
+    <a href="<?= url('/hrm/payrolls') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Employees</span>
+      <h3 class="mb-0"><?= (int) $p['employee_count'] ?></h3>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Gross Pay</span>
+      <h3 class="mb-0"><?= format_money($p['total_gross_pay']) ?></h3>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Deductions</span>
+      <h3 class="mb-0 text-danger"><?= format_money($p['total_deductions']) ?></h3>
+    </div></div>
+  </div>
+  <div class="col-xl-3 col-md-6 mb-3">
+    <div class="card h-100"><div class="card-body">
+      <span class="text-muted small">Net Pay</span>
+      <h3 class="mb-0 text-success"><?= format_money($p['total_net_pay']) ?></h3>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Payslips</h5>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Employee</th><th class="text-end">Basic</th><th class="text-end">Allowances</th>
+            <th class="text-end">Deductions</th><th class="text-center">Present</th><th class="text-center">Half</th>
+            <th class="text-center">Absent</th><th class="text-end">OT (h)</th><th class="text-end">Gross</th>
+            <th class="text-end">Net</th><th>Status</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($entries)): ?>
+            <tr><td colspan="12" class="text-center text-muted py-4">No payslips yet -- click "Run Payroll" to generate them.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($entries as $e): ?>
+            <tr>
+              <td><?= e($e['employee_name']) ?> <span class="text-muted small">(<?= e($e['employee_no']) ?>)</span></td>
+              <td class="text-end"><?= format_money($e['basic_salary']) ?></td>
+              <td class="text-end"><?= format_money($e['total_allowances']) ?></td>
+              <td class="text-end text-danger"><?= format_money($e['total_deductions']) ?></td>
+              <td class="text-center"><?= number_format((float) $e['present_days'], 0) ?></td>
+              <td class="text-center"><?= number_format((float) $e['half_days'], 0) ?></td>
+              <td class="text-center"><?= number_format((float) $e['absent_days'], 0) ?></td>
+              <td class="text-end"><?= number_format((float) $e['overtime_hours'], 2) ?></td>
+              <td class="text-end"><?= format_money($e['gross_pay']) ?></td>
+              <td class="text-end fw-bold"><?= format_money($e['net_pay']) ?></td>
+              <td><span class="badge bg-<?= $e['status'] === 'Paid' ? 'success' : 'secondary' ?>"><?= e($e['status']) ?></span></td>
+              <?php if (Auth::can('hrm.manage')): ?>
+              <td class="text-end">
+                <?php if ($e['status'] !== 'Paid'): ?>
+                <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/entries/' . $e['id'] . '/mark-paid') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
+                </form>
+                <?php endif; ?>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

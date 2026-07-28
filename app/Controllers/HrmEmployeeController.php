@@ -225,6 +225,7 @@ class HrmEmployeeController extends Controller
             'branch_code' => trim($post['branch_code'] ?? '') ?: null,
             'tax_payer_id' => trim($post['tax_payer_id'] ?? '') ?: null,
             'basic_salary' => $post['basic_salary'] !== '' && isset($post['basic_salary']) ? (float) $post['basic_salary'] : null,
+            'rate_per_hour' => $post['rate_per_hour'] !== '' && isset($post['rate_per_hour']) ? (float) $post['rate_per_hour'] : null,
             'hours_per_day' => $post['hours_per_day'] !== '' && isset($post['hours_per_day']) ? (float) $post['hours_per_day'] : 8,
             'days_per_week' => $post['days_per_week'] !== '' && isset($post['days_per_week']) ? (float) $post['days_per_week'] : 5,
             'user_id' => $userId,

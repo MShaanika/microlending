@@ -1,0 +1,58 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">New Payroll Run</h4>
+
+    <form method="post" action="<?= url('/hrm/payrolls') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Title <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control <?= isset($errors['title']) ? 'is-invalid' : '' ?>" value="<?= old('title', $old) ?>" placeholder="e.g. July 2026 Payroll">
+          <?php if (isset($errors['title'])): ?><div class="invalid-feedback d-block"><?= e($errors['title']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Frequency</label>
+          <select name="payroll_frequency" class="form-select">
+            <?php foreach (['Weekly', 'Biweekly', 'Monthly'] as $f): ?>
+              <option value="<?= $f ?>" <?= ($old['payroll_frequency'] ?? 'Monthly') === $f ? 'selected' : '' ?>><?= $f ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Period Start <span class="text-danger">*</span></label>
+          <input type="date" name="pay_period_start" class="form-control <?= isset($errors['pay_period_start']) ? 'is-invalid' : '' ?>" value="<?= old('pay_period_start', $old) ?>">
+          <?php if (isset($errors['pay_period_start'])): ?><div class="invalid-feedback d-block"><?= e($errors['pay_period_start']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Period End <span class="text-danger">*</span></label>
+          <input type="date" name="pay_period_end" class="form-control <?= isset($errors['pay_period_end']) ? 'is-invalid' : '' ?>" value="<?= old('pay_period_end', $old) ?>">
+          <?php if (isset($errors['pay_period_end'])): ?><div class="invalid-feedback d-block"><?= e($errors['pay_period_end']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Pay Date</label>
+          <input type="date" name="pay_date" class="form-control" value="<?= old('pay_date', $old) ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Pay From Bank Account</label>
+          <select name="bank_account_id" class="form-select">
+            <option value="">Select account</option>
+            <?php foreach ($bankAccounts as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (($old['bank_account_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['bank_name'] . ' - ' . $b['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" rows="2" class="form-control"><?= old('notes', $old) ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Create Payroll Run</button>
+      <a href="<?= url('/hrm/payrolls') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

@@ -111,6 +111,23 @@
         <textarea name="address" rows="3" class="form-control"><?= e($company['address'] ?? '') ?></textarea>
       </div>
 
+      <hr>
+      <h6 class="mb-3">Payroll Settings</h6>
+      <div class="mb-3">
+        <label class="form-label">Working Days</label>
+        <div class="form-text mb-2">Which weekdays count toward each employee's per-day salary rate when payroll runs.</div>
+        <?php
+          $selectedDays = array_map('trim', explode(',', $company['working_days'] ?? '1,2,3,4,5'));
+          $dayLabels = [1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 0 => 'Sun'];
+        ?>
+        <?php foreach ($dayLabels as $dayIndex => $label): ?>
+          <div class="form-check form-check-inline">
+            <input type="checkbox" class="form-check-input" id="workingDay<?= $dayIndex ?>" name="working_days[]" value="<?= $dayIndex ?>" <?= in_array((string) $dayIndex, $selectedDays, true) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="workingDay<?= $dayIndex ?>"><?= $label ?></label>
+          </div>
+        <?php endforeach; ?>
+      </div>
+
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
     </form>
 
