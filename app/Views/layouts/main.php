@@ -320,7 +320,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Templates', 'url' => url('/notifications/templates'), 'perm' => 'notifications.templates'],
               ['label' => 'Settings', 'url' => url('/notifications/settings'), 'perm' => 'notifications.settings'],
             ]],
-            'Human Resources' => ['icon' => 'mdi-account-group', 'items' => [
+            'Human Resources' => ['icon' => 'mdi-human-male-female', 'items' => [
               ['label' => 'Employees', 'url' => url('/hrm/employees'), 'perm' => 'hrm.view'],
               ['label' => 'Add Employee', 'url' => url('/hrm/employees/create'), 'perm' => 'hrm.manage'],
               ['label' => 'Departments', 'url' => url('/hrm/departments'), 'perm' => 'hrm.view'],
