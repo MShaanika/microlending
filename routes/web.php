@@ -717,6 +717,9 @@ $router->post('/hrm/staff-loans/{id}/approve', [StaffLoanController::class, 'app
 $router->post('/hrm/staff-loans/{id}/reject', [StaffLoanController::class, 'reject']);
 $router->post('/hrm/staff-loans/{id}/cancel', [StaffLoanController::class, 'cancel']);
 $router->post('/hrm/staff-loans/{id}/delete', [StaffLoanController::class, 'delete']);
+$router->post('/hrm/staff-loans/{id}/documents', [StaffLoanController::class, 'uploadDocument']);
+$router->get('/hrm/staff-loans/{id}/documents/{documentId}/download', [StaffLoanController::class, 'downloadDocument']);
+$router->post('/hrm/staff-loans/{id}/documents/{documentId}/delete', [StaffLoanController::class, 'deleteDocument']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

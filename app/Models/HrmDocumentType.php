@@ -36,7 +36,12 @@ class HrmDocumentType extends Model
 
     public function inUseCount(int $id): int
     {
-        return (int) $this->scalar("SELECT COUNT(*) FROM hrm_employee_documents WHERE document_type_id = ?", [$id]);
+        return (int) $this->scalar(
+            "SELECT
+                (SELECT COUNT(*) FROM hrm_employee_documents WHERE document_type_id = ?) +
+                (SELECT COUNT(*) FROM hrm_staff_loan_documents WHERE document_type_id = ?)",
+            [$id, $id]
+        );
     }
 
     public function delete(int $id): bool
