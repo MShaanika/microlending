@@ -1,0 +1,55 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Job Postings</h4>
+      <?php if (Auth::can('recruitment.manage')): ?>
+        <a href="<?= url('/recruitment/job-postings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Job Posting</a>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/recruitment/job-postings') ?>" class="row g-2 align-items-end mb-3">
+      <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select" onchange="this.form.submit()">
+          <option value="">All</option>
+          <?php foreach (['Draft', 'Active', 'Closed'] as $s): ?>
+            <option value="<?= e($s) ?>" <?= (($filters['status'] ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Title</th><th>Type</th><th>Location</th><th>Candidates</th><th>Published</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($postings)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No job postings yet.</td></tr>
+          <?php endif; ?>
+          <?php $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark']; ?>
+          <?php foreach ($postings as $p): ?>
+            <tr>
+              <td><a href="<?= url('/recruitment/job-postings/' . $p['id']) ?>"><?= e($p['title']) ?></a> <?php if ($p['is_featured']): ?><span class="badge bg-warning">Featured</span><?php endif; ?></td>
+              <td><?= e($p['job_type_name'] ?: '—') ?></td>
+              <td><?= e($p['location_name'] ?: '—') ?></td>
+              <td><?= (int) $p['candidate_count'] ?></td>
+              <td><?= $p['is_published'] ? '<span class="badge bg-info">Published</span>' : '<span class="badge bg-secondary">Unpublished</span>' ?></td>
+              <td><span class="badge bg-<?= $statusBadge[$p['status']] ?? 'secondary' ?>"><?= e($p['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/job-postings/' . $p['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <?php if (Auth::can('recruitment.manage')): ?>
+                <a href="<?= url('/recruitment/job-postings/' . $p['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

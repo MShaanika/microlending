@@ -1,0 +1,41 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Offers</h4>
+      <?php if (Auth::can('recruitment.manage')): ?>
+        <a href="<?= url('/recruitment/offers/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Create Offer</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Candidate</th><th>Position</th><th>Salary</th><th>Status</th><th>Approval</th><th>Converted</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($offers)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No offers yet.</td></tr>
+          <?php endif; ?>
+          <?php $statusBadge = ['Draft' => 'secondary', 'Sent' => 'info', 'Accepted' => 'success', 'Negotiating' => 'warning', 'Declined' => 'danger', 'Expired' => 'dark']; ?>
+          <?php $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => 'danger']; ?>
+          <?php foreach ($offers as $o): ?>
+            <tr>
+              <td><a href="<?= url('/recruitment/offers/' . $o['id']) ?>"><?= e($o['candidate_name']) ?></a></td>
+              <td><?= e($o['position']) ?></td>
+              <td><?= format_money($o['salary']) ?></td>
+              <td><span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?>"><?= e($o['status']) ?></span></td>
+              <td><span class="badge bg-<?= $approvalBadge[$o['approval_status']] ?? 'secondary' ?>"><?= e($o['approval_status']) ?></span></td>
+              <td><?= $o['converted_to_employee'] ? '<i class="mdi mdi-check text-success"></i>' : '—' ?></td>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/offers/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

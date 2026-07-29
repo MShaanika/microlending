@@ -1,0 +1,151 @@
+<?php
+use App\Core\Auth;
+$i = $interview;
+$statusBadge = ['Scheduled' => 'info', 'Completed' => 'success', 'Cancelled' => 'dark', 'No-show' => 'danger'];
+$recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warning', 'Reject' => 'danger', 'Strong Reject' => 'danger'];
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Interview: <?= e($i['candidate_name']) ?></h4>
+    <span class="text-muted"><?= e($i['job_title'] ?: 'Uncategorized') ?> &middot; <?= e($i['round_name'] ?: 'No round') ?> &middot; <?= e($i['interview_type_name'] ?: 'No type') ?></span>
+  </div>
+  <span class="badge bg-<?= $statusBadge[$i['status']] ?? 'secondary' ?> fs-6"><?= e($i['status']) ?></span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:20%">Date</th><td><?= e(date('d M Y', strtotime($i['scheduled_date']))) ?></td>
+          <th class="text-muted" style="width:20%">Time</th><td><?= e($i['scheduled_time'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Location</th><td><?= e($i['location'] ?: '—') ?></td>
+          <th class="text-muted">Meeting Link</th><td><?= $i['meeting_link'] ? '<a href="' . e($i['meeting_link']) . '" target="_blank">' . e($i['meeting_link']) . '</a>' : '—' ?></td></tr>
+    </table>
+  </div>
+</div>
+
+<?php if (Auth::can('recruitment.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/status') ?>" class="row g-2 align-items-end">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= e($s) ?>" <?= ($i['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info">Update Status</button>
+      </div>
+    </form>
+    <div class="form-text mt-2">Marking an interview Completed automatically advances the candidate from Interview to Offer stage.</div>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Feedback</h5>
+
+    <?php if (Auth::can('recruitment.manage')): ?>
+    <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/feedback') ?>" class="mb-3">
+      <?= csrf_field() ?>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Technical</label>
+          <select name="technical_rating" class="form-select">
+            <option value="">—</option>
+            <?php for ($n = 1; $n <= 5; $n++): ?><option value="<?= $n ?>"><?= $n ?></option><?php endfor; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Communication</label>
+          <select name="communication_rating" class="form-select">
+            <option value="">—</option>
+            <?php for ($n = 1; $n <= 5; $n++): ?><option value="<?= $n ?>"><?= $n ?></option><?php endfor; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Cultural Fit</label>
+          <select name="cultural_fit_rating" class="form-select">
+            <option value="">—</option>
+            <?php for ($n = 1; $n <= 5; $n++): ?><option value="<?= $n ?>"><?= $n ?></option><?php endfor; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Overall</label>
+          <select name="overall_rating" class="form-select">
+            <option value="">—</option>
+            <?php for ($n = 1; $n <= 5; $n++): ?><option value="<?= $n ?>"><?= $n ?></option><?php endfor; ?>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Strengths</label>
+          <textarea name="strengths" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Weaknesses</label>
+          <textarea name="weaknesses" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Comments</label>
+        <textarea name="comments" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Recommendation</label>
+          <select name="recommendation" class="form-select">
+            <?php foreach ($recommendations as $r): ?>
+              <option value="<?= e($r) ?>"><?= e($r) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Interviewers</label>
+          <select name="interviewer_ids[]" class="form-select" multiple size="3">
+            <?php foreach ($users as $u): ?>
+              <option value="<?= (int) $u['id'] ?>"><?= e($u['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-info">Submit Feedback</button>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Ratings (T/C/CF/O)</th><th>Recommendation</th><th>Comments</th><?php if (Auth::can('recruitment.manage')): ?><th></th><?php endif; ?></tr></thead>
+        <tbody>
+          <?php if (empty($feedback)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No feedback recorded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($feedback as $f): ?>
+            <tr>
+              <td><?= e($f['technical_rating'] ?? '—') ?> / <?= e($f['communication_rating'] ?? '—') ?> / <?= e($f['cultural_fit_rating'] ?? '—') ?> / <?= e($f['overall_rating'] ?? '—') ?></td>
+              <td><span class="badge bg-<?= $recBadge[$f['recommendation']] ?? 'secondary' ?>"><?= e($f['recommendation']) ?></span></td>
+              <td><?= e($f['comments'] ?: '—') ?></td>
+              <?php if (Auth::can('recruitment.manage')): ?>
+              <td class="text-end">
+                <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/feedback/' . $f['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this feedback?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<a href="<?= url('/recruitment/interviews') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

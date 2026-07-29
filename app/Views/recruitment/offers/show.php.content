@@ -1,0 +1,128 @@
+<?php
+use App\Core\Auth;
+$o = $offer;
+$statusBadge = ['Draft' => 'secondary', 'Sent' => 'info', 'Accepted' => 'success', 'Negotiating' => 'warning', 'Declined' => 'danger', 'Expired' => 'dark'];
+$approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => 'danger'];
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Offer: <?= e($o['candidate_name']) ?></h4>
+    <span class="text-muted"><?= e($o['position']) ?> &middot; <?= e($o['job_title'] ?: 'Uncategorized') ?></span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?> fs-6"><?= e($o['status']) ?></span>
+    <span class="badge bg-<?= $approvalBadge[$o['approval_status']] ?? 'secondary' ?> fs-6"><?= e($o['approval_status']) ?></span>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:20%">Department</th><td><?= e($o['department_name'] ?: '—') ?></td>
+          <th class="text-muted" style="width:20%">Offer Date</th><td><?= e(date('d M Y', strtotime($o['offer_date']))) ?></td></tr>
+      <tr><th class="text-muted">Salary</th><td><?= format_money($o['salary']) ?></td>
+          <th class="text-muted">Bonus</th><td><?= $o['bonus'] !== null ? format_money($o['bonus']) : '—' ?></td></tr>
+      <tr><th class="text-muted">Start Date</th><td><?= e(date('d M Y', strtotime($o['start_date']))) ?></td>
+          <th class="text-muted">Expiration</th><td><?= $o['expiration_date'] ? e(date('d M Y', strtotime($o['expiration_date']))) : '—' ?></td></tr>
+      <?php if ($o['response_date']): ?>
+      <tr><th class="text-muted">Response Date</th><td><?= e(date('d M Y', strtotime($o['response_date']))) ?></td>
+          <th class="text-muted">Decline Reason</th><td><?= e($o['decline_reason'] ?: '—') ?></td></tr>
+      <?php endif; ?>
+      <?php if ($o['approved_by_name']): ?>
+      <tr><th class="text-muted">Approved/Rejected By</th><td colspan="3"><?= e($o['approved_by_name']) ?></td></tr>
+      <?php endif; ?>
+    </table>
+    <?php if (!empty($o['benefits'])): ?><hr><strong>Benefits:</strong><br><?= nl2br(e($o['benefits'])) ?><?php endif; ?>
+  </div>
+</div>
+
+<?php if (Auth::can('recruitment.manage')): ?>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Offer Status</h5>
+        <form method="post" action="<?= url('/recruitment/offers/' . $o['id'] . '/status') ?>">
+          <?= csrf_field() ?>
+          <select name="status" class="form-select mb-2">
+            <?php foreach ($statuses as $s): ?>
+              <option value="<?= e($s) ?>" <?= ($o['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <input type="text" name="decline_reason" class="form-control mb-2" placeholder="Decline reason (if declining)">
+          <button type="submit" class="btn btn-info">Update Status</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Internal Approval</h5>
+        <?php if ($o['approval_status'] === 'Pending'): ?>
+        <form method="post" action="<?= url('/recruitment/offers/' . $o['id'] . '/approval') ?>" class="d-flex gap-2">
+          <?= csrf_field() ?>
+          <button type="submit" name="approval_status" value="Approved" class="btn btn-success">Approve</button>
+          <button type="submit" name="approval_status" value="Rejected" class="btn btn-danger">Reject</button>
+        </form>
+        <?php else: ?>
+          <p class="mb-0">This offer has been <strong><?= strtolower(e($o['approval_status'])) ?></strong>.</p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if ($o['approval_status'] === 'Approved' && !$o['converted_to_employee']): ?>
+<div class="card mb-3 border-success">
+  <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>This offer is approved. Once the candidate accepts, convert them into an employee record.</div>
+    <a href="<?= url('/recruitment/offers/' . $o['id'] . '/convert') ?>" class="btn btn-success">Convert to Employee</a>
+  </div>
+</div>
+<?php elseif ($o['converted_to_employee']): ?>
+<div class="alert alert-success">This candidate has already been converted to an employee.</div>
+<?php endif; ?>
+
+<?php if (!empty($templates)): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Offer Letter</h5>
+    <select id="templateSelect" class="form-select mb-3">
+      <option value="">— Choose a template to preview —</option>
+      <?php foreach ($templates as $t): ?>
+        <option value="<?= htmlspecialchars($t['content'], ENT_QUOTES) ?>"><?= e($t['name']) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <div id="letterPreview" class="border rounded p-3 d-none" style="white-space: pre-wrap;"></div>
+    <button type="button" id="printLetter" class="btn btn-outline-secondary btn-sm mt-2 d-none" onclick="window.print()">Print</button>
+  </div>
+</div>
+<script>
+document.getElementById('templateSelect').addEventListener('change', function () {
+  var preview = document.getElementById('letterPreview');
+  var printBtn = document.getElementById('printLetter');
+  if (!this.value) { preview.classList.add('d-none'); printBtn.classList.add('d-none'); return; }
+  var vars = {
+    candidate_name: <?= json_encode($o['candidate_name']) ?>,
+    position: <?= json_encode($o['position']) ?>,
+    salary: <?= json_encode(format_money($o['salary'])) ?>,
+    start_date: <?= json_encode(date('d M Y', strtotime($o['start_date']))) ?>,
+    offer_date: <?= json_encode(date('d M Y', strtotime($o['offer_date']))) ?>,
+    expiration_date: <?= json_encode($o['expiration_date'] ? date('d M Y', strtotime($o['expiration_date'])) : '') ?>
+  };
+  var text = this.value;
+  Object.keys(vars).forEach(function (k) {
+    text = text.split('{{' + k + '}}').join(vars[k]);
+  });
+  preview.textContent = text;
+  preview.classList.remove('d-none');
+  printBtn.classList.remove('d-none');
+});
+</script>
+<?php endif; ?>
+<?php endif; ?>
+
+<a href="<?= url('/recruitment/offers') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

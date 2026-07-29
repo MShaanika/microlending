@@ -1,0 +1,112 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Job Posting</h4>
+    <form method="post" action="<?= url('/recruitment/job-postings') ?>">
+      <?= csrf_field() ?>
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Title *</label>
+          <input type="text" name="title" class="form-control <?= isset($errors['title']) ? 'is-invalid' : '' ?>" value="<?= e($old['title'] ?? '') ?>">
+          <?php if (isset($errors['title'])): ?><div class="invalid-feedback"><?= e($errors['title']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Priority</label>
+          <select name="priority" class="form-select">
+            <?php foreach ($priorities as $pr): ?>
+              <option value="<?= e($pr) ?>" <?= (($old['priority'] ?? 'Medium') === $pr) ? 'selected' : '' ?>><?= e($pr) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Job Type</label>
+          <select name="job_type_id" class="form-select">
+            <option value="">— None —</option>
+            <?php foreach ($types as $t): ?>
+              <option value="<?= (int) $t['id'] ?>" <?= (($old['job_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Location</label>
+          <select name="location_id" class="form-select">
+            <option value="">— None —</option>
+            <?php foreach ($locations as $l): ?>
+              <option value="<?= (int) $l['id'] ?>" <?= (($old['location_id'] ?? '') == $l['id']) ? 'selected' : '' ?>><?= e($l['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Openings</label>
+          <input type="number" name="position" min="1" class="form-control" value="<?= e($old['position'] ?? 1) ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Min Experience (years)</label>
+          <input type="number" step="0.5" min="0" name="min_experience" class="form-control" value="<?= e($old['min_experience'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Max Experience (years)</label>
+          <input type="number" step="0.5" min="0" name="max_experience" class="form-control" value="<?= e($old['max_experience'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Min Salary</label>
+          <input type="number" step="0.01" min="0" name="min_salary" class="form-control" value="<?= e($old['min_salary'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Max Salary</label>
+          <input type="number" step="0.01" min="0" name="max_salary" class="form-control" value="<?= e($old['max_salary'] ?? '') ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Application Deadline</label>
+          <input type="date" name="application_deadline" class="form-control" value="<?= e($old['application_deadline'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3 d-flex align-items-end">
+          <div class="form-check">
+            <input type="checkbox" name="is_featured" value="1" class="form-check-input" id="is_featured" <?= !empty($old['is_featured']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="is_featured">Featured posting</label>
+          </div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3"><?= e($old['description'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Requirements</label>
+        <textarea name="requirements" class="form-control" rows="3"><?= e($old['requirements'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Skills</label>
+        <input type="text" name="skills" class="form-control" placeholder="Comma-separated" value="<?= e($old['skills'] ?? '') ?>">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Benefits</label>
+        <textarea name="benefits" class="form-control" rows="2"><?= e($old['benefits'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Terms &amp; Conditions</label>
+        <textarea name="terms_condition" class="form-control" rows="2"><?= e($old['terms_condition'] ?? '') ?></textarea>
+      </div>
+      <?php if (!empty($questions)): ?>
+      <div class="mb-3">
+        <label class="form-label">Application Questions</label>
+        <?php foreach ($questions as $q): ?>
+          <div class="form-check">
+            <input type="checkbox" name="custom_questions[]" value="<?= (int) $q['id'] ?>" class="form-check-input" id="q<?= (int) $q['id'] ?>">
+            <label class="form-check-label" for="q<?= (int) $q['id'] ?>"><?= e($q['question']) ?></label>
+          </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+      <button type="submit" class="btn btn-info">Save</button>
+      <a href="<?= url('/recruitment/job-postings') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

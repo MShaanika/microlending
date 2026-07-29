@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Core\Audit;
+use App\Core\Auth;
+use App\Core\Controller;
+use App\Core\Security;
+use App\Core\Session;
+use App\Models\RecruitmentJobLocation;
+
+class RecruitmentJobLocationController extends Controller
+{
+    private RecruitmentJobLocation $locations;
+
+    public function __construct()
+    {
+        $this->locations = new RecruitmentJobLocation();
+    }
+
+    public function index(): void
+    {
+        Auth::authorize('recruitment.view');
+        $this->view('recruitment/job-locations/index', [
+            'title' => 'Job Locations',
+            'locations' => $this->locations->allLocations(),
+        ]);
+    }
+
+    public function create(): void
+    {
+        Auth::authorize('recruitment.manage');
+        $this->view('recruitment/job-locations/create', [
+            'title' => 'Add Job Location',
+            'old' => [],
+            'errors' => [],
+        ]);
+    }
+
+    public function store(): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/job-locations/create');
+            return;
+        }
+
+        [$data, $errors] = $this->validate($_POST);
+
+        if (!empty($errors)) {
+            $this->view('recruitment/job-locations/create', [
+                'title' => 'Add Job Location',
+                'old' => $_POST,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $id = $this->locations->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
+
+        Audit::log('Create', 'Recruitment', 'Created job location #' . $id . ' - ' . $data['name']);
+        Session::flash('success', 'Job location created.');
+        $this->redirect('/recruitment/job-locations');
+    }
+
+    public function edit(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+        $location = $this->locations->find($id);
+        if (!$location) {
+            Session::flash('error', 'Job location not found.');
+            $this->redirect('/recruitment/job-locations');
+            return;
+        }
+        $this->view('recruitment/job-locations/edit', [
+            'title' => 'Edit Job Location',
+            'location' => $location,
+            'errors' => [],
+        ]);
+    }
+
+    public function update(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/job-locations/' . $id . '/edit');
+            return;
+        }
+
+        $location = $this->locations->find($id);
+        if (!$location) {
+            Session::flash('error', 'Job location not found.');
+            $this->redirect('/recruitment/job-locations');
+            return;
+        }
+
+        [$data, $errors] = $this->validate($_POST);
+
+        if (!empty($errors)) {
+            $this->view('recruitment/job-locations/edit', [
+                'title' => 'Edit Job Location',
+                'location' => array_merge($location, $_POST),
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $this->locations->updateRecord($id, $data);
+
+        Audit::log('Update', 'Recruitment', 'Updated job location #' . $id . ' - ' . $data['name']);
+        Session::flash('success', 'Job location updated.');
+        $this->redirect('/recruitment/job-locations');
+    }
+
+    public function delete(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/job-locations');
+            return;
+        }
+
+        if ($this->locations->inUseCount($id) > 0) {
+            Session::flash('error', 'This location has job postings assigned to it and cannot be deleted.');
+            $this->redirect('/recruitment/job-locations');
+            return;
+        }
+
+        $this->locations->delete($id);
+        Audit::log('Delete', 'Recruitment', 'Deleted job location #' . $id);
+        Session::flash('success', 'Job location deleted.');
+        $this->redirect('/recruitment/job-locations');
+    }
+
+    private function validate(array $post): array
+    {
+        $name = trim($post['name'] ?? '');
+        $errors = [];
+        if ($name === '') {
+            $errors['name'] = 'Name is required.';
+        }
+
+        $data = [
+            'name' => $name,
+            'remote_work' => !empty($post['remote_work']) ? 1 : 0,
+            'address' => trim($post['address'] ?? '') ?: null,
+            'city' => trim($post['city'] ?? '') ?: null,
+            'region' => trim($post['region'] ?? '') ?: null,
+            'country' => trim($post['country'] ?? '') ?: null,
+            'postal_code' => trim($post['postal_code'] ?? '') ?: null,
+            'status' => in_array($post['status'] ?? '', ['Active', 'Inactive'], true) ? $post['status'] : 'Active',
+        ];
+
+        return [$data, $errors];
+    }
+}

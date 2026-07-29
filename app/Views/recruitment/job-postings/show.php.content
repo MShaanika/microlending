@@ -1,0 +1,106 @@
+<?php
+use App\Core\Auth;
+$p = $posting;
+$statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark'];
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($p['title']) ?> <?php if ($p['is_featured']): ?><span class="badge bg-warning">Featured</span><?php endif; ?></h4>
+    <span class="text-muted"><?= e($p['posting_code']) ?> &middot; <?= e($p['job_type_name'] ?: 'Uncategorized') ?> &middot; <?= e($p['location_name'] ?: 'No location') ?></span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-<?= $statusBadge[$p['status']] ?? 'secondary' ?> fs-6"><?= e($p['status']) ?></span>
+    <?php if (Auth::can('recruitment.manage')): ?>
+      <a href="<?= url('/recruitment/job-postings/' . $p['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+    <?php endif; ?>
+  </div>
+</div>
+
+<?php if (Auth::can('recruitment.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <strong>Public careers link:</strong>
+      <?php if ($p['is_published']): ?>
+        <a href="<?= e($publicUrl) ?>" target="_blank"><?= e($publicUrl) ?></a>
+      <?php else: ?>
+        <span class="text-muted">Not published yet.</span>
+      <?php endif; ?>
+    </div>
+    <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/toggle-publish') ?>">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-sm btn-<?= $p['is_published'] ? 'outline-dark' : 'success' ?>">
+        <?= $p['is_published'] ? 'Unpublish' : 'Publish' ?>
+      </button>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:20%">Openings</th><td><?= (int) $p['position'] ?></td>
+          <th class="text-muted" style="width:20%">Priority</th><td><?= e($p['priority']) ?></td></tr>
+      <tr><th class="text-muted">Experience</th><td><?= e($p['min_experience'] ?? '—') ?> &ndash; <?= e($p['max_experience'] ?? '—') ?> yrs</td>
+          <th class="text-muted">Salary</th><td><?= $p['min_salary'] !== null ? format_money($p['min_salary']) : '—' ?> &ndash; <?= $p['max_salary'] !== null ? format_money($p['max_salary']) : '—' ?></td></tr>
+      <tr><th class="text-muted">Deadline</th><td colspan="3"><?= $p['application_deadline'] ? e(date('d M Y', strtotime($p['application_deadline']))) : '—' ?></td></tr>
+    </table>
+    <?php if (!empty($p['description'])): ?><hr><h6>Description</h6><p><?= nl2br(e($p['description'])) ?></p><?php endif; ?>
+    <?php if (!empty($p['requirements'])): ?><h6>Requirements</h6><p><?= nl2br(e($p['requirements'])) ?></p><?php endif; ?>
+    <?php if (!empty($p['skills'])): ?><h6>Skills</h6><p><?= e($p['skills']) ?></p><?php endif; ?>
+    <?php if (!empty($p['benefits'])): ?><h6>Benefits</h6><p><?= nl2br(e($p['benefits'])) ?></p><?php endif; ?>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Interview Rounds</h5>
+
+    <?php if (Auth::can('recruitment.manage')): ?>
+    <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/rounds') ?>" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <div class="col-md-5">
+        <label class="form-label">Round Name</label>
+        <input type="text" name="name" class="form-control" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Sequence</label>
+        <input type="number" name="sequence_number" min="1" class="form-control" value="1">
+      </div>
+      <div class="col-md-4">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-plus"></i> Add Round</button>
+      </div>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Seq</th><th>Name</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($rounds)): ?>
+            <tr><td colspan="3" class="text-center text-muted py-3">No interview rounds defined yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rounds as $r): ?>
+            <tr>
+              <td><?= (int) $r['sequence_number'] ?></td>
+              <td><?= e($r['name']) ?></td>
+              <td class="text-end">
+                <?php if (Auth::can('recruitment.manage')): ?>
+                <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/rounds/' . $r['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this round?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<a href="<?= url('/recruitment/job-postings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

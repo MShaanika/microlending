@@ -1,0 +1,28 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Interview Type</h4>
+    <form method="post" action="<?= url('/recruitment/interview-types/' . $type['id']) ?>">
+      <?= csrf_field() ?>
+      <div class="mb-3">
+        <label class="form-label">Name *</label>
+        <input type="text" name="name" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= e($type['name']) ?>">
+        <?php if (isset($errors['name'])): ?><div class="invalid-feedback"><?= e($errors['name']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3"><?= e($type['description'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <option value="Active" <?= ($type['status'] === 'Active') ? 'selected' : '' ?>>Active</option>
+          <option value="Inactive" <?= ($type['status'] === 'Inactive') ? 'selected' : '' ?>>Inactive</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-info">Save</button>
+      <a href="<?= url('/recruitment/interview-types') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

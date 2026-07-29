@@ -1,0 +1,169 @@
+<?php
+use App\Core\Auth;
+$c = $candidate;
+$statusBadge = ['New' => 'info', 'Screening' => 'secondary', 'Interview' => 'warning', 'Offer' => 'primary', 'Hired' => 'success', 'Rejected' => 'danger'];
+$passBadge = ['Pass' => 'success', 'Fail' => 'danger', 'Pending' => 'secondary'];
+$recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warning', 'Reject' => 'danger', 'Strong Reject' => 'danger'];
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($c['first_name'] . ' ' . $c['last_name']) ?></h4>
+    <span class="text-muted"><?= e($c['job_title'] ?: 'Uncategorized') ?> &middot; <?= e($c['email']) ?> &middot; Tracking: <?= e($c['tracking_id']) ?></span>
+  </div>
+  <span class="badge bg-<?= $statusBadge[$c['status']] ?? 'secondary' ?> fs-6"><?= e($c['status']) ?></span>
+</div>
+
+<?php if (Auth::can('recruitment.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/status') ?>" class="row g-2 align-items-end">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <label class="form-label">Pipeline Status</label>
+        <select name="status" class="form-select">
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= e($s) ?>" <?= ($c['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info">Update Status</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:20%">Phone</th><td><?= e($c['phone'] ?: '—') ?></td>
+          <th class="text-muted" style="width:20%">Source</th><td><?= e($c['source_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Current Role</th><td><?= e($c['current_position'] ?: '—') ?> <?= $c['current_company'] ? 'at ' . e($c['current_company']) : '' ?></td>
+          <th class="text-muted">Experience</th><td><?= e($c['experience_years'] ?? '—') ?> yrs</td></tr>
+      <tr><th class="text-muted">Expected Salary</th><td><?= $c['expected_salary'] !== null ? format_money($c['expected_salary']) : '—' ?></td>
+          <th class="text-muted">Notice Period</th><td><?= e($c['notice_period'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Location</th><td colspan="3"><?= e(trim(($c['city'] ?? '') . ', ' . ($c['country'] ?? ''), ', ') ?: '—') ?></td></tr>
+    </table>
+    <?php if (!empty($c['skills'])): ?><hr><strong>Skills:</strong> <?= e($c['skills']) ?><?php endif; ?>
+    <div class="mt-3 d-flex gap-2 flex-wrap">
+      <?php if (!empty($c['profile_path'])): ?><a href="<?= url('/recruitment/candidates/' . $c['id'] . '/files/profile') ?>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-account-box"></i> Profile</a><?php endif; ?>
+      <?php if (!empty($c['resume_path'])): ?><a href="<?= url('/recruitment/candidates/' . $c['id'] . '/files/resume') ?>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Resume</a><?php endif; ?>
+      <?php if (!empty($c['cover_letter_path'])): ?><a href="<?= url('/recruitment/candidates/' . $c['id'] . '/files/cover_letter') ?>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document-outline"></i> Cover Letter</a><?php endif; ?>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title d-flex justify-content-between">Interviews <a href="<?= url('/recruitment/interviews/create') ?>" class="btn btn-sm btn-outline-info">Schedule</a></h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Date</th><th>Round</th><th>Type</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php if (empty($interviews)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No interviews yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($interviews as $i): ?>
+            <tr>
+              <td><a href="<?= url('/recruitment/interviews/' . $i['id']) ?>"><?= e(date('d M Y', strtotime($i['scheduled_date']))) ?></a></td>
+              <td><?= e($i['round_name'] ?: '—') ?></td>
+              <td><?= e($i['interview_type_name'] ?: '—') ?></td>
+              <td><?= e($i['status']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Assessments</h5>
+
+    <?php if (Auth::can('recruitment.manage')): ?>
+    <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/assessments') ?>" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <div class="col-md-3">
+        <label class="form-label">Assessment</label>
+        <input type="text" name="assessment_name" class="form-control" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Score</label>
+        <input type="number" step="0.01" name="score" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Max Score</label>
+        <input type="number" step="0.01" name="max_score" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Result</label>
+        <select name="pass_fail_status" class="form-select">
+          <option value="Pending">Pending</option>
+          <option value="Pass">Pass</option>
+          <option value="Fail">Fail</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info w-100">Add Assessment</button>
+      </div>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Assessment</th><th>Score</th><th>Result</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($assessments)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-3">No assessments recorded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($assessments as $a): ?>
+            <tr>
+              <td><?= e($a['assessment_name']) ?></td>
+              <td><?= $a['score'] !== null ? e($a['score']) . ' / ' . e($a['max_score'] ?? '—') : '—' ?></td>
+              <td><span class="badge bg-<?= $passBadge[$a['pass_fail_status']] ?? 'secondary' ?>"><?= e($a['pass_fail_status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($a['assessment_date']))) ?></td>
+              <td class="text-end">
+                <?php if (Auth::can('recruitment.manage')): ?>
+                <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/assessments/' . $a['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this assessment?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title d-flex justify-content-between">Offers <a href="<?= url('/recruitment/offers/create') ?>" class="btn btn-sm btn-outline-info">Create Offer</a></h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Position</th><th>Salary</th><th>Status</th><th>Approval</th></tr></thead>
+        <tbody>
+          <?php if (empty($offers)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No offers yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($offers as $o): ?>
+            <tr>
+              <td><a href="<?= url('/recruitment/offers/' . $o['id']) ?>"><?= e($o['position']) ?></a></td>
+              <td><?= format_money($o['salary']) ?></td>
+              <td><?= e($o['status']) ?></td>
+              <td><?= e($o['approval_status']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<a href="<?= url('/recruitment/candidates') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

@@ -1,0 +1,48 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Candidate Onboarding</h4>
+      <?php if (Auth::can('recruitment.manage')): ?>
+        <a href="<?= url('/recruitment/candidate-onboardings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Start Onboarding</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Candidate</th><th>Checklist</th><th>Start Date</th><th>Buddy</th><th>Status</th><?php if (Auth::can('recruitment.manage')): ?><th></th><?php endif; ?></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($onboardings)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No onboarding records yet.</td></tr>
+          <?php endif; ?>
+          <?php $statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed' => 'success']; ?>
+          <?php foreach ($onboardings as $o): ?>
+            <tr>
+              <td><?= e($o['candidate_name']) ?></td>
+              <td><?= e($o['checklist_name'] ?: '—') ?></td>
+              <td><?= e(date('d M Y', strtotime($o['start_date']))) ?></td>
+              <td><?= e($o['buddy_name'] ?: '—') ?></td>
+              <td><span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?>"><?= e($o['status']) ?></span></td>
+              <?php if (Auth::can('recruitment.manage')): ?>
+              <td class="text-end">
+                <form method="post" action="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/status') ?>" class="d-inline-flex gap-1">
+                  <?= csrf_field() ?>
+                  <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
+                    <?php foreach (['Pending', 'In Progress', 'Completed'] as $s): ?>
+                      <option value="<?= e($s) ?>" <?= ($o['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </form>
+              </td>
+              <?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

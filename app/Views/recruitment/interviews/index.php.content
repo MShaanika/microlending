@@ -1,0 +1,40 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Interviews</h4>
+      <?php if (Auth::can('recruitment.manage')): ?>
+        <a href="<?= url('/recruitment/interviews/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Schedule Interview</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Candidate</th><th>Job</th><th>Round</th><th>Type</th><th>Date</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($interviews)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No interviews scheduled yet.</td></tr>
+          <?php endif; ?>
+          <?php $statusBadge = ['Scheduled' => 'info', 'Completed' => 'success', 'Cancelled' => 'dark', 'No-show' => 'danger']; ?>
+          <?php foreach ($interviews as $i): ?>
+            <tr>
+              <td><a href="<?= url('/recruitment/interviews/' . $i['id']) ?>"><?= e($i['candidate_name']) ?></a></td>
+              <td><?= e($i['job_title'] ?: '—') ?></td>
+              <td><?= e($i['round_name'] ?: '—') ?></td>
+              <td><?= e($i['interview_type_name'] ?: '—') ?></td>
+              <td><?= e(date('d M Y', strtotime($i['scheduled_date']))) ?> <?= e($i['scheduled_time'] ?? '') ?></td>
+              <td><span class="badge bg-<?= $statusBadge[$i['status']] ?? 'secondary' ?>"><?= e($i['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/interviews/' . $i['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

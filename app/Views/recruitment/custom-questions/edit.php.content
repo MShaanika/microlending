@@ -1,0 +1,42 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Application Question</h4>
+    <form method="post" action="<?= url('/recruitment/custom-questions/' . $question['id']) ?>">
+      <?= csrf_field() ?>
+      <div class="mb-3">
+        <label class="form-label">Question *</label>
+        <input type="text" name="question" class="form-control <?= isset($errors['question']) ? 'is-invalid' : '' ?>" value="<?= e($question['question']) ?>">
+        <?php if (isset($errors['question'])): ?><div class="invalid-feedback"><?= e($errors['question']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Type</label>
+        <select name="type" class="form-select">
+          <?php foreach ($types as $t): ?>
+            <option value="<?= e($t) ?>" <?= ($question['type'] === $t) ? 'selected' : '' ?>><?= e(ucfirst($t)) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Options</label>
+        <textarea name="options" class="form-control" rows="3"><?= e($question['options'] ?? '') ?></textarea>
+        <div class="form-text">One option per line, only used for select/radio/checkbox types</div>
+      </div>
+      <div class="mb-3 form-check">
+        <input type="checkbox" name="is_required" id="is_required" class="form-check-input" value="1" <?= !empty($question['is_required']) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="is_required">Required</label>
+      </div>
+      <div class="mb-3 form-check">
+        <input type="checkbox" name="is_active" id="is_active" class="form-check-input" value="1" <?= !empty($question['is_active']) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="is_active">Active</label>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Sort Order</label>
+        <input type="number" name="sort_order" class="form-control" value="<?= e($question['sort_order'] ?? '0') ?>">
+      </div>
+      <button type="submit" class="btn btn-info">Save</button>
+      <a href="<?= url('/recruitment/custom-questions') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

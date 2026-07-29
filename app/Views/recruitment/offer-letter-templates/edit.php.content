@@ -1,0 +1,29 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Offer Letter Template</h4>
+    <p class="text-muted">Use placeholders like <code>{{candidate_name}}</code>, <code>{{position}}</code>, <code>{{salary}}</code>, <code>{{start_date}}</code>, <code>{{offer_date}}</code>, <code>{{expiration_date}}</code>.</p>
+    <form method="post" action="<?= url('/recruitment/offer-letter-templates/' . $template['id']) ?>">
+      <?= csrf_field() ?>
+      <div class="mb-3">
+        <label class="form-label">Name *</label>
+        <input type="text" name="name" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= e($template['name']) ?>">
+        <?php if (isset($errors['name'])): ?><div class="invalid-feedback"><?= e($errors['name']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Content *</label>
+        <textarea name="content" class="form-control <?= isset($errors['content']) ? 'is-invalid' : '' ?>" rows="14"><?= e($template['content']) ?></textarea>
+        <?php if (isset($errors['content'])): ?><div class="invalid-feedback"><?= e($errors['content']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <div class="form-check">
+          <input type="checkbox" name="is_active" value="1" class="form-check-input" id="is_active" <?= $template['is_active'] ? 'checked' : '' ?>>
+          <label class="form-check-label" for="is_active">Active</label>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-info">Save</button>
+      <a href="<?= url('/recruitment/offer-letter-templates') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
