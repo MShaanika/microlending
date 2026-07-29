@@ -129,6 +129,28 @@ class HrmPayrollController extends Controller
         $this->redirect('/hrm/payrolls/' . $id);
     }
 
+    public function payslip(int $payrollId, int $entryId): void
+    {
+        Auth::authorize('hrm.view');
+
+        $payroll = $this->payrolls->find($payrollId);
+        $entry = $this->entries->find($entryId);
+        if (!$payroll || !$entry || (int) $entry['payroll_id'] !== $payrollId) {
+            Session::flash('error', 'Payslip not found.');
+            $this->redirect('/hrm/payrolls/' . $payrollId);
+            return;
+        }
+
+        $this->view('hrm/payrolls/payslip', [
+            'title' => 'Payslip - ' . $entry['employee_name'],
+            'payroll' => $payroll,
+            'entry' => $entry,
+            'allowances' => json_decode($entry['allowances_breakdown'] ?? '[]', true) ?: [],
+            'deductions' => json_decode($entry['deductions_breakdown'] ?? '[]', true) ?: [],
+            'staffLoans' => json_decode($entry['staff_loans_breakdown'] ?? '[]', true) ?: [],
+        ]);
+    }
+
     public function markEntryPaid(int $payrollId, int $entryId): void
     {
         Auth::authorize('hrm.manage');

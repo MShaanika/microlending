@@ -603,6 +603,7 @@ $router->post('/hrm/payrolls', [HrmPayrollController::class, 'store']);
 $router->get('/hrm/payrolls/{id}', [HrmPayrollController::class, 'show']);
 $router->post('/hrm/payrolls/{id}/run', [HrmPayrollController::class, 'run']);
 $router->post('/hrm/payrolls/{payrollId}/entries/{entryId}/mark-paid', [HrmPayrollController::class, 'markEntryPaid']);
+$router->get('/hrm/payrolls/{payrollId}/entries/{entryId}/payslip', [HrmPayrollController::class, 'payslip']);
 
 // HRM: Performance & Discipline -- lookup types
 $router->get('/hrm/award-types', [HrmAwardTypeController::class, 'index']);

@@ -1,0 +1,104 @@
+<?php use App\Models\Company; $company = (new Company())->primary() ?: []; ?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 no-print">
+  <h4 class="mb-0">Payslip</h4>
+  <div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+    <a href="<?= url('/hrm/payrolls/' . $payroll['id']) ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="text-center mb-4">
+      <h4 class="mb-0"><?= e($company['company_name'] ?? '') ?></h4>
+      <p class="text-muted mb-0"><?= e($company['physical_address'] ?? '') ?></p>
+      <h5 class="mt-3 mb-0">PAYSLIP</h5>
+      <p class="text-muted"><?= e(date('d M Y', strtotime($payroll['pay_period_start']))) ?> &ndash; <?= e(date('d M Y', strtotime($payroll['pay_period_end']))) ?></p>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <p class="mb-1"><strong>Employee Name:</strong> <?= e($entry['employee_name']) ?></p>
+        <p class="mb-1"><strong>Employee No.:</strong> <?= e($entry['employee_no']) ?></p>
+        <p class="mb-1"><strong>Department:</strong> <?= e($entry['department_name'] ?? '-') ?></p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="mb-1"><strong>Payroll Run:</strong> <?= e($payroll['title']) ?></p>
+        <p class="mb-1"><strong>Pay Date:</strong> <?= $payroll['pay_date'] ? e(date('d M Y', strtotime($payroll['pay_date']))) : '-' ?></p>
+        <p class="mb-1"><strong>Status:</strong> <span class="badge bg-<?= $entry['status'] === 'Paid' ? 'success' : 'secondary' ?>"><?= e($entry['status']) ?></span></p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <h6 class="text-uppercase text-muted">Earnings</h6>
+        <table class="table table-sm table-bordered no-datatable">
+          <tbody>
+            <tr><td>Basic Salary</td><td class="text-end"><?= format_money($entry['basic_salary']) ?></td></tr>
+            <?php foreach ($allowances as $label => $amount): ?>
+              <tr><td><?= e($label) ?></td><td class="text-end"><?= format_money($amount) ?></td></tr>
+            <?php endforeach; ?>
+            <?php if ((float) $entry['overtime_amount'] > 0): ?>
+              <tr><td>Overtime (<?= number_format((float) $entry['overtime_hours'], 2) ?> hrs)</td><td class="text-end"><?= format_money($entry['overtime_amount']) ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold"><td>Gross Pay</td><td class="text-end"><?= format_money($entry['gross_pay']) ?></td></tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <h6 class="text-uppercase text-muted">Deductions</h6>
+        <table class="table table-sm table-bordered no-datatable">
+          <tbody>
+            <?php foreach ($deductions as $label => $amount): ?>
+              <tr><td><?= e($label) ?></td><td class="text-end"><?= format_money($amount) ?></td></tr>
+            <?php endforeach; ?>
+            <?php if ((float) $entry['half_day_deduction'] > 0): ?>
+              <tr><td>Half Day Deduction (<?= number_format((float) $entry['half_days'], 1) ?>)</td><td class="text-end"><?= format_money($entry['half_day_deduction']) ?></td></tr>
+            <?php endif; ?>
+            <?php if ((float) $entry['absent_day_deduction'] > 0): ?>
+              <tr><td>Absent Day Deduction (<?= number_format((float) $entry['absent_days'], 0) ?>)</td><td class="text-end"><?= format_money($entry['absent_day_deduction']) ?></td></tr>
+            <?php endif; ?>
+            <?php if ((float) $entry['unpaid_leave_deduction'] > 0): ?>
+              <tr><td>Unpaid Leave Deduction (<?= number_format((float) $entry['unpaid_leave_days'], 0) ?>)</td><td class="text-end"><?= format_money($entry['unpaid_leave_deduction']) ?></td></tr>
+            <?php endif; ?>
+            <?php foreach ($staffLoans as $label => $amount): ?>
+              <tr><td>Staff Loan: <?= e($label) ?></td><td class="text-end"><?= format_money($amount) ?></td></tr>
+            <?php endforeach; ?>
+            <?php if (empty($deductions) && empty($staffLoans) && (float) $entry['half_day_deduction'] === 0.0 && (float) $entry['absent_day_deduction'] === 0.0 && (float) $entry['unpaid_leave_deduction'] === 0.0): ?>
+              <tr><td colspan="2" class="text-muted">No deductions.</td></tr>
+            <?php endif; ?>
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold"><td>Total Deductions</td><td class="text-end"><?= format_money((float) $entry['total_deductions'] + (float) $entry['half_day_deduction'] + (float) $entry['absent_day_deduction'] + (float) $entry['unpaid_leave_deduction'] + (float) $entry['total_staff_loans']) ?></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 offset-md-6">
+        <table class="table table-bordered no-datatable">
+          <tr class="fw-bold fs-5"><td>Net Pay</td><td class="text-end"><?= format_money($entry['net_pay']) ?></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <?php if ($entry['bank_name'] || $entry['account_number']): ?>
+      <p class="text-muted small mb-0">Paid to: <?= e($entry['bank_name'] ?? '') ?> <?= e($entry['account_number'] ?? '') ?></p>
+    <?php endif; ?>
+
+    <div class="row mt-5">
+      <div class="col-md-6">
+        <p class="mb-1">Employee Signature: ________________________</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="mb-1">Authorised Signature: ________________________</p>
+      </div>
+    </div>
+  </div>
+</div>

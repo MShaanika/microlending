@@ -59,7 +59,7 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
             <th>Employee</th><th class="text-end">Basic</th><th class="text-end">Allowances</th>
             <th class="text-end">Deductions</th><th class="text-end">Staff Loan</th><th class="text-center">Present</th><th class="text-center">Half</th>
             <th class="text-center">Absent</th><th class="text-end">OT (h)</th><th class="text-end">Gross</th>
-            <th class="text-end">Net</th><th>Status</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?>
+            <th class="text-end">Net</th><th>Status</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -80,16 +80,15 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
               <td class="text-end"><?= format_money($e['gross_pay']) ?></td>
               <td class="text-end fw-bold"><?= format_money($e['net_pay']) ?></td>
               <td><span class="badge bg-<?= $e['status'] === 'Paid' ? 'success' : 'secondary' ?>"><?= e($e['status']) ?></span></td>
-              <?php if (Auth::can('hrm.manage')): ?>
               <td class="text-end">
-                <?php if ($e['status'] !== 'Paid'): ?>
+                <a href="<?= url('/hrm/payrolls/' . $p['id'] . '/entries/' . $e['id'] . '/payslip') ?>" class="btn btn-sm btn-outline-info">Payslip</a>
+                <?php if (Auth::can('hrm.manage') && $e['status'] !== 'Paid'): ?>
                 <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/entries/' . $e['id'] . '/mark-paid') ?>" class="d-inline">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
                 </form>
                 <?php endif; ?>
               </td>
-              <?php endif; ?>
             </tr>
           <?php endforeach; ?>
         </tbody>
