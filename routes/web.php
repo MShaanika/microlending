@@ -62,6 +62,12 @@ use App\Controllers\HrmEventController;
 use App\Controllers\StaffLoanTypeController;
 use App\Controllers\StaffLoanController;
 use App\Controllers\HrmDocumentTypeController;
+use App\Controllers\PerformanceIndicatorCategoryController;
+use App\Controllers\PerformanceIndicatorController;
+use App\Controllers\PerformanceGoalTypeController;
+use App\Controllers\PerformanceReviewCycleController;
+use App\Controllers\PerformanceEmployeeGoalController;
+use App\Controllers\PerformanceEmployeeReviewController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -458,6 +464,53 @@ $router->post('/hrm/document-types', [HrmDocumentTypeController::class, 'store']
 $router->get('/hrm/document-types/{id}/edit', [HrmDocumentTypeController::class, 'edit']);
 $router->post('/hrm/document-types/{id}', [HrmDocumentTypeController::class, 'update']);
 $router->post('/hrm/document-types/{id}/delete', [HrmDocumentTypeController::class, 'delete']);
+
+// Performance module -- standalone, sits outside Human Resources
+$router->get('/performance/indicator-categories', [PerformanceIndicatorCategoryController::class, 'index']);
+$router->get('/performance/indicator-categories/create', [PerformanceIndicatorCategoryController::class, 'create']);
+$router->post('/performance/indicator-categories', [PerformanceIndicatorCategoryController::class, 'store']);
+$router->get('/performance/indicator-categories/{id}/edit', [PerformanceIndicatorCategoryController::class, 'edit']);
+$router->post('/performance/indicator-categories/{id}', [PerformanceIndicatorCategoryController::class, 'update']);
+$router->post('/performance/indicator-categories/{id}/delete', [PerformanceIndicatorCategoryController::class, 'delete']);
+
+$router->get('/performance/indicators', [PerformanceIndicatorController::class, 'index']);
+$router->get('/performance/indicators/create', [PerformanceIndicatorController::class, 'create']);
+$router->post('/performance/indicators', [PerformanceIndicatorController::class, 'store']);
+$router->get('/performance/indicators/{id}/edit', [PerformanceIndicatorController::class, 'edit']);
+$router->post('/performance/indicators/{id}', [PerformanceIndicatorController::class, 'update']);
+$router->post('/performance/indicators/{id}/delete', [PerformanceIndicatorController::class, 'delete']);
+
+$router->get('/performance/goal-types', [PerformanceGoalTypeController::class, 'index']);
+$router->get('/performance/goal-types/create', [PerformanceGoalTypeController::class, 'create']);
+$router->post('/performance/goal-types', [PerformanceGoalTypeController::class, 'store']);
+$router->get('/performance/goal-types/{id}/edit', [PerformanceGoalTypeController::class, 'edit']);
+$router->post('/performance/goal-types/{id}', [PerformanceGoalTypeController::class, 'update']);
+$router->post('/performance/goal-types/{id}/delete', [PerformanceGoalTypeController::class, 'delete']);
+
+$router->get('/performance/review-cycles', [PerformanceReviewCycleController::class, 'index']);
+$router->get('/performance/review-cycles/create', [PerformanceReviewCycleController::class, 'create']);
+$router->post('/performance/review-cycles', [PerformanceReviewCycleController::class, 'store']);
+$router->get('/performance/review-cycles/{id}', [PerformanceReviewCycleController::class, 'show']);
+$router->get('/performance/review-cycles/{id}/edit', [PerformanceReviewCycleController::class, 'edit']);
+$router->post('/performance/review-cycles/{id}', [PerformanceReviewCycleController::class, 'update']);
+$router->post('/performance/review-cycles/{id}/delete', [PerformanceReviewCycleController::class, 'delete']);
+
+$router->get('/performance/employee-goals', [PerformanceEmployeeGoalController::class, 'index']);
+$router->get('/performance/employee-goals/create', [PerformanceEmployeeGoalController::class, 'create']);
+$router->post('/performance/employee-goals', [PerformanceEmployeeGoalController::class, 'store']);
+$router->get('/performance/employee-goals/{id}/edit', [PerformanceEmployeeGoalController::class, 'edit']);
+$router->post('/performance/employee-goals/{id}', [PerformanceEmployeeGoalController::class, 'update']);
+$router->post('/performance/employee-goals/{id}/delete', [PerformanceEmployeeGoalController::class, 'delete']);
+
+$router->get('/performance/employee-reviews', [PerformanceEmployeeReviewController::class, 'index']);
+$router->get('/performance/employee-reviews/create', [PerformanceEmployeeReviewController::class, 'create']);
+$router->post('/performance/employee-reviews', [PerformanceEmployeeReviewController::class, 'store']);
+$router->get('/performance/employee-reviews/{id}', [PerformanceEmployeeReviewController::class, 'show']);
+$router->get('/performance/employee-reviews/{id}/edit', [PerformanceEmployeeReviewController::class, 'edit']);
+$router->post('/performance/employee-reviews/{id}', [PerformanceEmployeeReviewController::class, 'update']);
+$router->get('/performance/employee-reviews/{id}/conduct', [PerformanceEmployeeReviewController::class, 'conduct']);
+$router->post('/performance/employee-reviews/{id}/conduct', [PerformanceEmployeeReviewController::class, 'conductStore']);
+$router->post('/performance/employee-reviews/{id}/delete', [PerformanceEmployeeReviewController::class, 'delete']);
 
 // HRM: Attendance
 $router->get('/hrm/attendance', [HrmAttendanceController::class, 'index']);

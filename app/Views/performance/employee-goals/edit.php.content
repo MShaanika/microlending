@@ -1,0 +1,80 @@
+<?php $g = $goal; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Employee Goal</h4>
+
+    <form method="post" action="<?= url('/performance/employee-goals/' . $g['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Employee <span class="text-danger">*</span></label>
+          <select name="employee_id" class="form-select <?= isset($errors['employee_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select employee</option>
+            <?php foreach ($employees as $emp): ?>
+              <option value="<?= (int) $emp['id'] ?>" <?= $g['employee_id'] == $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['employee_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['employee_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Goal Type</label>
+          <select name="goal_type_id" class="form-select">
+            <option value="">Select type</option>
+            <?php foreach ($goalTypes as $gt): ?>
+              <option value="<?= (int) $gt['id'] ?>" <?= ($g['goal_type_id'] ?? '') == $gt['id'] ? 'selected' : '' ?>><?= e($gt['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Title <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control <?= isset($errors['title']) ? 'is-invalid' : '' ?>" value="<?= e($g['title']) ?>">
+        <?php if (isset($errors['title'])): ?><div class="invalid-feedback d-block"><?= e($errors['title']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description <span class="text-danger">*</span></label>
+        <textarea name="description" rows="3" class="form-control <?= isset($errors['description']) ? 'is-invalid' : '' ?>"><?= e($g['description']) ?></textarea>
+        <?php if (isset($errors['description'])): ?><div class="invalid-feedback d-block"><?= e($errors['description']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= e($g['start_date']) ?>">
+          <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">End Date <span class="text-danger">*</span></label>
+          <input type="date" name="end_date" class="form-control <?= isset($errors['end_date']) ? 'is-invalid' : '' ?>" value="<?= e($g['end_date']) ?>">
+          <?php if (isset($errors['end_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['end_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Target <span class="text-danger">*</span></label>
+          <input type="text" name="target" class="form-control <?= isset($errors['target']) ? 'is-invalid' : '' ?>" value="<?= e($g['target']) ?>">
+          <?php if (isset($errors['target'])): ?><div class="invalid-feedback d-block"><?= e($errors['target']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Progress</label>
+          <input type="number" step="0.01" name="progress" class="form-control" value="<?= e($g['progress']) ?>">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= $s ?>" <?= $g['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+      <a href="<?= url('/performance/employee-goals') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

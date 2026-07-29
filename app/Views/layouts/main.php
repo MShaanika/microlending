@@ -354,6 +354,14 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Staff Loan Types', 'url' => url('/hrm/staff-loan-types'), 'perm' => 'hrm.manage'],
               ['label' => 'Document Types', 'url' => url('/hrm/document-types'), 'perm' => 'hrm.manage'],
             ]],
+            'Performance' => ['icon' => 'mdi-target', 'items' => [
+              ['label' => 'Employee Goals', 'url' => url('/performance/employee-goals'), 'perm' => 'performance.view'],
+              ['label' => 'Employee Reviews', 'url' => url('/performance/employee-reviews'), 'perm' => 'performance.view'],
+              ['label' => 'Review Cycles', 'url' => url('/performance/review-cycles'), 'perm' => 'performance.view'],
+              ['label' => 'Goal Types', 'url' => url('/performance/goal-types'), 'perm' => 'performance.manage'],
+              ['label' => 'Indicator Categories', 'url' => url('/performance/indicator-categories'), 'perm' => 'performance.manage'],
+              ['label' => 'Indicators', 'url' => url('/performance/indicators'), 'perm' => 'performance.manage'],
+            ]],
             'Marketing' => ['icon' => 'mdi-chart-line', 'items' => [
               ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
               ['label' => 'Analytics Settings', 'url' => url('/settings/social-analytics'), 'perm' => 'social_analytics.manage'],

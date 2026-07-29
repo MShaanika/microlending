@@ -1,0 +1,63 @@
+<?php $r = $review; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Employee Review</h4>
+
+    <form method="post" action="<?= url('/performance/employee-reviews/' . $r['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Employee <span class="text-danger">*</span></label>
+          <select name="employee_id" class="form-select <?= isset($errors['employee_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select employee</option>
+            <?php foreach ($employees as $emp): ?>
+              <option value="<?= (int) $emp['id'] ?>" <?= $r['employee_id'] == $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['employee_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['employee_id']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Reviewer <span class="text-danger">*</span></label>
+          <select name="reviewer_id" class="form-select <?= isset($errors['reviewer_id']) ? 'is-invalid' : '' ?>">
+            <option value="">Select reviewer</option>
+            <?php foreach ($reviewers as $u): ?>
+              <option value="<?= (int) $u['id'] ?>" <?= ($r['reviewer_id'] ?? '') == $u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['reviewer_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['reviewer_id']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Review Cycle</label>
+          <select name="review_cycle_id" class="form-select">
+            <option value="">Select cycle</option>
+            <?php foreach ($cycles as $c): ?>
+              <option value="<?= (int) $c['id'] ?>" <?= ($r['review_cycle_id'] ?? '') == $c['id'] ? 'selected' : '' ?>><?= e($c['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Review Date <span class="text-danger">*</span></label>
+          <input type="date" name="review_date" class="form-control <?= isset($errors['review_date']) ? 'is-invalid' : '' ?>" value="<?= e($r['review_date']) ?>">
+          <?php if (isset($errors['review_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['review_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Status</label>
+          <select name="status" class="form-select">
+            <?php foreach ($statuses as $s): ?>
+              <option value="<?= $s ?>" <?= $r['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+      <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

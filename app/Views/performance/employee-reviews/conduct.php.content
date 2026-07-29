@@ -1,0 +1,58 @@
+<?php $r = $review; ?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Conduct Review: <?= e($r['employee_name']) ?></h4>
+    <span class="text-muted">Reviewer: <?= e($r['reviewer_name'] ?: '—') ?> &middot; <?= e($r['review_cycle_name'] ?: 'No cycle') ?></span>
+  </div>
+  <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+</div>
+
+<form method="post" action="<?= url('/performance/employee-reviews/' . $r['id'] . '/conduct') ?>">
+  <?= csrf_field() ?>
+
+  <?php if (empty($indicatorsByCategory)): ?>
+    <div class="alert alert-warning">No active performance indicators are configured. Add some under Performance &gt; Indicators first.</div>
+  <?php endif; ?>
+
+  <?php foreach ($indicatorsByCategory as $categoryName => $categoryIndicators): ?>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title"><?= e($categoryName) ?></h5>
+        <?php foreach ($categoryIndicators as $ind):
+          $current = (int) ($existingRatings[$ind['id']] ?? 0);
+        ?>
+          <div class="mb-3">
+            <label class="form-label d-block"><?= e($ind['name']) ?><?php if (!empty($ind['target_value'])): ?> <span class="text-muted small">(target: <?= e($ind['target_value']) ?>)</span><?php endif; ?></label>
+            <div class="btn-group" role="group">
+              <?php for ($i = 1; $i <= 5; $i++): ?>
+                <input type="radio" class="btn-check" name="ratings[<?= (int) $ind['id'] ?>]" id="ind<?= (int) $ind['id'] ?>_<?= $i ?>" value="<?= $i ?>" <?= $current === $i ? 'checked' : '' ?>>
+                <label class="btn btn-outline-warning" for="ind<?= (int) $ind['id'] ?>_<?= $i ?>"><?= $i ?> <i class="mdi mdi-star"></i></label>
+              <?php endfor; ?>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  <?php endforeach; ?>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Overall Comments</h5>
+      <div class="mb-3">
+        <label class="form-label">Pros</label>
+        <textarea name="pros" rows="3" class="form-control"><?= e($r['pros'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Cons</label>
+        <textarea name="cons" rows="3" class="form-control"><?= e($r['cons'] ?? '') ?></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">Submitting marks this review as <strong>Completed</strong>. Indicators left unrated are excluded from the average score.</div>
+
+  <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-check"></i> Submit Review</button>
+  <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+</form>

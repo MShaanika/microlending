@@ -1,0 +1,31 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Add Goal Type</h4>
+
+    <form method="post" action="<?= url('/performance/goal-types') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Name <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= old('name', $old) ?>" placeholder="e.g. Sales">
+        <?php if (isset($errors['name'])): ?><div class="invalid-feedback d-block"><?= e($errors['name']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" rows="3" class="form-control"><?= old('description', $old) ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <option value="Active" <?= ($old['status'] ?? 'Active') === 'Active' ? 'selected' : '' ?>>Active</option>
+          <option value="Inactive" <?= ($old['status'] ?? '') === 'Inactive' ? 'selected' : '' ?>>Inactive</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Goal Type</button>
+      <a href="<?= url('/performance/goal-types') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

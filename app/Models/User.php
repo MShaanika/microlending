@@ -40,6 +40,11 @@ class User extends Model
         );
     }
 
+    public function allActive(): array
+    {
+        return $this->all("SELECT id, name, email FROM users WHERE is_active = 1 ORDER BY name");
+    }
+
     public function roleIds(int $userId): array
     {
         return array_map('intval', array_column(

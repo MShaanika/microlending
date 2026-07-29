@@ -1,0 +1,77 @@
+<?php
+use App\Core\Auth;
+$r = $review;
+$statusBadge = ['Pending' => 'warning', 'In Progress' => 'info', 'Completed' => 'success', 'Cancelled' => 'dark'][$r['status']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($r['employee_name']) ?></h4>
+    <span class="text-muted">Reviewer: <?= e($r['reviewer_name'] ?: '—') ?> &middot; <?= e($r['review_cycle_name'] ?: 'No cycle') ?></span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <?php if ($averageRating !== null): ?>
+      <span class="badge bg-primary fs-6"><i class="mdi mdi-star"></i> <?= $averageRating ?> / 5</span>
+    <?php endif; ?>
+    <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($r['status']) ?></span>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Review Date</th><td><?= e(date('d M Y', strtotime($r['review_date']))) ?></td></tr>
+      <tr><th class="text-muted">Completion Date</th><td><?= $r['completion_date'] ? e(date('d M Y', strtotime($r['completion_date']))) : '—' ?></td></tr>
+      <?php if ($r['status'] === 'Completed'): ?>
+        <tr><th class="text-muted">Pros</th><td><?= nl2br(e($r['pros'] ?: '—')) ?></td></tr>
+        <tr><th class="text-muted">Cons</th><td><?= nl2br(e($r['cons'] ?: '—')) ?></td></tr>
+      <?php endif; ?>
+    </table>
+  </div>
+</div>
+
+<?php if (Auth::can('performance.manage') && $r['status'] !== 'Cancelled'): ?>
+<div class="mb-3">
+  <a href="<?= url('/performance/employee-reviews/' . $r['id'] . '/conduct') ?>" class="btn btn-info btn-sm">
+    <i class="mdi mdi-star-outline"></i> <?= $r['status'] === 'Completed' ? 'Re-conduct Review' : 'Conduct Review' ?>
+  </a>
+  <a href="<?= url('/performance/employee-reviews/' . $r['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm">Edit Schedule</a>
+</div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Ratings by Category</h5>
+    <?php if (empty($indicatorsByCategory)): ?>
+      <p class="text-muted">No active performance indicators configured.</p>
+    <?php endif; ?>
+    <?php foreach ($indicatorsByCategory as $categoryName => $categoryIndicators): ?>
+      <h6 class="mt-3"><?= e($categoryName) ?></h6>
+      <table class="table table-sm">
+        <thead><tr><th>Indicator</th><th style="width:200px;">Rating</th></tr></thead>
+        <tbody>
+          <?php foreach ($categoryIndicators as $ind):
+            $score = $ratings[$ind['id']] ?? 0;
+          ?>
+            <tr>
+              <td><?= e($ind['name']) ?></td>
+              <td>
+                <?php if ($score > 0): ?>
+                  <?php for ($i = 1; $i <= 5; $i++): ?>
+                    <i class="mdi mdi-star<?= $i <= $score ? '' : '-outline' ?> text-warning"></i>
+                  <?php endfor; ?>
+                  <span class="text-muted small">(<?= $score ?>/5)</span>
+                <?php else: ?>
+                  <span class="text-muted">Not rated</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    <?php endforeach; ?>
+  </div>
+</div>
+
+<a href="<?= url('/performance/employee-reviews') ?>" class="btn btn-outline-secondary btn-sm mt-3">Back</a>
