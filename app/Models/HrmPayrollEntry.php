@@ -54,6 +54,7 @@ class HrmPayrollEntry extends Model
     {
         $row = $this->one(
             "SELECT COALESCE(SUM(gross_pay),0) AS gross, COALESCE(SUM(total_deductions),0) AS deductions,
+                    COALESCE(SUM(total_staff_loans),0) AS staff_loans,
                     COALESCE(SUM(net_pay),0) AS net, COUNT(*) AS count
              FROM hrm_payroll_entries WHERE payroll_id = ?",
             [$payrollId]
@@ -61,6 +62,7 @@ class HrmPayrollEntry extends Model
         return [
             'gross' => round((float) $row['gross'], 2),
             'deductions' => round((float) $row['deductions'], 2),
+            'staff_loans' => round((float) $row['staff_loans'], 2),
             'net' => round((float) $row['net'], 2),
             'count' => (int) $row['count'],
         ];

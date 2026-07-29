@@ -1,0 +1,88 @@
+<?php
+use App\Core\Auth;
+$l = $loan;
+$statusBadge = ['Pending' => 'warning', 'Active' => 'success', 'Completed' => 'secondary', 'Cancelled' => 'dark', 'Rejected' => 'danger'][$l['status']] ?? 'secondary';
+$repaidSoFar = (float) $l['principal_amount'] - (float) $l['outstanding_balance'];
+$progressPct = (float) $l['principal_amount'] > 0 ? min(100, round($repaidSoFar / (float) $l['principal_amount'] * 100)) : 0;
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($l['title']) ?></h4>
+    <span class="text-muted"><?= e($l['employee_name']) ?> &middot; <?= e($l['type_name'] ?: 'Uncategorized') ?></span>
+  </div>
+  <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($l['status']) ?></span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-3">
+      <tr><th class="text-muted" style="width:25%">Principal</th><td><?= format_money($l['principal_amount']) ?></td></tr>
+      <tr><th class="text-muted">Installments</th><td><?= (int) $l['number_of_installments'] ?> &times; <?= format_money($l['installment_amount']) ?> (0% interest)</td></tr>
+      <tr><th class="text-muted">Outstanding Balance</th><td><?= format_money($l['outstanding_balance']) ?></td></tr>
+      <tr><th class="text-muted">Start Date</th><td><?= e(date('d M Y', strtotime($l['start_date']))) ?></td></tr>
+      <tr><th class="text-muted">Reason</th><td><?= nl2br(e($l['reason'] ?: '—')) ?></td></tr>
+      <?php if ($l['status'] !== 'Pending'): ?>
+        <tr><th class="text-muted">Decision By</th><td><?= e($l['approved_by_name'] ?: '—') ?></td></tr>
+      <?php endif; ?>
+    </table>
+    <div class="progress" style="height: 20px;">
+      <div class="progress-bar bg-success" style="width: <?= $progressPct ?>%">Repaid <?= $progressPct ?>%</div>
+    </div>
+  </div>
+</div>
+
+<?php if (Auth::can('hrm.manage')): ?>
+  <?php if ($l['status'] === 'Pending'): ?>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/approve') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+      </div>
+      <div class="col-md-6 mb-3">
+        <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/reject') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-danger"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      </div>
+    </div>
+  <?php elseif ($l['status'] === 'Active'): ?>
+    <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this loan? No further payroll deductions will be made.');" class="mb-3">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-outline-dark btn-sm">Cancel Loan</button>
+    </form>
+  <?php endif; ?>
+  <?php if (in_array($l['status'], ['Pending', 'Rejected', 'Cancelled'], true)): ?>
+    <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/delete') ?>" onsubmit="return confirm('Delete this staff loan?');" class="d-inline">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+    </form>
+  <?php endif; ?>
+<?php endif; ?>
+<a href="<?= url('/hrm/staff-loans') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 class="card-title">Repayment History</h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Date</th><th>Payroll</th><th>Amount</th></tr></thead>
+        <tbody>
+          <?php if (empty($repayments)): ?>
+            <tr><td colspan="3" class="text-center text-muted py-3">No repayments recorded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($repayments as $r): ?>
+            <tr>
+              <td><?= e(date('d M Y', strtotime($r['repayment_date']))) ?></td>
+              <td><?= e($r['payroll_title'] ?: '—') ?></td>
+              <td><?= format_money($r['amount']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

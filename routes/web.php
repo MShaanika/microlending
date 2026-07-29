@@ -59,6 +59,8 @@ use App\Controllers\HrmAnnouncementCategoryController;
 use App\Controllers\HrmAnnouncementController;
 use App\Controllers\HrmEventTypeController;
 use App\Controllers\HrmEventController;
+use App\Controllers\StaffLoanTypeController;
+use App\Controllers\StaffLoanController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -634,6 +636,23 @@ $router->get('/hrm/events/{id}', [HrmEventController::class, 'show']);
 $router->post('/hrm/events/{id}/approve', [HrmEventController::class, 'approve']);
 $router->post('/hrm/events/{id}/reject', [HrmEventController::class, 'reject']);
 $router->post('/hrm/events/{id}/delete', [HrmEventController::class, 'delete']);
+
+// HRM: Staff Loans
+$router->get('/hrm/staff-loan-types', [StaffLoanTypeController::class, 'index']);
+$router->get('/hrm/staff-loan-types/create', [StaffLoanTypeController::class, 'create']);
+$router->post('/hrm/staff-loan-types', [StaffLoanTypeController::class, 'store']);
+$router->get('/hrm/staff-loan-types/{id}/edit', [StaffLoanTypeController::class, 'edit']);
+$router->post('/hrm/staff-loan-types/{id}', [StaffLoanTypeController::class, 'update']);
+$router->post('/hrm/staff-loan-types/{id}/delete', [StaffLoanTypeController::class, 'delete']);
+
+$router->get('/hrm/staff-loans', [StaffLoanController::class, 'index']);
+$router->get('/hrm/staff-loans/create', [StaffLoanController::class, 'create']);
+$router->post('/hrm/staff-loans', [StaffLoanController::class, 'store']);
+$router->get('/hrm/staff-loans/{id}', [StaffLoanController::class, 'show']);
+$router->post('/hrm/staff-loans/{id}/approve', [StaffLoanController::class, 'approve']);
+$router->post('/hrm/staff-loans/{id}/reject', [StaffLoanController::class, 'reject']);
+$router->post('/hrm/staff-loans/{id}/cancel', [StaffLoanController::class, 'cancel']);
+$router->post('/hrm/staff-loans/{id}/delete', [StaffLoanController::class, 'delete']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

@@ -7,17 +7,25 @@ use App\Models\Company;
 use App\Models\HrmEmployee;
 use App\Models\HrmPayroll;
 use App\Models\HrmPayrollEntry;
+use App\Models\StaffLoan;
+use App\Models\StaffLoanRepayment;
 use DateTime;
 
 /**
  * Turns one payroll run's pay period into a per-employee payslip
  * (hrm_payroll_entries row), ported from the reference workdo/Hrm
- * module's algorithm with two deliberate scope cuts:
- *  - "Manual overtime" (a separate ad-hoc override entity) is left for
- *    a later phase -- overtime here is only what Phase 2's Attendance
- *    already computed per clock-in/out record.
- *  - Staff-loan deductions are left for a later phase (total_loans is
- *    not tracked yet) -- net_pay = gross_pay - total_deductions only.
+ * module's algorithm with one remaining deliberate scope cut:
+ * "manual overtime" (a separate ad-hoc override entity) is left out --
+ * overtime here is only what Phase 2's Attendance already computed per
+ * clock-in/out record.
+ *
+ * Staff loan repayments (0% interest, principal split into equal
+ * installments) are deducted automatically here: each Active loan with
+ * a remaining balance and start_date on/before this run's pay period
+ * end has MIN(installment_amount, outstanding_balance) subtracted from
+ * net pay and logged as a hrm_staff_loan_repayments row, self-correcting
+ * any rounding remainder on the final installment and flipping the loan
+ * to Completed once its balance reaches zero.
  *
  * Re-running an already-processed payroll only creates entries for
  * employees that don't have one yet (existing entries are left as-is),
@@ -89,6 +97,7 @@ class PayrollService
         $deductionData = self::calculateDeductions($employeeId, $basicSalary);
         $attendanceData = self::calculateAttendance($employeeId, $periodStart, $periodEnd, (float) ($employee['rate_per_hour'] ?? 0));
         $leaveData = self::calculateLeave($employeeId, $periodStart, $periodEnd);
+        $staffLoanData = self::calculateStaffLoans($employeeId, $periodEnd);
 
         $halfDayDeduction = round($perDaySalary * ($attendanceData['half_days'] * 0.5), 2);
         $absentDayDeduction = round($perDaySalary * $attendanceData['absent_days'], 2);
@@ -97,14 +106,15 @@ class PayrollService
 
         $totalEarnings = $basicSalary + $allowanceData['total'];
         $grossPay = round($totalEarnings - $totalLeaveSalaryDeductions + $attendanceData['overtime_amount'], 2);
-        $netPay = round($grossPay - $deductionData['total'], 2);
+        $netPay = round($grossPay - $deductionData['total'] - $staffLoanData['total'], 2);
 
-        (new HrmPayrollEntry())->create([
+        $entryId = (new HrmPayrollEntry())->create([
             'payroll_id' => $payrollId,
             'employee_id' => $employeeId,
             'basic_salary' => $basicSalary,
             'total_allowances' => $allowanceData['total'],
             'total_deductions' => $deductionData['total'],
+            'total_staff_loans' => $staffLoanData['total'],
             'gross_pay' => $grossPay,
             'net_pay' => $netPay,
             'per_day_salary' => $perDaySalary,
@@ -123,8 +133,11 @@ class PayrollService
             'status' => 'Unpaid',
             'allowances_breakdown' => json_encode($allowanceData['breakdown']),
             'deductions_breakdown' => json_encode($deductionData['breakdown']),
+            'staff_loans_breakdown' => json_encode($staffLoanData['breakdown']),
             'created_by' => $userId,
         ]);
+
+        self::recordStaffLoanRepayments($payrollId, $entryId, $periodEnd, $staffLoanData['repayments']);
     }
 
     private static function calculateAllowances(int $employeeId, float $basicSalary): array
@@ -151,6 +164,52 @@ class PayrollService
             $total += $amount;
         }
         return ['breakdown' => $breakdown, 'total' => round($total, 2)];
+    }
+
+    private static function calculateStaffLoans(int $employeeId, string $periodEnd): array
+    {
+        $loans = (new StaffLoan())->activeForEmployeeAsOf($employeeId, $periodEnd);
+        $breakdown = [];
+        $repayments = [];
+        $total = 0.0;
+        foreach ($loans as $loan) {
+            $amount = min((float) $loan['installment_amount'], (float) $loan['outstanding_balance']);
+            if ($amount <= 0) {
+                continue;
+            }
+            $breakdown[$loan['title']] = $amount;
+            $repayments[] = ['loan' => $loan, 'amount' => $amount];
+            $total += $amount;
+        }
+        return ['breakdown' => $breakdown, 'total' => round($total, 2), 'repayments' => $repayments];
+    }
+
+    private static function recordStaffLoanRepayments(int $payrollId, int $entryId, string $repaymentDate, array $repayments): void
+    {
+        $loans = new StaffLoan();
+        $ledger = new StaffLoanRepayment();
+
+        foreach ($repayments as $item) {
+            $loan = $item['loan'];
+            $loanId = (int) $loan['id'];
+            if ($ledger->existsForLoanPayroll($loanId, $payrollId)) {
+                continue;
+            }
+
+            $ledger->create([
+                'staff_loan_id' => $loanId,
+                'payroll_id' => $payrollId,
+                'payroll_entry_id' => $entryId,
+                'amount' => $item['amount'],
+                'repayment_date' => $repaymentDate,
+            ]);
+
+            $newBalance = round((float) $loan['outstanding_balance'] - $item['amount'], 2);
+            $loans->updateRecord($loanId, [
+                'outstanding_balance' => max(0, $newBalance),
+                'status' => $newBalance <= 0 ? 'Completed' : 'Active',
+            ]);
+        }
     }
 
     private static function calculateAttendance(int $employeeId, string $start, string $end, float $ratePerHour): array

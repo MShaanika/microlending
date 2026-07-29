@@ -57,14 +57,14 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
         <thead>
           <tr>
             <th>Employee</th><th class="text-end">Basic</th><th class="text-end">Allowances</th>
-            <th class="text-end">Deductions</th><th class="text-center">Present</th><th class="text-center">Half</th>
+            <th class="text-end">Deductions</th><th class="text-end">Staff Loan</th><th class="text-center">Present</th><th class="text-center">Half</th>
             <th class="text-center">Absent</th><th class="text-end">OT (h)</th><th class="text-end">Gross</th>
             <th class="text-end">Net</th><th>Status</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($entries)): ?>
-            <tr><td colspan="12" class="text-center text-muted py-4">No payslips yet -- click "Run Payroll" to generate them.</td></tr>
+            <tr><td colspan="13" class="text-center text-muted py-4">No payslips yet -- click "Run Payroll" to generate them.</td></tr>
           <?php endif; ?>
           <?php foreach ($entries as $e): ?>
             <tr>
@@ -72,6 +72,7 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
               <td class="text-end"><?= format_money($e['basic_salary']) ?></td>
               <td class="text-end"><?= format_money($e['total_allowances']) ?></td>
               <td class="text-end text-danger"><?= format_money($e['total_deductions']) ?></td>
+              <td class="text-end text-danger"><?= format_money($e['total_staff_loans'] ?? 0) ?></td>
               <td class="text-center"><?= number_format((float) $e['present_days'], 0) ?></td>
               <td class="text-center"><?= number_format((float) $e['half_days'], 0) ?></td>
               <td class="text-center"><?= number_format((float) $e['absent_days'], 0) ?></td>
