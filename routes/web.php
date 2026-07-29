@@ -68,6 +68,9 @@ use App\Controllers\PerformanceGoalTypeController;
 use App\Controllers\PerformanceReviewCycleController;
 use App\Controllers\PerformanceEmployeeGoalController;
 use App\Controllers\PerformanceEmployeeReviewController;
+use App\Controllers\TrainingTypeController;
+use App\Controllers\TrainerController;
+use App\Controllers\TrainingController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -720,6 +723,36 @@ $router->post('/hrm/staff-loans/{id}/delete', [StaffLoanController::class, 'dele
 $router->post('/hrm/staff-loans/{id}/documents', [StaffLoanController::class, 'uploadDocument']);
 $router->get('/hrm/staff-loans/{id}/documents/{documentId}/download', [StaffLoanController::class, 'downloadDocument']);
 $router->post('/hrm/staff-loans/{id}/documents/{documentId}/delete', [StaffLoanController::class, 'deleteDocument']);
+
+// Training module -- standalone, sits outside Human Resources
+$router->get('/training/types', [TrainingTypeController::class, 'index']);
+$router->get('/training/types/create', [TrainingTypeController::class, 'create']);
+$router->post('/training/types', [TrainingTypeController::class, 'store']);
+$router->get('/training/types/{id}/edit', [TrainingTypeController::class, 'edit']);
+$router->post('/training/types/{id}', [TrainingTypeController::class, 'update']);
+$router->post('/training/types/{id}/delete', [TrainingTypeController::class, 'delete']);
+
+$router->get('/training/trainers', [TrainerController::class, 'index']);
+$router->get('/training/trainers/create', [TrainerController::class, 'create']);
+$router->post('/training/trainers', [TrainerController::class, 'store']);
+$router->get('/training/trainers/{id}/edit', [TrainerController::class, 'edit']);
+$router->post('/training/trainers/{id}', [TrainerController::class, 'update']);
+$router->post('/training/trainers/{id}/delete', [TrainerController::class, 'delete']);
+
+$router->get('/training/trainings', [TrainingController::class, 'index']);
+$router->get('/training/trainings/create', [TrainingController::class, 'create']);
+$router->post('/training/trainings', [TrainingController::class, 'store']);
+$router->get('/training/trainings/{id}', [TrainingController::class, 'show']);
+$router->get('/training/trainings/{id}/edit', [TrainingController::class, 'edit']);
+$router->post('/training/trainings/{id}', [TrainingController::class, 'update']);
+$router->post('/training/trainings/{id}/delete', [TrainingController::class, 'delete']);
+$router->post('/training/trainings/{id}/enroll', [TrainingController::class, 'enroll']);
+$router->post('/training/trainings/{id}/enrollments/{enrollmentId}/complete', [TrainingController::class, 'completeEnrollment']);
+$router->post('/training/trainings/{id}/enrollments/{enrollmentId}/delete', [TrainingController::class, 'deleteEnrollment']);
+$router->post('/training/trainings/{id}/tasks', [TrainingController::class, 'addTask']);
+$router->post('/training/trainings/{id}/tasks/{taskId}/complete', [TrainingController::class, 'completeTask']);
+$router->post('/training/trainings/{id}/tasks/{taskId}/delete', [TrainingController::class, 'deleteTask']);
+$router->post('/training/trainings/{id}/tasks/{taskId}/feedback', [TrainingController::class, 'addFeedback']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

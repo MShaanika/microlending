@@ -1,0 +1,217 @@
+<?php
+use App\Core\Auth;
+$t = $training;
+$statusBadge = ['Scheduled' => 'info', 'Ongoing' => 'warning', 'Completed' => 'success', 'Cancelled' => 'dark'];
+$enrollBadge = ['Enrolled' => 'info', 'Completed' => 'success', 'Dropped' => 'secondary'];
+$notEnrolled = array_filter($availableEmployees, fn($e) => !in_array($e['id'], $enrolledIds));
+$assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($t['title']) ?></h4>
+    <span class="text-muted"><?= e($t['training_type_name'] ?: 'Uncategorized') ?> &middot; <?= e($t['trainer_name'] ?: 'No trainer assigned') ?></span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-<?= $statusBadge[$t['status']] ?? 'secondary' ?> fs-6"><?= e($t['status']) ?></span>
+    <?php if (Auth::can('training.manage')): ?>
+      <a href="<?= url('/training/trainings/' . $t['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:20%">Dates</th><td><?= e(date('d M Y', strtotime($t['start_date']))) ?> &ndash; <?= e(date('d M Y', strtotime($t['end_date']))) ?></td>
+          <th class="text-muted" style="width:20%">Time</th><td><?= e($t['start_time'] ?: '—') ?> &ndash; <?= e($t['end_time'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Location</th><td><?= e($t['location'] ?: '—') ?></td>
+          <th class="text-muted">Department</th><td><?= e($t['department_name'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Branch</th><td><?= e($t['branch_name'] ?: '—') ?></td>
+          <th class="text-muted">Max Participants</th><td><?= e($t['max_participants'] ?: '—') ?></td></tr>
+      <tr><th class="text-muted">Cost</th><td colspan="3"><?= $t['cost'] !== null ? format_money($t['cost']) : '—' ?></td></tr>
+    </table>
+    <?php if (!empty($t['description'])): ?>
+      <hr><p class="mb-0"><?= nl2br(e($t['description'])) ?></p>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Roster</h5>
+
+    <?php if (Auth::can('training.manage') && !empty($notEnrolled)): ?>
+    <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enroll') ?>" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <div class="col-md-9">
+        <label class="form-label">Enroll Employees</label>
+        <select name="employee_ids[]" class="form-select" multiple size="4">
+          <?php foreach ($notEnrolled as $e): ?>
+            <option value="<?= (int) $e['id'] ?>"><?= e($e['first_name'] . ' ' . $e['last_name']) ?> (<?= e($e['employee_no']) ?>)</option>
+          <?php endforeach; ?>
+        </select>
+        <div class="form-text">Hold Ctrl/Cmd to select multiple.</div>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-account-plus"></i> Enroll</button>
+      </div>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr><th>Employee</th><th>Status</th><th>Completed</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($enrollments)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No employees enrolled yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($enrollments as $en): ?>
+            <tr>
+              <td><?= e($en['employee_name']) ?> <span class="text-muted small">(<?= e($en['employee_no']) ?>)</span></td>
+              <td><span class="badge bg-<?= $enrollBadge[$en['status']] ?? 'secondary' ?>"><?= e($en['status']) ?></span></td>
+              <td><?= $en['completed_at'] ? e(date('d M Y', strtotime($en['completed_at']))) : '—' ?></td>
+              <td class="text-end">
+                <?php if (Auth::can('training.manage')): ?>
+                  <?php if ($en['status'] !== 'Completed'): ?>
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enrollments/' . $en['id'] . '/complete') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-check"></i></button>
+                  </form>
+                  <?php endif; ?>
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enrollments/' . $en['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Remove this employee from the training?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Tasks</h5>
+
+    <?php if (Auth::can('training.manage')): ?>
+    <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks') ?>" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <label class="form-label">Task Title</label>
+        <input type="text" name="title" class="form-control" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Assigned To</label>
+        <select name="assigned_to" class="form-select">
+          <option value="">— Unassigned —</option>
+          <?php foreach ($availableEmployees as $e): ?>
+            <option value="<?= (int) $e['id'] ?>"><?= e($e['first_name'] . ' ' . $e['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Due Date</label>
+        <input type="date" name="due_date" class="form-control">
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-plus"></i> Add Task</button>
+      </div>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr><th>Title</th><th>Assigned To</th><th>Due</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($tasks)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-3">No tasks yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($tasks as $tk): ?>
+            <tr>
+              <td><?= e($tk['title']) ?><?php if (!empty($tk['description'])): ?><br><span class="text-muted small"><?= e($tk['description']) ?></span><?php endif; ?></td>
+              <td><?= e($tk['assigned_to_name'] ?: '—') ?></td>
+              <td><?= $tk['due_date'] ? e(date('d M Y', strtotime($tk['due_date']))) : '—' ?></td>
+              <td><span class="badge bg-<?= $tk['status'] === 'Completed' ? 'success' : 'warning' ?>"><?= e($tk['status']) ?></span></td>
+              <td class="text-end">
+                <?php if (Auth::can('training.manage')): ?>
+                  <?php if ($tk['status'] !== 'Completed'): ?>
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks/' . $tk['id'] . '/complete') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-check"></i></button>
+                  </form>
+                  <?php endif; ?>
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks/' . $tk['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Feedback</h5>
+
+    <?php if (Auth::can('training.manage') && !empty($assignableTasks)): ?>
+    <form method="post" action="" id="feedbackForm" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <label class="form-label">Task</label>
+        <select name="task_id" class="form-select" onchange="document.getElementById('feedbackForm').action='<?= url('/training/trainings/' . $t['id'] . '/tasks/') ?>' + this.value + '/feedback';">
+          <option value="">— Select a task —</option>
+          <?php foreach ($assignableTasks as $tk): ?>
+            <option value="<?= (int) $tk['id'] ?>"><?= e($tk['title']) ?> (<?= e($tk['assigned_to_name']) ?>)</option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Rating</label>
+        <select name="rating" class="form-select">
+          <?php for ($i = 5; $i >= 1; $i--): ?>
+            <option value="<?= $i ?>" <?= $i === 5 ? 'selected' : '' ?>><?= $i ?> Star<?= $i > 1 ? 's' : '' ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Comments</label>
+        <input type="text" name="comments" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info w-100">Submit</button>
+      </div>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr><th>Task</th><th>Employee</th><th>Rating</th><th>Comments</th></tr></thead>
+        <tbody>
+          <?php if (empty($feedback)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No feedback recorded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($feedback as $f): ?>
+            <tr>
+              <td><?= e($f['task_title']) ?></td>
+              <td><?= e($f['employee_name']) ?></td>
+              <td><?= str_repeat('★', (int) $f['rating']) . str_repeat('☆', 5 - (int) $f['rating']) ?></td>
+              <td><?= e($f['comments'] ?: '—') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<a href="<?= url('/training/trainings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>

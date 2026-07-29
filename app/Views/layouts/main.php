@@ -362,6 +362,11 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Indicator Categories', 'url' => url('/performance/indicator-categories'), 'perm' => 'performance.manage'],
               ['label' => 'Indicators', 'url' => url('/performance/indicators'), 'perm' => 'performance.manage'],
             ]],
+            'Training' => ['icon' => 'mdi-school', 'items' => [
+              ['label' => 'Trainings', 'url' => url('/training/trainings'), 'perm' => 'training.view'],
+              ['label' => 'Trainers', 'url' => url('/training/trainers'), 'perm' => 'training.manage'],
+              ['label' => 'Training Types', 'url' => url('/training/types'), 'perm' => 'training.manage'],
+            ]],
             'Marketing' => ['icon' => 'mdi-chart-line', 'items' => [
               ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
               ['label' => 'Analytics Settings', 'url' => url('/settings/social-analytics'), 'perm' => 'social_analytics.manage'],
