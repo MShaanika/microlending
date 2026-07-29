@@ -428,10 +428,48 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               </ul>
             </li>
           <?php endforeach; ?>
-
+              <li class="sidebar-item">
+                <a
+                  class="sidebar-link waves-effect waves-dark sidebar-link"
+                  href="<?= url('/logout') ?>"
+                  aria-expanded="false"
+                  ><i class="mdi mdi-directions"></i
+                  ><span class="hide-menu">Log Out</span></a
+                >
+              </li>
         </ul>
       </nav>
     </div>
+
+    <div class="sidebar-footer">
+          <!-- item-->
+          <a
+            href="<?= url('/settings/company') ?>"
+            class="link"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="Settings"
+            ><i class="ti-settings"></i
+          ></a>
+          <!-- item-->
+          <a
+            href="<?= url('/notifications/email') ?>"
+            class="link"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="Email"
+            ><i class="mdi mdi-gmail"></i
+          ></a>
+          <!-- item-->
+          <a
+            href="<?= url('/logout') ?>"
+            class="link"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="Logout"
+            ><i class="mdi mdi-power"></i
+          ></a>
+        </div>
   </aside>
 
   <div class="page-wrapper">
