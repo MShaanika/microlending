@@ -1,0 +1,87 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Schedule Zoom Meeting</h4>
+
+    <?php if (!$zoomEnabled): ?>
+      <div class="alert alert-warning">Zoom meeting integration is not configured. <a href="<?= url('/hrm/zoom-settings') ?>">Set it up under Zoom Settings</a> before scheduling a meeting.</div>
+    <?php endif; ?>
+
+    <form method="post" action="<?= url('/hrm/zoom-meetings') ?>">
+      <?= csrf_field() ?>
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Title *</label>
+          <input type="text" name="title" class="form-control <?= isset($errors['title']) ? 'is-invalid' : '' ?>" value="<?= e($old['title'] ?? '') ?>">
+          <?php if (isset($errors['title'])): ?><div class="invalid-feedback"><?= e($errors['title']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Host</label>
+          <select name="host_id" class="form-select">
+            <option value="">— None —</option>
+            <?php foreach ($users as $u): ?>
+              <option value="<?= (int) $u['id'] ?>" <?= (($old['host_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Start Date/Time *</label>
+          <input type="datetime-local" name="start_time" class="form-control <?= isset($errors['start_time']) ? 'is-invalid' : '' ?>" value="<?= e($old['start_time'] ?? '') ?>">
+          <?php if (isset($errors['start_time'])): ?><div class="invalid-feedback"><?= e($errors['start_time']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Duration (minutes)</label>
+          <input type="number" min="1" name="duration" class="form-control" value="<?= e($old['duration'] ?? 30) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Meeting Password</label>
+          <input type="text" name="meeting_password" class="form-control" value="<?= e($old['meeting_password'] ?? '') ?>">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3"><?= e($old['description'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Participants</label>
+        <select name="participants[]" class="form-select" multiple size="5">
+          <?php foreach ($employees as $emp): ?>
+            <option value="<?= (int) $emp['id'] ?>"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?> (<?= e($emp['employee_no']) ?>)</option>
+          <?php endforeach; ?>
+        </select>
+        <div class="form-text">Hold Ctrl/Cmd to select multiple.</div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <div class="form-check">
+            <input type="checkbox" name="host_video" value="1" class="form-check-input" id="host_video" <?= !empty($old['host_video']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="host_video">Host video on</label>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check">
+            <input type="checkbox" name="participant_video" value="1" class="form-check-input" id="participant_video" <?= !empty($old['participant_video']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="participant_video">Participant video on</label>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check">
+            <input type="checkbox" name="waiting_room" value="1" class="form-check-input" id="waiting_room" <?= !empty($old['waiting_room']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="waiting_room">Waiting room</label>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check">
+            <input type="checkbox" name="recording" value="1" class="form-check-input" id="recording" <?= !empty($old['recording']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="recording">Auto-record</label>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-info" <?= !$zoomEnabled ? 'disabled' : '' ?>>Save</button>
+      <a href="<?= url('/hrm/zoom-meetings') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

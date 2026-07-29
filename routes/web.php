@@ -60,6 +60,8 @@ use App\Controllers\HrmAnnouncementController;
 use App\Controllers\HrmEventTypeController;
 use App\Controllers\HrmEventController;
 use App\Controllers\StaffLoanTypeController;
+use App\Controllers\HrmZoomMeetingController;
+use App\Controllers\HrmZoomSettingController;
 use App\Controllers\StaffLoanController;
 use App\Controllers\HrmDocumentTypeController;
 use App\Controllers\PerformanceIndicatorCategoryController;
@@ -736,6 +738,18 @@ $router->post('/hrm/staff-loans/{id}/delete', [StaffLoanController::class, 'dele
 $router->post('/hrm/staff-loans/{id}/documents', [StaffLoanController::class, 'uploadDocument']);
 $router->get('/hrm/staff-loans/{id}/documents/{documentId}/download', [StaffLoanController::class, 'downloadDocument']);
 $router->post('/hrm/staff-loans/{id}/documents/{documentId}/delete', [StaffLoanController::class, 'deleteDocument']);
+
+// HRM: Zoom Meetings
+$router->get('/hrm/zoom-meetings', [HrmZoomMeetingController::class, 'index']);
+$router->get('/hrm/zoom-meetings/create', [HrmZoomMeetingController::class, 'create']);
+$router->post('/hrm/zoom-meetings', [HrmZoomMeetingController::class, 'store']);
+$router->get('/hrm/zoom-meetings/{id}/edit', [HrmZoomMeetingController::class, 'edit']);
+$router->post('/hrm/zoom-meetings/{id}', [HrmZoomMeetingController::class, 'update']);
+$router->post('/hrm/zoom-meetings/{id}/status', [HrmZoomMeetingController::class, 'updateStatus']);
+$router->post('/hrm/zoom-meetings/{id}/delete', [HrmZoomMeetingController::class, 'delete']);
+
+$router->get('/hrm/zoom-settings', [HrmZoomSettingController::class, 'edit']);
+$router->post('/hrm/zoom-settings', [HrmZoomSettingController::class, 'update']);
 
 // Training module -- standalone, sits outside Human Resources
 $router->get('/training/types', [TrainingTypeController::class, 'index']);

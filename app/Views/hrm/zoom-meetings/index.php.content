@@ -1,0 +1,89 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Zoom Meetings</h4>
+      <div class="d-flex gap-2">
+        <?php if (Auth::can('hrm.manage')): ?>
+          <a href="<?= url('/hrm/zoom-settings') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-cog"></i> Zoom Settings</a>
+          <a href="<?= url('/hrm/zoom-meetings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Schedule Meeting</a>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <?php if (!$zoomEnabled): ?>
+      <div class="alert alert-warning">Zoom meeting integration is not configured yet. <?php if (Auth::can('hrm.manage')): ?><a href="<?= url('/hrm/zoom-settings') ?>">Set it up under Zoom Settings</a>.<?php endif; ?></div>
+    <?php endif; ?>
+
+    <form method="get" action="<?= url('/hrm/zoom-meetings') ?>" class="row g-2 align-items-end mb-3">
+      <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select" onchange="this.form.submit()">
+          <option value="">All</option>
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= e($s) ?>" <?= (($filters['status'] ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Search</label>
+        <input type="text" name="search" class="form-control" value="<?= e($filters['search'] ?? '') ?>" placeholder="Title or meeting ID">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Title</th><th>Host</th><th>Start Time</th><th>Duration</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($meetings)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No Zoom meetings yet.</td></tr>
+          <?php endif; ?>
+          <?php $statusBadge = ['Scheduled' => 'info', 'Started' => 'success', 'Ended' => 'secondary', 'Cancelled' => 'dark']; ?>
+          <?php foreach ($meetings as $m): ?>
+            <tr>
+              <td><?= e($m['title']) ?><?php if (!empty($m['meeting_id'])): ?><br><span class="text-muted small">ID: <?= e($m['meeting_id']) ?></span><?php endif; ?></td>
+              <td><?= e($m['host_name'] ?: '—') ?></td>
+              <td><?= e(date('d M Y H:i', strtotime($m['start_time']))) ?></td>
+              <td><?= (int) $m['duration'] ?> min</td>
+              <td>
+                <?php if (Auth::can('hrm.manage')): ?>
+                <form method="post" action="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/status') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
+                    <?php foreach ($statuses as $s): ?>
+                      <option value="<?= e($s) ?>" <?= ($m['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </form>
+                <?php else: ?>
+                  <span class="badge bg-<?= $statusBadge[$m['status']] ?? 'secondary' ?>"><?= e($m['status']) ?></span>
+                <?php endif; ?>
+              </td>
+              <td class="text-end">
+                <?php if (!empty($m['join_url'])): ?>
+                  <a href="<?= e($m['join_url']) ?>" target="_blank" class="btn btn-sm btn-outline-success"><i class="mdi mdi-video"></i> Join</a>
+                <?php endif; ?>
+                <?php if (Auth::can('hrm.manage')): ?>
+                  <?php if ($m['status'] === 'Scheduled'): ?>
+                  <a href="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                  <?php endif; ?>
+                  <form method="post" action="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this meeting?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

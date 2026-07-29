@@ -1,0 +1,34 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Zoom Settings</h4>
+    <p class="text-muted">Requires a Zoom Server-to-Server OAuth app (Zoom App Marketplace &rarr; Develop &rarr; Build App &rarr; Server-to-Server OAuth). Copy the Account ID, Client ID, and Client Secret from that app here.</p>
+
+    <form method="post" action="<?= url('/hrm/zoom-settings') ?>">
+      <?= csrf_field() ?>
+      <div class="mb-3">
+        <div class="form-check form-switch">
+          <input type="checkbox" name="zoom_enabled" value="1" class="form-check-input" id="zoom_enabled" <?= ($settings['zoom_enabled'] ?? '') === 'on' ? 'checked' : '' ?>>
+          <label class="form-check-label" for="zoom_enabled">Enable Zoom meeting integration</label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account ID</label>
+          <input type="text" name="zoom_account_id" class="form-control" value="<?= e($settings['zoom_account_id'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Client ID (API Key)</label>
+          <input type="text" name="zoom_api_key" class="form-control" value="<?= e($settings['zoom_api_key'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Client Secret</label>
+          <input type="password" name="zoom_api_secret" class="form-control" value="<?= e($settings['zoom_api_secret'] ?? '') ?>" autocomplete="new-password">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-info">Save Settings</button>
+      <a href="<?= url('/hrm/zoom-meetings') ?>" class="btn btn-outline-secondary">Back</a>
+    </form>
+  </div>
+</div>
