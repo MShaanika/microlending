@@ -10,18 +10,25 @@ use App\Core\Session;
 use App\Models\Branch;
 use App\Models\HrmDepartment;
 use App\Models\HrmDesignation;
+use App\Models\HrmDocumentType;
 use App\Models\HrmEmployee;
+use App\Models\HrmEmployeeDocument;
 use App\Models\HrmShift;
 use App\Models\User;
 
 class HrmEmployeeController extends Controller
 {
+    private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
+    private const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024; // 5MB
+
     private HrmEmployee $employees;
     private Branch $branches;
     private HrmDepartment $departments;
     private HrmDesignation $designations;
     private HrmShift $shifts;
     private User $users;
+    private HrmDocumentType $documentTypes;
+    private HrmEmployeeDocument $documents;
 
     public function __construct()
     {
@@ -31,6 +38,8 @@ class HrmEmployeeController extends Controller
         $this->designations = new HrmDesignation();
         $this->shifts = new HrmShift();
         $this->users = new User();
+        $this->documentTypes = new HrmDocumentType();
+        $this->documents = new HrmEmployeeDocument();
     }
 
     public function index(): void
@@ -110,6 +119,145 @@ class HrmEmployeeController extends Controller
         $this->view('hrm/employees/show', [
             'title' => $employee['first_name'] . ' ' . $employee['last_name'],
             'employee' => $employee,
+            'documents' => $this->documents->forEmployee($id),
+            'documentTypes' => $this->documentTypes->allTypes(),
+        ]);
+    }
+
+    public function uploadDocument(int $id): void
+    {
+        Auth::authorize('hrm.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/hrm/employees/' . $id);
+            return;
+        }
+
+        $employee = $this->employees->find($id);
+        if (!$employee) {
+            Session::flash('error', 'Employee not found.');
+            $this->redirect('/hrm/employees');
+            return;
+        }
+
+        $file = $_FILES['document'] ?? null;
+        $error = $this->validateDocument($file);
+        if ($error) {
+            Session::flash('error', $error);
+            $this->redirect('/hrm/employees/' . $id);
+            return;
+        }
+
+        $this->storeDocument($id, $employee['employee_no'], $file, !empty($_POST['document_type_id']) ? (int) $_POST['document_type_id'] : null, Auth::user()['id'] ?? null);
+
+        Audit::log('Create', 'HRM', 'Uploaded document for employee #' . $id . ' - ' . $file['name']);
+        Session::flash('success', 'Document uploaded.');
+        $this->redirect('/hrm/employees/' . $id);
+    }
+
+    public function downloadDocument(int $id, int $documentId): void
+    {
+        Auth::authorize('hrm.view');
+        $document = $this->documents->find($documentId);
+
+        if (!$document || (int) $document['employee_id'] !== $id) {
+            Session::flash('error', 'Document not found.');
+            $this->redirect('/hrm/employees/' . $id);
+            return;
+        }
+
+        $fullPath = STORAGE_PATH . '/' . $document['file_path'];
+        if (!is_file($fullPath)) {
+            Session::flash('error', 'File is missing from storage.');
+            $this->redirect('/hrm/employees/' . $id);
+            return;
+        }
+
+        $mime = match ($document['file_type']) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            default => 'application/octet-stream',
+        };
+
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: inline; filename="' . basename($document['document_name']) . '"');
+        header('Content-Length: ' . filesize($fullPath));
+        readfile($fullPath);
+        exit;
+    }
+
+    public function deleteDocument(int $id, int $documentId): void
+    {
+        Auth::authorize('hrm.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/hrm/employees/' . $id);
+            return;
+        }
+
+        $document = $this->documents->find($documentId);
+        if (!$document || (int) $document['employee_id'] !== $id) {
+            Session::flash('error', 'Document not found.');
+            $this->redirect('/hrm/employees/' . $id);
+            return;
+        }
+
+        $fullPath = STORAGE_PATH . '/' . $document['file_path'];
+        if (is_file($fullPath)) {
+            unlink($fullPath);
+        }
+        $this->documents->delete($documentId);
+
+        Audit::log('Delete', 'HRM', 'Deleted document #' . $documentId . ' for employee #' . $id);
+        Session::flash('success', 'Document deleted.');
+        $this->redirect('/hrm/employees/' . $id);
+    }
+
+    private function validateDocument(?array $file): ?string
+    {
+        if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
+            return 'Choose a file to upload.';
+        }
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return 'Upload failed. Please try again.';
+        }
+        if ($file['size'] > self::MAX_DOCUMENT_SIZE) {
+            return 'File is too large (max 5MB).';
+        }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, self::ALLOWED_DOCUMENT_EXTENSIONS, true)) {
+            return 'Only PDF, JPG and PNG files are allowed.';
+        }
+        return null;
+    }
+
+    private function storeDocument(int $employeeId, string $employeeNo, array $file, ?int $documentTypeId, ?int $userId): void
+    {
+        $safeFolder = preg_replace('/[^A-Za-z0-9_-]/', '_', $employeeNo);
+        $targetDir = STORAGE_PATH . '/uploads/employee_documents/' . $safeFolder;
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $storedName = uniqid('doc_', true) . '.' . $ext;
+        $destination = $targetDir . '/' . $storedName;
+
+        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+            return;
+        }
+
+        $this->documents->create([
+            'employee_id' => $employeeId,
+            'document_type_id' => $documentTypeId,
+            'document_name' => $file['name'],
+            'file_path' => 'uploads/employee_documents/' . $safeFolder . '/' . $storedName,
+            'file_type' => $ext,
+            'file_size' => $file['size'],
+            'uploaded_by' => $userId,
         ]);
     }
 

@@ -85,3 +85,57 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
     </div>
   </div>
 </div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Documents</h5>
+
+    <?php if (Auth::can('hrm.manage')): ?>
+    <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/documents') ?>" enctype="multipart/form-data" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <label class="form-label">Document Type</label>
+        <select name="document_type_id" class="form-select">
+          <option value="">Select type</option>
+          <?php foreach ($documentTypes as $t): ?>
+            <option value="<?= (int) $t['id'] ?>"><?= e($t['name']) ?><?= $t['is_required'] ? ' *' : '' ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">File (PDF, JPG, PNG -- max 5MB)</label>
+        <input type="file" name="document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-upload"></i> Upload</button>
+      </div>
+    </form>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr><th>File</th><th>Type</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($documents)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No documents uploaded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($documents as $d): ?>
+            <tr>
+              <td><a href="<?= url('/hrm/employees/' . $e['id'] . '/documents/' . $d['id'] . '/download') ?>" target="_blank"><?= e($d['document_name']) ?></a></td>
+              <td><?= e($d['type_name'] ?: '—') ?></td>
+              <td class="text-muted small"><?= e(date('d M Y', strtotime($d['created_at']))) ?> <?= $d['uploaded_by_name'] ? 'by ' . e($d['uploaded_by_name']) : '' ?></td>
+              <td class="text-end">
+                <?php if (Auth::can('hrm.manage')): ?>
+                <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/documents/' . $d['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

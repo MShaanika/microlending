@@ -61,6 +61,7 @@ use App\Controllers\HrmEventTypeController;
 use App\Controllers\HrmEventController;
 use App\Controllers\StaffLoanTypeController;
 use App\Controllers\StaffLoanController;
+use App\Controllers\HrmDocumentTypeController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -447,6 +448,16 @@ $router->post('/hrm/employees', [HrmEmployeeController::class, 'store']);
 $router->get('/hrm/employees/{id}', [HrmEmployeeController::class, 'show']);
 $router->get('/hrm/employees/{id}/edit', [HrmEmployeeController::class, 'edit']);
 $router->post('/hrm/employees/{id}', [HrmEmployeeController::class, 'update']);
+$router->post('/hrm/employees/{id}/documents', [HrmEmployeeController::class, 'uploadDocument']);
+$router->get('/hrm/employees/{id}/documents/{documentId}/download', [HrmEmployeeController::class, 'downloadDocument']);
+$router->post('/hrm/employees/{id}/documents/{documentId}/delete', [HrmEmployeeController::class, 'deleteDocument']);
+
+$router->get('/hrm/document-types', [HrmDocumentTypeController::class, 'index']);
+$router->get('/hrm/document-types/create', [HrmDocumentTypeController::class, 'create']);
+$router->post('/hrm/document-types', [HrmDocumentTypeController::class, 'store']);
+$router->get('/hrm/document-types/{id}/edit', [HrmDocumentTypeController::class, 'edit']);
+$router->post('/hrm/document-types/{id}', [HrmDocumentTypeController::class, 'update']);
+$router->post('/hrm/document-types/{id}/delete', [HrmDocumentTypeController::class, 'delete']);
 
 // HRM: Attendance
 $router->get('/hrm/attendance', [HrmAttendanceController::class, 'index']);
