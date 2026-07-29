@@ -1,0 +1,61 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Announcements</h4>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/announcements/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Announcement</a>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/hrm/announcements') ?>" class="row g-2 mb-3">
+      <div class="col-md-4">
+        <select name="department_id" class="form-select">
+          <option value="">All departments</option>
+          <?php foreach ($departments as $d): ?>
+            <option value="<?= (int) $d['id'] ?>" <?= (string) $filters['department_id'] === (string) $d['id'] ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Title</th><th>Category</th><th>Departments</th><th>Dates</th><th>Priority</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($announcements)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No announcements found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($announcements as $a):
+            $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Inactive' => 'dark'][$a['status']] ?? 'secondary';
+            $prioBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$a['priority']] ?? 'secondary';
+          ?>
+            <tr>
+              <td><a href="<?= url('/hrm/announcements/' . $a['id']) ?>"><?= e($a['title']) ?></a></td>
+              <td><?= e($a['category_name'] ?: '—') ?></td>
+              <td class="text-muted small"><?= e($a['department_names'] ?: '—') ?></td>
+              <td><?= e(date('d M Y', strtotime($a['start_date']))) ?> &ndash; <?= e(date('d M Y', strtotime($a['end_date']))) ?></td>
+              <td><span class="badge bg-<?= $prioBadge ?>"><?= e($a['priority']) ?></span></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($a['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

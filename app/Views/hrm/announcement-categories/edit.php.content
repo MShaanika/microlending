@@ -1,0 +1,21 @@
+<?php $c = $category; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Edit Announcement Category</h4>
+
+    <form method="post" action="<?= url('/hrm/announcement-categories/' . $c['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Name <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= e($c['name']) ?>">
+        <?php if (isset($errors['name'])): ?><div class="invalid-feedback d-block"><?= e($errors['name']) ?></div><?php endif; ?>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+      <a href="<?= url('/hrm/announcement-categories') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

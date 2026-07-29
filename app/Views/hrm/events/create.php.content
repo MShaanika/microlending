@@ -1,0 +1,78 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">New Event</h4>
+
+    <form method="post" action="<?= url('/hrm/events') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Title <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control <?= isset($errors['title']) ? 'is-invalid' : '' ?>" value="<?= old('title', $old) ?>">
+        <?php if (isset($errors['title'])): ?><div class="invalid-feedback d-block"><?= e($errors['title']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Event Type</label>
+          <select name="event_type_id" class="form-select">
+            <option value="">Select type</option>
+            <?php foreach ($eventTypes as $t): ?>
+              <option value="<?= (int) $t['id'] ?>" <?= (($old['event_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Location <span class="text-danger">*</span></label>
+          <input type="text" name="location" class="form-control <?= isset($errors['location']) ? 'is-invalid' : '' ?>" value="<?= old('location', $old) ?>">
+          <?php if (isset($errors['location'])): ?><div class="invalid-feedback d-block"><?= e($errors['location']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old) ?>">
+          <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">End Date <span class="text-danger">*</span></label>
+          <input type="date" name="end_date" class="form-control <?= isset($errors['end_date']) ? 'is-invalid' : '' ?>" value="<?= old('end_date', $old) ?>">
+          <?php if (isset($errors['end_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['end_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Start Time</label>
+          <input type="time" name="start_time" class="form-control" value="<?= old('start_time', $old) ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">End Time</label>
+          <input type="time" name="end_time" class="form-control" value="<?= old('end_time', $old) ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Color</label>
+          <input type="color" name="color" class="form-control form-control-color" value="<?= old('color', $old) ?: '#25a9e0' ?>">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Departments <span class="text-danger">*</span></label>
+        <select name="department_ids[]" class="form-select <?= isset($errors['department_ids']) ? 'is-invalid' : '' ?>" multiple size="6">
+          <?php $selectedDepts = $old['department_ids'] ?? []; ?>
+          <?php foreach ($departments as $d): ?>
+            <option value="<?= (int) $d['id'] ?>" <?= in_array((string) $d['id'], array_map('strval', $selectedDepts), true) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="form-text">Hold Ctrl/Cmd to select multiple departments.</div>
+        <?php if (isset($errors['department_ids'])): ?><div class="invalid-feedback d-block"><?= e($errors['department_ids']) ?></div><?php endif; ?>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea name="description" rows="4" class="form-control"><?= old('description', $old) ?></textarea>
+      </div>
+
+      <div class="alert alert-info">New events start as <strong>Pending</strong> and need to be approved before they're confirmed.</div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Event</button>
+      <a href="<?= url('/hrm/events') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

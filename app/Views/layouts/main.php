@@ -346,6 +346,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Complaint Types', 'url' => url('/hrm/complaint-types'), 'perm' => 'hrm.manage'],
               ['label' => 'Warning Types', 'url' => url('/hrm/warning-types'), 'perm' => 'hrm.manage'],
               ['label' => 'Termination Types', 'url' => url('/hrm/termination-types'), 'perm' => 'hrm.manage'],
+              ['label' => 'Announcements', 'url' => url('/hrm/announcements'), 'perm' => 'hrm.view'],
+              ['label' => 'Events', 'url' => url('/hrm/events'), 'perm' => 'hrm.view'],
+              ['label' => 'Announcement Categories', 'url' => url('/hrm/announcement-categories'), 'perm' => 'hrm.manage'],
+              ['label' => 'Event Types', 'url' => url('/hrm/event-types'), 'perm' => 'hrm.manage'],
             ]],
             'Marketing' => ['icon' => 'mdi-chart-line', 'items' => [
               ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],

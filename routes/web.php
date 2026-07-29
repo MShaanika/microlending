@@ -55,6 +55,10 @@ use App\Controllers\HrmTerminationTypeController;
 use App\Controllers\HrmTerminationController;
 use App\Controllers\HrmPromotionController;
 use App\Controllers\HrmTransferController;
+use App\Controllers\HrmAnnouncementCategoryController;
+use App\Controllers\HrmAnnouncementController;
+use App\Controllers\HrmEventTypeController;
+use App\Controllers\HrmEventController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\OperationalReportController;
@@ -598,6 +602,38 @@ $router->get('/hrm/transfers/{id}', [HrmTransferController::class, 'show']);
 $router->post('/hrm/transfers/{id}/approve', [HrmTransferController::class, 'approve']);
 $router->post('/hrm/transfers/{id}/reject', [HrmTransferController::class, 'reject']);
 $router->post('/hrm/transfers/{id}/delete', [HrmTransferController::class, 'delete']);
+
+// HRM: Communications -- lookup types
+$router->get('/hrm/announcement-categories', [HrmAnnouncementCategoryController::class, 'index']);
+$router->get('/hrm/announcement-categories/create', [HrmAnnouncementCategoryController::class, 'create']);
+$router->post('/hrm/announcement-categories', [HrmAnnouncementCategoryController::class, 'store']);
+$router->get('/hrm/announcement-categories/{id}/edit', [HrmAnnouncementCategoryController::class, 'edit']);
+$router->post('/hrm/announcement-categories/{id}', [HrmAnnouncementCategoryController::class, 'update']);
+$router->post('/hrm/announcement-categories/{id}/delete', [HrmAnnouncementCategoryController::class, 'delete']);
+
+$router->get('/hrm/event-types', [HrmEventTypeController::class, 'index']);
+$router->get('/hrm/event-types/create', [HrmEventTypeController::class, 'create']);
+$router->post('/hrm/event-types', [HrmEventTypeController::class, 'store']);
+$router->get('/hrm/event-types/{id}/edit', [HrmEventTypeController::class, 'edit']);
+$router->post('/hrm/event-types/{id}', [HrmEventTypeController::class, 'update']);
+$router->post('/hrm/event-types/{id}/delete', [HrmEventTypeController::class, 'delete']);
+
+// HRM: Communications -- Announcements
+$router->get('/hrm/announcements', [HrmAnnouncementController::class, 'index']);
+$router->get('/hrm/announcements/create', [HrmAnnouncementController::class, 'create']);
+$router->post('/hrm/announcements', [HrmAnnouncementController::class, 'store']);
+$router->get('/hrm/announcements/{id}', [HrmAnnouncementController::class, 'show']);
+$router->post('/hrm/announcements/{id}/status', [HrmAnnouncementController::class, 'updateStatus']);
+$router->post('/hrm/announcements/{id}/delete', [HrmAnnouncementController::class, 'delete']);
+
+// HRM: Communications -- Events
+$router->get('/hrm/events', [HrmEventController::class, 'index']);
+$router->get('/hrm/events/create', [HrmEventController::class, 'create']);
+$router->post('/hrm/events', [HrmEventController::class, 'store']);
+$router->get('/hrm/events/{id}', [HrmEventController::class, 'show']);
+$router->post('/hrm/events/{id}/approve', [HrmEventController::class, 'approve']);
+$router->post('/hrm/events/{id}/reject', [HrmEventController::class, 'reject']);
+$router->post('/hrm/events/{id}/delete', [HrmEventController::class, 'delete']);
 
 // Collections worklist
 $router->get('/collections/worklist', [CollectionsController::class, 'index']);

@@ -1,0 +1,57 @@
+<?php
+use App\Core\Auth;
+$a = $announcement;
+$statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Inactive' => 'dark'][$a['status']] ?? 'secondary';
+$prioBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$a['priority']] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0"><?= e($a['title']) ?></h4>
+    <span class="text-muted"><?= e($a['category_name'] ?: 'Uncategorized') ?></span>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-<?= $prioBadge ?> fs-6"><?= e($a['priority']) ?></span>
+    <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($a['status']) ?></span>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:25%">Dates</th><td><?= e(date('d M Y', strtotime($a['start_date']))) ?> &ndash; <?= e(date('d M Y', strtotime($a['end_date']))) ?></td></tr>
+      <tr><th class="text-muted">Departments</th><td><?= !empty($departmentNames) ? e(implode(', ', $departmentNames)) : '—' ?></td></tr>
+      <tr><th class="text-muted">Description</th><td><?= nl2br(e($a['description'] ?: '—')) ?></td></tr>
+      <?php if ($a['status'] !== 'Draft'): ?>
+        <tr><th class="text-muted">Last Updated By</th><td><?= e($a['approved_by_name'] ?: '—') ?></td></tr>
+      <?php endif; ?>
+    </table>
+  </div>
+</div>
+
+<?php if (Auth::can('hrm.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Update Status</h5>
+    <form method="post" action="<?= url('/hrm/announcements/' . $a['id'] . '/status') ?>" class="row g-2 align-items-end">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <select name="status" class="form-select">
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= $s ?>" <?= $a['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+<form method="post" action="<?= url('/hrm/announcements/' . $a['id'] . '/delete') ?>" onsubmit="return confirm('Delete this announcement?');" class="d-inline">
+  <?= csrf_field() ?>
+  <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
+</form>
+<?php endif; ?>
+<a href="<?= url('/hrm/announcements') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
