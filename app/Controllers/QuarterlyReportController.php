@@ -8,12 +8,15 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\AfsReportLine;
+use App\Models\LoanDisbursementReportLine;
 use App\Models\MlrReportLine;
 use App\Models\RegulatoryReport;
 use App\Models\RegulatoryReportLine;
 use App\Models\RegulatoryReportType;
 use App\Services\AfsReportExcelExporter;
 use App\Services\AfsReportGenerationService;
+use App\Services\LoanDisbursementReportExcelExporter;
+use App\Services\LoanDisbursementReportGenerationService;
 use App\Services\MlrReportExcelExporter;
 use App\Services\MlrReportGenerationService;
 use App\Services\RegulatoryReportExcelExporter;
@@ -24,12 +27,14 @@ class QuarterlyReportController extends Controller
 {
     private const MLR_CODE = 'MLR_SUMMARISED_QTR';
     private const AFS_CODE = 'AFS_ANNUAL';
+    private const LOAN_DISBURSEMENT_CODE = 'LOAN_DISBURSEMENT_MTH';
 
     private RegulatoryReport $reports;
     private RegulatoryReportLine $reportLines;
     private RegulatoryReportType $reportTypes;
     private MlrReportLine $mlrLines;
     private AfsReportLine $afsLines;
+    private LoanDisbursementReportLine $loanDisbursementLines;
 
     public function __construct()
     {
@@ -38,6 +43,7 @@ class QuarterlyReportController extends Controller
         $this->reportTypes = new RegulatoryReportType();
         $this->mlrLines = new MlrReportLine();
         $this->afsLines = new AfsReportLine();
+        $this->loanDisbursementLines = new LoanDisbursementReportLine();
     }
 
     public function index(): void
@@ -80,11 +86,13 @@ class QuarterlyReportController extends Controller
 
         $reportTypeId = (int) ($_POST['report_type_id'] ?? 0);
         $quarter = (int) ($_POST['quarter'] ?? 0);
+        $month = (int) ($_POST['month'] ?? 0);
         $year = (int) ($_POST['year'] ?? 0);
         $errors = [];
 
         $type = $reportTypeId ? $this->reportTypes->find($reportTypeId) : null;
         $isAfs = $type && $type['report_code'] === self::AFS_CODE;
+        $isMonthly = $type && $type['report_code'] === self::LOAN_DISBURSEMENT_CODE;
 
         if (!$type) {
             $errors['report_type_id'] = 'Select a report type.';
@@ -92,8 +100,12 @@ class QuarterlyReportController extends Controller
         // AFS_ANNUAL isn't quarter-scoped -- the "Year" field doubles as the
         // financial year's start year (2025 = FY Apr 2025 - Mar 2026), so
         // the Quarter field is hidden/ignored for this type (see create view JS).
-        if (!$isAfs && ($quarter < 1 || $quarter > 4)) {
+        // LOAN_DISBURSEMENT_MTH is month-scoped instead of quarter-scoped.
+        if (!$isAfs && !$isMonthly && ($quarter < 1 || $quarter > 4)) {
             $errors['quarter'] = 'Select a valid quarter.';
+        }
+        if ($isMonthly && ($month < 1 || $month > 12)) {
+            $errors['month'] = 'Select a valid month.';
         }
         if ($year < 2000) {
             $errors['year'] = 'Select a valid year.';
@@ -114,6 +126,9 @@ class QuarterlyReportController extends Controller
         try {
             if ($isAfs) {
                 $reportId = AfsReportGenerationService::generate($year, $userId);
+            } elseif ($isMonthly) {
+                $period = ReportPeriod::range('month', $year, $month, 0);
+                $reportId = LoanDisbursementReportGenerationService::generate($period['start'], $period['end'], $userId);
             } else {
                 $period = ReportPeriod::range('quarter', $year, 0, $quarter);
                 $reportId = $type['report_code'] === self::MLR_CODE
@@ -161,11 +176,29 @@ class QuarterlyReportController extends Controller
             return;
         }
 
+        if ($report['report_code'] === self::LOAN_DISBURSEMENT_CODE) {
+            $this->view('compliance/quarterly/show_loan_disbursement', [
+                'title' => $report['report_name'],
+                'report' => $report,
+                'sections' => $this->groupLoanDisbursementSections($this->loanDisbursementLines->forReport((int) $id)),
+            ]);
+            return;
+        }
+
         $this->view('compliance/quarterly/show', [
             'title' => $report['report_name'],
             'report' => $report,
             'lines' => $this->reportLines->forReport((int) $id),
         ]);
+    }
+
+    private function groupLoanDisbursementSections(array $lines): array
+    {
+        $sections = ['PAY_10' => [], 'PAY_15' => [], 'PAY_20' => [], 'PAY_25' => [], 'PAY_EOM' => []];
+        foreach ($lines as $line) {
+            $sections[$line['section']][] = $line;
+        }
+        return $sections;
     }
 
     private function groupAfsSections(array $lines): array
@@ -245,6 +278,8 @@ class QuarterlyReportController extends Controller
             $exporter = new MlrReportExcelExporter($report, $this->groupMlrSections($this->mlrLines->forReport($id)));
         } elseif ($report['report_code'] === self::AFS_CODE) {
             $exporter = new AfsReportExcelExporter($report, $this->groupAfsSections($this->afsLines->forReport($id)));
+        } elseif ($report['report_code'] === self::LOAN_DISBURSEMENT_CODE) {
+            $exporter = new LoanDisbursementReportExcelExporter($report, $this->groupLoanDisbursementSections($this->loanDisbursementLines->forReport($id)));
         } else {
             $exporter = new RegulatoryReportExcelExporter($report, $this->reportLines->forReport($id));
         }

@@ -1832,6 +1832,38 @@ CREATE TABLE afs_report_lines (
     FOREIGN KEY (regulatory_report_id) REFERENCES regulatory_reports(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Loan Disbursement and Bad Debt Register (LOAN_DISBURSEMENT_MTH): one row
+-- per loan disbursed in the month, grouped by the borrower's payment_day
+-- into the client's own pay-date buckets (10th/15th/20th/25th/end of
+-- month) -- doesn't fit regulatory_report_lines' flat shape (loan-level
+-- detail, not pre-aggregated), so subtotals/totals are summed in PHP from
+-- these raw rows rather than stored, matching mlr_report_lines' convention
+-- of keeping the underlying figures inspectable.
+CREATE TABLE loan_disbursement_report_lines (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    regulatory_report_id BIGINT NOT NULL,
+    section VARCHAR(20) NOT NULL,
+    loan_id BIGINT NOT NULL,
+    borrower_id BIGINT NOT NULL,
+    disbursement_date DATE NOT NULL,
+    client_no VARCHAR(50),
+    first_name VARCHAR(100),
+    surname VARCHAR(100),
+    id_number VARCHAR(50),
+    contact_number VARCHAR(50),
+    gross_salary DECIMAL(18,2) DEFAULT 0,
+    gender VARCHAR(20) NULL,
+    borrowed_amount DECIMAL(18,2) DEFAULT 0,
+    interest_amount DECIMAL(18,2) DEFAULT 0,
+    total_repayment DECIMAL(18,2) DEFAULT 0,
+    paid_amount DECIMAL(18,2) DEFAULT 0,
+    bad_debt_written_off DECIMAL(18,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (regulatory_report_id) REFERENCES regulatory_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE quarterly_report_snapshots (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT NULL,
@@ -2637,7 +2669,8 @@ INSERT INTO regulatory_report_types (report_code, report_name, frequency, descri
 ('DUTY_STAMP_QTR', 'Duty Stamp Quarterly Report', 'Quarterly', 'Quarterly duty stamp report.', 1),
 ('CURRENT_LOAN_QTR', 'Current Loan Quarterly Report', 'Quarterly', 'Quarterly current loan portfolio report.', 1),
 ('MLR_SUMMARISED_QTR', 'MLR Summarised Management Report', 'Quarterly', 'Consolidated NAMFISA quarterly filing: disbursements, gender/size breakdown, loan book balance, write-offs, expenses, interest income and levies, all by month.', 1),
-('AFS_ANNUAL', 'Annual Financial Statement Analysis', 'Annually', 'Annual financial statement summary for the company financial year (April-March): quarterly income/expense summary, bank accounts, and fixed assets register.', 1);
+('AFS_ANNUAL', 'Annual Financial Statement Analysis', 'Annually', 'Annual financial statement summary for the company financial year (April-March): quarterly income/expense summary, bank accounts, and fixed assets register.', 1),
+('LOAN_DISBURSEMENT_MTH', 'Loan Disbursement and Bad Debt Register', 'Monthly', 'Monthly register of loans disbursed, segmented by borrower pay date, with gender split, repayment status and bad debt write-offs.', 1);
 
 INSERT INTO loan_breakdown_size_bands (band_name, min_amount, max_amount, display_order, is_active) VALUES
 ('0 - 1,000', 0, 1000, 1, 1),

@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Services;
+
+use App\Core\Database;
+use App\Models\LoanDisbursementReportLine;
+use App\Models\RegulatoryReport;
+
+/**
+ * Builds the "Loan Disbursement and Bad Debt Register" -- a monthly,
+ * loan-level register matching the layout the client has historically kept
+ * by hand in Excel: every loan disbursed that month, grouped into the
+ * borrower's pay-date bucket (10th/15th/20th/25th/end of month), with a
+ * gender-split borrowed amount, flat 30% interest (matching the same
+ * convention MlrReportGenerationService uses), total repayment, amount
+ * paid to date, and any bad debt written off against that loan.
+ *
+ * Unlike the historical spreadsheet, this is generated fresh from live
+ * data each time rather than reproducing specific past rows -- "Paid" and
+ * "Bad Debt Written Off" reflect the loan's current state (as of
+ * generation time), not a point-in-time snapshot as of the report month.
+ */
+class LoanDisbursementReportGenerationService
+{
+    private const SECTIONS = [
+        10 => 'PAY_10',
+        15 => 'PAY_15',
+        20 => 'PAY_20',
+        25 => 'PAY_25',
+    ];
+    private const EOM_SECTION = 'PAY_EOM';
+
+    public static function generate(string $periodStart, string $periodEnd, int $userId): int
+    {
+        $lines = self::loanLines($periodStart, $periodEnd);
+
+        $totals = [
+            'total_loans' => count($lines),
+            'total_principal' => round((float) array_sum(array_column($lines, 'borrowed_amount')), 2),
+            'total_interest' => round((float) array_sum(array_column($lines, 'interest_amount')), 2),
+            'total_bad_debts' => round((float) array_sum(array_column($lines, 'bad_debt_written_off')), 2),
+        ];
+
+        $db = Database::connection();
+        $reports = new RegulatoryReport();
+        $reportLines = new LoanDisbursementReportLine();
+
+        $db->beginTransaction();
+        try {
+            $reportId = $reports->create(array_merge($totals, [
+                'report_type_id' => self::reportTypeId(),
+                'report_no' => generate_reference('REG'),
+                'report_period' => $periodStart . ' to ' . $periodEnd,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'status' => 'Generated',
+                'generated_by' => $userId,
+                'generated_at' => date('Y-m-d H:i:s'),
+            ]));
+
+            $reportLines->insertLines($reportId, $lines);
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+
+        return $reportId;
+    }
+
+    private static function reportTypeId(): int
+    {
+        $db = Database::connection();
+        $id = $db->query("SELECT id FROM regulatory_report_types WHERE report_code = 'LOAN_DISBURSEMENT_MTH' LIMIT 1")->fetchColumn();
+        if (!$id) {
+            throw new \RuntimeException('LOAN_DISBURSEMENT_MTH report type is not seeded.');
+        }
+        return (int) $id;
+    }
+
+    /**
+     * One row per loan disbursed in the period. amount = actual tranche
+     * amount from loan_disbursements (not loans.principal_amount), so a
+     * multi-tranche loan (e.g. a top-up) isn't double counted across rows
+     * -- same reasoning as MlrReportGenerationService::disbursedByMonth().
+     * Interest is a flat 30% of that capital, matching the client's
+     * confirmed formula elsewhere in this system.
+     */
+    private static function loanLines(string $start, string $end): array
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT ld.loan_id, ld.borrower_id, ld.disbursement_date, ld.amount AS borrowed_amount,
+                    l.payment_day,
+                    b.borrower_no AS client_no, b.first_name, b.last_name AS surname,
+                    b.id_number, b.phone AS contact_number, b.gender,
+                    (SELECT COALESCE(SUM(ls.total_paid), 0) FROM loan_schedules ls WHERE ls.loan_id = ld.loan_id) AS paid_amount,
+                    (SELECT COALESCE(SUM(lw.net_write_off_amount), 0) FROM loan_write_offs lw WHERE lw.loan_id = ld.loan_id AND lw.status = 'Posted') AS bad_debt_written_off,
+                    (SELECT be.gross_salary FROM borrower_employment be WHERE be.borrower_id = ld.borrower_id AND be.is_current = 1 ORDER BY be.id DESC LIMIT 1) AS gross_salary
+             FROM loan_disbursements ld
+             JOIN loans l ON l.id = ld.loan_id
+             JOIN borrowers b ON b.id = ld.borrower_id
+             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?
+             ORDER BY ld.disbursement_date, ld.id"
+        );
+        $stmt->execute([$start, $end]);
+
+        $lines = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $borrowed = round((float) $row['borrowed_amount'], 2);
+            $interest = round($borrowed * 0.30, 2);
+
+            $lines[] = [
+                'section' => self::SECTIONS[(int) $row['payment_day']] ?? self::EOM_SECTION,
+                'loan_id' => (int) $row['loan_id'],
+                'borrower_id' => (int) $row['borrower_id'],
+                'disbursement_date' => $row['disbursement_date'],
+                'client_no' => $row['client_no'],
+                'first_name' => $row['first_name'],
+                'surname' => $row['surname'],
+                'id_number' => $row['id_number'],
+                'contact_number' => $row['contact_number'],
+                'gross_salary' => round((float) ($row['gross_salary'] ?? 0), 2),
+                'gender' => $row['gender'],
+                'borrowed_amount' => $borrowed,
+                'interest_amount' => $interest,
+                'total_repayment' => round($borrowed + $interest, 2),
+                'paid_amount' => round((float) $row['paid_amount'], 2),
+                'bad_debt_written_off' => round((float) $row['bad_debt_written_off'], 2),
+            ];
+        }
+
+        return $lines;
+    }
+}

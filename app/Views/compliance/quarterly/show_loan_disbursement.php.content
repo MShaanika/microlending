@@ -1,0 +1,175 @@
+<?= flash_messages() ?>
+
+<?php
+  use App\Models\Company;
+  $badge = match ($report['status']) {
+    'Approved' => 'success',
+    'Submitted' => 'info',
+    'Rejected' => 'danger',
+    'Generated' => 'primary',
+    default => 'secondary',
+  };
+  $company = (new Company())->primary() ?: [];
+
+  $sectionLabels = [
+    'PAY_10' => '10th Pay Date Clients',
+    'PAY_15' => '15th Pay Date Clients',
+    'PAY_20' => '20th Pay Date Clients',
+    'PAY_25' => '25th Pay Date Clients',
+    'PAY_EOM' => 'End of the Month Pay Date Clients',
+  ];
+
+  $subtotal = function (array $rows): array {
+    $t = ['male' => 0.0, 'female' => 0.0, 'borrowed' => 0.0, 'interest' => 0.0, 'repayment' => 0.0, 'paid' => 0.0, 'bad_debt' => 0.0];
+    foreach ($rows as $r) {
+      if ($r['gender'] === 'Male') {
+        $t['male'] += (float) $r['borrowed_amount'];
+      } elseif ($r['gender'] === 'Female') {
+        $t['female'] += (float) $r['borrowed_amount'];
+      }
+      $t['borrowed'] += (float) $r['borrowed_amount'];
+      $t['interest'] += (float) $r['interest_amount'];
+      $t['repayment'] += (float) $r['total_repayment'];
+      $t['paid'] += (float) $r['paid_amount'];
+      $t['bad_debt'] += (float) $r['bad_debt_written_off'];
+    }
+    return $t;
+  };
+
+  $grand = ['male' => 0.0, 'female' => 0.0, 'borrowed' => 0.0, 'interest' => 0.0, 'repayment' => 0.0, 'paid' => 0.0, 'bad_debt' => 0.0, 'count' => 0];
+  foreach ($sections as $rows) {
+    $s = $subtotal($rows);
+    foreach ($s as $k => $v) {
+      $grand[$k] += $v;
+    }
+    $grand['count'] += count($rows);
+  }
+?>
+
+<div class="card mb-3 no-print">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1"><?= e($report['report_name']) ?></h4>
+        <p class="text-muted mb-0"><?= e($report['report_no']) ?> &middot; <?= e($report['period_start']) ?> &rarr; <?= e($report['period_end']) ?></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $badge ?>"><?= e($report['status']) ?></span>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+      <a href="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/download') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-excel"></i> Download Excel</a>
+
+      <?php if ($report['status'] === 'Generated'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/submit') ?>" onsubmit="return confirmSubmit(this, 'Mark this report as Submitted?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-info btn-sm"><i class="mdi mdi-send"></i> Mark as Submitted</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($report['status'] === 'Submitted'): ?>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/approve') ?>" onsubmit="return confirmSubmit(this, 'Approve this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
+        </form>
+        <form method="post" action="<?= url('/compliance/quarterly-reports/' . $report['id'] . '/reject') ?>" onsubmit="return confirmSubmit(this, 'Reject this report?');">
+          <?= csrf_field() ?>
+          <button class="btn btn-outline-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <p class="mb-1"><strong>Business Name:</strong> <?= e($company['company_name'] ?? '') ?></p>
+    <p class="mb-1"><strong>Loan Disbursement and Bad Debt Register as per Segmented</strong></p>
+    <p class="mb-1"><strong>Period:</strong> <?= e(date('F Y', strtotime($report['period_start']))) ?></p>
+    <p class="text-muted small mb-0">"Paid" and "Bad Debt Written Off" reflect each loan's current live state as of the time this report was generated, not a historical snapshot as of the report month.</p>
+  </div>
+</div>
+
+<?php foreach ($sectionLabels as $code => $label): $rows = $sections[$code]; $t = $subtotal($rows); ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title"><?= e($label) ?></h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th><th>Client No.</th><th>First Name</th><th>Surname</th><th>Identity No.</th><th>Contact No.</th>
+            <th class="text-end">Gross Salary</th><th class="text-end">Male</th><th class="text-end">Female</th>
+            <th class="text-end">Borrowed (N$)</th><th class="text-end">Interest @ 30% (N$)</th><th class="text-end">Total Repayment</th>
+            <th class="text-end">Paid</th><th class="text-end">Bad Debt Written Off</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="14" class="text-center text-muted">No loans in this bucket.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <tr>
+              <td><?= e(date('Y-m-d', strtotime($r['disbursement_date']))) ?></td>
+              <td><?= e($r['client_no']) ?></td>
+              <td><?= e($r['first_name']) ?></td>
+              <td><?= e($r['surname']) ?></td>
+              <td><?= e($r['id_number']) ?></td>
+              <td><?= e($r['contact_number']) ?></td>
+              <td class="text-end"><?= format_money($r['gross_salary']) ?></td>
+              <td class="text-end"><?= $r['gender'] === 'Male' ? format_money($r['borrowed_amount']) : '' ?></td>
+              <td class="text-end"><?= $r['gender'] === 'Female' ? format_money($r['borrowed_amount']) : '' ?></td>
+              <td class="text-end"><?= format_money($r['borrowed_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['interest_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['total_repayment']) ?></td>
+              <td class="text-end"><?= format_money($r['paid_amount']) ?></td>
+              <td class="text-end"><?= format_money($r['bad_debt_written_off']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold">
+            <td colspan="6">Subtotal (<?= count($rows) ?>)</td>
+            <td class="text-end"><?= format_money($t['male']) ?></td>
+            <td class="text-end"><?= format_money($t['female']) ?></td>
+            <td class="text-end"><?= format_money($t['borrowed']) ?></td>
+            <td class="text-end"><?= format_money($t['interest']) ?></td>
+            <td class="text-end"><?= format_money($t['repayment']) ?></td>
+            <td class="text-end"><?= format_money($t['paid']) ?></td>
+            <td class="text-end"><?= format_money($t['bad_debt']) ?></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+<?php endforeach; ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Grand Total</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm no-datatable">
+        <thead class="table-light">
+          <tr>
+            <th>No. of Loans</th><th class="text-end">Male</th><th class="text-end">Female</th>
+            <th class="text-end">Borrowed (N$)</th><th class="text-end">Interest @ 30% (N$)</th><th class="text-end">Total Repayment</th>
+            <th class="text-end">Paid</th><th class="text-end">Bad Debt Written Off</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="fw-bold">
+            <td><?= (int) $grand['count'] ?></td>
+            <td class="text-end"><?= format_money($grand['male']) ?></td>
+            <td class="text-end"><?= format_money($grand['female']) ?></td>
+            <td class="text-end"><?= format_money($grand['borrowed']) ?></td>
+            <td class="text-end"><?= format_money($grand['interest']) ?></td>
+            <td class="text-end"><?= format_money($grand['repayment']) ?></td>
+            <td class="text-end"><?= format_money($grand['paid']) ?></td>
+            <td class="text-end"><?= format_money($grand['bad_debt']) ?></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

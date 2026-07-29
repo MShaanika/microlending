@@ -29,6 +29,16 @@
           <?php if (isset($errors['quarter'])): ?><div class="invalid-feedback d-block"><?= e($errors['quarter']) ?></div><?php endif; ?>
         </div>
 
+        <div class="col-md-3 mb-3 d-none" id="mlsMonthField">
+          <label class="form-label">Month <span class="text-danger">*</span></label>
+          <select name="month" class="form-select <?= isset($errors['month']) ? 'is-invalid' : '' ?>">
+            <?php for ($m = 1; $m <= 12; $m++): ?>
+              <option value="<?= $m ?>" <?= (((int) ($old['month'] ?? date('n'))) === $m) ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+            <?php endfor; ?>
+          </select>
+          <?php if (isset($errors['month'])): ?><div class="invalid-feedback d-block"><?= e($errors['month']) ?></div><?php endif; ?>
+        </div>
+
         <div class="col-md-3 mb-3">
           <label class="form-label" id="mlsYearLabel">Year <span class="text-danger">*</span></label>
           <select name="year" class="form-select <?= isset($errors['year']) ? 'is-invalid' : '' ?>">
@@ -51,14 +61,18 @@
 (function () {
   var typeSelect = document.getElementById('mlsReportTypeSelect');
   var quarterField = document.getElementById('mlsQuarterField');
+  var monthField = document.getElementById('mlsMonthField');
   var yearLabel = document.getElementById('mlsYearLabel');
   var yearHelp = document.getElementById('mlsYearHelp');
   if (!typeSelect) { return; }
 
   function toggle() {
     var opt = typeSelect.options[typeSelect.selectedIndex];
-    var isAfs = opt && opt.getAttribute('data-code') === 'AFS_ANNUAL';
-    quarterField.style.display = isAfs ? 'none' : '';
+    var code = opt ? opt.getAttribute('data-code') : '';
+    var isAfs = code === 'AFS_ANNUAL';
+    var isMonthly = code === 'LOAN_DISBURSEMENT_MTH';
+    quarterField.style.display = (isAfs || isMonthly) ? 'none' : '';
+    monthField.classList.toggle('d-none', !isMonthly);
     yearLabel.firstChild.textContent = isAfs ? 'Financial Year Start ' : 'Year ';
     yearHelp.classList.toggle('d-none', !isAfs);
   }
