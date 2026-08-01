@@ -176,22 +176,18 @@
 
 <?php
   $levyRate = (new \App\Models\StatutoryCharge())->namfisaLevyRateAsOf($report['period_end']);
-  $totalPayableInclLevy = $grand['repayment'] + (float) $report['total_namfisa_levy'];
 ?>
 <div class="card mb-3">
   <div class="card-body">
+    <p class="text-muted small mb-3">"Total Repayment" above already includes each loan's own NAMFISA levy and duty stamp (the same components as the loan's total repayable amount). The figure below is the levy remittance owed to NAMFISA as a regulator, not an additional amount borrowers repay.</p>
     <div class="row">
-      <div class="col-md-4 mb-2">
+      <div class="col-md-6 mb-2">
         <p class="mb-1 text-muted">Expenditure for the Month</p>
         <h5 class="mb-0"><?= format_money($report['total_expenditure'] ?? 0) ?></h5>
       </div>
-      <div class="col-md-4 mb-2">
+      <div class="col-md-6 mb-2">
         <p class="mb-1 text-muted">Levy Due to NAMFISA (<?= e(number_format($levyRate, 2)) ?>% of Disbursed Loans)</p>
         <h5 class="mb-0"><?= format_money($report['total_namfisa_levy'] ?? 0) ?></h5>
-      </div>
-      <div class="col-md-4 mb-2">
-        <p class="mb-1 text-muted">Total Payable (incl. Levy)</p>
-        <h5 class="mb-0 fw-bold"><?= format_money($totalPayableInclLevy) ?></h5>
       </div>
     </div>
   </div>

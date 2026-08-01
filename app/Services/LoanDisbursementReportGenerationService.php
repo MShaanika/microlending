@@ -118,13 +118,32 @@ class LoanDisbursementReportGenerationService
      * -- same reasoning as MlrReportGenerationService::disbursedByMonth().
      * Interest is a flat 30% of that capital, matching the client's
      * confirmed formula elsewhere in this system.
+     *
+     * Total Repayment is the loan's full repayable amount -- principal +
+     * interest + that loan's own NAMFISA levy + duty stamp (the same
+     * components that make up loans.total_payable, confirmed against real
+     * data: e.g. principal 5000 + interest 1011.30 + levy 51.50 + stamp
+     * 5.00 = total_payable 6067.80) -- not just principal + interest.
+     *
+     * The levy+stamp portion is derived as
+     * total_payable - principal_amount - interest_amount rather than
+     * summed from namfisa_levy_transactions/duty_stamp_transactions --
+     * those ledger tables have gaps for some loans (no row ever recorded,
+     * e.g. seeded/imported loans), while total_payable is always
+     * populated and is the same figure loans/statement.php already
+     * treats as authoritative ("...included in your total repayable
+     * amount"). Levy/stamp apply once per loan (not per tranche), so
+     * each disbursement row gets its proportional share by
+     * tranche-amount / loan principal, which sums back to the loan's
+     * real total across all its rows for a multi-tranche loan.
      */
     private static function loanLines(string $start, string $end): array
     {
         $db = Database::connection();
         $stmt = $db->prepare(
             "SELECT ld.loan_id, ld.borrower_id, ld.disbursement_date, ld.amount AS borrowed_amount,
-                    l.payment_day,
+                    l.payment_day, l.principal_amount AS loan_principal,
+                    l.interest_amount AS loan_interest_amount, l.total_payable AS loan_total_payable,
                     b.borrower_no AS client_no, b.first_name, b.last_name AS surname,
                     b.id_number, b.phone AS contact_number, b.gender,
                     (SELECT COALESCE(SUM(ls.total_paid), 0) FROM loan_schedules ls WHERE ls.loan_id = ld.loan_id) AS paid_amount,
@@ -143,6 +162,11 @@ class LoanDisbursementReportGenerationService
             $borrowed = round((float) $row['borrowed_amount'], 2);
             $interest = round($borrowed * 0.30, 2);
 
+            $loanPrincipal = (float) $row['loan_principal'];
+            $shareRatio = $loanPrincipal > 0 ? $borrowed / $loanPrincipal : 1.0;
+            $loanLevyPlusStamp = (float) $row['loan_total_payable'] - $loanPrincipal - (float) $row['loan_interest_amount'];
+            $levyPlusStampShare = round($loanLevyPlusStamp * $shareRatio, 2);
+
             $lines[] = [
                 'section' => self::SECTIONS[(int) $row['payment_day']] ?? self::EOM_SECTION,
                 'loan_id' => (int) $row['loan_id'],
@@ -157,7 +181,7 @@ class LoanDisbursementReportGenerationService
                 'gender' => $row['gender'],
                 'borrowed_amount' => $borrowed,
                 'interest_amount' => $interest,
-                'total_repayment' => round($borrowed + $interest, 2),
+                'total_repayment' => round($borrowed + $interest + $levyPlusStampShare, 2),
                 'paid_amount' => round((float) $row['paid_amount'], 2),
                 'bad_debt_written_off' => round((float) $row['bad_debt_written_off'], 2),
             ];

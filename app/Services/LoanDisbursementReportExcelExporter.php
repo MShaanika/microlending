@@ -156,10 +156,6 @@ class LoanDisbursementReportExcelExporter
         $sheet->setCellValue("A{$row}", 'LEVY DUE TO NAMFISA ' . number_format($levyRate, 2) . '% OF DISBURSED LOANS (N$):');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
         $this->amount($sheet, "C{$row}", $levy);
-        $row++;
-        $sheet->setCellValue("A{$row}", 'TOTAL PAYABLE (INCL. LEVY) (N$):');
-        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
-        $this->amount($sheet, "C{$row}", $grand['repayment'] + $levy);
 
         return $spreadsheet;
     }
