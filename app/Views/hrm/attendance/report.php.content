@@ -88,6 +88,7 @@
                     'late' => 'mdi-clock-alert-outline text-danger',
                     'early' => 'mdi-arrow-left-bold text-warning',
                     'overtime' => 'mdi-timer-plus-outline text-info',
+                    'holiday' => 'mdi-star text-info',
                   ];
                 ?>
                 <td class="text-center" title="<?= e($cell['title'] ?? '') ?>">

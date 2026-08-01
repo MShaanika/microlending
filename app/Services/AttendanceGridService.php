@@ -54,9 +54,11 @@ class AttendanceGridService
 
     private static function cellFor(string $date, array $employee, ?array $record, array $leaveRanges, array $holidays, string $today): array
     {
-        foreach ($holidays as $holiday) {
-            if ($date >= $holiday['start_date'] && $date <= $holiday['end_date']) {
-                return ['code' => 'holiday', 'title' => 'Holiday: ' . $holiday['name']];
+        $holiday = null;
+        foreach ($holidays as $h) {
+            if ($date >= $h['start_date'] && $date <= $h['end_date']) {
+                $holiday = $h;
+                break;
             }
         }
 
@@ -66,8 +68,21 @@ class AttendanceGridService
             }
         }
 
+        // A holiday with an actual clock-in that day (worked the holiday)
+        // still shows the real attendance status, with "holiday" added as
+        // a flag rather than hidden behind the Holiday marker -- otherwise
+        // that day's clock-in/overtime would disappear from the report.
         if ($record) {
-            return self::cellForRecord($date, $employee, $record);
+            $cell = self::cellForRecord($date, $employee, $record);
+            if ($holiday) {
+                $cell['flags'][] = 'holiday';
+                $cell['title'] = 'Worked on Holiday (' . $holiday['name'] . ') -- ' . $cell['title'];
+            }
+            return $cell;
+        }
+
+        if ($holiday) {
+            return ['code' => 'holiday', 'title' => 'Holiday: ' . $holiday['name']];
         }
 
         if ((int) date('N', strtotime($date)) === self::DAY_OFF_ISO_WEEKDAY) {
