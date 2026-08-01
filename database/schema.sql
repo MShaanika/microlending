@@ -2811,12 +2811,12 @@ INSERT INTO expense_categories (category_name, account_id, description, is_activ
 ('Salary Expenses', (SELECT id FROM accounting_accounts WHERE account_code='5040'), 'Staff salary expenses.', 1);
 
 INSERT INTO notification_templates (template_code, template_name, channel, subject, message_body, is_active) VALUES
-('APPLICATION_APPROVED_SMS', 'Application Approved SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan application {{application_no}} has been approved.', 1),
-('APPLICATION_REJECTED_SMS', 'Application Rejected SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan application {{application_no}} was not approved. Please contact us for more information.', 1),
-('PAYMENT_REMINDER_SMS', 'Payment Reminder SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan payment of {{amount_due}} is due on {{due_date}}.', 1),
-('ARREARS_NOTICE_SMS', 'Arrears Notice SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your account is in arrears by {{arrears_amount}}. Please make payment urgently.', 1),
-('LOAN_COMPLETED_SMS', 'Loan Completed SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan {{loan_no}} has been fully paid. Thank you.', 1),
-('REFUND_APPROVED_SMS', 'Refund Approved SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your refund claim {{claim_no}} has been approved.', 1);
+('APPLICATION_APPROVED_SMS', 'Application Approved SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan application {{application_no}} has been approved. - {{company_name}}', 1),
+('APPLICATION_REJECTED_SMS', 'Application Rejected SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan application {{application_no}} was not approved. Please contact us for more information. - {{company_name}}', 1),
+('PAYMENT_REMINDER_SMS', 'Payment Reminder SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan payment of {{amount_due}} is due on {{due_date}}. - {{company_name}}', 1),
+('ARREARS_NOTICE_SMS', 'Arrears Notice SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your account is in arrears by {{arrears_amount}}. Please make payment urgently. - {{company_name}}', 1),
+('LOAN_COMPLETED_SMS', 'Loan Completed SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your loan {{loan_no}} has been fully paid. Thank you. - {{company_name}}', 1),
+('REFUND_APPROVED_SMS', 'Refund Approved SMS', 'SMS', NULL, 'Dear {{borrower_full_name}}, your refund claim {{claim_no}} has been approved. - {{company_name}}', 1);
 
 INSERT INTO report_definitions (report_code, report_name, report_category, default_frequency, description, is_active) VALUES
 ('OP_LOAN_LIST', 'Loan List Report', 'Operational', 'On Demand', 'Complete loan listing report.', 1),

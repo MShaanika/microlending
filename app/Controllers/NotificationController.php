@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\Borrower;
+use App\Models\Company;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\NotificationLog;
@@ -343,6 +344,7 @@ class NotificationController extends Controller
     {
         $context = [
             'current_date' => date('d F Y'),
+            'company_name' => (new Company())->displayName(),
         ];
 
         if ($borrower) {

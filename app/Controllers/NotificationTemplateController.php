@@ -20,7 +20,7 @@ class NotificationTemplateController extends Controller
      *  never fill in. */
     public const MERGE_FIELDS = [
         'borrower_full_name', 'application_no', 'amount_due', 'due_date',
-        'arrears_amount', 'loan_no', 'claim_no', 'current_date',
+        'arrears_amount', 'loan_no', 'claim_no', 'current_date', 'company_name',
     ];
 
     public function __construct()

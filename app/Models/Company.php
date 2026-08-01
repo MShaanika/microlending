@@ -15,4 +15,11 @@ class Company extends Model
     {
         return $this->update('companies', $data, 'id', $id);
     }
+
+    /** Short public-facing name -- brand_name if set (white-label), else company_name. */
+    public function displayName(): string
+    {
+        $company = $this->primary() ?: [];
+        return ($company['brand_name'] ?? '') ?: ($company['company_name'] ?? '') ?: 'DesertLedger';
+    }
 }

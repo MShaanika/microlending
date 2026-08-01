@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\NotificationLog;
 use App\Models\NotificationTemplate;
 
@@ -30,6 +31,8 @@ class TemplatedSmsService
         if (!$template) {
             return ['sent' => false, 'note' => "SMS template $templateCode is missing or inactive -- SMS not sent"];
         }
+
+        $context['company_name'] = $context['company_name'] ?? (new Company())->displayName();
 
         $message = NotificationMergeService::render($template['message_body'], $context);
         $result = SmsSenderService::send($phone, $message);
