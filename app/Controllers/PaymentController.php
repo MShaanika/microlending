@@ -30,14 +30,18 @@ class PaymentController extends Controller
     /** Hard scope for create/store/confirm/reject -- null means unrestricted (Super Admin only). */
     private function scopeBranchId(): ?int
     {
-        return Auth::isSuperAdmin() ? null : Auth::branchId();
+        // 0 for a non-Super-Admin with no branch assigned -- never null,
+        // since null means "unscoped" to the model layer and no real
+        // branch has id 0, a misconfigured account sees nothing rather
+        // than silently falling through to see every branch's data.
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
     }
 
     /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
     private function indexBranchId(): ?int
     {
         if (!Auth::isSuperAdmin()) {
-            return Auth::branchId();
+            return Auth::branchId() ?? 0;
         }
         return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
     }
