@@ -20,6 +20,7 @@ use App\Models\StatutoryCharge;
 use App\Services\EmailSenderService;
 use App\Services\LoanScheduleService;
 use App\Services\LoanStatementExcelExporter;
+use App\Services\LoanStatementPdfExporter;
 use App\Services\LoanStatementService;
 use App\Services\TopUpService;
 
@@ -463,10 +464,39 @@ class LoanController extends Controller
         exit;
     }
 
+    public function statementPdf(string $id): void
+    {
+        Auth::authorize('loans.view');
+        $loan = $this->loans->find((int) $id);
+
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return;
+        }
+
+        $borrower = $this->borrowers->find((int) $loan['borrower_id']);
+        $schedule = $this->loans->schedule((int) $id);
+        $ledger = LoanStatementService::ledger((int) $id);
+        $company = $this->companies->primary();
+
+        $pdf = LoanStatementPdfExporter::build($loan, $borrower, $schedule, $ledger, $company);
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment;filename="Statement_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $loan['loan_no']) . '.pdf"');
+        header('Cache-Control: max-age=0');
+        echo $pdf;
+        exit;
+    }
+
     /**
-     * Emails the same Statement of Account page (rendered exactly as staff
-     * see it -- same view, same ledger/schedule data) to any address typed
-     * in, not just the borrower's own -- e.g. a colleague asked to review a
+     * Emails the Statement of Account as a PDF attachment (the same
+     * ledger/schedule data staff see on-screen), to any address typed in,
+     * not just the borrower's own -- e.g. a colleague asked to review a
      * specific account.
      */
     public function emailStatement(string $id): void
@@ -498,22 +528,17 @@ class LoanController extends Controller
         $company = $this->companies->primary();
         $schedule = $this->loans->schedule($id);
         $ledger = LoanStatementService::ledger($id);
-        $title = 'Statement - ' . $loan['loan_no'];
 
-        ob_start();
-        \App\Core\View::render('loans/statement', [
-            'title' => $title, 'loan' => $loan, 'schedule' => $schedule,
-            'borrower' => $borrower, 'company' => $company, 'ledger' => $ledger,
-            'forEmail' => true,
-        ]);
-        $html = ob_get_clean();
+        $pdf = LoanStatementPdfExporter::build($loan, $borrower, $schedule, $ledger, $company);
+        $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $loan['loan_no']) . '.pdf';
 
         $result = EmailSenderService::send(
             $recipient,
             'Statement of Account - ' . $loan['loan_no'],
-            $html,
+            '<p>Please find attached your Statement of Account for loan ' . htmlspecialchars($loan['loan_no'], ENT_QUOTES) . '.</p>',
             null,
-            true
+            true,
+            [['content' => $pdf, 'filename' => $filename, 'mime' => 'application/pdf']]
         );
 
         if ($result['success']) {

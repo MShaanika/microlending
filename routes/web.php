@@ -149,6 +149,7 @@ $router->post('/loans', [LoanController::class, 'store']);
 $router->get('/loans/{id}', [LoanController::class, 'show']);
 $router->get('/loans/{id}/statement', [LoanController::class, 'statement']);
 $router->get('/loans/{id}/statement.xlsx', [LoanController::class, 'statementExcel']);
+$router->get('/loans/{id}/statement.pdf', [LoanController::class, 'statementPdf']);
 $router->post('/loans/{id}/statement/email', [LoanController::class, 'emailStatement']);
 $router->post('/loans/{id}/approve', [LoanController::class, 'approve']);
 $router->post('/loans/{id}/release', [LoanController::class, 'release']);

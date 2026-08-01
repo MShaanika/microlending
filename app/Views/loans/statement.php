@@ -17,10 +17,10 @@
 </head>
 <body>
 
-<?php if (empty($forEmail)): ?>
 <div class="no-print mb-3">
   <?= flash_messages() ?>
-  <button class="btn btn-info" onclick="window.print()"><i class="mdi mdi-printer"></i> Print / Save as PDF</button>
+  <button class="btn btn-info" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+  <a href="<?= url('/loans/' . $loan['id'] . '/statement.pdf') ?>" class="btn btn-outline-danger"><i class="mdi mdi-file-pdf-box"></i> Download PDF</a>
   <a href="<?= url('/loans/' . $loan['id'] . '/statement.xlsx') ?>" class="btn btn-outline-success"><i class="mdi mdi-file-excel"></i> Download Excel</a>
   <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Back to Loan</a>
 
@@ -30,7 +30,6 @@
     <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-email-send"></i> Email Statement</button>
   </form>
 </div>
-<?php endif; ?>
 
 <div class="invoice-header">
   <div>

@@ -16,9 +16,10 @@ use PHPMailer\PHPMailer\PHPMailer;
 class EmailSenderService
 {
     /**
+     * @param array<int, array{content: string, filename: string, mime: string}> $attachments
      * @return array{success: bool, providerReference: ?string, error: ?string}
      */
-    public static function send(string $to, string $subject, string $body, ?string $toName = null, bool $isHtml = false): array
+    public static function send(string $to, string $subject, string $body, ?string $toName = null, bool $isHtml = false, array $attachments = []): array
     {
         $settings = new NotificationSetting();
         $host = $settings->get('SMTP_HOST');
@@ -54,6 +55,10 @@ class EmailSenderService
             $mail->Subject = $subject;
             $mail->Body = $body;
             $mail->isHTML($isHtml);
+
+            foreach ($attachments as $attachment) {
+                $mail->addStringAttachment($attachment['content'], $attachment['filename'], PHPMailer::ENCODING_BASE64, $attachment['mime']);
+            }
 
             $mail->send();
 
