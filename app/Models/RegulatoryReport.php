@@ -6,11 +6,12 @@ use App\Core\Model;
 
 class RegulatoryReport extends Model
 {
-    public function paginated(string $typeCode = '', string $status = '', int $limit = 100): array
+    public function paginated(string $typeCode = '', string $status = '', int $limit = 100, ?int $branchId = null): array
     {
-        $sql = "SELECT r.*, t.report_code, t.report_name
+        $sql = "SELECT r.*, t.report_code, t.report_name, br.branch_name
                 FROM regulatory_reports r
                 JOIN regulatory_report_types t ON t.id = r.report_type_id
+                LEFT JOIN branches br ON br.id = r.branch_id
                 WHERE 1=1";
         $params = [];
 
@@ -22,6 +23,10 @@ class RegulatoryReport extends Model
             $sql .= " AND r.status = ?";
             $params[] = $status;
         }
+        if ($branchId !== null) {
+            $sql .= " AND r.branch_id = ?";
+            $params[] = $branchId;
+        }
 
         $sql .= " ORDER BY r.id DESC LIMIT " . (int) $limit;
 
@@ -31,8 +36,10 @@ class RegulatoryReport extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT r.*, t.report_code, t.report_name FROM regulatory_reports r
+            "SELECT r.*, t.report_code, t.report_name, br.branch_name
+             FROM regulatory_reports r
              JOIN regulatory_report_types t ON t.id = r.report_type_id
+             LEFT JOIN branches br ON br.id = r.branch_id
              WHERE r.id = ?",
             [$id]
         );

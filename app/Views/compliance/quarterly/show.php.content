@@ -16,6 +16,9 @@
       <div>
         <h4 class="card-title mb-1"><?= e($report['report_name']) ?></h4>
         <p class="text-muted mb-0"><?= e($report['report_no']) ?> &middot; <?= e($report['period_start']) ?> &rarr; <?= e($report['period_end']) ?></p>
+        <span class="badge <?= !empty($report['branch_name']) ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning' ?>">
+          <?= !empty($report['branch_name']) ? 'Branch: ' . e($report['branch_name']) : 'All Branches (company-wide)' ?>
+        </span>
       </div>
       <span class="badge fs-6 bg-<?= $badge ?>"><?= e($report['status']) ?></span>
     </div>

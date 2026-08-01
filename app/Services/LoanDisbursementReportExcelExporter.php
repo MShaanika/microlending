@@ -65,6 +65,12 @@ class LoanDisbursementReportExcelExporter
         $sheet->setCellValue("A{$row}", 'Loan Disbursement and Bad Debt Register as per Segmented -- ' . $periodLabel);
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row++;
+
+        $sheet->mergeCells("A{$row}:N{$row}");
+        $sheet->setCellValue("A{$row}", 'Branch: ' . (!empty($this->report['branch_name']) ? $this->report['branch_name'] : 'All Branches (company-wide)'));
+        $sheet->getStyle("A{$row}")->getFont()->setItalic(true);
+        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row += 2;
 
         $grand = ['male' => 0.0, 'female' => 0.0, 'borrowed' => 0.0, 'interest' => 0.0, 'repayment' => 0.0, 'paid' => 0.0, 'bad_debt' => 0.0, 'count' => 0];

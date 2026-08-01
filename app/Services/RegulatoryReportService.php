@@ -10,29 +10,34 @@ use App\Core\Database;
  */
 class RegulatoryReportService
 {
-    public static function namfisaLevySummary(string $start, string $end): array
+    public static function namfisaLevySummary(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
 
         $byStatus = $db->prepare(
             "SELECT status, COUNT(*) AS txn_count, COALESCE(SUM(levy_amount),0) AS total_amount
-             FROM namfisa_levy_transactions WHERE levy_date BETWEEN ? AND ?
+             FROM namfisa_levy_transactions WHERE levy_date BETWEEN ? AND ?{$branchSql}
              GROUP BY status ORDER BY FIELD(status, 'Posted','Submitted','Calculated','Reversed')"
         );
-        $byStatus->execute([$start, $end]);
+        $byStatus->execute($params);
 
         $trend = $db->prepare(
             "SELECT DATE_FORMAT(levy_date, '%Y-%m') AS month_key, DATE_FORMAT(levy_date, '%M %Y') AS month_label,
                     COALESCE(SUM(levy_amount),0) AS total_amount
-             FROM namfisa_levy_transactions WHERE levy_date BETWEEN ? AND ?
+             FROM namfisa_levy_transactions WHERE levy_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key, month_label ORDER BY month_key"
         );
-        $trend->execute([$start, $end]);
+        $trend->execute($params);
 
         $total = $db->prepare(
-            "SELECT COALESCE(SUM(levy_amount),0) FROM namfisa_levy_transactions WHERE levy_date BETWEEN ? AND ?"
+            "SELECT COALESCE(SUM(levy_amount),0) FROM namfisa_levy_transactions WHERE levy_date BETWEEN ? AND ?{$branchSql}"
         );
-        $total->execute([$start, $end]);
+        $total->execute($params);
 
         return [
             'total_amount' => round((float) $total->fetchColumn(), 2),
@@ -41,29 +46,34 @@ class RegulatoryReportService
         ];
     }
 
-    public static function dutyStampSummary(string $start, string $end): array
+    public static function dutyStampSummary(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
 
         $byStatus = $db->prepare(
             "SELECT status, COUNT(*) AS txn_count, COALESCE(SUM(stamp_amount),0) AS total_amount
-             FROM duty_stamp_transactions WHERE stamp_date BETWEEN ? AND ?
+             FROM duty_stamp_transactions WHERE stamp_date BETWEEN ? AND ?{$branchSql}
              GROUP BY status ORDER BY FIELD(status, 'Posted','Submitted','Calculated','Reversed')"
         );
-        $byStatus->execute([$start, $end]);
+        $byStatus->execute($params);
 
         $trend = $db->prepare(
             "SELECT DATE_FORMAT(stamp_date, '%Y-%m') AS month_key, DATE_FORMAT(stamp_date, '%M %Y') AS month_label,
                     COALESCE(SUM(stamp_amount),0) AS total_amount
-             FROM duty_stamp_transactions WHERE stamp_date BETWEEN ? AND ?
+             FROM duty_stamp_transactions WHERE stamp_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key, month_label ORDER BY month_key"
         );
-        $trend->execute([$start, $end]);
+        $trend->execute($params);
 
         $total = $db->prepare(
-            "SELECT COALESCE(SUM(stamp_amount),0) FROM duty_stamp_transactions WHERE stamp_date BETWEEN ? AND ?"
+            "SELECT COALESCE(SUM(stamp_amount),0) FROM duty_stamp_transactions WHERE stamp_date BETWEEN ? AND ?{$branchSql}"
         );
-        $total->execute([$start, $end]);
+        $total->execute($params);
 
         return [
             'total_amount' => round((float) $total->fetchColumn(), 2),
@@ -114,27 +124,37 @@ class RegulatoryReportService
         ];
     }
 
-    public static function badDebtWriteOffSummary(string $start, string $end): array
+    public static function badDebtWriteOffSummary(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT status, aging_bucket, COUNT(*) AS loan_count, COALESCE(SUM(outstanding_balance),0) AS total_outstanding
-             FROM bad_debts WHERE identified_date BETWEEN ? AND ?
+             FROM bad_debts WHERE identified_date BETWEEN ? AND ?{$branchSql}
              GROUP BY status, aging_bucket
              ORDER BY FIELD(aging_bucket, '31-60','61-90','91-180','180+')"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function recoverySummary(string $start, string $end): array
+    public static function recoverySummary(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT COUNT(*) AS recovery_count, COALESCE(SUM(recovered_amount),0) AS total_recovered
-             FROM loan_recoveries WHERE status = 'Posted' AND recovery_date BETWEEN ? AND ?"
+             FROM loan_recoveries WHERE status = 'Posted' AND recovery_date BETWEEN ? AND ?{$branchSql}"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetch() ?: ['recovery_count' => 0, 'total_recovered' => 0.0];
     }
 }

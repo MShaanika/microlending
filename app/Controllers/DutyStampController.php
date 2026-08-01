@@ -20,19 +20,44 @@ class DutyStampController extends Controller
         $this->charges = new StatutoryCharge();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
     public function index(): void
     {
         Auth::authorize('compliance.duty_stamp');
 
         $period = ReportPeriod::fromRequest($_GET);
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
+        $allBranches = (new \App\Models\Branch())->all();
+        $selectedBranchName = null;
+        if ($branchId !== null) {
+            $match = array_values(array_filter($allBranches, fn($b) => (int) $b['id'] === $branchId));
+            $selectedBranchName = $match[0]['branch_name'] ?? null;
+        }
 
         $this->view('compliance/duty_stamps', [
             'title' => 'Duty Stamps',
             'period' => $period,
             'status' => $status,
-            'summary' => RegulatoryReportService::dutyStampSummary($period['start'], $period['end']),
-            'transactions' => $this->charges->paginatedDutyStampTransactions($status, $period['start'], $period['end']),
+            'branches' => Auth::isSuperAdmin() ? $allBranches : [],
+            'selectedBranchId' => $branchId,
+            'selectedBranchName' => $selectedBranchName,
+            'summary' => RegulatoryReportService::dutyStampSummary($period['start'], $period['end'], $branchId),
+            'transactions' => $this->charges->paginatedDutyStampTransactions($status, $period['start'], $period['end'], 200, $branchId),
         ]);
     }
 
@@ -53,7 +78,7 @@ class DutyStampController extends Controller
             return;
         }
 
-        $this->charges->markDutyStampSubmitted($ids);
+        $this->charges->markDutyStampSubmitted($ids, $this->scopeBranchId());
 
         Audit::log('Submit', 'Compliance', 'Marked ' . count($ids) . ' duty stamp transaction(s) as Submitted');
         Session::flash('success', count($ids) . ' transaction(s) marked as Submitted.');

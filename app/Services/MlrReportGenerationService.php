@@ -36,16 +36,16 @@ class MlrReportGenerationService
         'Above N$50,000' => [50001, 999999999.99],
     ];
 
-    public static function generate(string $periodStart, string $periodEnd, int $userId): int
+    public static function generate(string $periodStart, string $periodEnd, int $userId, ?int $branchId = null): int
     {
         $months = self::monthsInRange($periodStart, $periodEnd);
 
-        $disbursed = self::disbursedByMonth($months, $periodStart, $periodEnd);
-        $gender = self::genderBreakdown($periodStart, $periodEnd);
-        $size = self::sizeBreakdown($periodStart, $periodEnd);
-        $bookBalance = self::bookBalanceAsAt($periodEnd);
-        $writtenOff = self::writtenOffByMonth($months, $periodStart, $periodEnd);
-        $expenses = self::expensesByMonth($months, $periodStart, $periodEnd);
+        $disbursed = self::disbursedByMonth($months, $periodStart, $periodEnd, $branchId);
+        $gender = self::genderBreakdown($periodStart, $periodEnd, $branchId);
+        $size = self::sizeBreakdown($periodStart, $periodEnd, $branchId);
+        $bookBalance = self::bookBalanceAsAt($periodEnd, $branchId);
+        $writtenOff = self::writtenOffByMonth($months, $periodStart, $periodEnd, $branchId);
+        $expenses = self::expensesByMonth($months, $periodStart, $periodEnd, $branchId);
         $interestIncome = self::netInterestIncomeByMonth($months, $disbursed, $writtenOff);
         $levy = self::leviesLessBadDebtsByMonth($months, $disbursed, $writtenOff);
 
@@ -67,6 +67,7 @@ class MlrReportGenerationService
         try {
             $reportId = $reports->create(array_merge($totals, [
                 'report_type_id' => self::reportTypeId(),
+                'branch_id' => $branchId,
                 'report_no' => generate_reference('REG'),
                 'report_period' => $periodStart . ' to ' . $periodEnd,
                 'period_start' => $periodStart,
@@ -152,18 +153,24 @@ class MlrReportGenerationService
      * x 30% formula. loan_count is COUNT(DISTINCT loan_id) so a loan with
      * two tranches in the same month counts once, not twice.
      */
-    private static function disbursedByMonth(array $months, string $start, string $end): array
+    private static function disbursedByMonth(array $months, string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT DATE_FORMAT(ld.disbursement_date, '%Y-%m') AS month_key,
                     COALESCE(SUM(ld.amount), 0) AS capital_amount,
                     COUNT(DISTINCT ld.loan_id) AS loan_count
              FROM loan_disbursements ld
-             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?
+             JOIN loans l ON l.id = ld.loan_id
+             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {
             $row['interest_amount'] = round((float) $row['capital_amount'] * 0.30, 2);
@@ -178,18 +185,23 @@ class MlrReportGenerationService
         ]);
     }
 
-    private static function genderBreakdown(string $start, string $end): array
+    private static function genderBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT b.gender, COUNT(*) AS loan_count, COALESCE(SUM(l.principal_amount), 0) AS total_amount
              FROM loan_disbursements ld
              JOIN loans l ON l.id = ld.loan_id
              JOIN borrowers b ON b.id = l.borrower_id
-             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?
+             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?{$branchSql}
              GROUP BY b.gender"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
 
         $lines = [];
         foreach ($stmt->fetchAll() as $row) {
@@ -207,20 +219,25 @@ class MlrReportGenerationService
         return $lines;
     }
 
-    private static function sizeBreakdown(string $start, string $end): array
+    private static function sizeBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
         $lines = [];
 
         foreach (self::SIZE_BANDS as $label => [$min, $max]) {
+            $params = [$start, $end, $min, $max];
+            if ($branchId !== null) {
+                $params[] = $branchId;
+            }
             $stmt = $db->prepare(
                 "SELECT COUNT(*) AS loan_count, COALESCE(SUM(l.principal_amount), 0) AS total_amount
                  FROM loan_disbursements ld
                  JOIN loans l ON l.id = ld.loan_id
                  WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?
-                   AND l.principal_amount BETWEEN ? AND ?"
+                   AND l.principal_amount BETWEEN ? AND ?{$branchSql}"
             );
-            $stmt->execute([$start, $end, $min, $max]);
+            $stmt->execute($params);
             $row = $stmt->fetch();
 
             $lines[] = [
@@ -244,9 +261,14 @@ class MlrReportGenerationService
      * that exact date). Correct for a fully-closed past quarter; for the
      * most recent/still-open quarter it reflects today's live balance.
      */
-    private static function bookBalanceAsAt(string $periodEnd): array
+    private static function bookBalanceAsAt(string $periodEnd, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$periodEnd];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT COUNT(DISTINCT l.id) AS loan_count, COALESCE(SUM(ls.total_due - ls.total_paid), 0) AS total_amount
              FROM loans l
@@ -256,9 +278,9 @@ class MlrReportGenerationService
                AND EXISTS (
                    SELECT 1 FROM loan_disbursements ld
                    WHERE ld.loan_id = l.id AND ld.status = 'Disbursed' AND ld.disbursement_date <= ?
-               )"
+               ){$branchSql}"
         );
-        $stmt->execute([$periodEnd]);
+        $stmt->execute($params);
         $row = $stmt->fetch();
 
         return [[
@@ -273,9 +295,14 @@ class MlrReportGenerationService
         ]];
     }
 
-    private static function writtenOffByMonth(array $months, string $start, string $end): array
+    private static function writtenOffByMonth(array $months, string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND lw.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT DATE_FORMAT(lw.write_off_date, '%Y-%m') AS month_key,
                     COUNT(DISTINCT lw.id) AS loan_count,
@@ -289,10 +316,10 @@ class MlrReportGenerationService
                  FROM loan_schedules
                  GROUP BY loan_id
              ) sched ON sched.loan_id = lw.loan_id
-             WHERE lw.status = 'Posted' AND lw.write_off_date BETWEEN ? AND ?
+             WHERE lw.status = 'Posted' AND lw.write_off_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         $rows = $stmt->fetchAll();
         foreach ($rows as &$r) {
             $r['total_amount'] = (float) $r['capital_amount'] + (float) $r['interest_amount'];
@@ -306,15 +333,20 @@ class MlrReportGenerationService
         ]);
     }
 
-    private static function expensesByMonth(array $months, string $start, string $end): array
+    private static function expensesByMonth(array $months, string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT DATE_FORMAT(expense_date, '%Y-%m') AS month_key, COALESCE(SUM(total_amount), 0) AS total_amount
-             FROM expenses WHERE status = 'Paid' AND expense_date BETWEEN ? AND ?
+             FROM expenses WHERE status = 'Paid' AND expense_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
 
         return self::fillMonths($months, $stmt->fetchAll(), 'EXPENSES', ['total_amount' => 'total_amount']);
     }

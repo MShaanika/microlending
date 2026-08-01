@@ -38,9 +38,9 @@ class LoanDisbursementReportGenerationService
     ];
     private const EOM_SECTION = 'PAY_EOM';
 
-    public static function generate(string $periodStart, string $periodEnd, int $userId): int
+    public static function generate(string $periodStart, string $periodEnd, int $userId, ?int $branchId = null): int
     {
-        $lines = self::loanLines($periodStart, $periodEnd);
+        $lines = self::loanLines($periodStart, $periodEnd, $branchId);
         $totalBorrowed = round((float) array_sum(array_column($lines, 'borrowed_amount')), 2);
 
         $totals = [
@@ -48,7 +48,7 @@ class LoanDisbursementReportGenerationService
             'total_principal' => $totalBorrowed,
             'total_interest' => round((float) array_sum(array_column($lines, 'interest_amount')), 2),
             'total_bad_debts' => round((float) array_sum(array_column($lines, 'bad_debt_written_off')), 2),
-            'total_expenditure' => self::expenditureForMonth($periodStart, $periodEnd),
+            'total_expenditure' => self::expenditureForMonth($periodStart, $periodEnd, $branchId),
             'total_namfisa_levy' => self::levyDue($totalBorrowed, $periodEnd),
         ];
 
@@ -60,6 +60,7 @@ class LoanDisbursementReportGenerationService
         try {
             $reportId = $reports->create(array_merge($totals, [
                 'report_type_id' => self::reportTypeId(),
+                'branch_id' => $branchId,
                 'report_no' => generate_reference('REG'),
                 'report_period' => $periodStart . ' to ' . $periodEnd,
                 'period_start' => $periodStart,
@@ -96,13 +97,18 @@ class LoanDisbursementReportGenerationService
      * (paid expenses in the period), just for this one month rather than
      * a 3-month quarter.
      */
-    private static function expenditureForMonth(string $start, string $end): float
+    private static function expenditureForMonth(string $start, string $end, ?int $branchId = null): float
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
-            "SELECT COALESCE(SUM(total_amount), 0) FROM expenses WHERE status = 'Paid' AND expense_date BETWEEN ? AND ?"
+            "SELECT COALESCE(SUM(total_amount), 0) FROM expenses WHERE status = 'Paid' AND expense_date BETWEEN ? AND ?{$branchSql}"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return round((float) $stmt->fetchColumn(), 2);
     }
 
@@ -135,9 +141,14 @@ class LoanDisbursementReportGenerationService
      * (overwhelmingly common) single-tranche loan the ratio is exactly 1,
      * i.e. Total Repayment = total_payable unchanged.
      */
-    private static function loanLines(string $start, string $end): array
+    private static function loanLines(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT ld.loan_id, ld.borrower_id, ld.disbursement_date, ld.amount AS borrowed_amount,
                     l.payment_day, l.principal_amount AS loan_principal,
@@ -150,10 +161,10 @@ class LoanDisbursementReportGenerationService
              FROM loan_disbursements ld
              JOIN loans l ON l.id = ld.loan_id
              JOIN borrowers b ON b.id = ld.borrower_id
-             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?
+             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?{$branchSql}
              ORDER BY ld.disbursement_date, ld.id"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
 
         $lines = [];
         foreach ($stmt->fetchAll() as $row) {

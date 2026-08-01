@@ -128,7 +128,7 @@ class StatutoryCharge extends Model
         return $this->insert('duty_stamp_settings', $data);
     }
 
-    public function paginatedNamfisaTransactions(string $status = '', string $start = '', string $end = '', int $limit = 200): array
+    public function paginatedNamfisaTransactions(string $status = '', string $start = '', string $end = '', int $limit = 200, ?int $branchId = null): array
     {
         $sql = "SELECT nlt.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
                 FROM namfisa_levy_transactions nlt
@@ -145,13 +145,17 @@ class StatutoryCharge extends Model
             $sql .= " AND nlt.levy_date BETWEEN ? AND ?";
             array_push($params, $start, $end);
         }
+        if ($branchId !== null) {
+            $sql .= " AND nlt.branch_id = ?";
+            $params[] = $branchId;
+        }
 
         $sql .= " ORDER BY nlt.levy_date DESC LIMIT " . (int) $limit;
 
         return $this->all($sql, $params);
     }
 
-    public function paginatedDutyStampTransactions(string $status = '', string $start = '', string $end = '', int $limit = 200): array
+    public function paginatedDutyStampTransactions(string $status = '', string $start = '', string $end = '', int $limit = 200, ?int $branchId = null): array
     {
         $sql = "SELECT dst.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
                 FROM duty_stamp_transactions dst
@@ -168,27 +172,46 @@ class StatutoryCharge extends Model
             $sql .= " AND dst.stamp_date BETWEEN ? AND ?";
             array_push($params, $start, $end);
         }
+        if ($branchId !== null) {
+            $sql .= " AND dst.branch_id = ?";
+            $params[] = $branchId;
+        }
 
         $sql .= " ORDER BY dst.stamp_date DESC LIMIT " . (int) $limit;
 
         return $this->all($sql, $params);
     }
 
-    public function markNamfisaSubmitted(array $ids): void
+    /** $branchId restricts which of the given IDs can actually be updated -- a
+     *  non-Super-Admin can't submit another branch's transactions by tampering
+     *  with the posted id list. */
+    public function markNamfisaSubmitted(array $ids, ?int $branchId = null): void
     {
         if (empty($ids)) {
             return;
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $this->query("UPDATE namfisa_levy_transactions SET status = 'Submitted' WHERE id IN ($placeholders)", array_map('intval', $ids));
+        $params = array_map('intval', $ids);
+        $branchSql = '';
+        if ($branchId !== null) {
+            $branchSql = " AND branch_id = ?";
+            $params[] = $branchId;
+        }
+        $this->query("UPDATE namfisa_levy_transactions SET status = 'Submitted' WHERE id IN ($placeholders){$branchSql}", $params);
     }
 
-    public function markDutyStampSubmitted(array $ids): void
+    public function markDutyStampSubmitted(array $ids, ?int $branchId = null): void
     {
         if (empty($ids)) {
             return;
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $this->query("UPDATE duty_stamp_transactions SET status = 'Submitted' WHERE id IN ($placeholders)", array_map('intval', $ids));
+        $params = array_map('intval', $ids);
+        $branchSql = '';
+        if ($branchId !== null) {
+            $branchSql = " AND branch_id = ?";
+            $params[] = $branchId;
+        }
+        $this->query("UPDATE duty_stamp_transactions SET status = 'Submitted' WHERE id IN ($placeholders){$branchSql}", $params);
     }
 }

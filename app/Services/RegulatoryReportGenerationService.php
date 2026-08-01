@@ -18,7 +18,7 @@ use App\Models\RegulatoryReportType;
  */
 class RegulatoryReportGenerationService
 {
-    public static function generate(string $reportTypeCode, string $periodStart, string $periodEnd, int $userId): int
+    public static function generate(string $reportTypeCode, string $periodStart, string $periodEnd, int $userId, ?int $branchId = null): int
     {
         $types = new RegulatoryReportType();
         $type = $types->findByCode($reportTypeCode);
@@ -26,7 +26,7 @@ class RegulatoryReportGenerationService
             throw new \RuntimeException('Unknown report type: ' . $reportTypeCode);
         }
 
-        [$lines, $totals] = self::buildLinesAndTotals($reportTypeCode, $periodStart, $periodEnd);
+        [$lines, $totals] = self::buildLinesAndTotals($reportTypeCode, $periodStart, $periodEnd, $branchId);
 
         $db = Database::connection();
         $reports = new RegulatoryReport();
@@ -36,6 +36,7 @@ class RegulatoryReportGenerationService
         try {
             $reportId = $reports->create(array_merge($totals, [
                 'report_type_id' => (int) $type['id'],
+                'branch_id' => $branchId,
                 'report_no' => generate_reference('REG'),
                 'report_period' => $periodStart . ' to ' . $periodEnd,
                 'period_start' => $periodStart,
@@ -59,24 +60,24 @@ class RegulatoryReportGenerationService
     /**
      * @return array{0: array<int, array>, 1: array}
      */
-    private static function buildLinesAndTotals(string $code, string $start, string $end): array
+    private static function buildLinesAndTotals(string $code, string $start, string $end, ?int $branchId): array
     {
         return match ($code) {
-            'LOAN_GENDER_QTR' => self::fromGenderBreakdown($start, $end),
-            'LOAN_SIZE_GENDER_QTR' => self::fromSizeBreakdown($start, $end),
-            'LOAN_SALARY_QTR' => self::fromSalaryBreakdown($start, $end),
-            'BAD_DEBTS_QTR' => self::fromBadDebts($start, $end),
-            'BAD_DEBT_RECOVERY_QTR' => self::fromBadDebtRecoveries($start, $end),
-            'NAMFISA_LEVY_QTR' => self::fromNamfisaLevy($start, $end),
-            'DUTY_STAMP_QTR' => self::fromDutyStamp($start, $end),
-            'CURRENT_LOAN_QTR' => self::fromCurrentLoanStatus($end),
+            'LOAN_GENDER_QTR' => self::fromGenderBreakdown($start, $end, $branchId),
+            'LOAN_SIZE_GENDER_QTR' => self::fromSizeBreakdown($start, $end, $branchId),
+            'LOAN_SALARY_QTR' => self::fromSalaryBreakdown($start, $end, $branchId),
+            'BAD_DEBTS_QTR' => self::fromBadDebts($start, $end, $branchId),
+            'BAD_DEBT_RECOVERY_QTR' => self::fromBadDebtRecoveries($start, $end, $branchId),
+            'NAMFISA_LEVY_QTR' => self::fromNamfisaLevy($start, $end, $branchId),
+            'DUTY_STAMP_QTR' => self::fromDutyStamp($start, $end, $branchId),
+            'CURRENT_LOAN_QTR' => self::fromCurrentLoanStatus($end, $branchId),
             default => throw new \RuntimeException('No line-generation logic for report type: ' . $code),
         };
     }
 
-    private static function fromGenderBreakdown(string $start, string $end): array
+    private static function fromGenderBreakdown(string $start, string $end, ?int $branchId): array
     {
-        $rows = LoanReportService::genderBreakdown($start, $end);
+        $rows = LoanReportService::genderBreakdown($start, $end, $branchId);
         $lines = [];
         $totalLoans = 0;
         $totalPrincipal = 0.0;
@@ -96,9 +97,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_loans' => $totalLoans, 'total_principal' => round($totalPrincipal, 2)]];
     }
 
-    private static function fromSizeBreakdown(string $start, string $end): array
+    private static function fromSizeBreakdown(string $start, string $end, ?int $branchId): array
     {
-        $rows = LoanReportService::sizeBreakdown($start, $end);
+        $rows = LoanReportService::sizeBreakdown($start, $end, $branchId);
         $lines = [];
         $totalLoans = 0;
         $totalPrincipal = 0.0;
@@ -125,9 +126,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_loans' => $totalLoans, 'total_principal' => round($totalPrincipal, 2)]];
     }
 
-    private static function fromSalaryBreakdown(string $start, string $end): array
+    private static function fromSalaryBreakdown(string $start, string $end, ?int $branchId): array
     {
-        $rows = LoanReportService::salaryBreakdown($start, $end);
+        $rows = LoanReportService::salaryBreakdown($start, $end, $branchId);
         $lines = [];
         $totalLoans = 0;
 
@@ -152,9 +153,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_loans' => $totalLoans]];
     }
 
-    private static function fromBadDebts(string $start, string $end): array
+    private static function fromBadDebts(string $start, string $end, ?int $branchId): array
     {
-        $rows = LoanReportService::badDebtsBreakdown($start, $end);
+        $rows = LoanReportService::badDebtsBreakdown($start, $end, $branchId);
         $lines = [];
         $totalLoans = 0;
         $totalBadDebts = 0.0;
@@ -172,9 +173,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_loans' => $totalLoans, 'total_bad_debts' => round($totalBadDebts, 2)]];
     }
 
-    private static function fromBadDebtRecoveries(string $start, string $end): array
+    private static function fromBadDebtRecoveries(string $start, string $end, ?int $branchId): array
     {
-        $rows = LoanReportService::badDebtRecoveries($start, $end);
+        $rows = LoanReportService::badDebtRecoveries($start, $end, $branchId);
         $lines = [];
         $totalRecoveries = 0.0;
 
@@ -191,9 +192,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_loans' => count($rows), 'total_recoveries' => round($totalRecoveries, 2)]];
     }
 
-    private static function fromNamfisaLevy(string $start, string $end): array
+    private static function fromNamfisaLevy(string $start, string $end, ?int $branchId): array
     {
-        $summary = RegulatoryReportService::namfisaLevySummary($start, $end);
+        $summary = RegulatoryReportService::namfisaLevySummary($start, $end, $branchId);
         $lines = [];
 
         foreach ($summary['by_status'] as $row) {
@@ -207,9 +208,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_namfisa_levy' => round((float) $summary['total_amount'], 2)]];
     }
 
-    private static function fromDutyStamp(string $start, string $end): array
+    private static function fromDutyStamp(string $start, string $end, ?int $branchId): array
     {
-        $summary = RegulatoryReportService::dutyStampSummary($start, $end);
+        $summary = RegulatoryReportService::dutyStampSummary($start, $end, $branchId);
         $lines = [];
 
         foreach ($summary['by_status'] as $row) {
@@ -223,9 +224,9 @@ class RegulatoryReportGenerationService
         return [$lines, ['total_duty_stamp' => round((float) $summary['total_amount'], 2)]];
     }
 
-    private static function fromCurrentLoanStatus(string $asOfDate): array
+    private static function fromCurrentLoanStatus(string $asOfDate, ?int $branchId): array
     {
-        $status = LoanReportService::activeLoanStatus($asOfDate);
+        $status = LoanReportService::activeLoanStatus($asOfDate, $branchId);
 
         $lines = [
             [

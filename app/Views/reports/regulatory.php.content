@@ -3,7 +3,12 @@
 <div class="card mb-3">
   <div class="card-body">
     <h4 class="card-title mb-1">Regulatory Reports</h4>
-    <p class="text-muted small mb-3">Showing <strong><?= e($period['label']) ?></strong>. One period filter drives every report below.</p>
+    <p class="text-muted small mb-3">
+      Showing <strong><?= e($period['label']) ?></strong>. One period filter drives every report below.
+      <span class="badge <?= $selectedBranchName ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning' ?>">
+        <?= $selectedBranchName ? 'Branch: ' . e($selectedBranchName) : 'All Branches (company-wide)' ?>
+      </span>
+    </p>
 
     <form method="get" class="row g-2 align-items-end">
       <div class="col-auto">
@@ -38,6 +43,17 @@
           <?php endfor; ?>
         </select>
       </div>
+      <?php if (!empty($branches)): ?>
+        <div class="col-auto">
+          <label class="form-label small mb-0">Branch</label>
+          <select name="branch_id" class="form-select">
+            <option value="">All Branches</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      <?php endif; ?>
       <div class="col-auto">
         <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-filter"></i> Filter</button>
       </div>

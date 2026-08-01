@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\AfsReportLine;
+use App\Models\Branch;
 use App\Models\LoanDisbursementReportLine;
 use App\Models\MlrReportLine;
 use App\Models\RegulatoryReport;
@@ -46,19 +47,54 @@ class QuarterlyReportController extends Controller
         $this->loanDisbursementLines = new LoanDisbursementReportLine();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /**
+     * A report's branch_id is set once at generation time and never
+     * changes -- a report with branch_id = NULL was generated company-wide
+     * by a Super Admin and stays Super-Admin-only to view; a report with a
+     * branch_id is visible to that branch and to Super Admin.
+     */
+    private function assertBranchAccess(?array $report): void
+    {
+        if (!$report || Auth::isSuperAdmin()) {
+            return;
+        }
+        if (empty($report['branch_id']) || (int) $report['branch_id'] !== (int) Auth::branchId()) {
+            Session::flash('error', 'Report not found.');
+            $this->redirect('/compliance/quarterly-reports');
+        }
+    }
+
     public function index(): void
     {
         Auth::authorize('compliance.quarterly');
 
         $typeCode = trim((string) ($_GET['type'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('compliance/quarterly/index', [
             'title' => 'Quarterly Reports',
-            'reports' => $this->reports->paginated($typeCode, $status),
+            'reports' => $this->reports->paginated($typeCode, $status, 100, $branchId),
             'reportTypes' => $this->reportTypes->allTypes(),
             'typeCode' => $typeCode,
             'status' => $status,
+            'branches' => Auth::isSuperAdmin() ? (new Branch())->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
@@ -68,10 +104,21 @@ class QuarterlyReportController extends Controller
 
         $this->view('compliance/quarterly/create', [
             'title' => 'Generate Quarterly Report',
-            'reportTypes' => $this->reportTypes->allTypes(true),
+            'reportTypes' => $this->availableTypes(),
             'old' => [],
             'errors' => [],
         ]);
+    }
+
+    /** AFS is a whole-company annual filing (bank account GL balances have
+     *  no branch attribution) -- Super Admin only, per explicit decision. */
+    private function availableTypes(): array
+    {
+        $types = $this->reportTypes->allTypes(true);
+        if (Auth::isSuperAdmin()) {
+            return $types;
+        }
+        return array_values(array_filter($types, fn ($t) => $t['report_code'] !== self::AFS_CODE));
     }
 
     public function store(): void
@@ -96,6 +143,11 @@ class QuarterlyReportController extends Controller
 
         if (!$type) {
             $errors['report_type_id'] = 'Select a report type.';
+        } elseif ($isAfs && !Auth::isSuperAdmin()) {
+            // Never trust the client-side dropdown filtering -- AFS is
+            // Super-Admin-only since its bank account balances can't
+            // honestly be split by branch.
+            $errors['report_type_id'] = 'Only a Super Admin can generate the AFS report.';
         }
         // AFS_ANNUAL isn't quarter-scoped -- the "Year" field doubles as the
         // financial year's start year (2025 = FY Apr 2025 - Mar 2026), so
@@ -114,7 +166,7 @@ class QuarterlyReportController extends Controller
         if (!empty($errors)) {
             $this->view('compliance/quarterly/create', [
                 'title' => 'Generate Quarterly Report',
-                'reportTypes' => $this->reportTypes->allTypes(true),
+                'reportTypes' => $this->availableTypes(),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -122,18 +174,19 @@ class QuarterlyReportController extends Controller
         }
 
         $userId = Auth::user()['id'] ?? null;
+        $branchId = $this->scopeBranchId();
 
         try {
             if ($isAfs) {
                 $reportId = AfsReportGenerationService::generate($year, $userId);
             } elseif ($isMonthly) {
                 $period = ReportPeriod::range('month', $year, $month, 0);
-                $reportId = LoanDisbursementReportGenerationService::generate($period['start'], $period['end'], $userId);
+                $reportId = LoanDisbursementReportGenerationService::generate($period['start'], $period['end'], $userId, $branchId);
             } else {
                 $period = ReportPeriod::range('quarter', $year, 0, $quarter);
                 $reportId = $type['report_code'] === self::MLR_CODE
-                    ? MlrReportGenerationService::generate($period['start'], $period['end'], $userId)
-                    : RegulatoryReportGenerationService::generate($type['report_code'], $period['start'], $period['end'], $userId);
+                    ? MlrReportGenerationService::generate($period['start'], $period['end'], $userId, $branchId)
+                    : RegulatoryReportGenerationService::generate($type['report_code'], $period['start'], $period['end'], $userId, $branchId);
             }
         } catch (\RuntimeException $e) {
             Session::flash('error', 'Could not generate report: ' . $e->getMessage());
@@ -157,6 +210,7 @@ class QuarterlyReportController extends Controller
             $this->redirect('/compliance/quarterly-reports');
             return;
         }
+        $this->assertBranchAccess($report);
 
         if ($report['report_code'] === self::MLR_CODE) {
             $this->view('compliance/quarterly/show_mlr', [
@@ -254,6 +308,7 @@ class QuarterlyReportController extends Controller
             $this->redirect('/compliance/quarterly-reports/' . $id);
             return;
         }
+        $this->assertBranchAccess($report);
 
         $this->reports->updateStatus($id, $toStatus, Auth::user()['id'] ?? null);
 
@@ -273,6 +328,7 @@ class QuarterlyReportController extends Controller
             $this->redirect('/compliance/quarterly-reports');
             return;
         }
+        $this->assertBranchAccess($report);
 
         if ($report['report_code'] === self::MLR_CODE) {
             $exporter = new MlrReportExcelExporter($report, $this->groupMlrSections($this->mlrLines->forReport($id)));

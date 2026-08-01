@@ -42,6 +42,7 @@ class RegulatoryReportExcelExporter
         $sheet->setCellValue('A3', 'Period: ' . $this->report['period_start'] . ' to ' . $this->report['period_end']);
         $sheet->setCellValue('A4', 'Status: ' . $this->report['status']);
         $sheet->setCellValue('A5', 'Generated: ' . ($this->report['generated_at'] ?? ''));
+        $sheet->setCellValue('A6', 'Branch: ' . (!empty($this->report['branch_name']) ? $this->report['branch_name'] : 'All Branches (company-wide)'));
 
         $row = 7;
         $sheet->fromArray(

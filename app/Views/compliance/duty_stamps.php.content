@@ -6,7 +6,12 @@
       <h4 class="card-title mb-0">Duty Stamps</h4>
       <a href="<?= url('/compliance/settings') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-cog"></i> Manage Rates</a>
     </div>
-    <p class="text-muted small mb-3">Showing <strong><?= e($period['label']) ?></strong>. Total duty stamp this period: <strong><?= format_money($summary['total_amount']) ?></strong></p>
+    <p class="text-muted small mb-3">
+      Showing <strong><?= e($period['label']) ?></strong>. Total duty stamp this period: <strong><?= format_money($summary['total_amount']) ?></strong>.
+      <span class="badge <?= $selectedBranchName ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning' ?>">
+        <?= $selectedBranchName ? 'Branch: ' . e($selectedBranchName) : 'All Branches (company-wide)' ?>
+      </span>
+    </p>
 
     <form method="get" class="row g-2 align-items-end">
       <div class="col-auto">
@@ -50,6 +55,17 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if (!empty($branches)): ?>
+        <div class="col-auto">
+          <label class="form-label small mb-0">Branch</label>
+          <select name="branch_id" class="form-select">
+            <option value="">All Branches</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      <?php endif; ?>
       <div class="col-auto">
         <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-filter"></i> Filter</button>
       </div>

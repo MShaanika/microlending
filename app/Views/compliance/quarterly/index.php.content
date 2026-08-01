@@ -24,6 +24,16 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if (!empty($branches)): ?>
+        <div class="col-md-3">
+          <select name="branch_id" class="form-select">
+            <option value="">All Branches</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      <?php endif; ?>
       <div class="col-md-2">
         <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
       </div>
@@ -32,11 +42,11 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Report No</th><th>Type</th><th>Period</th><th>Loans</th><th>Status</th><th>Generated</th><th class="text-end">Action</th></tr>
+          <tr><th>Report No</th><th>Type</th><th>Period</th><th>Branch</th><th>Loans</th><th>Status</th><th>Generated</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($reports)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No reports generated yet.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No reports generated yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($reports as $r): ?>
             <?php
@@ -52,6 +62,7 @@
               <td><?= e($r['report_no']) ?></td>
               <td><?= e($r['report_name']) ?></td>
               <td><?= e($r['period_start']) ?> &rarr; <?= e($r['period_end']) ?></td>
+              <td><?= $r['branch_name'] ? e($r['branch_name']) : '<span class="badge bg-warning-subtle text-warning">All Branches</span>' ?></td>
               <td><?= (int) $r['total_loans'] ?></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
               <td><?= e($r['generated_at']) ?: '&mdash;' ?></td>
