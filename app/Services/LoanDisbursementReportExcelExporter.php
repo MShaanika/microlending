@@ -27,7 +27,7 @@ class LoanDisbursementReportExcelExporter
 
     private const HEADERS = [
         'Date', 'Client No.', 'First Name', 'Surname', 'Identity No.', 'Contact No.',
-        'Gross Salary', 'Male', 'Female', 'Borrowed (N$)', 'Interest @ 30% (N$)',
+        'Gross Salary', 'Male', 'Female', 'Borrowed (N$)', 'Interest (N$)',
         'Total Repayment', 'Paid', 'Bad Debt Written Off',
     ];
 

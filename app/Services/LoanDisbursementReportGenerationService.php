@@ -12,9 +12,16 @@ use App\Models\StatutoryCharge;
  * loan-level register matching the layout the client has historically kept
  * by hand in Excel: every loan disbursed that month, grouped into the
  * borrower's pay-date bucket (10th/15th/20th/25th/end of month), with a
- * gender-split borrowed amount, flat 30% interest (matching the same
- * convention MlrReportGenerationService uses), total repayment, amount
- * paid to date, and any bad debt written off against that loan.
+ * gender-split borrowed amount, that loan's real interest, total
+ * repayment, amount paid to date, and any bad debt written off against
+ * that loan.
+ *
+ * Interest uses each loan's actual interest_amount, not a flat 30% of
+ * capital -- confirmed against real data that the effective rate varies
+ * per loan (20.22%-30.61% across a same-month sample), so a flat 30%
+ * understates or overstates Total Repayment depending on the loan (e.g.
+ * a 500 principal loan's real total repayable is 663.20, not the 660.15
+ * a flat-30% calculation would give).
  *
  * Unlike the historical spreadsheet, this is generated fresh from live
  * data each time rather than reproducing specific past rows -- "Paid" and
@@ -116,26 +123,17 @@ class LoanDisbursementReportGenerationService
      * amount from loan_disbursements (not loans.principal_amount), so a
      * multi-tranche loan (e.g. a top-up) isn't double counted across rows
      * -- same reasoning as MlrReportGenerationService::disbursedByMonth().
-     * Interest is a flat 30% of that capital, matching the client's
-     * confirmed formula elsewhere in this system.
      *
-     * Total Repayment is the loan's full repayable amount -- principal +
-     * interest + that loan's own NAMFISA levy + duty stamp (the same
-     * components that make up loans.total_payable, confirmed against real
-     * data: e.g. principal 5000 + interest 1011.30 + levy 51.50 + stamp
-     * 5.00 = total_payable 6067.80) -- not just principal + interest.
-     *
-     * The levy+stamp portion is derived as
-     * total_payable - principal_amount - interest_amount rather than
-     * summed from namfisa_levy_transactions/duty_stamp_transactions --
-     * those ledger tables have gaps for some loans (no row ever recorded,
-     * e.g. seeded/imported loans), while total_payable is always
-     * populated and is the same figure loans/statement.php already
-     * treats as authoritative ("...included in your total repayable
-     * amount"). Levy/stamp apply once per loan (not per tranche), so
-     * each disbursement row gets its proportional share by
-     * tranche-amount / loan principal, which sums back to the loan's
-     * real total across all its rows for a multi-tranche loan.
+     * Interest and Total Repayment are both that loan's own
+     * interest_amount/total_payable (real figures, not a flat-rate
+     * approximation), scaled by this row's share of the loan's principal
+     * (tranche-amount / loan principal). total_payable already bakes in
+     * principal + interest + that loan's NAMFISA levy + duty stamp -- the
+     * same figure loans/statement.php treats as authoritative ("...
+     * included in your total repayable amount") -- so scaling it directly
+     * is simpler than re-deriving levy/stamp separately, and for the
+     * (overwhelmingly common) single-tranche loan the ratio is exactly 1,
+     * i.e. Total Repayment = total_payable unchanged.
      */
     private static function loanLines(string $start, string $end): array
     {
@@ -160,12 +158,11 @@ class LoanDisbursementReportGenerationService
         $lines = [];
         foreach ($stmt->fetchAll() as $row) {
             $borrowed = round((float) $row['borrowed_amount'], 2);
-            $interest = round($borrowed * 0.30, 2);
 
             $loanPrincipal = (float) $row['loan_principal'];
             $shareRatio = $loanPrincipal > 0 ? $borrowed / $loanPrincipal : 1.0;
-            $loanLevyPlusStamp = (float) $row['loan_total_payable'] - $loanPrincipal - (float) $row['loan_interest_amount'];
-            $levyPlusStampShare = round($loanLevyPlusStamp * $shareRatio, 2);
+            $interest = round((float) $row['loan_interest_amount'] * $shareRatio, 2);
+            $totalRepayment = round((float) $row['loan_total_payable'] * $shareRatio, 2);
 
             $lines[] = [
                 'section' => self::SECTIONS[(int) $row['payment_day']] ?? self::EOM_SECTION,
@@ -181,7 +178,7 @@ class LoanDisbursementReportGenerationService
                 'gender' => $row['gender'],
                 'borrowed_amount' => $borrowed,
                 'interest_amount' => $interest,
-                'total_repayment' => round($borrowed + $interest + $levyPlusStampShare, 2),
+                'total_repayment' => $totalRepayment,
                 'paid_amount' => round((float) $row['paid_amount'], 2),
                 'bad_debt_written_off' => round((float) $row['bad_debt_written_off'], 2),
             ];
