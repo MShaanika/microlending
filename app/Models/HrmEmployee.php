@@ -16,6 +16,7 @@ class HrmEmployee extends Model
 
     private const LOOKUP_COLUMNS = "
         b.branch_name, d.department_name, g.designation_name, s.shift_name,
+        s.start_time AS shift_start_time, s.end_time AS shift_end_time,
         u.name AS user_name, u.email AS user_email
     ";
 

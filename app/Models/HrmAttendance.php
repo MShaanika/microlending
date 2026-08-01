@@ -54,6 +54,25 @@ class HrmAttendance extends Model
         );
     }
 
+    /**
+     * All attendance rows in a date range, keyed [employee_id][attendance_date]
+     * -- feeds the monthly grid report, one query for every employee/day
+     * rather than one query per cell.
+     */
+    public function forRange(string $start, string $end): array
+    {
+        $rows = $this->query(
+            "SELECT * FROM hrm_attendances WHERE attendance_date BETWEEN ? AND ?",
+            [$start, $end]
+        )->fetchAll();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row['employee_id']][$row['attendance_date']] = $row;
+        }
+        return $map;
+    }
+
     public function findForEmployeeDate(int $employeeId, string $date): ?array
     {
         return $this->one(

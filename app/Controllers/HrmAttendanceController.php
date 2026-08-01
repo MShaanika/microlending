@@ -9,19 +9,64 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\HrmAttendance;
 use App\Models\HrmEmployee;
+use App\Models\HrmHoliday;
+use App\Models\HrmLeaveApplication;
 use App\Models\HrmShift;
+use App\Services\AttendanceGridService;
 
 class HrmAttendanceController extends Controller
 {
     private HrmAttendance $attendances;
     private HrmEmployee $employees;
     private HrmShift $shifts;
+    private HrmLeaveApplication $leaveApplications;
+    private HrmHoliday $holidays;
 
     public function __construct()
     {
         $this->attendances = new HrmAttendance();
         $this->employees = new HrmEmployee();
         $this->shifts = new HrmShift();
+        $this->leaveApplications = new HrmLeaveApplication();
+        $this->holidays = new HrmHoliday();
+    }
+
+    /**
+     * Monthly grid (employee rows x day-of-month columns) with a status
+     * icon per cell -- Present/Half Day/Absent/On Leave/Holiday/Day Off/
+     * Pending, plus Late/Early/Overtime flags. Search, per-page, sort, and
+     * export are handled by the page's standard DataTables auto-init (no
+     * server-side pagination needed) -- only Month/Year change what data
+     * gets fetched, so those are the only real filters here.
+     */
+    public function report(): void
+    {
+        Auth::authorize('hrm.view');
+
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $month = (int) ($_GET['month'] ?? date('n'));
+        if ($month < 1 || $month > 12) {
+            $month = (int) date('n');
+        }
+
+        $monthStart = sprintf('%04d-%02d-01', $year, $month);
+        $daysInMonth = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+        $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
+
+        $employees = $this->employees->allEmployees(['status' => 'Active']);
+        $attendanceMap = $this->attendances->forRange($monthStart, $monthEnd);
+        $leaveMap = $this->leaveApplications->approvedInRange($monthStart, $monthEnd);
+        $holidays = $this->holidays->inRange($monthStart, $monthEnd);
+
+        $grid = AttendanceGridService::build($employees, $year, $month, $attendanceMap, $leaveMap, $holidays);
+
+        $this->view('hrm/attendance/report', [
+            'title' => 'Attendance Report',
+            'grid' => $grid,
+            'daysInMonth' => $daysInMonth,
+            'year' => $year,
+            'month' => $month,
+        ]);
     }
 
     public function index(): void

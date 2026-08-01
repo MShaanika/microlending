@@ -1,0 +1,106 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card mb-3 no-print">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-1">Attendance Report</h4>
+        <p class="text-muted small mb-0"><?= e(date('F Y', mktime(0, 0, 0, $month, 1, $year))) ?> &middot; <?= count($grid) ?> active employee<?= count($grid) === 1 ? '' : 's' ?></p>
+      </div>
+      <?php if (Auth::can('hrm.manage')): ?>
+        <a href="<?= url('/hrm/attendance/create') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-plus"></i> Add Attendance</a>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/hrm/attendance/report') ?>" class="row g-2 align-items-end mb-3">
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Month</label>
+        <select name="month" class="form-select">
+          <?php for ($m = 1; $m <= 12; $m++): ?>
+            <option value="<?= $m ?>" <?= $m === $month ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Year</label>
+        <select name="year" class="form-select">
+          <?php for ($y = (int) date('Y') + 1; $y >= (int) date('Y') - 3; $y--): ?>
+            <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-magnify"></i> Apply</button>
+      </div>
+    </form>
+
+    <div class="d-flex flex-wrap gap-3 small text-muted border-top pt-3">
+      <span><i class="mdi mdi-check-circle text-success"></i> Present</span>
+      <span><i class="mdi mdi-circle-half-full text-warning"></i> Half Day</span>
+      <span><i class="mdi mdi-close-circle text-danger"></i> Absent</span>
+      <span><i class="mdi mdi-flag text-primary"></i> On Leave</span>
+      <span><i class="mdi mdi-star text-info"></i> Holiday</span>
+      <span><i class="mdi mdi-minus-circle-outline text-muted"></i> Day Off</span>
+      <span><i class="mdi mdi-help-circle-outline text-muted"></i> Pending</span>
+      <span><i class="mdi mdi-clock-alert-outline text-danger"></i> Late</span>
+      <span><i class="mdi mdi-arrow-left-bold text-warning"></i> Left Early</span>
+      <span><i class="mdi mdi-timer-plus-outline text-info"></i> Overtime</span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width: 180px;">Employee</th>
+            <?php for ($d = 1; $d <= $daysInMonth; $d++): ?>
+              <th class="text-center"><?= $d ?></th>
+            <?php endfor; ?>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($grid)): ?>
+            <tr><td colspan="<?= $daysInMonth + 1 ?>" class="text-center text-muted py-4">No active employees found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($grid as $row): $emp = $row['employee']; ?>
+            <tr>
+              <td>
+                <div class="fw-semibold"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></div>
+                <div class="text-muted small"><?= e($emp['employee_no']) ?></div>
+              </td>
+              <?php foreach ($row['days'] as $cell): ?>
+                <?php
+                  $icon = [
+                    'present' => 'mdi-check-circle text-success',
+                    'half' => 'mdi-circle-half-full text-warning',
+                    'absent' => 'mdi-close-circle text-danger',
+                    'leave' => 'mdi-flag text-primary',
+                    'holiday' => 'mdi-star text-info',
+                    'dayoff' => 'mdi-minus-circle-outline text-muted',
+                    'pending' => 'mdi-help-circle-outline text-muted',
+                    'future' => '',
+                  ][$cell['code']] ?? '';
+                  $flagIcon = [
+                    'late' => 'mdi-clock-alert-outline text-danger',
+                    'early' => 'mdi-arrow-left-bold text-warning',
+                    'overtime' => 'mdi-timer-plus-outline text-info',
+                  ];
+                ?>
+                <td class="text-center" title="<?= e($cell['title'] ?? '') ?>">
+                  <?php if ($icon): ?><i class="mdi <?= $icon ?>"></i><?php endif; ?>
+                  <?php foreach (($cell['flags'] ?? []) as $flag): ?>
+                    <i class="mdi <?= $flagIcon[$flag] ?? '' ?>" style="font-size: 0.7rem;"></i>
+                  <?php endforeach; ?>
+                </td>
+              <?php endforeach; ?>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

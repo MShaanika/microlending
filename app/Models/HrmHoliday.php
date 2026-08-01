@@ -17,6 +17,15 @@ class HrmHoliday extends Model
         return $this->query("SELECT * FROM hrm_holidays ORDER BY start_date DESC")->fetchAll();
     }
 
+    /** Holidays overlapping a date range -- feeds the monthly attendance grid report. */
+    public function inRange(string $start, string $end): array
+    {
+        return $this->query(
+            "SELECT * FROM hrm_holidays WHERE start_date <= ? AND end_date >= ? ORDER BY start_date",
+            [$end, $start]
+        )->fetchAll();
+    }
+
     public function find(int $id): ?array
     {
         return $this->one("SELECT * FROM hrm_holidays WHERE id = ?", [$id]);

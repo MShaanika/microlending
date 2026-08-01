@@ -533,6 +533,7 @@ $router->post('/performance/employee-reviews/{id}/delete', [PerformanceEmployeeR
 
 // HRM: Attendance
 $router->get('/hrm/attendance', [HrmAttendanceController::class, 'index']);
+$router->get('/hrm/attendance/report', [HrmAttendanceController::class, 'report']);
 $router->get('/hrm/attendance/create', [HrmAttendanceController::class, 'create']);
 $router->post('/hrm/attendance', [HrmAttendanceController::class, 'store']);
 $router->post('/hrm/attendance/clock-in', [HrmAttendanceController::class, 'clockIn']);

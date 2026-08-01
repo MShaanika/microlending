@@ -48,6 +48,25 @@ class HrmLeaveApplication extends Model
         );
     }
 
+    /**
+     * All approved leave applications overlapping a date range, keyed by
+     * employee_id -- feeds the monthly attendance grid report.
+     */
+    public function approvedInRange(string $start, string $end): array
+    {
+        $rows = $this->query(
+            "SELECT employee_id, start_date, end_date FROM hrm_leave_applications
+             WHERE status = 'Approved' AND start_date <= ? AND end_date >= ?",
+            [$end, $start]
+        )->fetchAll();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row['employee_id']][] = $row;
+        }
+        return $map;
+    }
+
     public function isOnApprovedLeave(int $employeeId, string $date): bool
     {
         return (bool) $this->scalar(
