@@ -78,7 +78,7 @@ class NotificationSettingController extends Controller
         $userId = Auth::user()['id'] ?? null;
         $fields = [
             'TWILIO_ACCOUNT_SID' => trim($_POST['twilio_account_sid'] ?? ''),
-            'TWILIO_FROM_NUMBER' => trim($_POST['twilio_from_number'] ?? ''),
+            'TWILIO_MESSAGING_SERVICE_SID' => trim($_POST['twilio_messaging_service_sid'] ?? ''),
         ];
 
         foreach ($fields as $key => $value) {
@@ -168,7 +168,7 @@ class NotificationSettingController extends Controller
             'email' => $email,
             'sms' => $sms,
             'emailConfigured' => !empty($email['SMTP_HOST']),
-            'smsConfigured' => !empty($sms['TWILIO_ACCOUNT_SID']) && !empty($sms['TWILIO_AUTH_TOKEN']),
+            'smsConfigured' => !empty($sms['TWILIO_ACCOUNT_SID']) && !empty($sms['TWILIO_AUTH_TOKEN']) && !empty($sms['TWILIO_MESSAGING_SERVICE_SID']),
         ]);
     }
 }

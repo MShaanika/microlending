@@ -72,7 +72,7 @@
           <h4 class="card-title mb-0">SMS (Twilio)</h4>
           <span class="badge bg-<?= $smsConfigured ? 'success' : 'secondary' ?>"><?= $smsConfigured ? 'Configured' : 'Not Configured' ?></span>
         </div>
-        <p class="text-muted small">Get your Account SID, Auth Token and a From number from your Twilio console -- leave the token blank to keep the current one.</p>
+        <p class="text-muted small">Get your Account SID, Auth Token and Messaging Service SID from your Twilio console -- leave the token blank to keep the current one. The Messaging Service SID lets Twilio send from your registered short code / Sender ID instead of a plain phone number.</p>
 
         <form method="post" action="<?= url('/notifications/settings/sms') ?>" class="row g-2 mb-3">
           <?= csrf_field() ?>
@@ -85,8 +85,8 @@
             <input type="password" name="twilio_auth_token" class="form-control form-control-sm" value="" placeholder="<?= !empty($sms['TWILIO_AUTH_TOKEN']) ? 'Leave blank to keep current token' : 'Not set' ?>">
           </div>
           <div class="col-md-12">
-            <label class="form-label small mb-0">From Number</label>
-            <input type="text" name="twilio_from_number" class="form-control form-control-sm" value="<?= e($sms['TWILIO_FROM_NUMBER'] ?? '') ?>" placeholder="+15555550100">
+            <label class="form-label small mb-0">Messaging Service SID</label>
+            <input type="text" name="twilio_messaging_service_sid" class="form-control form-control-sm" value="<?= e($sms['TWILIO_MESSAGING_SERVICE_SID'] ?? '') ?>" placeholder="MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
           </div>
           <div class="col-12">
             <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save SMS Settings</button>
