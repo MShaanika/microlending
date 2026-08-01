@@ -1749,6 +1749,7 @@ CREATE TABLE regulatory_reports (
     total_recoveries DECIMAL(18,2) DEFAULT 0,
     total_namfisa_levy DECIMAL(18,2) DEFAULT 0,
     total_duty_stamp DECIMAL(18,2) DEFAULT 0,
+    total_expenditure DECIMAL(18,2) DEFAULT 0,
     status ENUM('Draft','Generated','Submitted','Approved','Rejected') DEFAULT 'Draft',
     generated_by INT NULL,
     submitted_by INT NULL,

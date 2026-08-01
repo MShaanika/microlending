@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Core\Database;
 use App\Models\LoanDisbursementReportLine;
 use App\Models\RegulatoryReport;
+use App\Models\StatutoryCharge;
 
 /**
  * Builds the "Loan Disbursement and Bad Debt Register" -- a monthly,
@@ -33,12 +34,15 @@ class LoanDisbursementReportGenerationService
     public static function generate(string $periodStart, string $periodEnd, int $userId): int
     {
         $lines = self::loanLines($periodStart, $periodEnd);
+        $totalBorrowed = round((float) array_sum(array_column($lines, 'borrowed_amount')), 2);
 
         $totals = [
             'total_loans' => count($lines),
-            'total_principal' => round((float) array_sum(array_column($lines, 'borrowed_amount')), 2),
+            'total_principal' => $totalBorrowed,
             'total_interest' => round((float) array_sum(array_column($lines, 'interest_amount')), 2),
             'total_bad_debts' => round((float) array_sum(array_column($lines, 'bad_debt_written_off')), 2),
+            'total_expenditure' => self::expenditureForMonth($periodStart, $periodEnd),
+            'total_namfisa_levy' => self::levyDue($totalBorrowed, $periodEnd),
         ];
 
         $db = Database::connection();
@@ -77,6 +81,34 @@ class LoanDisbursementReportGenerationService
             throw new \RuntimeException('LOAN_DISBURSEMENT_MTH report type is not seeded.');
         }
         return (int) $id;
+    }
+
+    /**
+     * "EXPENDITURE FOR MONTH" in the client's historical register --
+     * matches MlrReportGenerationService::expensesByMonth()'s definition
+     * (paid expenses in the period), just for this one month rather than
+     * a 3-month quarter.
+     */
+    private static function expenditureForMonth(string $start, string $end): float
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT COALESCE(SUM(total_amount), 0) FROM expenses WHERE status = 'Paid' AND expense_date BETWEEN ? AND ?"
+        );
+        $stmt->execute([$start, $end]);
+        return round((float) $stmt->fetchColumn(), 2);
+    }
+
+    /**
+     * "LEVY DUE TO NAMFISA 1.03% OF DISBURSED LOANS" -- the rate as of the
+     * period's end date (not "today"), same reasoning as MLR's month-by-
+     * month levy calculation: a report generated later shouldn't have a
+     * since-changed rate silently rewrite a past month's figure.
+     */
+    private static function levyDue(float $totalBorrowed, string $periodEnd): float
+    {
+        $rate = (new StatutoryCharge())->namfisaLevyRateAsOf($periodEnd);
+        return round($totalBorrowed * ($rate / 100), 2);
     }
 
     /**

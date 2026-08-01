@@ -143,6 +143,23 @@ class LoanDisbursementReportExcelExporter
         $this->amount($sheet, "M{$row}", $grand['paid']);
         $this->amount($sheet, "N{$row}", $grand['bad_debt']);
         ExcelBrandStyle::totals($sheet, "A{$row}:N{$row}");
+        $row += 2;
+
+        $levyRate = (new \App\Models\StatutoryCharge())->namfisaLevyRateAsOf($this->report['period_end']);
+        $expenditure = (float) ($this->report['total_expenditure'] ?? 0);
+        $levy = (float) ($this->report['total_namfisa_levy'] ?? 0);
+
+        $sheet->setCellValue("A{$row}", 'EXPENDITURE FOR MONTH (N$):');
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $this->amount($sheet, "C{$row}", $expenditure);
+        $row++;
+        $sheet->setCellValue("A{$row}", 'LEVY DUE TO NAMFISA ' . number_format($levyRate, 2) . '% OF DISBURSED LOANS (N$):');
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $this->amount($sheet, "C{$row}", $levy);
+        $row++;
+        $sheet->setCellValue("A{$row}", 'TOTAL PAYABLE (INCL. LEVY) (N$):');
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $this->amount($sheet, "C{$row}", $grand['repayment'] + $levy);
 
         return $spreadsheet;
     }
