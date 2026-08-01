@@ -6,7 +6,7 @@ use App\Core\Model;
 
 class Loan extends Model
 {
-    public function paginated(string $search = '', string $status = '', int $limit = 100): array
+    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null): array
     {
         $sql = "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, p.product_name
                 FROM loans l
@@ -24,6 +24,11 @@ class Loan extends Model
         if ($status !== '') {
             $sql .= " AND l.loan_status = ?";
             $params[] = $status;
+        }
+
+        if ($branchId !== null) {
+            $sql .= " AND l.branch_id = ?";
+            $params[] = $branchId;
         }
 
         $sql .= " ORDER BY l.id DESC LIMIT " . (int) $limit;
@@ -153,17 +158,22 @@ class Loan extends Model
      * Active/Current loans grouped by borrower, for the Top-up "existing
      * active loan" picker on loan creation.
      */
-    public function activeLoansForTopup(): array
+    public function activeLoansForTopup(?int $branchId = null): array
     {
-        return $this->all(
-            "SELECT l.id, l.loan_no, l.borrower_id, l.principal_amount, l.start_date
+        $sql = "SELECT l.id, l.loan_no, l.borrower_id, l.principal_amount, l.start_date
              FROM loans l
              WHERE l.loan_status IN ('Active','Current')
                AND NOT EXISTS (
                    SELECT 1 FROM loan_reschedules r WHERE r.loan_id = l.id AND r.status = 'Implemented'
-               )
-             ORDER BY l.id DESC"
-        );
+               )";
+        $params = [];
+        if ($branchId !== null) {
+            $sql .= " AND l.branch_id = ?";
+            $params[] = $branchId;
+        }
+        $sql .= " ORDER BY l.id DESC";
+
+        return $this->all($sql, $params);
     }
 
     public function topupsOf(int $loanId): array

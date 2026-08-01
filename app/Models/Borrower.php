@@ -8,7 +8,7 @@ class Borrower extends Model
 {
     protected string $table = 'borrowers';
 
-    public function paginated(string $search = '', string $status = '', int $limit = 50): array
+    public function paginated(string $search = '', string $status = '', int $limit = 50, ?int $branchId = null): array
     {
         $sql = "SELECT b.*, br.branch_name
                 FROM borrowers b
@@ -25,6 +25,11 @@ class Borrower extends Model
         if ($status !== '') {
             $sql .= " AND b.status = ?";
             $params[] = $status;
+        }
+
+        if ($branchId !== null) {
+            $sql .= " AND b.branch_id = ?";
+            $params[] = $branchId;
         }
 
         $sql .= " ORDER BY b.id DESC LIMIT " . (int) $limit;

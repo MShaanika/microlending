@@ -42,26 +42,57 @@ class BorrowerController extends Controller
 
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('borrowers/index', [
             'title' => 'Borrowers',
-            'borrowers' => $this->borrowers->paginated($search, $status),
+            'borrowers' => $this->borrowers->paginated($search, $status, 50, $branchId),
             'search' => $search,
             'status' => $status,
+            'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
     public function create(): void
     {
         Auth::authorize('borrowers.create');
+        $scopeBranchId = $this->scopeBranchId();
         $this->view('borrowers/create', [
             'title' => 'Add Borrower',
-            'branches' => $this->branches->all(),
+            'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
             'documentRequirements' => $this->uploadRequirements->forBorrowers(),
-            'existingBorrowers' => $this->borrowers->paginated('', '', 500),
+            'existingBorrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
             'old' => [],
             'errors' => [],
         ]);
+    }
+
+    /** Hard scope for create/store/show/edit/update/delete -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : Auth::branchId();
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId();
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the record belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $record): void
+    {
+        if (!$record || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($record['branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Borrower not found.');
+            $this->redirect('/borrowers');
+        }
     }
 
     public function store(): void
@@ -78,6 +109,14 @@ class BorrowerController extends Controller
             return;
         }
 
+        $scopeBranchId = $this->scopeBranchId();
+        // A non-Super-Admin's branch is fixed server-side -- never trust a
+        // posted branch_id for them, so a tampered form field can't create
+        // a borrower under a branch they don't belong to.
+        if ($scopeBranchId !== null) {
+            $_POST['branch_id'] = $scopeBranchId;
+        }
+
         $errors = $this->validate($_POST);
 
         if (!empty($_POST['id_number']) && $this->borrowers->idNumberExists(trim($_POST['id_number']))) {
@@ -90,9 +129,9 @@ class BorrowerController extends Controller
         if (!empty($errors)) {
             $this->view('borrowers/create', [
                 'title' => 'Add Borrower',
-                'branches' => $this->branches->all(),
+                'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
                 'documentRequirements' => $this->uploadRequirements->forBorrowers(),
-                'existingBorrowers' => $this->borrowers->paginated('', '', 500),
+                'existingBorrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -158,6 +197,7 @@ class BorrowerController extends Controller
             $this->redirect('/borrowers/create');
             return;
         }
+        $this->assertBranchAccess($borrower);
 
         $documentErrors = array_merge(
             $this->validateDocumentUploads($_FILES['documents'] ?? []),
@@ -165,11 +205,12 @@ class BorrowerController extends Controller
         );
 
         if (!empty($documentErrors)) {
+            $scopeBranchId = $this->scopeBranchId();
             $this->view('borrowers/create', [
                 'title' => 'Add Borrower',
-                'branches' => $this->branches->all(),
+                'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
                 'documentRequirements' => $this->uploadRequirements->forBorrowers(),
-                'existingBorrowers' => $this->borrowers->paginated('', '', 500),
+                'existingBorrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
                 'old' => array_merge($_POST, ['client_mode' => 'existing']),
                 'errors' => $documentErrors,
             ]);
@@ -469,6 +510,7 @@ class BorrowerController extends Controller
     public function downloadDocument(string $id, string $documentId): void
     {
         Auth::authorize('borrowers.documents');
+        $this->assertBranchAccess($this->borrowers->find((int) $id));
 
         $document = $this->borrowers->findDocument((int) $id, (int) $documentId);
         if (!$document) {
@@ -506,6 +548,7 @@ class BorrowerController extends Controller
             Session::flash('error', 'Borrower not found.');
             $this->redirect('/borrowers');
         }
+        $this->assertBranchAccess($borrower);
 
         $this->view('borrowers/show', [
             'title' => 'Borrower: ' . $borrower['first_name'] . ' ' . $borrower['last_name'],
@@ -534,6 +577,7 @@ class BorrowerController extends Controller
             Session::flash('error', 'Borrower not found.');
             $this->redirect('/borrowers');
         }
+        $this->assertBranchAccess($borrower);
 
         $username = strtolower(str_replace('-', '', $borrower['borrower_no']));
         $tempPassword = strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)) . random_int(100, 999);
@@ -574,10 +618,12 @@ class BorrowerController extends Controller
             Session::flash('error', 'Borrower not found.');
             $this->redirect('/borrowers');
         }
+        $this->assertBranchAccess($borrower);
 
+        $scopeBranchId = $this->scopeBranchId();
         $this->view('borrowers/edit', [
             'title' => 'Edit Borrower',
-            'branches' => $this->branches->all(),
+            'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
             'borrower' => $borrower,
             'errors' => [],
         ]);
@@ -598,6 +644,12 @@ class BorrowerController extends Controller
             Session::flash('error', 'Borrower not found.');
             $this->redirect('/borrowers');
         }
+        $this->assertBranchAccess($borrower);
+
+        $scopeBranchId = $this->scopeBranchId();
+        if ($scopeBranchId !== null) {
+            $_POST['branch_id'] = $scopeBranchId;
+        }
 
         $errors = $this->validate($_POST);
 
@@ -608,7 +660,7 @@ class BorrowerController extends Controller
         if (!empty($errors)) {
             $this->view('borrowers/edit', [
                 'title' => 'Edit Borrower',
-                'branches' => $this->branches->all(),
+                'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
                 'borrower' => array_merge($borrower, $_POST),
                 'errors' => $errors,
             ]);
@@ -646,6 +698,8 @@ class BorrowerController extends Controller
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/borrowers');
         }
+
+        $this->assertBranchAccess($this->borrowers->find($id));
 
         $this->borrowers->delete($id);
         Audit::log('Delete', 'Borrowers', 'Deleted borrower #' . $id);

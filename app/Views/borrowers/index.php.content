@@ -21,6 +21,16 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if (!empty($branches)): ?>
+        <div class="col-md-3">
+          <select name="branch_id" class="form-select">
+            <option value="">All Branches</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      <?php endif; ?>
       <div class="col-md-2">
         <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
       </div>

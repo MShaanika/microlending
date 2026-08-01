@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\BankAccount;
+use App\Models\Branch;
 use App\Models\Loan;
 use App\Models\Payment;
 
@@ -16,24 +17,56 @@ class PaymentController extends Controller
     private Payment $payments;
     private Loan $loans;
     private BankAccount $bankAccounts;
+    private Branch $branches;
 
     public function __construct()
     {
         $this->payments = new Payment();
         $this->loans = new Loan();
         $this->bankAccounts = new BankAccount();
+        $this->branches = new Branch();
+    }
+
+    /** Hard scope for create/store/confirm/reject -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : Auth::branchId();
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId();
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the record belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $record, string $notFoundRedirect = '/payments'): void
+    {
+        if (!$record || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($record['branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Record not found.');
+            $this->redirect($notFoundRedirect);
+        }
     }
 
     public function index(): void
     {
         Auth::authorize('collections.view');
         $search = trim((string) ($_GET['q'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('payments/index', [
             'title' => 'Payments',
-            'payments' => $this->payments->paginated($search),
+            'payments' => $this->payments->paginated($search, 100, $branchId),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'search' => $search,
+            'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
@@ -46,6 +79,7 @@ class PaymentController extends Controller
             Session::flash('error', 'Loan not found.');
             $this->redirect('/loans');
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         $this->view('payments/create', [
             'title' => 'Record Payment',
@@ -74,6 +108,7 @@ class PaymentController extends Controller
             Session::flash('error', 'Loan not found.');
             $this->redirect('/loans');
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         if ($amount <= 0) {
             Session::flash('error', 'Enter a payment amount greater than zero.');
@@ -114,6 +149,8 @@ class PaymentController extends Controller
             $this->redirect('/payments');
         }
 
+        $this->assertBranchAccess($this->payments->find($id));
+
         $bankAccountId = ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null;
 
         try {
@@ -142,6 +179,8 @@ class PaymentController extends Controller
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/payments');
         }
+
+        $this->assertBranchAccess($this->payments->find($id));
 
         $reason = trim($_POST['reason'] ?? '') ?: 'No reason given';
         $this->payments->rejectPending($id, Auth::user()['id'] ?? null, $reason);

@@ -14,6 +14,23 @@ class Auth
     }
 
     /**
+     * Only Super Admin bypasses branch data scoping -- deliberately
+     * narrower than ipAllowed()'s Super Admin + Admin exemption, which is
+     * a separate, unrelated gate (network access vs. data visibility).
+     */
+    public static function isSuperAdmin(): bool
+    {
+        $user = self::user();
+        return $user && ($user['user_type'] ?? '') === 'Super Admin';
+    }
+
+    public static function branchId(): ?int
+    {
+        $user = self::user();
+        return $user['branch_id'] ?? null;
+    }
+
+    /**
      * requireLogin() + a permission_key check, in one call. Redirects to
      * the dashboard with a flash error rather than a dedicated 403 page,
      * matching this app's existing flash-then-redirect convention.
@@ -53,6 +70,8 @@ class Auth
             'name' => $user['name'],
             'email' => $user['email'],
             'username' => $user['username'],
+            'user_type' => $user['user_type'],
+            'branch_id' => $user['branch_id'] !== null ? (int) $user['branch_id'] : null,
             'permissions' => self::permissions((int)$user['id'])
         ]);
         $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);

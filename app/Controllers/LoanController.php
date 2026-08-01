@@ -11,6 +11,7 @@ use App\Models\AccountingAccount;
 use App\Models\AccountingJournal;
 use App\Models\BankAccount;
 use App\Models\Borrower;
+use App\Models\Branch;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
@@ -29,6 +30,7 @@ class LoanController extends Controller
     private Loan $loans;
     private LoanProduct $products;
     private Borrower $borrowers;
+    private Branch $branches;
     private StatutoryCharge $statutoryCharges;
     private AccountingAccount $accounts;
     private AccountingJournal $journal;
@@ -41,6 +43,7 @@ class LoanController extends Controller
         $this->loans = new Loan();
         $this->products = new LoanProduct();
         $this->borrowers = new Borrower();
+        $this->branches = new Branch();
         $this->statutoryCharges = new StatutoryCharge();
         $this->accounts = new AccountingAccount();
         $this->journal = new AccountingJournal();
@@ -54,13 +57,43 @@ class LoanController extends Controller
         Auth::authorize('loans.view');
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('loans/index', [
             'title' => 'Loans',
-            'loans' => $this->loans->paginated($search, $status),
+            'loans' => $this->loans->paginated($search, $status, 100, $branchId),
             'search' => $search,
             'status' => $status,
+            'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
+    }
+
+    /** Hard scope for create/store/show/... -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : Auth::branchId();
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId();
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the loan belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $loan): void
+    {
+        if (!$loan || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($loan['branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+        }
     }
 
     public function create(): void
@@ -86,12 +119,13 @@ class LoanController extends Controller
             }
         }
 
+        $scopeBranchId = $this->scopeBranchId();
         $this->view('loans/create', [
             'title' => 'New Loan',
-            'borrowers' => $this->borrowers->paginated('', '', 500),
+            'borrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
             'products' => $this->products->activeWithPlans(),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
-            'activeLoansByBorrower' => $this->buildActiveLoansByBorrower(),
+            'activeLoansByBorrower' => $this->buildActiveLoansByBorrower($scopeBranchId),
             'preselected_borrower_id' => $preselectedBorrowerId,
             'application_id' => $applicationId,
             'old' => $old,
@@ -105,10 +139,10 @@ class LoanController extends Controller
      * picker on loan creation, cascaded client-side the same way product ->
      * plan already is.
      */
-    private function buildActiveLoansByBorrower(): array
+    private function buildActiveLoansByBorrower(?int $branchId = null): array
     {
         $map = [];
-        foreach ($this->loans->activeLoansForTopup() as $l) {
+        foreach ($this->loans->activeLoansForTopup($branchId) as $l) {
             $map[(int) $l['borrower_id']][] = [
                 'id' => (int) $l['id'],
                 'loan_no' => $l['loan_no'],
@@ -138,6 +172,15 @@ class LoanController extends Controller
         $borrower = $this->borrowers->find((int) ($_POST['borrower_id'] ?? 0));
         $product = $this->products->find((int) ($_POST['product_id'] ?? 0));
         $plan = $product ? $this->products->findPlan((int) ($_POST['plan_id'] ?? 0)) : null;
+
+        $scopeBranchId = $this->scopeBranchId();
+        // Never trust a posted borrower_id for a non-Super-Admin -- a
+        // borrower outside their branch is treated the same as "doesn't
+        // exist" here, so a tampered form field can't create a loan
+        // against another branch's borrower.
+        if ($borrower && $scopeBranchId !== null && (int) $borrower['branch_id'] !== $scopeBranchId) {
+            $borrower = null;
+        }
 
         if (!$borrower) {
             $errors['borrower_id'] = 'Select a valid borrower.';
@@ -177,10 +220,10 @@ class LoanController extends Controller
         if (!empty($errors)) {
             $this->view('loans/create', [
                 'title' => 'New Loan',
-                'borrowers' => $this->borrowers->paginated('', '', 500),
+                'borrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
                 'products' => $this->products->activeWithPlans(),
                 'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
-                'activeLoansByBorrower' => $this->buildActiveLoansByBorrower(),
+                'activeLoansByBorrower' => $this->buildActiveLoansByBorrower($scopeBranchId),
                 'preselected_borrower_id' => (int) ($_POST['borrower_id'] ?? 0),
                 'application_id' => (int) ($_POST['application_id'] ?? 0),
                 'old' => $_POST,
@@ -334,6 +377,7 @@ class LoanController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan);
 
         $originalLoan = $loan['topup_of_loan_id'] ? $this->loans->find((int) $loan['topup_of_loan_id']) : null;
 
@@ -353,6 +397,7 @@ class LoanController extends Controller
             Session::flash('error', 'Loan not found.');
             $this->redirect('/loans');
         }
+        $this->assertBranchAccess($loan);
 
         $originalLoan = $loan['topup_of_loan_id'] ? $this->loans->find((int) $loan['topup_of_loan_id']) : null;
         $latestTopup = $this->topups->latestActiveForLoan((int) $id);
@@ -393,6 +438,7 @@ class LoanController extends Controller
         }
 
         $loanId = (int) $topup['loan_id'];
+        $this->assertBranchAccess($this->loans->find($loanId));
 
         try {
             TopUpService::reverseConsolidation($topup, Auth::user()['id'] ?? null);
@@ -423,6 +469,7 @@ class LoanController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan);
 
         $this->view('loans/statement', [
             'title' => 'Statement - ' . $loan['loan_no'],
@@ -444,6 +491,7 @@ class LoanController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan);
 
         $borrower = $this->borrowers->find((int) $loan['borrower_id']);
         $schedule = $this->loans->schedule((int) $id);
@@ -474,6 +522,7 @@ class LoanController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan);
 
         $borrower = $this->borrowers->find((int) $loan['borrower_id']);
         $schedule = $this->loans->schedule((int) $id);
@@ -516,6 +565,7 @@ class LoanController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan);
 
         $recipient = trim($_POST['recipient_email'] ?? '');
         if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
@@ -562,6 +612,7 @@ class LoanController extends Controller
         }
 
         $loan = $this->loans->find($id);
+        $this->assertBranchAccess($loan);
         if (!$loan || $loan['loan_status'] !== 'Pending Approval') {
             Session::flash('error', 'Only loans pending approval can be approved.');
             $this->redirect('/loans/' . $id);
@@ -591,6 +642,7 @@ class LoanController extends Controller
         }
 
         $loan = $this->loans->find($id);
+        $this->assertBranchAccess($loan);
         if (!$loan || $loan['loan_status'] !== 'Approved') {
             Session::flash('error', 'Only approved loans can be released.');
             $this->redirect('/loans/' . $id);

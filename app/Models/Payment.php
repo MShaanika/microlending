@@ -6,7 +6,7 @@ use App\Core\Model;
 
 class Payment extends Model
 {
-    public function paginated(string $search = '', int $limit = 100): array
+    public function paginated(string $search = '', int $limit = 100, ?int $branchId = null): array
     {
         $sql = "SELECT p.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no
                 FROM payments p
@@ -19,6 +19,11 @@ class Payment extends Model
             $sql .= " AND (p.payment_no LIKE ? OR l.loan_no LIKE ? OR b.first_name LIKE ? OR b.last_name LIKE ?)";
             $like = '%' . $search . '%';
             array_push($params, $like, $like, $like, $like);
+        }
+
+        if ($branchId !== null) {
+            $sql .= " AND p.branch_id = ?";
+            $params[] = $branchId;
         }
 
         $sql .= " ORDER BY p.id DESC LIMIT " . (int) $limit;
