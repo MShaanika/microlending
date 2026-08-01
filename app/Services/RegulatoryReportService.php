@@ -78,29 +78,34 @@ class RegulatoryReportService
      * which the current write paths (Payment::recordAndAllocate()) never
      * populate.
      */
-    public static function paymentMethodSummary(string $start, string $end): array
+    public static function paymentMethodSummary(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
 
         $byMethod = $db->prepare(
             "SELECT payment_source, COUNT(*) AS txn_count, COALESCE(SUM(amount_received),0) AS total_amount
-             FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?
+             FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?{$branchSql}
              GROUP BY payment_source ORDER BY total_amount DESC"
         );
-        $byMethod->execute([$start, $end]);
+        $byMethod->execute($params);
 
         $trend = $db->prepare(
             "SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month_key, DATE_FORMAT(payment_date, '%M %Y') AS month_label,
                     payment_source, COALESCE(SUM(amount_received),0) AS total_amount
-             FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?
+             FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key, month_label, payment_source ORDER BY month_key"
         );
-        $trend->execute([$start, $end]);
+        $trend->execute($params);
 
         $total = $db->prepare(
-            "SELECT COALESCE(SUM(amount_received),0) FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?"
+            "SELECT COALESCE(SUM(amount_received),0) FROM payments WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?{$branchSql}"
         );
-        $total->execute([$start, $end]);
+        $total->execute($params);
 
         return [
             'total_amount' => round((float) $total->fetchColumn(), 2),

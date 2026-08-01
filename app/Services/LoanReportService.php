@@ -28,9 +28,14 @@ class LoanReportService
      *  used for every "loans issued in period" breakdown below. */
     private const ISSUED_STATUSES = "('Approved','Released','Active','Current','Completed','Written Off')";
 
-    public static function genderBreakdown(string $start, string $end): array
+    public static function genderBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT COALESCE(b.gender, 'Unknown') AS gender,
                     COUNT(*) AS loan_count,
@@ -38,20 +43,25 @@ class LoanReportService
              FROM loans l
              JOIN borrowers b ON b.id = l.borrower_id
              WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
-               AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
+               AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?{$branchSql}
              GROUP BY b.gender
              ORDER BY b.gender"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function sizeBreakdown(string $start, string $end): array
+    public static function sizeBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
         $rows = [];
 
         foreach (self::AMOUNT_BANDS as $label => [$min, $max]) {
+            $params = [$start, $end, $min, $max];
+            if ($branchId !== null) {
+                $params[] = $branchId;
+            }
             $stmt = $db->prepare(
                 "SELECT COALESCE(SUM(l.principal_amount), 0) AS total_amount,
                         COALESCE(SUM(CASE WHEN b.gender = 'Male' THEN l.principal_amount ELSE 0 END), 0) AS male_amount,
@@ -62,9 +72,9 @@ class LoanReportService
                  JOIN borrowers b ON b.id = l.borrower_id
                  WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
                    AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
-                   AND l.principal_amount BETWEEN ? AND ?"
+                   AND l.principal_amount BETWEEN ? AND ?{$branchSql}"
             );
-            $stmt->execute([$start, $end, $min, $max]);
+            $stmt->execute($params);
             $row = $stmt->fetch();
             $row['label'] = $label;
             $rows[] = $row;
@@ -75,12 +85,17 @@ class LoanReportService
 
     /** Salary lives on the borrower's current employment record, not the
      *  borrower row itself -- join through borrower_employment. */
-    public static function salaryBreakdown(string $start, string $end): array
+    public static function salaryBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
         $rows = [];
 
         foreach (self::AMOUNT_BANDS as $label => [$min, $max]) {
+            $params = [$start, $end, $min, $max];
+            if ($branchId !== null) {
+                $params[] = $branchId;
+            }
             $stmt = $db->prepare(
                 "SELECT COALESCE(SUM(CASE WHEN b.gender = 'Male' THEN be.gross_salary ELSE 0 END), 0) AS male_salary,
                         COALESCE(SUM(CASE WHEN b.gender = 'Female' THEN be.gross_salary ELSE 0 END), 0) AS female_salary,
@@ -91,9 +106,9 @@ class LoanReportService
                  JOIN borrower_employment be ON be.borrower_id = b.id AND be.is_current = 1
                  WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
                    AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
-                   AND be.gross_salary BETWEEN ? AND ?"
+                   AND be.gross_salary BETWEEN ? AND ?{$branchSql}"
             );
-            $stmt->execute([$start, $end, $min, $max]);
+            $stmt->execute($params);
             $row = $stmt->fetch();
             $row['label'] = $label;
             $rows[] = $row;
@@ -102,45 +117,61 @@ class LoanReportService
         return $rows;
     }
 
-    public static function paymentGenderBreakdown(string $start, string $end): array
+    public static function paymentGenderBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND p.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT COALESCE(b.gender, 'Unknown') AS gender,
                     COUNT(*) AS payment_count,
                     COALESCE(SUM(p.amount_received), 0) AS total_amount
              FROM payments p
              JOIN borrowers b ON b.id = p.borrower_id
-             WHERE p.status = 'Posted' AND p.payment_date BETWEEN ? AND ?
+             WHERE p.status = 'Posted' AND p.payment_date BETWEEN ? AND ?{$branchSql}
              GROUP BY b.gender
              ORDER BY b.gender"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function disbursementByMonth(string $start, string $end): array
+    public static function disbursementByMonth(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
-            "SELECT DATE_FORMAT(disbursement_date, '%Y-%m') AS month_key,
-                    DATE_FORMAT(disbursement_date, '%M %Y') AS month_label,
-                    COALESCE(SUM(amount), 0) AS total_amount,
+            "SELECT DATE_FORMAT(ld.disbursement_date, '%Y-%m') AS month_key,
+                    DATE_FORMAT(ld.disbursement_date, '%M %Y') AS month_label,
+                    COALESCE(SUM(ld.amount), 0) AS total_amount,
                     COUNT(*) AS disbursement_count
-             FROM loan_disbursements
-             WHERE status = 'Disbursed' AND disbursement_date BETWEEN ? AND ?
+             FROM loan_disbursements ld
+             JOIN loans l ON l.id = ld.loan_id
+             WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key, month_label
              ORDER BY month_key"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
     /** Loans grouped by their plan term (in months), for loans actually
      *  disbursed in the period. */
-    public static function installmentBreakdown(string $start, string $end): array
+    public static function installmentBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT lp.months AS term_months,
                     COUNT(DISTINCT l.id) AS loan_count,
@@ -148,11 +179,11 @@ class LoanReportService
              FROM loans l
              JOIN loan_plans lp ON lp.id = l.plan_id
              JOIN loan_disbursements ld ON ld.loan_id = l.id AND ld.status = 'Disbursed'
-             WHERE ld.disbursement_date BETWEEN ? AND ?
+             WHERE ld.disbursement_date BETWEEN ? AND ?{$branchSql}
              GROUP BY lp.months
              ORDER BY lp.months"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -162,9 +193,14 @@ class LoanReportService
      * principal/interest/penalty due & paid columns -- not the legacy's
      * ratio-based estimate off a single lump payments.amount total.
      */
-    public static function financialMetrics(string $start, string $end): array
+    public static function financialMetrics(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT
                 COALESCE(SUM(ls.principal_due - ls.principal_paid), 0) AS outstanding_principal,
@@ -177,9 +213,9 @@ class LoanReportService
              FROM loans l
              JOIN loan_disbursements ld ON ld.loan_id = l.id AND ld.status = 'Disbursed'
              JOIN loan_schedules ls ON ls.loan_id = l.id
-             WHERE ld.disbursement_date BETWEEN ? AND ?"
+             WHERE ld.disbursement_date BETWEEN ? AND ?{$branchSql}"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetch() ?: [
             'outstanding_principal' => 0, 'principal_received' => 0, 'interest_received' => 0,
             'interest_completed' => 0, 'penalty_income' => 0, 'active_loans' => 0, 'total_loans' => 0,
@@ -198,7 +234,7 @@ class LoanReportService
      * outstanding_balance is narrower (principal + levy + stamp only, for
      * provisioning) and would silently misalign the two if reused here.
      */
-    public static function activeLoanStatus(string $asOfDate): array
+    public static function activeLoanStatus(string $asOfDate, ?int $branchId = null): array
     {
         $db = Database::connection();
         $empty = [
@@ -207,12 +243,17 @@ class LoanReportService
             'current_count' => 0, 'current_outstanding' => 0.0,
         ];
 
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$asOfDate];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT DISTINCT l.id FROM loans l
              JOIN loan_disbursements ld ON ld.loan_id = l.id AND ld.status = 'Disbursed'
-             WHERE l.loan_status IN ('Active', 'Current') AND ld.disbursement_date <= ?"
+             WHERE l.loan_status IN ('Active', 'Current') AND ld.disbursement_date <= ?{$branchSql}"
         );
-        $stmt->execute([$asOfDate]);
+        $stmt->execute($params);
         $activeLoanIds = array_map('intval', array_column($stmt->fetchAll(), 'id'));
 
         if (empty($activeLoanIds)) {
@@ -250,25 +291,35 @@ class LoanReportService
 
     /** Loans identified as bad debt during the period (via a provisioning
      *  run), grouped by aging bucket. */
-    public static function badDebtsBreakdown(string $start, string $end): array
+    public static function badDebtsBreakdown(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT aging_bucket, COUNT(*) AS loan_count, COALESCE(SUM(outstanding_balance), 0) AS total_outstanding
              FROM bad_debts
-             WHERE identified_date BETWEEN ? AND ?
+             WHERE identified_date BETWEEN ? AND ?{$branchSql}
              GROUP BY aging_bucket
              ORDER BY FIELD(aging_bucket, '31-60', '61-90', '91-180', '180+')"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
     /** Recovery payments posted against written-off loans during the
      *  period, with whether that bad debt is now fully recovered. */
-    public static function badDebtRecoveries(string $start, string $end): array
+    public static function badDebtRecoveries(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND lr.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT lr.recovery_date, lr.recovered_amount, l.loan_no,
                     CONCAT(b.first_name, ' ', b.last_name) AS borrower_name,
@@ -278,10 +329,10 @@ class LoanReportService
              JOIN borrowers b ON b.id = lr.borrower_id
              LEFT JOIN loan_write_offs wo ON wo.id = lr.write_off_id
              LEFT JOIN bad_debts bd ON bd.id = wo.bad_debt_id
-             WHERE lr.status = 'Posted' AND lr.recovery_date BETWEEN ? AND ?
+             WHERE lr.status = 'Posted' AND lr.recovery_date BETWEEN ? AND ?{$branchSql}
              ORDER BY lr.recovery_date"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 }

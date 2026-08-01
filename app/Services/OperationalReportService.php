@@ -18,9 +18,9 @@ class OperationalReportService
      * ArrearsService's aging buckets with each bucket's share of the total
      * outstanding portfolio.
      */
-    public static function portfolioAtRisk(string $asOfDate): array
+    public static function portfolioAtRisk(string $asOfDate, ?int $branchId = null): array
     {
-        $totalOutstanding = (float) (new Loan())->counts()['principal_outstanding'];
+        $totalOutstanding = (float) (new Loan())->counts($branchId)['principal_outstanding'];
 
         $buckets = [];
         foreach (['1-30', '31-60', '61-90', '91-180', '180+'] as $b) {
@@ -28,6 +28,9 @@ class OperationalReportService
         }
 
         foreach (ArrearsService::overdueLoans($asOfDate) as $row) {
+            if ($branchId !== null && (int) $row['branch_id'] !== $branchId) {
+                continue;
+            }
             $bucket = $row['aging_bucket'];
             if (!isset($buckets[$bucket])) {
                 continue;
@@ -51,26 +54,35 @@ class OperationalReportService
      * the 28th still counts as collected for that due-period), plus a
      * monthly trend for the chart.
      */
-    public static function collectionsEfficiency(string $start, string $end): array
+    public static function collectionsEfficiency(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
 
         $stmt = $db->prepare(
-            "SELECT COALESCE(SUM(total_due),0) AS total_due, COALESCE(SUM(total_paid),0) AS total_collected
-             FROM loan_schedules WHERE due_date BETWEEN ? AND ?"
+            "SELECT COALESCE(SUM(ls.total_due),0) AS total_due, COALESCE(SUM(ls.total_paid),0) AS total_collected
+             FROM loan_schedules ls
+             JOIN loans l ON l.id = ls.loan_id
+             WHERE ls.due_date BETWEEN ? AND ?{$branchSql}"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         $totals = $stmt->fetch();
         $totalDue = (float) $totals['total_due'];
         $totalCollected = (float) $totals['total_collected'];
 
         $trendStmt = $db->prepare(
-            "SELECT DATE_FORMAT(due_date, '%Y-%m') AS month_key, DATE_FORMAT(due_date, '%M %Y') AS month_label,
-                    COALESCE(SUM(total_due),0) AS due, COALESCE(SUM(total_paid),0) AS collected
-             FROM loan_schedules WHERE due_date BETWEEN ? AND ?
+            "SELECT DATE_FORMAT(ls.due_date, '%Y-%m') AS month_key, DATE_FORMAT(ls.due_date, '%M %Y') AS month_label,
+                    COALESCE(SUM(ls.total_due),0) AS due, COALESCE(SUM(ls.total_paid),0) AS collected
+             FROM loan_schedules ls
+             JOIN loans l ON l.id = ls.loan_id
+             WHERE ls.due_date BETWEEN ? AND ?{$branchSql}
              GROUP BY month_key, month_label ORDER BY month_key"
         );
-        $trendStmt->execute([$start, $end]);
+        $trendStmt->execute($params);
 
         return [
             'total_due' => round($totalDue, 2),
@@ -80,48 +92,63 @@ class OperationalReportService
         ];
     }
 
-    public static function expenseSummary(string $start, string $end): array
+    public static function expenseSummary(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND e.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT ec.category_name, COUNT(*) AS expense_count, COALESCE(SUM(e.total_amount),0) AS total_amount
              FROM expenses e
              JOIN expense_categories ec ON ec.id = e.category_id
-             WHERE e.status = 'Paid' AND e.expense_date BETWEEN ? AND ?
+             WHERE e.status = 'Paid' AND e.expense_date BETWEEN ? AND ?{$branchSql}
              GROUP BY ec.category_name
              ORDER BY total_amount DESC"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function debitOrderPerformance(string $start, string $end): array
+    public static function debitOrderPerformance(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND dor.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT dol.status, COUNT(*) AS line_count, COALESCE(SUM(dol.debit_amount),0) AS total_amount
              FROM debit_order_run_lines dol
              JOIN debit_order_runs dor ON dor.id = dol.run_id
-             WHERE dor.run_date BETWEEN ? AND ?
+             WHERE dor.run_date BETWEEN ? AND ?{$branchSql}
              GROUP BY dol.status
              ORDER BY FIELD(dol.status, 'Successful','Posted','Pending','Failed','Returned')"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function loanMix(string $start, string $end): array
+    public static function loanMix(string $start, string $end, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [$start, $end];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT l.loan_type, COUNT(*) AS loan_count, COALESCE(SUM(l.principal_amount),0) AS total_amount
              FROM loans l
              JOIN loan_disbursements ld ON ld.loan_id = l.id AND ld.status = 'Disbursed'
-             WHERE ld.disbursement_date BETWEEN ? AND ?
+             WHERE ld.disbursement_date BETWEEN ? AND ?{$branchSql}
              GROUP BY l.loan_type
              ORDER BY total_amount DESC"
         );
-        $stmt->execute([$start, $end]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 }
