@@ -52,8 +52,11 @@ class Payment extends Model
         );
     }
 
-    public function totalCollected(): float
+    public function totalCollected(?int $branchId = null): float
     {
+        if ($branchId !== null) {
+            return (float) ($this->scalar("SELECT COALESCE(SUM(amount_received),0) FROM payments WHERE status = 'Posted' AND branch_id = ?", [$branchId]) ?: 0);
+        }
         return (float) ($this->scalar("SELECT COALESCE(SUM(amount_received),0) FROM payments WHERE status = 'Posted'") ?: 0);
     }
 

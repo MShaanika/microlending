@@ -6,6 +6,20 @@
 
 <?= flash_messages() ?>
 
+<?php if (!empty($branches)): ?>
+<div class="d-flex justify-content-end mb-3">
+  <form method="get" action="<?= url('/dashboard') ?>" class="d-flex align-items-center gap-2">
+    <label class="text-muted small mb-0">Branch:</label>
+    <select name="branch_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+      <option value="">All Branches</option>
+      <?php foreach ($branches as $b): ?>
+        <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </form>
+</div>
+<?php endif; ?>
+
 <?php if ($myEmployee): ?>
 <div class="card mb-3">
   <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">

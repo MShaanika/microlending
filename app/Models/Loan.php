@@ -107,22 +107,31 @@ class Loan extends Model
         return $this->insert('loan_disbursements', $data);
     }
 
-    public function counts(): array
+    public function counts(?int $branchId = null): array
     {
+        $where = $branchId !== null ? " AND branch_id = " . (int) $branchId : "";
+        $scheduleWhere = $branchId !== null ? " AND l.branch_id = " . (int) $branchId : "";
         return [
-            'total' => (int) $this->scalar("SELECT COUNT(*) FROM loans"),
-            'active' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE loan_status IN ('Active','Current','Released')"),
-            'pending' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE loan_status = 'Pending Approval'"),
-            'completed' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE loan_status = 'Completed'"),
+            'total' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE 1=1{$where}"),
+            'active' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE loan_status IN ('Active','Current','Released'){$where}"),
+            'pending' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE loan_status = 'Pending Approval'{$where}"),
+            'completed' => (int) $this->scalar("SELECT COUNT(*) FROM loans WHERE loan_status = 'Completed'{$where}"),
             'principal_outstanding' => (float) ($this->scalar(
                 "SELECT COALESCE(SUM(total_due - total_paid),0) FROM loan_schedules ls
-                 JOIN loans l ON l.id = ls.loan_id WHERE l.loan_status IN ('Active','Current','Released')"
+                 JOIN loans l ON l.id = ls.loan_id WHERE l.loan_status IN ('Active','Current','Released'){$scheduleWhere}"
             ) ?: 0),
         ];
     }
 
-    public function arrearsCount(): int
+    public function arrearsCount(?int $branchId = null): int
     {
+        if ($branchId !== null) {
+            return (int) $this->scalar(
+                "SELECT COUNT(DISTINCT ls.loan_id) FROM loan_schedules ls
+                 JOIN loans l ON l.id = ls.loan_id WHERE ls.status = 'In Arrears' AND l.branch_id = ?",
+                [$branchId]
+            );
+        }
         return (int) $this->scalar(
             "SELECT COUNT(DISTINCT loan_id) FROM loan_schedules WHERE status = 'In Arrears'"
         );

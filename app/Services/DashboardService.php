@@ -17,31 +17,36 @@ use PDO;
  */
 class DashboardService
 {
-    public static function kpis(): array
+    public static function kpis(?int $branchId = null): array
     {
         $db = Database::connection();
-        $counts = (new Loan())->counts();
+        $counts = (new Loan())->counts($branchId);
 
-        $totalBorrowers = (int) $db->query("SELECT COUNT(*) FROM borrowers")->fetchColumn();
+        $borrowersWhere = $branchId !== null ? " AND branch_id = " . (int) $branchId : "";
+        $totalBorrowers = (int) $db->query("SELECT COUNT(*) FROM borrowers WHERE 1=1{$borrowersWhere}")->fetchColumn();
         $newBorrowersThisMonth = (int) $db->query(
-            "SELECT COUNT(*) FROM borrowers WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"
+            "SELECT COUNT(*) FROM borrowers WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01'){$borrowersWhere}"
         )->fetchColumn();
 
+        $paymentsWhere = $branchId !== null ? " AND branch_id = " . (int) $branchId : "";
         $collectedThisMonth = (float) $db->query(
             "SELECT COALESCE(SUM(amount_received),0) FROM payments
-             WHERE status = 'Posted' AND payment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"
+             WHERE status = 'Posted' AND payment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01'){$paymentsWhere}"
         )->fetchColumn();
         $collectedLastMonth = (float) $db->query(
             "SELECT COALESCE(SUM(amount_received),0) FROM payments
              WHERE status = 'Posted'
                AND payment_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01')
-               AND payment_date < DATE_FORMAT(CURDATE(), '%Y-%m-01')"
+               AND payment_date < DATE_FORMAT(CURDATE(), '%Y-%m-01'){$paymentsWhere}"
         )->fetchColumn();
         $collectedDeltaPct = $collectedLastMonth > 0
             ? round((($collectedThisMonth - $collectedLastMonth) / $collectedLastMonth) * 100, 1)
             : ($collectedThisMonth > 0 ? 100.0 : 0.0);
 
         $overdue = ArrearsService::overdueLoans(date('Y-m-d'));
+        if ($branchId !== null) {
+            $overdue = array_values(array_filter($overdue, fn ($row) => (int) $row['branch_id'] === $branchId));
+        }
         $arrearsValue = round((float) array_sum(array_column($overdue, 'outstanding_balance')), 2);
         $portfolioOutstanding = (float) $counts['principal_outstanding'];
         $parRatio = $portfolioOutstanding > 0 ? round($arrearsValue / $portfolioOutstanding * 100, 1) : 0.0;
@@ -60,34 +65,39 @@ class DashboardService
         ];
     }
 
-    public static function loanStatusDistribution(): array
+    public static function loanStatusDistribution(?int $branchId = null): array
     {
         $db = Database::connection();
+        $where = $branchId !== null ? " WHERE branch_id = " . (int) $branchId : "";
         return $db->query(
-            "SELECT loan_status, COUNT(*) AS count FROM loans GROUP BY loan_status ORDER BY count DESC"
+            "SELECT loan_status, COUNT(*) AS count FROM loans{$where} GROUP BY loan_status ORDER BY count DESC"
         )->fetchAll();
     }
 
-    public static function disbursementVsCollectionTrend(int $months = 6): array
+    public static function disbursementVsCollectionTrend(int $months = 6, ?int $branchId = null): array
     {
         $db = Database::connection();
         $rows = [];
+        $branchParam = $branchId !== null ? [$branchId] : [];
+        $disbursementBranchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $paymentBranchSql = $branchId !== null ? " AND branch_id = ?" : "";
 
         for ($i = $months - 1; $i >= 0; $i--) {
             $monthStart = date('Y-m-01', strtotime("-{$i} month"));
             $monthEnd = date('Y-m-t', strtotime($monthStart));
 
             $dStmt = $db->prepare(
-                "SELECT COALESCE(SUM(amount),0) FROM loan_disbursements
-                 WHERE status = 'Disbursed' AND disbursement_date BETWEEN ? AND ?"
+                "SELECT COALESCE(SUM(ld.amount),0) FROM loan_disbursements ld
+                 JOIN loans l ON l.id = ld.loan_id
+                 WHERE ld.status = 'Disbursed' AND ld.disbursement_date BETWEEN ? AND ?{$disbursementBranchSql}"
             );
-            $dStmt->execute([$monthStart, $monthEnd]);
+            $dStmt->execute(array_merge([$monthStart, $monthEnd], $branchParam));
 
             $cStmt = $db->prepare(
                 "SELECT COALESCE(SUM(amount_received),0) FROM payments
-                 WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?"
+                 WHERE status = 'Posted' AND payment_date BETWEEN ? AND ?{$paymentBranchSql}"
             );
-            $cStmt->execute([$monthStart, $monthEnd]);
+            $cStmt->execute(array_merge([$monthStart, $monthEnd], $branchParam));
 
             $rows[] = [
                 'label' => date('M Y', strtotime($monthStart)),
@@ -103,7 +113,7 @@ class DashboardService
      * Arrears grouped into ArrearsService's fixed aging buckets. 'Current'
      * never appears -- overdueLoans() only returns loans already overdue.
      */
-    public static function arrearsAging(): array
+    public static function arrearsAging(?int $branchId = null): array
     {
         $buckets = [];
         foreach (['1-30', '31-60', '61-90', '91-180', '180+'] as $b) {
@@ -111,6 +121,9 @@ class DashboardService
         }
 
         foreach (ArrearsService::overdueLoans(date('Y-m-d')) as $row) {
+            if ($branchId !== null && (int) $row['branch_id'] !== $branchId) {
+                continue;
+            }
             $bucket = $row['aging_bucket'];
             if (!isset($buckets[$bucket])) {
                 continue;
@@ -126,6 +139,11 @@ class DashboardService
         return array_values($buckets);
     }
 
+    /**
+     * Bank balances come from the General Ledger, which has no branch
+     * attribution (accounting_journal_entries has no branch_id) -- stays
+     * company-wide for every viewer until GL branch-scoping is designed.
+     */
     public static function cashPosition(): array
     {
         $bankAccounts = new BankAccount();
@@ -142,40 +160,49 @@ class DashboardService
         return $rows;
     }
 
-    public static function topArrears(int $limit = 5): array
+    public static function topArrears(int $limit = 5, ?int $branchId = null): array
     {
         $overdue = ArrearsService::overdueLoans(date('Y-m-d'));
+        if ($branchId !== null) {
+            $overdue = array_values(array_filter($overdue, fn ($row) => (int) $row['branch_id'] === $branchId));
+        }
         usort($overdue, static fn ($a, $b) => $b['outstanding_balance'] <=> $a['outstanding_balance']);
         return array_slice($overdue, 0, $limit);
     }
 
-    public static function upcomingDue(int $days = 7): array
+    public static function upcomingDue(int $days = 7, ?int $branchId = null): array
     {
         $db = Database::connection();
+        $branchSql = $branchId !== null ? " AND l.branch_id = ?" : "";
+        $params = [date('Y-m-d'), date('Y-m-d', strtotime("+{$days} days"))];
+        if ($branchId !== null) {
+            $params[] = $branchId;
+        }
         $stmt = $db->prepare(
             "SELECT ls.due_date, ls.total_due, ls.total_paid, l.id AS loan_id, l.loan_no,
                     CONCAT(b.first_name,' ',b.last_name) AS borrower_name
              FROM loan_schedules ls
              JOIN loans l ON l.id = ls.loan_id
              JOIN borrowers b ON b.id = l.borrower_id
-             WHERE ls.status = 'Pending' AND ls.due_date BETWEEN ? AND ?
+             WHERE ls.status = 'Pending' AND ls.due_date BETWEEN ? AND ?{$branchSql}
              ORDER BY ls.due_date ASC
              LIMIT 50"
         );
-        $stmt->execute([date('Y-m-d'), date('Y-m-d', strtotime("+{$days} days"))]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function promisesDueToday(): array
+    public static function promisesDueToday(?int $branchId = null): array
     {
-        return (new \App\Models\PaymentPromise())->dueOn(date('Y-m-d'));
+        return (new \App\Models\PaymentPromise())->dueOn(date('Y-m-d'), $branchId);
     }
 
     /**
      * One row per enabled platform, with its headline metric (metric_1)
      * trend for a mini chart and the latest-vs-previous-entry delta.
      * Platforms with fewer than 2 logged entries still show their latest
-     * value but omit the trend (nothing to chart yet).
+     * value but omit the trend (nothing to chart yet). Social platforms are
+     * company-wide accounts, not branch-specific, so this stays unscoped.
      */
     public static function socialAnalyticsSummary(): array
     {
@@ -210,6 +237,7 @@ class DashboardService
         return $rows;
     }
 
+    /** audit_logs has no branch attribution, so this stays company-wide. */
     public static function recentActivity(int $limit = 8): array
     {
         $db = Database::connection();

@@ -37,8 +37,11 @@ class Borrower extends Model
         return $this->all($sql, $params);
     }
 
-    public function count(): int
+    public function count(?int $branchId = null): int
     {
+        if ($branchId !== null) {
+            return (int) $this->scalar("SELECT COUNT(*) FROM borrowers WHERE branch_id = ?", [$branchId]);
+        }
         return (int) $this->scalar("SELECT COUNT(*) FROM borrowers");
     }
 

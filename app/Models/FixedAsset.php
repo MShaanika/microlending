@@ -174,16 +174,20 @@ class FixedAsset extends Model
         }
     }
 
-    public function totals(): array
+    public function totals(?int $branchId = null): array
     {
+        $where = $branchId !== null ? " AND branch_id = " . (int) $branchId : "";
+        $scheduleWhere = $branchId !== null ? " AND a.branch_id = " . (int) $branchId : "";
         return [
-            'count' => (int) $this->scalar("SELECT COUNT(*) FROM fixed_assets WHERE status != 'Disposed'"),
-            'net_book_value' => (float) ($this->scalar("SELECT COALESCE(SUM(net_book_value),0) FROM fixed_assets WHERE status != 'Disposed'") ?: 0),
+            'count' => (int) $this->scalar("SELECT COUNT(*) FROM fixed_assets WHERE status != 'Disposed'{$where}"),
+            'net_book_value' => (float) ($this->scalar("SELECT COALESCE(SUM(net_book_value),0) FROM fixed_assets WHERE status != 'Disposed'{$where}") ?: 0),
             'monthly_charge' => (float) ($this->scalar(
                 "SELECT COALESCE(SUM(t.depreciation_amount),0) FROM (
                     SELECT s.depreciation_amount,
                            ROW_NUMBER() OVER (PARTITION BY s.asset_id ORDER BY s.period_no) AS rn
-                    FROM asset_depreciation_schedules s WHERE s.status = 'Pending'
+                    FROM asset_depreciation_schedules s
+                    JOIN fixed_assets a ON a.id = s.asset_id
+                    WHERE s.status = 'Pending'{$scheduleWhere}
                  ) t WHERE t.rn = 1"
             ) ?: 0),
         ];
