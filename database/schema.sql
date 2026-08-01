@@ -171,12 +171,32 @@ CREATE TABLE users (
     phone VARCHAR(50),
     user_type ENUM('Super Admin','Admin','Manager','Loan Officer','Cashier','Accountant','Collector','Borrower') DEFAULT 'Admin',
     is_active TINYINT(1) DEFAULT 1,
+    bypass_ip_restriction TINYINT(1) NOT NULL DEFAULT 0,
     last_login DATETIME NULL,
     password_reset_token VARCHAR(255) NULL,
     password_reset_expires DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/*
+ * Per-branch login IP allow-list. A branch with zero rows here is
+ * unrestricted -- restriction only activates once an admin adds at least
+ * one range, so deploying this feature never locks anyone out until it's
+ * deliberately configured. ip_range accepts either a bare IP
+ * ("41.182.1.5") or CIDR notation ("41.182.1.0/24"); matching is done in
+ * App\Services\IpAddressMatcher.
+ */
+CREATE TABLE branch_login_ip_ranges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    ip_range VARCHAR(50) NOT NULL,
+    label VARCHAR(150) NULL,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE roles (

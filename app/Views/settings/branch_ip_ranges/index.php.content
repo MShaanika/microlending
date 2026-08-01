@@ -1,0 +1,70 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Branch Login IP Restrictions</h4>
+    <p class="text-muted small mb-0">Restrict which network staff can log in from, per branch. A branch with no ranges listed below is <strong>unrestricted</strong> -- adding its first range is what turns restriction on for that branch. Super Admins and Admins are never restricted, and any individual user can be exempted via "Allow login from anywhere" on their user profile.</p>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Add IP Range</h5>
+    <form method="post" action="<?= url('/settings/branch-ip-ranges') ?>" class="row g-2">
+      <?= csrf_field() ?>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Branch</label>
+        <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>">
+          <option value="">Select branch</option>
+          <?php foreach ($branches as $b): ?>
+            <option value="<?= (int) $b['id'] ?>" <?= (string) ($old['branch_id'] ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php if (isset($errors['branch_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['branch_id']) ?></div><?php endif; ?>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">IP Address or CIDR Range</label>
+        <input type="text" name="ip_range" class="form-control <?= isset($errors['ip_range']) ? 'is-invalid' : '' ?>" value="<?= e($old['ip_range'] ?? '') ?>" placeholder="41.182.1.5 or 41.182.1.0/24">
+        <?php if (isset($errors['ip_range'])): ?><div class="invalid-feedback d-block"><?= e($errors['ip_range']) ?></div><?php endif; ?>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Label (optional)</label>
+        <input type="text" name="label" class="form-control" value="<?= e($old['label'] ?? '') ?>" placeholder="e.g. Windhoek Office">
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-plus"></i> Add Range</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<?php foreach ($branches as $branch): ?>
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0"><?= e($branch['branch_name']) ?></h5>
+        <span class="badge bg-<?= empty($branch['ranges']) ? 'secondary' : 'success' ?>"><?= empty($branch['ranges']) ? 'Unrestricted' : 'Restricted' ?></span>
+      </div>
+      <?php if (empty($branch['ranges'])): ?>
+        <p class="text-muted small mb-0">No ranges configured -- staff at this branch can log in from anywhere.</p>
+      <?php else: ?>
+        <table class="table table-sm table-borderless mb-0 no-datatable">
+          <tbody>
+            <?php foreach ($branch['ranges'] as $r): ?>
+              <tr>
+                <td><code><?= e($r['ip_range']) ?></code></td>
+                <td class="text-muted"><?= e($r['label'] ?: '') ?></td>
+                <td class="text-end">
+                  <form method="post" action="<?= url('/settings/branch-ip-ranges/' . $r['id'] . '/delete') ?>" onsubmit="return confirmSubmit(this, 'Remove this IP range?');">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    </div>
+  </div>
+<?php endforeach; ?>

@@ -36,6 +36,11 @@ class Auth
         $user = $stmt->fetch();
         if (!$user || !password_verify($password, $user['password'])) return false;
 
+        if (!self::ipAllowed($user)) {
+            Session::flash('error', 'You cannot log in from this location. Contact your administrator if you believe this is a mistake.');
+            return false;
+        }
+
         $employee = (new \App\Models\HrmEmployee())->findByUserId((int) $user['id']);
         if ($employee && (new \App\Models\HrmLeaveApplication())->isOnApprovedLeave((int) $employee['id'], date('Y-m-d'))) {
             Session::flash('error', 'You are on approved leave and cannot log in until it ends.');
@@ -53,6 +58,36 @@ class Auth
         $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
         Audit::log('Login', 'Security', 'User logged in successfully');
         return true;
+    }
+
+    /**
+     * Branch-based login IP allow-listing. Super Admin/Admin and anyone
+     * flagged bypass_ip_restriction are always allowed (an admin's own
+     * network is never restricted, and that flag is how an admin grants
+     * a specific user "login from anywhere"). A user with no branch, or
+     * whose branch has zero configured ranges, is unrestricted -- IP
+     * restriction only activates once an admin deliberately adds at
+     * least one range for that branch.
+     */
+    private static function ipAllowed(array $user): bool
+    {
+        if (in_array($user['user_type'] ?? '', ['Super Admin', 'Admin'], true)) {
+            return true;
+        }
+        if (!empty($user['bypass_ip_restriction'])) {
+            return true;
+        }
+        if (empty($user['branch_id'])) {
+            return true;
+        }
+
+        $ranges = (new \App\Models\BranchLoginIpRange())->forBranch((int) $user['branch_id']);
+        if (empty($ranges)) {
+            return true;
+        }
+
+        $clientIp = $_SERVER['REMOTE_ADDR'] ?? '';
+        return \App\Services\IpAddressMatcher::matchesAny($clientIp, $ranges);
     }
 
     private static function permissions(int $userId): array

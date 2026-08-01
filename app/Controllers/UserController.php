@@ -89,6 +89,7 @@ class UserController extends Controller
             'phone' => trim($_POST['phone'] ?? '') ?: null,
             'user_type' => $_POST['user_type'],
             'is_active' => 1,
+            'bypass_ip_restriction' => !empty($_POST['bypass_ip_restriction']) ? 1 : 0,
         ]);
 
         $this->users->setRoles($userId, $roleIds);
@@ -171,6 +172,7 @@ class UserController extends Controller
             'email' => trim($_POST['email']),
             'phone' => trim($_POST['phone'] ?? '') ?: null,
             'user_type' => $_POST['user_type'],
+            'bypass_ip_restriction' => !empty($_POST['bypass_ip_restriction']) ? 1 : 0,
         ]);
 
         $this->users->setRoles($id, $roleIds);

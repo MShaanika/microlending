@@ -111,6 +111,7 @@ use App\Controllers\DebitOrderCollectionController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ExpenseCategoryController;
 use App\Controllers\AiSettingController;
+use App\Controllers\BranchLoginIpRangeController;
 use App\Controllers\DocumentationController;
 
 $router->get('/', [AuthController::class, 'showLogin']);
@@ -313,6 +314,10 @@ $router->post('/settings/intake-sources/{id}/regenerate', [IntakeSourceControlle
 $router->get('/settings/ai', [AiSettingController::class, 'index']);
 $router->post('/settings/ai', [AiSettingController::class, 'store']);
 $router->post('/settings/ai/test', [AiSettingController::class, 'test']);
+
+$router->get('/settings/branch-ip-ranges', [BranchLoginIpRangeController::class, 'index']);
+$router->post('/settings/branch-ip-ranges', [BranchLoginIpRangeController::class, 'store']);
+$router->post('/settings/branch-ip-ranges/{id}/delete', [BranchLoginIpRangeController::class, 'delete']);
 
 // Refund claims (submitted via the self-service portal, reviewed by staff)
 $router->get('/refund-claims', [RefundClaimController::class, 'index']);
