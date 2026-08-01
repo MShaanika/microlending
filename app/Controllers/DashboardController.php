@@ -4,6 +4,8 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Auth;
 use App\Models\Borrower;
+use App\Models\HrmAttendance;
+use App\Models\HrmEmployee;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Models\FixedAsset;
@@ -22,7 +24,12 @@ class DashboardController extends Controller
 
         $loanCounts = $loans->counts();
 
+        $myEmployee = (new HrmEmployee())->findByUserId((int) (Auth::user()['id'] ?? 0));
+        $myAttendanceToday = $myEmployee ? (new HrmAttendance())->findForEmployeeDate((int) $myEmployee['id'], date('Y-m-d')) : null;
+
         $this->view('dashboard/index', [
+            'myEmployee' => $myEmployee,
+            'myAttendanceToday' => $myAttendanceToday,
             'title' => 'Dashboard',
             'stats' => [
                 'total_borrowers' => $borrowers->count(),

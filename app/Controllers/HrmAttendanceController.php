@@ -143,6 +143,95 @@ class HrmAttendanceController extends Controller
         $this->redirect('/hrm/attendance');
     }
 
+    /**
+     * Self-service clock in/out for the logged-in user's own linked
+     * employee record -- separate from the admin-entered flow above
+     * (hrm.manage), since any staff member with a linked employee should
+     * be able to clock themselves in without HR-management rights.
+     */
+    public function clockIn(): void
+    {
+        Auth::requireLogin();
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        $employee = $this->employees->findByUserId((int) (Auth::user()['id'] ?? 0));
+        if (!$employee) {
+            Session::flash('error', 'Your account is not linked to an employee record.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        $today = date('Y-m-d');
+        if ($this->attendances->findForEmployeeDate((int) $employee['id'], $today)) {
+            Session::flash('error', 'You have already clocked in today.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $shift = !empty($employee['shift_id']) ? $this->shifts->find((int) $employee['shift_id']) : null;
+        $calc = $this->attendances->calculate($now, null, $shift, $employee);
+
+        $this->attendances->create(array_merge($calc, [
+            'employee_id' => (int) $employee['id'],
+            'shift_id' => $employee['shift_id'] ?? null,
+            'attendance_date' => $today,
+            'clock_in' => $now,
+            'clock_out' => null,
+            'created_by' => Auth::user()['id'] ?? null,
+        ]));
+
+        Audit::log('Create', 'HRM', 'Clocked in for ' . $today);
+        Session::flash('success', 'Clocked in at ' . date('H:i') . '.');
+        $this->redirect('/dashboard');
+    }
+
+    public function clockOut(): void
+    {
+        Auth::requireLogin();
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        $employee = $this->employees->findByUserId((int) (Auth::user()['id'] ?? 0));
+        if (!$employee) {
+            Session::flash('error', 'Your account is not linked to an employee record.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        $today = date('Y-m-d');
+        $record = $this->attendances->findForEmployeeDate((int) $employee['id'], $today);
+        if (!$record) {
+            Session::flash('error', 'You have not clocked in today.');
+            $this->redirect('/dashboard');
+            return;
+        }
+        if (!empty($record['clock_out'])) {
+            Session::flash('error', 'You have already clocked out today.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $shift = !empty($record['shift_id']) ? $this->shifts->find((int) $record['shift_id']) : null;
+        $calc = $this->attendances->calculate($record['clock_in'], $now, $shift, $employee);
+
+        $this->attendances->updateRecord((int) $record['id'], array_merge($calc, ['clock_out' => $now]));
+
+        Audit::log('Update', 'HRM', 'Clocked out for ' . $today);
+        Session::flash('success', 'Clocked out at ' . date('H:i') . '.');
+        $this->redirect('/dashboard');
+    }
+
     private function validate(array $post, ?int $excludeId = null): array
     {
         $errors = [];

@@ -35,6 +35,13 @@ class Auth
         $stmt->execute([$login, $login]);
         $user = $stmt->fetch();
         if (!$user || !password_verify($password, $user['password'])) return false;
+
+        $employee = (new \App\Models\HrmEmployee())->findByUserId((int) $user['id']);
+        if ($employee && (new \App\Models\HrmLeaveApplication())->isOnApprovedLeave((int) $employee['id'], date('Y-m-d'))) {
+            Session::flash('error', 'You are on approved leave and cannot log in until it ends.');
+            return false;
+        }
+
         session_regenerate_id(true);
         Session::put('user', [
             'id' => (int)$user['id'],

@@ -48,6 +48,15 @@ class HrmLeaveApplication extends Model
         );
     }
 
+    public function isOnApprovedLeave(int $employeeId, string $date): bool
+    {
+        return (bool) $this->scalar(
+            "SELECT 1 FROM hrm_leave_applications
+             WHERE employee_id = ? AND status = 'Approved' AND start_date <= ? AND end_date >= ?",
+            [$employeeId, $date, $date]
+        );
+    }
+
     public function overlapsExisting(int $employeeId, string $startDate, string $endDate): bool
     {
         return (bool) $this->scalar(

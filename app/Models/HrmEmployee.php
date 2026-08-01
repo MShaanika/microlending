@@ -69,6 +69,14 @@ class HrmEmployee extends Model
         return $this->update('hrm_employees', $data, 'id', $id);
     }
 
+    public function findByUserId(int $userId): ?array
+    {
+        return $this->one(
+            "SELECT e.*, " . self::LOOKUP_COLUMNS . " FROM hrm_employees e " . self::LOOKUP_JOINS . " WHERE e.user_id = ?",
+            [$userId]
+        );
+    }
+
     public function employeeNoExists(string $employeeNo): bool
     {
         return (bool) $this->scalar("SELECT 1 FROM hrm_employees WHERE employee_no = ?", [$employeeNo]);

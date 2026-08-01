@@ -33,7 +33,12 @@ class AuthController extends Controller
         $login = trim($_POST['login'] ?? '');
         $password = (string)($_POST['password'] ?? '');
         if (Auth::attempt($login, $password)) $this->redirect('/dashboard');
-        Session::flash('error', 'Invalid username/email or password.');
+        // Auth::attempt() flashes a specific message itself for some failure
+        // reasons (e.g. currently on approved leave) -- only fall back to the
+        // generic one if it didn't already set one, so that message survives.
+        if (empty(Session::get('_flash')['error'] ?? null)) {
+            Session::flash('error', 'Invalid username/email or password.');
+        }
         $this->redirect('/login');
     }
     public function logout(): void

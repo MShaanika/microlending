@@ -54,6 +54,15 @@ class HrmAttendance extends Model
         );
     }
 
+    public function findForEmployeeDate(int $employeeId, string $date): ?array
+    {
+        return $this->one(
+            "SELECT a.*, " . self::LOOKUP_COLUMNS . " FROM hrm_attendances a " . self::LOOKUP_JOINS . "
+             WHERE a.employee_id = ? AND a.attendance_date = ?",
+            [$employeeId, $date]
+        );
+    }
+
     public function existsForEmployeeDate(int $employeeId, string $date, ?int $excludeId = null): bool
     {
         if ($excludeId !== null) {
