@@ -41,6 +41,24 @@ class ApplicationController extends Controller
         $this->documents = new GeneratedDocument();
     }
 
+    /**
+     * loan_applications.branch_id is never actually populated -- incoming
+     * public applications aren't attributed to a branch anywhere in the
+     * intake flow, so applications stay a shared triage inbox visible to
+     * every branch rather than being scoped like Borrowers/Loans/Payments/
+     * Expenses. The one place branch attribution genuinely happens is
+     * convert() (choosing the new borrower's branch), which is scoped.
+     */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    private function scopedBranches(?int $scopeBranchId): array
+    {
+        return $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId));
+    }
+
     public function index(): void
     {
         Auth::authorize('applications.view');
@@ -72,7 +90,7 @@ class ApplicationController extends Controller
             'bankAnalysis' => $this->bankAnalyses->forApplication((int) $id),
             'history' => $this->applications->statusHistory((int) $id),
             'extra' => $application['extra_data'] ? json_decode($application['extra_data'], true) : [],
-            'branches' => $this->branches->all(),
+            'branches' => $this->scopedBranches($this->scopeBranchId()),
         ]);
     }
 
@@ -506,6 +524,10 @@ class ApplicationController extends Controller
         $borrowerId = (int) ($application['borrower_id'] ?? 0);
 
         if (!$borrowerId) {
+            $scopeBranchId = $this->scopeBranchId();
+            if ($scopeBranchId !== null) {
+                $_POST['branch_id'] = $scopeBranchId;
+            }
             if (empty($_POST['branch_id'])) {
                 Session::flash('error', 'Select a branch for the new borrower before converting.');
                 $this->redirect('/applications/' . $id);

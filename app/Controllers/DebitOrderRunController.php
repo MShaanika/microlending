@@ -38,13 +38,45 @@ class DebitOrderRunController extends Controller
         $this->branches = new Branch();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the run belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $run): void
+    {
+        if (!$run || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($run['branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Run not found.');
+            $this->redirect('/debit-order-runs');
+        }
+    }
+
+    private function scopedBranches(?int $scopeBranchId): array
+    {
+        return $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId));
+    }
+
     public function index(): void
     {
         Auth::authorize('collections.debit_orders');
         $status = trim((string) ($_GET['status'] ?? ''));
         $this->view('debit_order_runs/index', [
             'title' => 'Debit Order Runs',
-            'runs' => $this->runs->paginated($status),
+            'runs' => $this->runs->paginated($status, $this->indexBranchId()),
             'status' => $status,
         ]);
     }
@@ -54,7 +86,7 @@ class DebitOrderRunController extends Controller
         Auth::authorize('collections.debit_orders');
         $this->view('debit_order_runs/create', [
             'title' => 'New Debit Order Run',
-            'branches' => $this->branches->all(),
+            'branches' => $this->scopedBranches($this->scopeBranchId()),
             'old' => [],
             'errors' => [],
         ]);
@@ -70,12 +102,13 @@ class DebitOrderRunController extends Controller
             return;
         }
 
-        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $scopeBranchId = $this->scopeBranchId();
+        $branchId = $scopeBranchId !== null ? $scopeBranchId : (int) ($_POST['branch_id'] ?? 0);
 
         if (!$branchId) {
             $this->view('debit_order_runs/create', [
                 'title' => 'New Debit Order Run',
-                'branches' => $this->branches->all(),
+                'branches' => $this->scopedBranches($scopeBranchId),
                 'old' => $_POST,
                 'errors' => ['branch_id' => 'Select a branch.'],
             ]);
@@ -130,6 +163,7 @@ class DebitOrderRunController extends Controller
             $this->redirect('/debit-order-runs');
             return;
         }
+        $this->assertBranchAccess($run);
 
         $this->view('debit_order_runs/show', [
             'title' => 'Debit Order Run ' . $run['run_no'],
@@ -153,6 +187,7 @@ class DebitOrderRunController extends Controller
             $this->redirect('/debit-order-runs');
             return;
         }
+        $this->assertBranchAccess($run);
 
         $lines = $this->lines->forRun($id);
         $mandates = [];
@@ -212,6 +247,7 @@ class DebitOrderRunController extends Controller
             $this->redirect('/debit-order-runs/' . $id);
             return;
         }
+        $this->assertBranchAccess($run);
 
         foreach ($this->lines->forRun($id) as $line) {
             $this->debitOrders->markRegistered((int) $line['debit_order_id']);
@@ -241,6 +277,7 @@ class DebitOrderRunController extends Controller
             $this->redirect('/debit-order-runs/' . $id);
             return;
         }
+        $this->assertBranchAccess($run);
 
         $this->runs->updateRecord($id, ['status' => 'Cancelled']);
         Audit::log('Cancel', 'Debit Order Runs', 'Cancelled run #' . $id);

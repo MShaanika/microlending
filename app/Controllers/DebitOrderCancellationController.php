@@ -31,13 +31,40 @@ class DebitOrderCancellationController extends Controller
         $this->documents = new GeneratedDocument();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the record's borrower belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $record, string $notFoundRedirect = '/debit-order-cancellations'): void
+    {
+        if (!$record || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($record['borrower_branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Record not found.');
+            $this->redirect($notFoundRedirect);
+        }
+    }
+
     public function index(): void
     {
         Auth::authorize('collections.debit_orders');
         $status = trim((string) ($_GET['status'] ?? ''));
         $this->view('debit_order_cancellations/index', [
             'title' => 'Debit Order Cancellations',
-            'cancellations' => $this->cancellations->paginated($status),
+            'cancellations' => $this->cancellations->paginated($status, $this->indexBranchId()),
             'status' => $status,
         ]);
     }
@@ -52,11 +79,13 @@ class DebitOrderCancellationController extends Controller
     {
         Auth::authorize('collections.debit_orders');
         $debitOrder = ((int) $debitOrderId) ? $this->debitOrders->find((int) $debitOrderId) : null;
+        $this->assertBranchAccess($debitOrder, '/debit-orders');
 
+        $scopeBranchId = $this->scopeBranchId();
         $this->view('debit_order_cancellations/create', [
             'title' => 'Request Debit Order Cancellation',
             'debitOrder' => $debitOrder,
-            'borrowers' => $debitOrder ? [] : $this->borrowers->paginated('', '', 500),
+            'borrowers' => $debitOrder ? [] : $this->borrowers->paginated('', '', 500, $scopeBranchId),
             'old' => [],
             'errors' => [],
         ]);
@@ -74,6 +103,19 @@ class DebitOrderCancellationController extends Controller
 
         $debitOrderId = (int) ($_POST['debit_order_id'] ?? 0) ?: null;
         $debitOrder = $debitOrderId ? $this->debitOrders->find($debitOrderId) : null;
+        $this->assertBranchAccess($debitOrder, '/debit-orders');
+
+        $scopeBranchId = $this->scopeBranchId();
+        // Never trust a posted borrower_id for a non-Super-Admin -- treat a
+        // borrower outside their branch as "doesn't exist" here, same
+        // pattern as the other create/store flows.
+        if (!$debitOrder && $scopeBranchId !== null && !empty($_POST['borrower_id'])) {
+            $selected = $this->borrowers->find((int) $_POST['borrower_id']);
+            if (!$selected || (int) $selected['branch_id'] !== $scopeBranchId) {
+                $_POST['borrower_id'] = '';
+            }
+        }
+
         $reason = trim($_POST['reason'] ?? '');
 
         $errors = [];
@@ -88,7 +130,7 @@ class DebitOrderCancellationController extends Controller
             $this->view('debit_order_cancellations/create', [
                 'title' => 'Request Debit Order Cancellation',
                 'debitOrder' => $debitOrder,
-                'borrowers' => $debitOrder ? [] : $this->borrowers->paginated('', '', 500),
+                'borrowers' => $debitOrder ? [] : $this->borrowers->paginated('', '', 500, $scopeBranchId),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -122,6 +164,7 @@ class DebitOrderCancellationController extends Controller
             $this->redirect('/debit-order-cancellations');
             return;
         }
+        $this->assertBranchAccess($cancellation);
 
         $this->view('debit_order_cancellations/show', [
             'title' => 'Cancellation ' . $cancellation['cancellation_no'],
@@ -146,6 +189,7 @@ class DebitOrderCancellationController extends Controller
             $this->redirect('/debit-order-cancellations/' . $id);
             return;
         }
+        $this->assertBranchAccess($cancellation);
 
         $userId = Auth::user()['id'] ?? null;
         $this->cancellations->updateRecord($id, [
@@ -183,6 +227,7 @@ class DebitOrderCancellationController extends Controller
             $this->redirect('/debit-order-cancellations/' . $id);
             return;
         }
+        $this->assertBranchAccess($cancellation);
 
         $this->cancellations->updateRecord($id, ['status' => 'Rejected']);
 
@@ -202,6 +247,7 @@ class DebitOrderCancellationController extends Controller
             $this->redirect('/debit-order-cancellations');
             return;
         }
+        $this->assertBranchAccess($cancellation);
 
         $template = $this->templates->findByCode('DEBIT_ORDER_CANCELLATION');
         if (!$template) {

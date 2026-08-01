@@ -34,13 +34,41 @@ class DebitOrderController extends Controller
         $this->borrowers = new Borrower();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the record's loan belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $record, string $notFoundRedirect = '/debit-orders'): void
+    {
+        if (!$record || Auth::isSuperAdmin()) {
+            return;
+        }
+        $recordBranchId = $record['loan_branch_id'] ?? $record['branch_id'] ?? 0;
+        if ((int) $recordBranchId !== (int) Auth::branchId()) {
+            Session::flash('error', 'Record not found.');
+            $this->redirect($notFoundRedirect);
+        }
+    }
+
     public function index(): void
     {
         Auth::authorize('collections.debit_orders');
         $status = trim((string) ($_GET['status'] ?? ''));
         $this->view('debit_orders/index', [
             'title' => 'Debit Orders',
-            'debitOrders' => $this->debitOrders->paginated($status),
+            'debitOrders' => $this->debitOrders->paginated($status, $this->indexBranchId()),
             'status' => $status,
         ]);
     }
@@ -55,6 +83,7 @@ class DebitOrderController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         $this->view('debit_orders/create', [
             'title' => 'Register Debit Order - ' . $loan['loan_no'],
@@ -127,6 +156,7 @@ class DebitOrderController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         $errors = [];
         foreach (['bank_code', 'account_number', 'debit_day', 'debit_amount', 'start_date'] as $field) {
@@ -194,6 +224,7 @@ class DebitOrderController extends Controller
             $this->redirect('/debit-orders');
             return;
         }
+        $this->assertBranchAccess($debitOrder);
 
         $this->view('debit_orders/show', [
             'title' => 'Debit Order ' . $debitOrder['debit_order_no'],

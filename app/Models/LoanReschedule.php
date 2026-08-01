@@ -6,7 +6,7 @@ use App\Core\Model;
 
 class LoanReschedule extends Model
 {
-    public function paginated(string $status = ''): array
+    public function paginated(string $status = '', ?int $branchId = null): array
     {
         $sql = "SELECT r.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
                 FROM loan_reschedules r
@@ -17,6 +17,10 @@ class LoanReschedule extends Model
         if ($status !== '') {
             $sql .= " AND r.status = ?";
             $params[] = $status;
+        }
+        if ($branchId !== null) {
+            $sql .= " AND r.branch_id = ?";
+            $params[] = $branchId;
         }
         $sql .= " ORDER BY r.id DESC LIMIT 200";
         return $this->all($sql, $params);

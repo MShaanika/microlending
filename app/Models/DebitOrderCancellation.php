@@ -6,9 +6,9 @@ use App\Core\Model;
 
 class DebitOrderCancellation extends Model
 {
-    public function paginated(string $status = ''): array
+    public function paginated(string $status = '', ?int $branchId = null): array
     {
-        $sql = "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no
+        $sql = "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.branch_id AS borrower_branch_id, l.loan_no
                 FROM debit_order_cancellations c
                 JOIN borrowers b ON b.id = c.borrower_id
                 LEFT JOIN loans l ON l.id = c.loan_id
@@ -18,6 +18,10 @@ class DebitOrderCancellation extends Model
             $sql .= " AND c.status = ?";
             $params[] = $status;
         }
+        if ($branchId !== null) {
+            $sql .= " AND b.branch_id = ?";
+            $params[] = $branchId;
+        }
         $sql .= " ORDER BY c.id DESC LIMIT 200";
         return $this->all($sql, $params);
     }
@@ -25,7 +29,7 @@ class DebitOrderCancellation extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no
+            "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.branch_id AS borrower_branch_id, l.loan_no
              FROM debit_order_cancellations c
              JOIN borrowers b ON b.id = c.borrower_id
              LEFT JOIN loans l ON l.id = c.loan_id

@@ -32,13 +32,40 @@ class RescheduleController extends Controller
         $this->documents = new GeneratedDocument();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the record belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $record, string $notFoundRedirect = '/reschedules'): void
+    {
+        if (!$record || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($record['branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Record not found.');
+            $this->redirect($notFoundRedirect);
+        }
+    }
+
     public function index(): void
     {
         Auth::authorize('reschedules.view');
         $status = trim((string) ($_GET['status'] ?? ''));
         $this->view('reschedules/index', [
             'title' => 'Loan Reschedules',
-            'reschedules' => $this->reschedules->paginated($status),
+            'reschedules' => $this->reschedules->paginated($status, $this->indexBranchId()),
             'status' => $status,
         ]);
     }
@@ -53,6 +80,7 @@ class RescheduleController extends Controller
             $this->redirect('/loans/' . $loanId);
             return;
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         $this->view('reschedules/create', [
             'title' => 'Reschedule ' . $loan['loan_no'],
@@ -81,6 +109,7 @@ class RescheduleController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         $termMonths = max(1, (int) ($_POST['new_term_months'] ?? $loan['term_months']));
         $waived = (float) ($_POST['waived_amount'] ?? 0);
@@ -119,6 +148,7 @@ class RescheduleController extends Controller
             $this->redirect('/loans');
             return;
         }
+        $this->assertBranchAccess($loan, '/loans');
 
         $termMonths = max(1, (int) ($_POST['new_term_months'] ?? 0));
         // Blank "New Payment Day" means "no change," not "clear it."
@@ -200,6 +230,7 @@ class RescheduleController extends Controller
             $this->redirect('/reschedules');
             return;
         }
+        $this->assertBranchAccess($reschedule);
 
         $loan = $this->loans->find((int) $reschedule['loan_id']);
 
@@ -261,6 +292,7 @@ class RescheduleController extends Controller
             $this->redirect('/reschedules/' . $id);
             return;
         }
+        $this->assertBranchAccess($reschedule);
 
         $this->reschedules->updateRecord($id, [
             'status' => 'Approved',
@@ -292,6 +324,7 @@ class RescheduleController extends Controller
             $this->redirect('/reschedules/' . $id);
             return;
         }
+        $this->assertBranchAccess($reschedule);
 
         $reason = trim($_POST['rejection_reason'] ?? '');
         $this->reschedules->updateRecord($id, [
@@ -323,6 +356,7 @@ class RescheduleController extends Controller
             $this->redirect('/reschedules/' . $id);
             return;
         }
+        $this->assertBranchAccess($reschedule);
 
         $newRows = $this->rescheduleSchedules->forReschedule($id);
         $userId = Auth::user()['id'] ?? null;
@@ -357,6 +391,7 @@ class RescheduleController extends Controller
             $this->redirect('/reschedules');
             return;
         }
+        $this->assertBranchAccess($reschedule);
 
         $template = $this->templates->findByCode('LOAN_RESCHEDULE_LETTER');
         if (!$template) {

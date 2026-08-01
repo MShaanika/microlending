@@ -6,7 +6,7 @@ use App\Core\Model;
 
 class Expense extends Model
 {
-    public function paginated(string $status = '', int $categoryId = 0): array
+    public function paginated(string $status = '', int $categoryId = 0, ?int $branchId = null): array
     {
         $sql = "SELECT e.*, c.category_name, br.branch_name
                 FROM expenses e
@@ -22,6 +22,10 @@ class Expense extends Model
         if ($categoryId > 0) {
             $sql .= " AND e.category_id = ?";
             $params[] = $categoryId;
+        }
+        if ($branchId !== null) {
+            $sql .= " AND e.branch_id = ?";
+            $params[] = $branchId;
         }
 
         $sql .= " ORDER BY e.id DESC LIMIT 200";

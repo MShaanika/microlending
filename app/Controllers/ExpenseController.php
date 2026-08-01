@@ -39,18 +39,53 @@ class ExpenseController extends Controller
         $this->journal = new AccountingJournal();
     }
 
+    /** Hard scope for create/store/edit/... -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the record belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $record): void
+    {
+        if (!$record || Auth::isSuperAdmin()) {
+            return;
+        }
+        if ((int) ($record['branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Expense not found.');
+            $this->redirect('/expenses');
+        }
+    }
+
+    private function scopedBranches(?int $scopeBranchId): array
+    {
+        return $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId));
+    }
+
     public function index(): void
     {
         Auth::authorize('expenses.view');
         $status = trim((string) ($_GET['status'] ?? ''));
         $categoryId = (int) ($_GET['category_id'] ?? 0);
+        $branchId = $this->indexBranchId();
 
         $this->view('expenses/index', [
             'title' => 'Expenses',
-            'expenses' => $this->expenses->paginated($status, $categoryId),
+            'expenses' => $this->expenses->paginated($status, $categoryId, $branchId),
             'categories' => $this->categories->allCategories(true),
             'status' => $status,
             'categoryId' => $categoryId,
+            'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
@@ -60,7 +95,7 @@ class ExpenseController extends Controller
         $this->view('expenses/create', [
             'title' => 'Capture Expense',
             'categories' => $this->categories->allCategories(true),
-            'branches' => $this->branches->all(),
+            'branches' => $this->scopedBranches($this->scopeBranchId()),
             'old' => [],
             'errors' => [],
         ]);
@@ -76,6 +111,11 @@ class ExpenseController extends Controller
             return;
         }
 
+        $scopeBranchId = $this->scopeBranchId();
+        if ($scopeBranchId !== null) {
+            $_POST['branch_id'] = $scopeBranchId;
+        }
+
         $errors = $this->validate($_POST);
         $attachmentError = $this->validateAttachment($_FILES['attachment'] ?? null);
         if ($attachmentError) {
@@ -86,7 +126,7 @@ class ExpenseController extends Controller
             $this->view('expenses/create', [
                 'title' => 'Capture Expense',
                 'categories' => $this->categories->allCategories(true),
-                'branches' => $this->branches->all(),
+                'branches' => $this->scopedBranches($scopeBranchId),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -130,12 +170,13 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $this->view('expenses/edit', [
             'title' => 'Edit Expense - ' . $expense['expense_no'],
             'expense' => $expense,
             'categories' => $this->categories->allCategories(true),
-            'branches' => $this->branches->all(),
+            'branches' => $this->scopedBranches($this->scopeBranchId()),
             'errors' => [],
         ]);
     }
@@ -157,6 +198,12 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
+
+        $scopeBranchId = $this->scopeBranchId();
+        if ($scopeBranchId !== null) {
+            $_POST['branch_id'] = $scopeBranchId;
+        }
 
         $errors = $this->validate($_POST);
         $attachmentError = $this->validateAttachment($_FILES['attachment'] ?? null, true);
@@ -169,7 +216,7 @@ class ExpenseController extends Controller
                 'title' => 'Edit Expense - ' . $expense['expense_no'],
                 'expense' => array_merge($expense, $_POST),
                 'categories' => $this->categories->allCategories(true),
-                'branches' => $this->branches->all(),
+                'branches' => $this->scopedBranches($scopeBranchId),
                 'errors' => $errors,
             ]);
             return;
@@ -207,6 +254,7 @@ class ExpenseController extends Controller
             $this->redirect('/expenses');
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $this->view('expenses/show', [
             'title' => 'Expense ' . $expense['expense_no'],
@@ -235,6 +283,7 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $this->expenses->updateRecord($id, ['status' => 'Pending Approval']);
         Audit::log('Submit', 'Expenses', 'Submitted expense #' . $id . ' for approval');
@@ -259,6 +308,7 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $userId = Auth::user()['id'] ?? null;
         $this->expenses->updateRecord($id, [
@@ -297,6 +347,7 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $reason = trim($_POST['rejection_reason'] ?? '');
         if ($reason === '') {
@@ -348,6 +399,7 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $paymentMethodId = (int) ($_POST['payment_method_id'] ?? 0) ?: null;
         $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0) ?: null;
@@ -416,6 +468,7 @@ class ExpenseController extends Controller
             $this->redirect('/expenses/' . $id);
             return;
         }
+        $this->assertBranchAccess($expense);
 
         $this->expenses->updateRecord($id, ['status' => 'Cancelled']);
         Audit::log('Cancel', 'Expenses', 'Cancelled expense #' . $id);
@@ -426,6 +479,7 @@ class ExpenseController extends Controller
     public function downloadAttachment(string $id, string $attachmentId): void
     {
         Auth::authorize('expenses.view');
+        $this->assertBranchAccess($this->expenses->find((int) $id));
         $attachment = $this->expenses->findAttachment((int) $id, (int) $attachmentId);
 
         if (!$attachment) {

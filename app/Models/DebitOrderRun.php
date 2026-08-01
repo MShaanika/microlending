@@ -6,7 +6,7 @@ use App\Core\Model;
 
 class DebitOrderRun extends Model
 {
-    public function paginated(string $status = ''): array
+    public function paginated(string $status = '', ?int $branchId = null): array
     {
         $sql = "SELECT r.*, br.branch_name FROM debit_order_runs r
                 JOIN branches br ON br.id = r.branch_id
@@ -15,6 +15,10 @@ class DebitOrderRun extends Model
         if ($status !== '') {
             $sql .= " AND r.status = ?";
             $params[] = $status;
+        }
+        if ($branchId !== null) {
+            $sql .= " AND r.branch_id = ?";
+            $params[] = $branchId;
         }
         $sql .= " ORDER BY r.id DESC LIMIT 200";
         return $this->all($sql, $params);
