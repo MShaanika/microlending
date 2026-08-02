@@ -33,6 +33,17 @@ class StatutoryCharge extends Model
         return (float) ($rate ?: 0);
     }
 
+    public function dutyStampAmountAsOf(string $date): float
+    {
+        $amount = $this->scalar(
+            "SELECT stamp_amount FROM duty_stamp_settings
+             WHERE is_active = 1 AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?)
+             ORDER BY effective_from DESC LIMIT 1",
+            [$date, $date]
+        );
+        return (float) ($amount ?: 0);
+    }
+
     public function currentDutyStampAmount(): float
     {
         $amount = $this->scalar(

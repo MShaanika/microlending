@@ -130,16 +130,17 @@ class LoanDisbursementReportGenerationService
      * multi-tranche loan (e.g. a top-up) isn't double counted across rows
      * -- same reasoning as MlrReportGenerationService::disbursedByMonth().
      *
-     * Interest and Total Repayment are both that loan's own
-     * interest_amount/total_payable (real figures, not a flat-rate
-     * approximation), scaled by this row's share of the loan's principal
-     * (tranche-amount / loan principal). total_payable already bakes in
-     * principal + interest + that loan's NAMFISA levy + duty stamp -- the
-     * same figure loans/statement.php treats as authoritative ("...
-     * included in your total repayable amount") -- so scaling it directly
-     * is simpler than re-deriving levy/stamp separately, and for the
-     * (overwhelmingly common) single-tranche loan the ratio is exactly 1,
-     * i.e. Total Repayment = total_payable unchanged.
+     * Interest and Total Repayment are recomputed per row from the row's
+     * own borrowed amount using the standard pricing formula: basis =
+     * borrowed + NAMFISA levy (% of borrowed, rate as of the disbursement
+     * date) + duty stamp, interest = loan's flat rate applied to that full
+     * basis, total = basis + interest. Per the client, every row with the
+     * same borrowed amount must show the same Total Repayment in this
+     * register (e.g. every N$500 at 30% = 663.19) -- copying/pro-rating
+     * the loan's stored total_payable broke that, because loans booked
+     * before the interest-basis fix carry interest on principal only
+     * (500 -> 660.15), and a top-up tranche pro-rated the whole loan's
+     * flat duty stamp (500 of 2500 -> 656.15).
      */
     private static function loanLines(string $start, string $end, ?int $branchId = null): array
     {
@@ -151,8 +152,7 @@ class LoanDisbursementReportGenerationService
         }
         $stmt = $db->prepare(
             "SELECT ld.loan_id, ld.borrower_id, ld.disbursement_date, ld.amount AS borrowed_amount,
-                    l.payment_day, l.principal_amount AS loan_principal,
-                    l.interest_amount AS loan_interest_amount, l.total_payable AS loan_total_payable,
+                    l.payment_day, l.interest_rate,
                     b.borrower_no AS client_no, b.first_name, b.last_name AS surname,
                     b.id_number, b.phone AS contact_number, b.gender,
                     (SELECT COALESCE(SUM(ls.total_paid), 0) FROM loan_schedules ls WHERE ls.loan_id = ld.loan_id) AS paid_amount,
@@ -166,14 +166,27 @@ class LoanDisbursementReportGenerationService
         );
         $stmt->execute($params);
 
+        $charges = new StatutoryCharge();
+        $ratesByDate = [];
+
         $lines = [];
         foreach ($stmt->fetchAll() as $row) {
             $borrowed = round((float) $row['borrowed_amount'], 2);
 
-            $loanPrincipal = (float) $row['loan_principal'];
-            $shareRatio = $loanPrincipal > 0 ? $borrowed / $loanPrincipal : 1.0;
-            $interest = round((float) $row['loan_interest_amount'] * $shareRatio, 2);
-            $totalRepayment = round((float) $row['loan_total_payable'] * $shareRatio, 2);
+            $date = $row['disbursement_date'];
+            if (!isset($ratesByDate[$date])) {
+                $ratesByDate[$date] = [
+                    'levy_rate' => $charges->namfisaLevyRateAsOf($date),
+                    'duty_stamp' => $charges->dutyStampAmountAsOf($date),
+                ];
+            }
+            $levy = round($borrowed * ($ratesByDate[$date]['levy_rate'] / 100), 2);
+            $basis = round($borrowed + $levy + $ratesByDate[$date]['duty_stamp'], 2);
+            // Half-cent interest rounds DOWN, matching the client's own
+            // register: 500 -> basis 510.15 -> 30% = 153.045 -> 153.04,
+            // total 663.19 (their confirmed figure), not 663.20.
+            $interest = round($basis * ((float) $row['interest_rate'] / 100), 2, PHP_ROUND_HALF_DOWN);
+            $totalRepayment = round($basis + $interest, 2);
 
             $lines[] = [
                 'section' => self::SECTIONS[(int) $row['payment_day']] ?? self::EOM_SECTION,
