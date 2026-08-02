@@ -2971,4 +2971,85 @@ INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r CROSS JOIN permissions p WHERE r.role_name = 'Super Admin';
 
+-- Support Tickets / Developer cross-branch support sessions. A ticket is
+-- raised by staff in their own branch; a developer with tickets.support_session
+-- can start a temporary, audited "support session" scoped to exactly that
+-- ticket's branch (see App\Core\Auth::branchId()'s override check) -- they
+-- never get blanket cross-branch access, only a time-boxed window tied to
+-- one open ticket, same least-privilege posture as everything else this
+-- app scopes by branch.
+CREATE TABLE support_tickets (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticket_no VARCHAR(50) NOT NULL UNIQUE,
+    branch_id INT NOT NULL,
+    raised_by INT NOT NULL,
+    subject VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    priority ENUM('Low','Medium','High','Urgent') DEFAULT 'Medium',
+    status ENUM('Open','In Progress','Resolved','Closed') DEFAULT 'Open',
+    assigned_to INT NULL,
+    resolution_notes TEXT NULL,
+    resolved_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id),
+    FOREIGN KEY (raised_by) REFERENCES users(id),
+    FOREIGN KEY (assigned_to) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE support_ticket_comments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id BIGINT NOT NULL,
+    user_id INT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per support session, whether still active, expired, or manually
+-- ended -- the permanent audit trail of exactly who saw which branch's data,
+-- when, and under which ticket. ended_at/ended_reason are only written on a
+-- real end event (manual end, or the linked ticket being closed); a session
+-- past its expires_at with no ended_at is treated as "Expired" purely by
+-- comparing timestamps at read time, both in Auth::branchId()'s live check
+-- and in the audit list view -- no cron/cleanup job needed.
+CREATE TABLE support_sessions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id BIGINT NOT NULL,
+    developer_id INT NOT NULL,
+    branch_id INT NOT NULL,
+    started_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+    ended_at DATETIME NULL,
+    ended_reason ENUM('Expired','TicketClosed','ManuallyEnded','SupersededByNewSession') NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES support_tickets(id),
+    FOREIGN KEY (developer_id) REFERENCES users(id),
+    FOREIGN KEY (branch_id) REFERENCES branches(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
+('tickets.view', 'View Support Tickets', 'Tickets'),
+('tickets.manage', 'Manage Support Tickets', 'Tickets'),
+('tickets.support_session', 'Start Cross-Branch Support Session', 'Tickets');
+
+-- Every existing staff role can raise/view tickets; Super Admin already
+-- gets every permission via the cross-join above, run before these rows
+-- existed, so it's granted explicitly here too.
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE p.permission_key = 'tickets.view'
+  AND r.role_name IN ('Super Admin','Admin','Manager','Loan Officer','Cashier','Accountant','Collector');
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE p.permission_key = 'tickets.manage'
+  AND r.role_name IN ('Super Admin','Admin','Manager');
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE p.permission_key = 'tickets.support_session'
+  AND r.role_name = 'Super Admin';
+
 SET FOREIGN_KEY_CHECKS = 1;

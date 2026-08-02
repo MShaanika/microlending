@@ -271,6 +271,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Asset Register', 'url' => url('/fixed-assets'), 'perm' => 'assets.view'],
               ['label' => 'Register Asset', 'url' => url('/fixed-assets/create'), 'perm' => 'assets.manage'],
             ]],
+            'Support' => ['icon' => 'mdi-ticket', 'items' => [
+              ['label' => 'Support Tickets', 'url' => url('/tickets'), 'perm' => 'tickets.view'],
+              ['label' => 'Raise Ticket', 'url' => url('/tickets/create'), 'perm' => 'tickets.view'],
+            ]],
             'Applications' => ['icon' => 'mdi-telegram', 'items' => [
               ['label' => 'All Applications', 'url' => url('/applications'), 'perm' => 'applications.view'],
               ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view'],
@@ -481,8 +485,23 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
   </aside>
 
   <div class="page-wrapper">
-  
-  
+
+  <?php $activeSupportSession = \App\Core\Auth::activeSupportSession(); ?>
+  <?php if ($activeSupportSession): ?>
+    <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0 rounded-0" style="border-left: 5px solid #f1b44c;">
+      <div>
+        <i class="mdi mdi-key-variant"></i>
+        <strong>Support Session Active</strong> &mdash; you have scoped, audited access to
+        <a href="<?= url('/tickets/' . $activeSupportSession['ticket_id']) ?>">ticket #<?= (int) $activeSupportSession['ticket_id'] ?></a>'s branch data.
+        Expires <?= e($activeSupportSession['expires_at']) ?>.
+      </div>
+      <form method="post" action="<?= url('/tickets/support-session/end') ?>" class="mb-0" onsubmit="return confirmSubmit(this, 'End your active support session now?');">
+        <?= csrf_field() ?>
+        <button class="btn btn-sm btn-outline-dark" type="submit">End Session</button>
+      </form>
+    </div>
+  <?php endif; ?>
+
   <div class="row page-titles">
           <div class="col-md-5 col-12 align-self-center">
             <ol class="breadcrumb mb-0">

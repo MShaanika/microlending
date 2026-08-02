@@ -45,6 +45,20 @@ class User extends Model
         return $this->all("SELECT id, name, email FROM users WHERE is_active = 1 ORDER BY name");
     }
 
+    public function usersWithPermission(string $permissionKey): array
+    {
+        return $this->all(
+            "SELECT DISTINCT u.id, u.name, u.email
+             FROM users u
+             JOIN user_roles ur ON ur.user_id = u.id
+             JOIN role_permissions rp ON rp.role_id = ur.role_id
+             JOIN permissions p ON p.id = rp.permission_id
+             WHERE u.is_active = 1 AND p.permission_key = ?
+             ORDER BY u.name",
+            [$permissionKey]
+        );
+    }
+
     public function roleIds(int $userId): array
     {
         return array_map('intval', array_column(

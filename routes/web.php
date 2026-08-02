@@ -114,6 +114,7 @@ use App\Controllers\ExpenseCategoryController;
 use App\Controllers\AiSettingController;
 use App\Controllers\BranchLoginIpRangeController;
 use App\Controllers\DocumentationController;
+use App\Controllers\TicketController;
 
 $router->get('/', [AuthController::class, 'showLogin']);
 $router->get('/login', [AuthController::class, 'showLogin']);
@@ -966,3 +967,13 @@ $router->get('/portal/letters/{id}/download', [PortalController::class, 'letterD
 $router->get('/portal/refund-claims', [PortalController::class, 'refundClaims']);
 $router->get('/portal/refund-claims/create', [PortalController::class, 'refundClaimCreate']);
 $router->post('/portal/refund-claims', [PortalController::class, 'refundClaimStore']);
+
+$router->get('/tickets', [TicketController::class, 'index']);
+$router->get('/tickets/create', [TicketController::class, 'create']);
+$router->post('/tickets', [TicketController::class, 'store']);
+$router->post('/tickets/support-session/end', [TicketController::class, 'endSupportSession']);
+$router->get('/tickets/{id}', [TicketController::class, 'show']);
+$router->post('/tickets/{id}/comment', [TicketController::class, 'comment']);
+$router->post('/tickets/{id}/assign', [TicketController::class, 'assign']);
+$router->post('/tickets/{id}/status', [TicketController::class, 'updateStatus']);
+$router->post('/tickets/{id}/support-session/start', [TicketController::class, 'startSupportSession']);

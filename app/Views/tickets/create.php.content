@@ -1,0 +1,36 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Raise Support Ticket</h4>
+    <p class="text-muted">Describe the issue you're experiencing. A developer will follow up and, if needed, open a time-boxed support session to investigate your branch's data.</p>
+
+    <form method="post" action="<?= url('/tickets') ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Subject <span class="text-danger">*</span></label>
+          <input type="text" name="subject" class="form-control <?= isset($errors['subject']) ? 'is-invalid' : '' ?>" value="<?= old('subject', $old) ?>">
+          <?php if (isset($errors['subject'])): ?><div class="invalid-feedback d-block"><?= e($errors['subject']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Priority</label>
+          <select name="priority" class="form-select">
+            <?php foreach (['Low', 'Medium', 'High', 'Urgent'] as $p): ?>
+              <option value="<?= $p ?>" <?= (($old['priority'] ?? 'Medium') === $p) ? 'selected' : '' ?>><?= $p ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-12 mb-3">
+          <label class="form-label">Description <span class="text-danger">*</span></label>
+          <textarea name="description" class="form-control <?= isset($errors['description']) ? 'is-invalid' : '' ?>" rows="5"><?= old('description', $old) ?></textarea>
+          <?php if (isset($errors['description'])): ?><div class="invalid-feedback d-block"><?= e($errors['description']) ?></div><?php endif; ?>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Submit Ticket</button>
+      <a href="<?= url('/tickets') ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

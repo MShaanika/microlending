@@ -24,10 +24,50 @@ class Auth
         return $user && ($user['user_type'] ?? '') === 'Super Admin';
     }
 
+    /**
+     * A developer's active support session (see startSupportSession/
+     * clearSupportSession) overrides the user's real branch_id here, so
+     * every existing scopeBranchId()/indexBranchId() helper across the app
+     * -- all of which call this method -- picks up the granted branch
+     * automatically with no further code changes. isSuperAdmin() is
+     * untouched, so a Developer is never treated as unrestricted; they are
+     * only ever scoped to the single branch of their active session.
+     */
     public static function branchId(): ?int
     {
+        $session = self::activeSupportSession();
+        if ($session !== null) {
+            return (int) $session['branch_id'];
+        }
         $user = self::user();
         return $user['branch_id'] ?? null;
+    }
+
+    /**
+     * Expiry is computed here at read time by comparing against now --
+     * deliberately no cron/cleanup job. A session past its expires_at with
+     * no ended_at is simply treated as inactive.
+     */
+    public static function activeSupportSession(): ?array
+    {
+        $session = Session::get('support_session');
+        if (!$session) {
+            return null;
+        }
+        if (strtotime($session['expires_at']) <= time()) {
+            return null;
+        }
+        return $session;
+    }
+
+    public static function setSupportSession(array $session): void
+    {
+        Session::put('support_session', $session);
+    }
+
+    public static function clearSupportSession(): void
+    {
+        Session::forget('support_session');
     }
 
     /**
@@ -117,5 +157,5 @@ class Auth
         return array_column($stmt->fetchAll(), 'permission_key');
     }
 
-    public static function logout(): void { Audit::log('Logout', 'Security', 'User logged out'); Session::destroy(); }
+    public static function logout(): void { self::clearSupportSession(); Audit::log('Logout', 'Security', 'User logged out'); Session::destroy(); }
 }

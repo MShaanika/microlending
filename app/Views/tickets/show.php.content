@@ -1,0 +1,147 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<?php
+  $statusBadge = match ($ticket['status']) {
+    'Open' => 'danger',
+    'In Progress' => 'warning',
+    'Resolved' => 'info',
+    default => 'secondary',
+  };
+  $priorityBadge = match ($ticket['priority']) {
+    'Urgent' => 'danger',
+    'High' => 'warning',
+    'Medium' => 'info',
+    default => 'secondary',
+  };
+?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title mb-0"><?= e($ticket['ticket_no']) ?></h4>
+          <span class="badge bg-<?= $statusBadge ?>"><?= e($ticket['status']) ?></span>
+        </div>
+        <p class="text-muted mb-3"><?= e($ticket['branch_name'] ?? '—') ?></p>
+
+        <p class="mb-1"><strong>Subject:</strong> <?= e($ticket['subject']) ?></p>
+        <p class="mb-1"><strong>Priority:</strong> <span class="badge bg-<?= $priorityBadge ?>"><?= e($ticket['priority']) ?></span></p>
+        <p class="mb-1"><strong>Raised By:</strong> <?= e($ticket['raised_by_name'] ?? '—') ?></p>
+        <p class="mb-1"><strong>Assigned To:</strong> <?= e($ticket['assigned_to_name'] ?? 'Unassigned') ?></p>
+        <p class="mb-3"><strong>Raised:</strong> <?= e($ticket['created_at']) ?></p>
+
+        <p class="mb-3" style="white-space: pre-wrap;"><?= e($ticket['description']) ?></p>
+
+        <?php if (!empty($ticket['resolution_notes'])): ?>
+          <div class="alert alert-info">
+            <strong>Resolution Notes:</strong><br>
+            <?= nl2br(e($ticket['resolution_notes'])) ?>
+          </div>
+        <?php endif; ?>
+
+        <?php if (!empty($developers)): ?>
+          <hr>
+          <h6>Assign</h6>
+          <form method="post" action="<?= url('/tickets/' . $ticket['id'] . '/assign') ?>" class="d-flex gap-2 mb-3">
+            <?= csrf_field() ?>
+            <select name="assigned_to" class="form-select form-select-sm">
+              <option value="">Unassigned</option>
+              <?php foreach ($developers as $d): ?>
+                <option value="<?= (int) $d['id'] ?>" <?= (int) ($ticket['assigned_to'] ?? 0) === (int) $d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <button class="btn btn-sm btn-outline-info">Save</button>
+          </form>
+        <?php endif; ?>
+
+        <?php if (Auth::can('tickets.manage') && $ticket['status'] !== 'Closed'): ?>
+          <hr>
+          <h6>Update Status</h6>
+          <form method="post" action="<?= url('/tickets/' . $ticket['id'] . '/status') ?>">
+            <?= csrf_field() ?>
+            <div class="d-flex gap-2 mb-2">
+              <select name="status" class="form-select form-select-sm">
+                <?php foreach (['Open', 'In Progress', 'Resolved', 'Closed'] as $s): ?>
+                  <option value="<?= $s ?>" <?= $ticket['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <textarea name="resolution_notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Resolution notes (if resolving)"><?= e($ticket['resolution_notes'] ?? '') ?></textarea>
+            <button class="btn btn-sm btn-outline-secondary w-100" type="submit" onclick="return confirmSubmit(this, 'Update ticket status? Closing will end any active support session.');">Update Status</button>
+          </form>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <?php if (Auth::can('tickets.support_session')): ?>
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title">Cross-Branch Support Session</h6>
+        <?php if ($activeSession): ?>
+          <p class="mb-1"><span class="badge bg-success">Active</span></p>
+          <p class="mb-1 small">Expires: <?= e($activeSession['expires_at']) ?></p>
+          <form method="post" action="<?= url('/tickets/support-session/end') ?>" onsubmit="return confirmSubmit(this, 'End your active support session now?');">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-outline-danger w-100" type="submit">End Session</button>
+          </form>
+        <?php elseif ($ticket['status'] !== 'Closed'): ?>
+          <p class="text-muted small">Starting a session grants you scoped, audited, time-boxed access to this ticket's branch data. It automatically expires and is logged.</p>
+          <form method="post" action="<?= url('/tickets/' . $ticket['id'] . '/support-session/start') ?>" onsubmit="return confirmSubmit(this, 'Start a support session for this branch? Access expires automatically and is fully audited.');">
+            <?= csrf_field() ?>
+            <button class="btn btn-sm btn-info w-100" type="submit"><i class="mdi mdi-key-variant"></i> Start Support Session</button>
+          </form>
+        <?php else: ?>
+          <p class="text-muted small mb-0">This ticket is closed.</p>
+        <?php endif; ?>
+
+        <?php if (!empty($sessionHistory)): ?>
+          <hr>
+          <h6 class="small text-muted">Session History</h6>
+          <table class="table table-sm">
+            <thead><tr><th>Developer</th><th>Started</th><th>Expires</th><th>Ended</th><th>Reason</th></tr></thead>
+            <tbody>
+              <?php foreach ($sessionHistory as $s): ?>
+                <tr>
+                  <td><?= e($s['developer_name']) ?></td>
+                  <td><?= e($s['started_at']) ?></td>
+                  <td><?= e($s['expires_at']) ?></td>
+                  <td><?= e($s['ended_at'] ?? '—') ?></td>
+                  <td><?= e($s['ended_reason'] ?? '—') ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Comments</h4>
+        <?php if (empty($comments)): ?>
+          <p class="text-muted">No comments yet.</p>
+        <?php endif; ?>
+        <?php foreach ($comments as $c): ?>
+          <div class="d-flex mb-3">
+            <div>
+              <p class="mb-1"><strong><?= e($c['user_name']) ?></strong> <span class="text-muted small"><?= e($c['created_at']) ?></span></p>
+              <p class="mb-0" style="white-space: pre-wrap;"><?= e($c['comment']) ?></p>
+            </div>
+          </div>
+        <?php endforeach; ?>
+
+        <form method="post" action="<?= url('/tickets/' . $ticket['id'] . '/comment') ?>" class="mt-3">
+          <?= csrf_field() ?>
+          <textarea name="comment" class="form-control mb-2" rows="3" placeholder="Add a comment..."></textarea>
+          <button class="btn btn-info btn-sm">Post Comment</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
