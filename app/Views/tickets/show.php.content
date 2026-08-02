@@ -70,7 +70,7 @@
               </select>
             </div>
             <textarea name="resolution_notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Resolution notes (if resolving)"><?= e($ticket['resolution_notes'] ?? '') ?></textarea>
-            <button class="btn btn-sm btn-outline-secondary w-100" type="submit" onclick="return confirmSubmit(this, 'Update ticket status? Closing will end any active support session.');">Update Status</button>
+            <button class="btn btn-sm btn-outline-secondary w-100" type="submit" onclick="return confirmSubmit(this.form, 'Update ticket status? Closing will end any active support session.');">Update Status</button>
           </form>
         <?php endif; ?>
       </div>
