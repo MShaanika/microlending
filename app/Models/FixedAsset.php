@@ -6,7 +6,12 @@ use App\Core\Model;
 
 class FixedAsset extends Model
 {
-    public function paginated(string $search = '', string $status = '', int $limit = 100): array
+    /**
+     * $branchId !== null shows that branch's assets plus any unassigned
+     * (branch_id IS NULL) shared/company-wide asset -- an asset is only
+     * ever hidden from a branch, never from everyone.
+     */
+    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null): array
     {
         $sql = "SELECT a.*, c.category_name
                 FROM fixed_assets a
@@ -23,6 +28,11 @@ class FixedAsset extends Model
         if ($status !== '') {
             $sql .= " AND a.status = ?";
             $params[] = $status;
+        }
+
+        if ($branchId !== null) {
+            $sql .= " AND (a.branch_id = ? OR a.branch_id IS NULL)";
+            $params[] = $branchId;
         }
 
         $sql .= " ORDER BY a.id DESC LIMIT " . (int) $limit;
@@ -176,8 +186,8 @@ class FixedAsset extends Model
 
     public function totals(?int $branchId = null): array
     {
-        $where = $branchId !== null ? " AND branch_id = " . (int) $branchId : "";
-        $scheduleWhere = $branchId !== null ? " AND a.branch_id = " . (int) $branchId : "";
+        $where = $branchId !== null ? " AND (branch_id = " . (int) $branchId . " OR branch_id IS NULL)" : "";
+        $scheduleWhere = $branchId !== null ? " AND (a.branch_id = " . (int) $branchId . " OR a.branch_id IS NULL)" : "";
         return [
             'count' => (int) $this->scalar("SELECT COUNT(*) FROM fixed_assets WHERE status != 'Disposed'{$where}"),
             'net_book_value' => (float) ($this->scalar("SELECT COALESCE(SUM(net_book_value),0) FROM fixed_assets WHERE status != 'Disposed'{$where}") ?: 0),

@@ -6,7 +6,13 @@ use App\Core\Model;
 
 class NotificationQueue extends Model
 {
-    public function paginated(string $channel = '', string $status = '', string $search = '', int $limit = 200): array
+    /**
+     * $branchId !== null shows that branch's borrower-linked notifications
+     * plus any with no borrower_id (automated/manual sends not tied to a
+     * borrower yet) -- a notification is only ever hidden from a branch,
+     * never from everyone.
+     */
+    public function paginated(string $channel = '', string $status = '', string $search = '', int $limit = 200, ?int $branchId = null): array
     {
         $sql = "SELECT n.*, t.template_name,
                        CONCAT(b.first_name,' ',b.last_name) AS borrower_name
@@ -29,6 +35,10 @@ class NotificationQueue extends Model
             $like = '%' . $search . '%';
             array_push($params, $like, $like, $like, $like);
         }
+        if ($branchId !== null) {
+            $sql .= " AND (b.branch_id = ? OR n.borrower_id IS NULL)";
+            $params[] = $branchId;
+        }
 
         $sql .= " ORDER BY n.id DESC LIMIT " . (int) $limit;
 
@@ -38,7 +48,7 @@ class NotificationQueue extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT n.*, t.template_name, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT n.*, t.template_name, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.branch_id AS borrower_branch_id
              FROM notification_queue n
              LEFT JOIN notification_templates t ON t.id = n.template_id
              LEFT JOIN borrowers b ON b.id = n.borrower_id

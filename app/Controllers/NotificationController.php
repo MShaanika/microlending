@@ -45,6 +45,24 @@ class NotificationController extends Controller
         $this->refundClaims = new RefundClaim();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Redirects away (404-style) if the notification's borrower belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $item): void
+    {
+        if (!$item || Auth::isSuperAdmin() || empty($item['borrower_id'])) {
+            return;
+        }
+        if ((int) ($item['borrower_branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Notification not found.');
+            $this->redirect('/notifications/sms');
+        }
+    }
+
     public function smsQueue(): void
     {
         $this->queueView('SMS', 'SMS Queue');
@@ -67,7 +85,7 @@ class NotificationController extends Controller
             'channel' => $channel,
             'status' => $status,
             'search' => $search,
-            'items' => $this->queue->paginated($channel, $status, $search),
+            'items' => $this->queue->paginated($channel, $status, $search, 200, $this->scopeBranchId()),
         ]);
     }
 
@@ -81,9 +99,16 @@ class NotificationController extends Controller
         $claimId = (int) ($_GET['claim_id'] ?? 0);
         $channel = in_array($_GET['channel'] ?? '', self::COMPOSE_CHANNELS, true) ? $_GET['channel'] : 'SMS';
         $templateId = (int) ($_GET['template_id'] ?? 0);
+        $branchId = $this->scopeBranchId();
 
         $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
+        if ($borrower && $branchId !== null && (int) $borrower['branch_id'] !== $branchId) {
+            $borrower = null;
+        }
         $loan = $loanId ? $this->loans->find($loanId) : null;
+        if ($loan && $branchId !== null && (int) $loan['branch_id'] !== $branchId) {
+            $loan = null;
+        }
         $application = $applicationId ? $this->applications->find($applicationId) : null;
         $claim = $claimId ? $this->refundClaims->find($claimId) : null;
         $borrowerLoans = $borrower ? $this->loans->forBorrower((int) $borrower['id']) : [];
@@ -99,7 +124,7 @@ class NotificationController extends Controller
             'title' => 'Compose Notification',
             'channels' => self::COMPOSE_CHANNELS,
             'templates' => $this->availableTemplates($channel, $application, $claim),
-            'borrowers' => $this->borrowers->paginated('', '', 500),
+            'borrowers' => $this->borrowers->paginated('', '', 500, $branchId),
             'borrower' => $borrower,
             'loan' => $loan,
             'application' => $application,
@@ -177,8 +202,17 @@ class NotificationController extends Controller
         $loanId = (int) ($_POST['loan_id'] ?? 0);
         $applicationId = (int) ($_POST['application_id'] ?? 0);
         $claimId = (int) ($_POST['claim_id'] ?? 0);
+        $branchId = $this->scopeBranchId();
         $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
+        if ($borrower && $branchId !== null && (int) $borrower['branch_id'] !== $branchId) {
+            $borrower = null;
+            $errors['borrower_id'] = 'Borrower not found.';
+        }
         $loan = $loanId ? $this->loans->find($loanId) : null;
+        if ($loan && $branchId !== null && (int) $loan['branch_id'] !== $branchId) {
+            $loan = null;
+            $errors['loan_id'] = 'Loan not found.';
+        }
         $application = $applicationId ? $this->applications->find($applicationId) : null;
         $claim = $claimId ? $this->refundClaims->find($claimId) : null;
 
@@ -188,7 +222,7 @@ class NotificationController extends Controller
                 'title' => 'Compose Notification',
                 'channels' => self::COMPOSE_CHANNELS,
                 'templates' => $this->availableTemplates($channel ?: 'SMS', $application, $claim),
-                'borrowers' => $this->borrowers->paginated('', '', 500),
+                'borrowers' => $this->borrowers->paginated('', '', 500, $branchId),
                 'borrower' => $borrower,
                 'loan' => $loan,
                 'application' => $application,
@@ -244,6 +278,7 @@ class NotificationController extends Controller
             $this->redirect('/notifications/sms');
             return;
         }
+        $this->assertBranchAccess($item);
 
         $redirectPath = $item['channel'] === 'Email' ? '/notifications/email' : '/notifications/sms';
 
@@ -312,6 +347,7 @@ class NotificationController extends Controller
             $this->redirect('/notifications/sms');
             return;
         }
+        $this->assertBranchAccess($item);
 
         $this->queue->updateStatus($id, $status);
 

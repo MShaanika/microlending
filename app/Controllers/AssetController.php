@@ -25,18 +25,54 @@ class AssetController extends Controller
         $this->branches = new Branch();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the asset belongs to another branch and the viewer isn't Super Admin.
+     *  An unassigned (branch_id NULL) asset is shared/company-wide and always visible. */
+    private function assertBranchAccess(?array $asset): void
+    {
+        if (!$asset || Auth::isSuperAdmin() || $asset['branch_id'] === null) {
+            return;
+        }
+        if ((int) $asset['branch_id'] !== (int) Auth::branchId()) {
+            Session::flash('error', 'Asset not found.');
+            $this->redirect('/fixed-assets');
+        }
+    }
+
+    private function scopedBranches(?int $scopeBranchId): array
+    {
+        return $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId));
+    }
+
     public function index(): void
     {
         Auth::authorize('assets.view');
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('assets/index', [
             'title' => 'Fixed Assets',
-            'assets' => $this->assets->paginated($search, $status),
-            'totals' => $this->assets->totals(),
+            'assets' => $this->assets->paginated($search, $status, 100, $branchId),
+            'totals' => $this->assets->totals($branchId),
             'search' => $search,
             'status' => $status,
+            'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
@@ -46,7 +82,7 @@ class AssetController extends Controller
         $this->view('assets/create', [
             'title' => 'Register Asset',
             'categories' => $this->categories->activeCategories(),
-            'branches' => $this->branches->all(),
+            'branches' => $this->scopedBranches($this->scopeBranchId()),
             'old' => [],
             'errors' => [],
         ]);
@@ -77,7 +113,7 @@ class AssetController extends Controller
             $this->view('assets/create', [
                 'title' => 'Register Asset',
                 'categories' => $this->categories->activeCategories(),
-                'branches' => $this->branches->all(),
+                'branches' => $this->scopedBranches($this->scopeBranchId()),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -92,8 +128,13 @@ class AssetController extends Controller
         $method = $_POST['depreciation_method'] ?: $category['depreciation_method'];
         $reducingRate = $_POST['reducing_balance_rate'] !== '' ? (float) $_POST['reducing_balance_rate'] : $category['default_reducing_balance_rate'];
 
+        $scopeBranchId = $this->scopeBranchId();
+        // Non-Super-Admin can only register an asset to their own branch --
+        // leaving it unassigned/shared is a company-wide decision.
+        $branchId = $scopeBranchId !== null ? $scopeBranchId : ($_POST['branch_id'] !== '' ? (int) $_POST['branch_id'] : null);
+
         $assetId = $this->assets->create([
-            'branch_id' => $_POST['branch_id'] !== '' ? (int) $_POST['branch_id'] : null,
+            'branch_id' => $branchId,
             'category_id' => (int) $category['id'],
             'asset_no' => generate_reference('AST'),
             'asset_name' => trim($_POST['asset_name']),
@@ -145,6 +186,7 @@ class AssetController extends Controller
             Session::flash('error', 'Asset not found.');
             $this->redirect('/fixed-assets');
         }
+        $this->assertBranchAccess($asset);
 
         $this->view('assets/show', [
             'title' => $asset['asset_name'],
@@ -168,6 +210,7 @@ class AssetController extends Controller
             Session::flash('error', 'Only active assets can have a period posted.');
             $this->redirect('/fixed-assets/' . $id);
         }
+        $this->assertBranchAccess($existing);
 
         $result = $this->assets->depreciateNextPeriod($id, Auth::user()['id'] ?? null);
 
@@ -196,6 +239,7 @@ class AssetController extends Controller
             Session::flash('error', 'Asset not found or already disposed.');
             $this->redirect('/fixed-assets');
         }
+        $this->assertBranchAccess($asset);
 
         $proceeds = (float) ($_POST['disposal_proceeds'] ?? 0);
         $nbv = (float) $asset['net_book_value'];

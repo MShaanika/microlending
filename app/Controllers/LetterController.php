@@ -31,14 +31,42 @@ class LetterController extends Controller
         $this->templates = new DocumentTemplate();
     }
 
+    /** Hard scope -- null means unrestricted (Super Admin only). */
+    private function scopeBranchId(): ?int
+    {
+        return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the letter's borrower belongs to another branch and the viewer isn't Super Admin. */
+    private function assertBranchAccess(?array $document): void
+    {
+        if (!$document || Auth::isSuperAdmin() || empty($document['borrower_id'])) {
+            return;
+        }
+        if ((int) ($document['borrower_branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Letter request not found.');
+            $this->redirect('/letters');
+        }
+    }
+
     public function index(): void
     {
         Auth::authorize('documents.view');
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('letters/index', [
             'title' => 'Borrower Letter Requests',
-            'documents' => $this->documents->paginated($status),
+            'documents' => $this->documents->paginated($status, 100, $branchId),
             'status' => $status,
         ]);
     }
@@ -51,11 +79,12 @@ class LetterController extends Controller
     public function create(): void
     {
         Auth::authorize('documents.generate');
+        $branchId = $this->scopeBranchId();
 
         $this->view('letters/create', [
             'title' => 'Generate Letter',
-            'loans' => $this->loans->paginated('', '', 500),
-            'borrowers' => $this->borrowers->paginated('', '', 500),
+            'loans' => $this->loans->paginated('', '', 500, $branchId),
+            'borrowers' => $this->borrowers->paginated('', '', 500, $branchId),
             'errors' => [],
         ]);
     }
@@ -74,6 +103,7 @@ class LetterController extends Controller
         $scope = $_POST['consolidation_scope'] ?? 'one';
         $loanId = (int) ($_POST['loan_id'] ?? 0);
         $borrowerId = (int) ($_POST['borrower_id'] ?? 0);
+        $branchId = $this->scopeBranchId();
 
         $errors = [];
         $loan = null;
@@ -84,16 +114,17 @@ class LetterController extends Controller
 
         if ($letterType === 'Completion Letter') {
             $loan = $loanId ? $this->loans->find($loanId) : null;
-            if (!$loan || $loan['loan_status'] !== 'Completed') {
+            if (!$loan || $loan['loan_status'] !== 'Completed' || ($branchId !== null && (int) $loan['branch_id'] !== $branchId)) {
                 $errors['loan_id'] = 'Select one of the borrower\'s completed loans.';
             }
         } elseif ($letterType === 'Consolidation Letter' && $scope === 'one') {
             $loan = $loanId ? $this->loans->find($loanId) : null;
-            if (!$loan) {
+            if (!$loan || ($branchId !== null && (int) $loan['branch_id'] !== $branchId)) {
                 $errors['loan_id'] = 'Select which loan to consolidate.';
             }
         } elseif ($letterType === 'Consolidation Letter' && $scope === 'all') {
-            if (!$borrowerId || !$this->borrowers->find($borrowerId)) {
+            $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
+            if (!$borrower || ($branchId !== null && (int) $borrower['branch_id'] !== $branchId)) {
                 $errors['borrower_id'] = 'Select a borrower.';
             }
         }
@@ -101,8 +132,8 @@ class LetterController extends Controller
         if (!empty($errors)) {
             $this->view('letters/create', [
                 'title' => 'Generate Letter',
-                'loans' => $this->loans->paginated('', '', 500),
-                'borrowers' => $this->borrowers->paginated('', '', 500),
+                'loans' => $this->loans->paginated('', '', 500, $branchId),
+                'borrowers' => $this->borrowers->paginated('', '', 500, $branchId),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -164,6 +195,7 @@ class LetterController extends Controller
             Session::flash('error', 'Letter request not found.');
             $this->redirect('/letters');
         }
+        $this->assertBranchAccess($document);
 
         $file = $_FILES['letter_file'] ?? null;
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
@@ -219,6 +251,7 @@ class LetterController extends Controller
             $this->redirect('/letters');
             return;
         }
+        $this->assertBranchAccess($document);
 
         try {
             $filePath = DocumentGenerationService::generate($document);
@@ -245,6 +278,7 @@ class LetterController extends Controller
             $this->redirect('/letters');
             return;
         }
+        $this->assertBranchAccess($document);
 
         $fullPath = STORAGE_PATH . '/' . $document['file_path'];
         if (!is_file($fullPath)) {

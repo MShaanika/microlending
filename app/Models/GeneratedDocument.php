@@ -22,7 +22,7 @@ class GeneratedDocument extends Model
         );
     }
 
-    public function paginated(string $status = '', int $limit = 100): array
+    public function paginated(string $status = '', int $limit = 100, ?int $branchId = null): array
     {
         $sql = "SELECT g.*, t.template_name, t.template_type, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
                 FROM generated_documents g
@@ -36,6 +36,11 @@ class GeneratedDocument extends Model
             $params[] = $status;
         }
 
+        if ($branchId !== null) {
+            $sql .= " AND b.branch_id = ?";
+            $params[] = $branchId;
+        }
+
         $sql .= " ORDER BY g.id DESC LIMIT " . (int) $limit;
 
         return $this->all($sql, $params);
@@ -44,8 +49,11 @@ class GeneratedDocument extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT g.*, t.template_name, t.template_type FROM generated_documents g
-             JOIN document_templates t ON t.id = g.template_id WHERE g.id = ?",
+            "SELECT g.*, t.template_name, t.template_type, b.branch_id AS borrower_branch_id
+             FROM generated_documents g
+             LEFT JOIN document_templates t ON t.id = g.template_id
+             LEFT JOIN borrowers b ON b.id = g.borrower_id
+             WHERE g.id = ?",
             [$id]
         );
     }
@@ -66,7 +74,13 @@ class GeneratedDocument extends Model
      * list) -- LEFT JOINs borrower/template so rows generated before a
      * borrower_id exists (e.g. application-stage documents) still show up.
      */
-    public function paginatedAll(string $sourceModule = '', string $status = '', string $search = '', int $limit = 200): array
+    /**
+     * $branchId !== null shows documents for that branch's borrower plus
+     * any document with no borrower_id (e.g. still-application-stage
+     * documents, before a borrower/branch exists) -- a document is only
+     * ever hidden from a branch, never from everyone.
+     */
+    public function paginatedAll(string $sourceModule = '', string $status = '', string $search = '', int $limit = 200, ?int $branchId = null): array
     {
         $sql = "SELECT g.*, t.template_name, t.template_type,
                        CONCAT(b.first_name,' ',b.last_name) AS borrower_name
@@ -88,6 +102,10 @@ class GeneratedDocument extends Model
             $sql .= " AND (g.document_no LIKE ? OR g.document_title LIKE ? OR b.first_name LIKE ? OR b.last_name LIKE ?)";
             $like = '%' . $search . '%';
             array_push($params, $like, $like, $like, $like);
+        }
+        if ($branchId !== null) {
+            $sql .= " AND (b.branch_id = ? OR g.borrower_id IS NULL)";
+            $params[] = $branchId;
         }
 
         $sql .= " ORDER BY g.id DESC LIMIT " . (int) $limit;

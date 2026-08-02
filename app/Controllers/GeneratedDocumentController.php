@@ -16,6 +16,28 @@ class GeneratedDocumentController extends Controller
         $this->documents = new GeneratedDocument();
     }
 
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /** Redirects away (404-style) if the document's borrower belongs to another branch and the viewer isn't Super Admin.
+     *  A document with no linked borrower (application-stage) is always visible. */
+    private function assertBranchAccess(?array $document): void
+    {
+        if (!$document || Auth::isSuperAdmin() || empty($document['borrower_id'])) {
+            return;
+        }
+        if ((int) ($document['borrower_branch_id'] ?? 0) !== (int) Auth::branchId()) {
+            Session::flash('error', 'Document not found.');
+            $this->redirect('/generated-documents');
+        }
+    }
+
     public function index(): void
     {
         Auth::authorize('documents.view');
@@ -23,14 +45,17 @@ class GeneratedDocumentController extends Controller
         $sourceModule = trim((string) ($_GET['source_module'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
         $search = trim((string) ($_GET['q'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('generated_documents/index', [
             'title' => 'Generated Documents',
-            'documents' => $this->documents->paginatedAll($sourceModule, $status, $search),
+            'documents' => $this->documents->paginatedAll($sourceModule, $status, $search, 200, $branchId),
             'sourceModules' => $this->documents->sourceModules(),
             'sourceModule' => $sourceModule,
             'status' => $status,
             'search' => $search,
+            'branches' => Auth::isSuperAdmin() ? (new \App\Models\Branch())->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
@@ -50,6 +75,7 @@ class GeneratedDocumentController extends Controller
             $this->redirect('/generated-documents');
             return;
         }
+        $this->assertBranchAccess($document);
 
         $fullPath = STORAGE_PATH . '/' . $document['file_path'];
         if (!is_file($fullPath)) {
