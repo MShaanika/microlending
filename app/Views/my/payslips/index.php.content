@@ -1,0 +1,32 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">My Payslips</h4>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Payroll Run</th><th>Pay Period</th><th>Pay Date</th><th class="text-end">Net Pay</th><th>Status</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($entries)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No payslips yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($entries as $e): ?>
+            <tr>
+              <td><?= e($e['payroll_title']) ?></td>
+              <td><?= e(date('d M Y', strtotime($e['pay_period_start']))) ?> &ndash; <?= e(date('d M Y', strtotime($e['pay_period_end']))) ?></td>
+              <td><?= $e['pay_date'] ? e(date('d M Y', strtotime($e['pay_date']))) : '-' ?></td>
+              <td class="text-end"><?= format_money($e['net_pay']) ?></td>
+              <td><span class="badge bg-<?= $e['status'] === 'Paid' ? 'success' : 'secondary' ?>"><?= e($e['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/my/payslips/' . $e['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

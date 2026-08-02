@@ -32,6 +32,19 @@ class HrmPayrollEntry extends Model
         );
     }
 
+    /** One employee's own payslip history, newest pay period first -- self-service "My Payslips". */
+    public function forEmployee(int $employeeId): array
+    {
+        return $this->query(
+            "SELECT pe.*, p.title AS payroll_title, p.pay_period_start, p.pay_period_end, p.pay_date, p.status AS payroll_status
+             FROM hrm_payroll_entries pe
+             JOIN hrm_payrolls p ON p.id = pe.payroll_id
+             WHERE pe.employee_id = ?
+             ORDER BY p.pay_period_start DESC",
+            [$employeeId]
+        )->fetchAll();
+    }
+
     public function existsForPayrollEmployee(int $payrollId, int $employeeId): bool
     {
         return (bool) $this->scalar(

@@ -1,0 +1,46 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">My Attendance</h4>
+
+    <form method="get" action="<?= url('/my/attendance') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <input type="date" name="date_from" class="form-control" value="<?= e($dateFrom) ?>" placeholder="From">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="date_to" class="form-control" value="<?= e($dateTo) ?>" placeholder="To">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Date</th><th>Shift</th><th>Clock In</th><th>Clock Out</th><th>Break (h)</th><th>Total (h)</th><th>Overtime (h)</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($records)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No attendance records for this period.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($records as $r):
+            $statusBadge = ['Present' => 'success', 'Half Day' => 'warning', 'Absent' => 'danger'][$r['status']] ?? 'secondary';
+          ?>
+            <tr>
+              <td><?= e(date('d M Y', strtotime($r['attendance_date']))) ?></td>
+              <td><?= e($r['shift_name'] ?? '-') ?></td>
+              <td><?= $r['clock_in'] ? e(date('H:i', strtotime($r['clock_in']))) : '-' ?></td>
+              <td><?= $r['clock_out'] ? e(date('H:i', strtotime($r['clock_out']))) : '-' ?></td>
+              <td><?= number_format((float) $r['break_hour'], 2) ?></td>
+              <td><?= number_format((float) $r['total_hour'], 2) ?></td>
+              <td><?= number_format((float) $r['overtime_hours'], 2) ?></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($r['status']) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

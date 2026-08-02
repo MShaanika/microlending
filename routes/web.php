@@ -45,6 +45,7 @@ use App\Controllers\HrmDeductionTypeController;
 use App\Controllers\HrmAllowanceController;
 use App\Controllers\HrmDeductionController;
 use App\Controllers\HrmPayrollController;
+use App\Controllers\EmployeeSelfServiceController;
 use App\Controllers\HrmAwardTypeController;
 use App\Controllers\HrmAwardController;
 use App\Controllers\HrmComplaintTypeController;
@@ -613,6 +614,17 @@ $router->get('/hrm/payrolls/{id}', [HrmPayrollController::class, 'show']);
 $router->post('/hrm/payrolls/{id}/run', [HrmPayrollController::class, 'run']);
 $router->post('/hrm/payrolls/{payrollId}/entries/{entryId}/mark-paid', [HrmPayrollController::class, 'markEntryPaid']);
 $router->get('/hrm/payrolls/{payrollId}/entries/{entryId}/payslip', [HrmPayrollController::class, 'payslip']);
+
+// Employee Self-Service -- gated by "must be logged in and linked to an
+// employee record", not hrm.view/hrm.manage -- every employee sees only
+// their own data here.
+$router->get('/my/leave', [EmployeeSelfServiceController::class, 'leaveIndex']);
+$router->get('/my/leave/create', [EmployeeSelfServiceController::class, 'leaveCreate']);
+$router->post('/my/leave', [EmployeeSelfServiceController::class, 'leaveStore']);
+$router->get('/my/leave/balance', [EmployeeSelfServiceController::class, 'leaveBalance']);
+$router->get('/my/payslips', [EmployeeSelfServiceController::class, 'payslips']);
+$router->get('/my/payslips/{entryId}', [EmployeeSelfServiceController::class, 'payslip']);
+$router->get('/my/attendance', [EmployeeSelfServiceController::class, 'attendance']);
 
 // HRM: Performance & Discipline -- lookup types
 $router->get('/hrm/award-types', [HrmAwardTypeController::class, 'index']);
