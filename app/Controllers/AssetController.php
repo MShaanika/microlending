@@ -7,7 +7,10 @@ use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\AccountingAccount;
+use App\Models\AccountingJournal;
 use App\Models\AssetCategory;
+use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\FixedAsset;
 use App\Services\DepreciationService;
@@ -17,12 +20,18 @@ class AssetController extends Controller
     private FixedAsset $assets;
     private AssetCategory $categories;
     private Branch $branches;
+    private BankAccount $bankAccounts;
+    private AccountingAccount $accounts;
+    private AccountingJournal $journal;
 
     public function __construct()
     {
         $this->assets = new FixedAsset();
         $this->categories = new AssetCategory();
         $this->branches = new Branch();
+        $this->bankAccounts = new BankAccount();
+        $this->accounts = new AccountingAccount();
+        $this->journal = new AccountingJournal();
     }
 
     /** Hard scope -- null means unrestricted (Super Admin only). */
@@ -83,6 +92,7 @@ class AssetController extends Controller
             'title' => 'Register Asset',
             'categories' => $this->categories->activeCategories(),
             'branches' => $this->scopedBranches($this->scopeBranchId()),
+            'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'old' => [],
             'errors' => [],
         ]);
@@ -109,11 +119,19 @@ class AssetController extends Controller
             $errors['category_id'] = 'Select a valid category.';
         }
 
+        // 'none' = opening balance / already in the books (no journal);
+        // '' = default cash/bank GL (1010); numeric = a specific bank account.
+        $paidFrom = (string) ($_POST['paid_from'] ?? '');
+        if ($paidFrom !== 'none' && $category && empty($category['asset_account_id'])) {
+            $errors['paid_from'] = 'This category has no GL asset account configured, so no acquisition journal can be posted. Configure the category first, or select "No journal".';
+        }
+
         if (!empty($errors)) {
             $this->view('assets/create', [
                 'title' => 'Register Asset',
                 'categories' => $this->categories->activeCategories(),
                 'branches' => $this->scopedBranches($this->scopeBranchId()),
+                'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -161,6 +179,47 @@ class AssetController extends Controller
             'created_by' => Auth::user()['id'] ?? null,
         ]);
 
+        // Acquisition journal: Dr the category's asset account for the
+        // capitalized cost, Cr the paying bank's GL account -- skipped for
+        // opening-balance assets already reflected in the books.
+        $journalId = null;
+        $bankAccountId = null;
+        if ($paidFrom !== 'none') {
+            $bankAccountId = ctype_digit($paidFrom) ? (int) $paidFrom : null;
+            $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
+            $bankGlAccount = $bankAccount ? (int) $bankAccount['account_id'] : $this->accounts->idByCode('1010');
+            $bankLabel = $bankAccount ? $bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'] : 'Cash/Bank';
+            $assetNo = $this->assets->find($assetId)['asset_no'];
+
+            try {
+                $journalId = $this->journal->post(
+                    'ASSET_ACQUIRED',
+                    'fixed_assets',
+                    $assetId,
+                    $assetNo,
+                    'Asset acquired: ' . trim($_POST['asset_name']),
+                    [
+                        ['account_id' => (int) $category['asset_account_id'], 'debit' => $capitalizedCost, 'credit' => 0, 'description' => $category['category_name'] . ' - ' . $assetNo],
+                        ['account_id' => $bankGlAccount, 'debit' => 0, 'credit' => $capitalizedCost, 'description' => 'Paid from ' . $bankLabel],
+                    ],
+                    Auth::user()['id'] ?? null,
+                    $_POST['purchase_date']
+                );
+            } catch (\RuntimeException $e) {
+                // Roll the asset back rather than leaving a half-captured
+                // record with no matching ledger entry.
+                $this->assets->deleteRecord($assetId);
+                Session::flash('error', 'Asset not registered: ' . $e->getMessage());
+                $this->redirect('/fixed-assets/create');
+                return;
+            }
+
+            $this->assets->updateFields($assetId, [
+                'journal_id' => $journalId,
+                'bank_account_id' => $bankAccountId,
+            ]);
+        }
+
         $rows = DepreciationService::generate(
             $capitalizedCost,
             $residualValue,
@@ -172,8 +231,8 @@ class AssetController extends Controller
         $this->assets->insertScheduleRows($assetId, $rows);
 
         $label = $category['asset_nature'] === 'Intangible' ? 'amortization' : 'depreciation';
-        Audit::log('Create', 'Assets', "Registered asset #$assetId with a $label schedule of " . count($rows) . ' periods.');
-        Session::flash('success', ucfirst($label) . ' schedule generated for the new asset.');
+        Audit::log('Create', 'Assets', "Registered asset #$assetId with a $label schedule of " . count($rows) . ' periods.' . ($journalId ? " Acquisition journal #$journalId posted." : ''));
+        Session::flash('success', ucfirst($label) . ' schedule generated for the new asset.' . ($journalId ? ' Acquisition journal posted to the ledger.' : ''));
         $this->redirect('/fixed-assets/' . $assetId);
     }
 

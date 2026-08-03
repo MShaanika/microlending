@@ -3052,4 +3052,54 @@ SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
 WHERE p.permission_key = 'tickets.support_session'
   AND r.role_name = 'Super Admin';
 
+-- Asset acquisition accounting: registering an asset posts a journal
+-- (Dr category asset account / Cr paying bank's GL account) unless the
+-- capturer marks it as an opening balance already in the books.
+-- bank_account_id = which bank it was paid from; journal_id = the posted
+-- acquisition journal. Both NULL for pre-existing/opening-balance assets.
+ALTER TABLE fixed_assets
+    ADD COLUMN bank_account_id INT NULL AFTER accumulated_depreciation_account_id,
+    ADD COLUMN journal_id BIGINT NULL AFTER bank_account_id;
+
+-- Real fixed-asset GL accounts. The original asset_categories seed pointed
+-- at unrelated income/expense accounts (asset cost -> "Interest Received
+-- from Investments"), so acquisition and depreciation journals landed on
+-- meaningless accounts. Categories are remapped onto these.
+INSERT INTO accounting_accounts (account_code, account_name, account_type, normal_balance, is_control_account, is_cash_bank_account, is_active) VALUES
+('1120', 'Office Equipment', 'Asset', 'Debit', 0, 0, 1),
+('1125', 'Motor Vehicles', 'Asset', 'Debit', 0, 0, 1),
+('1130', 'Furniture & Fittings', 'Asset', 'Debit', 0, 0, 1),
+('1135', 'Computer Equipment', 'Asset', 'Debit', 0, 0, 1),
+('1145', 'Intangible Assets - Software & Licenses', 'Asset', 'Debit', 0, 0, 1),
+('1150', 'Accumulated Depreciation', 'Contra Asset', 'Credit', 0, 0, 1),
+('1155', 'Accumulated Amortisation', 'Contra Asset', 'Credit', 0, 0, 1),
+('5233', 'Depreciation Expense', 'Expense', 'Debit', 0, 0, 1),
+('5234', 'Amortisation Expense', 'Expense', 'Debit', 0, 0, 1);
+
+UPDATE asset_categories SET
+    asset_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1120'),
+    depreciation_expense_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '5233'),
+    accumulated_depreciation_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1150')
+WHERE category_name = 'Office Equipment';
+UPDATE asset_categories SET
+    asset_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1125'),
+    depreciation_expense_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '5233'),
+    accumulated_depreciation_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1150')
+WHERE category_name = 'Motor Vehicles';
+UPDATE asset_categories SET
+    asset_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1130'),
+    depreciation_expense_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '5233'),
+    accumulated_depreciation_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1150')
+WHERE category_name = 'Furniture & Fittings';
+UPDATE asset_categories SET
+    asset_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1135'),
+    depreciation_expense_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '5233'),
+    accumulated_depreciation_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1150')
+WHERE category_name = 'Computer Equipment';
+UPDATE asset_categories SET
+    asset_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1145'),
+    depreciation_expense_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '5234'),
+    accumulated_depreciation_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1155')
+WHERE category_name = 'Software & Licenses (Intangible)';
+
 SET FOREIGN_KEY_CHECKS = 1;

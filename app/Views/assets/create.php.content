@@ -90,6 +90,19 @@
           <label class="form-label">Depreciation/Amortization Start Date <span class="text-danger">*</span></label>
           <input type="date" name="depreciation_start_date" class="form-control <?= isset($errors['depreciation_start_date']) ? 'is-invalid' : '' ?>" value="<?= old('depreciation_start_date', $old, date('Y-m-d')) ?>">
         </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Paid From</label>
+          <select name="paid_from" class="form-select <?= isset($errors['paid_from']) ? 'is-invalid' : '' ?>">
+            <option value="" <?= ($old['paid_from'] ?? '') === '' ? 'selected' : '' ?>>Cash / Default Bank (GL 1010)</option>
+            <?php foreach ($bankAccounts as $ba): ?>
+              <option value="<?= (int) $ba['id'] ?>" <?= ($old['paid_from'] ?? '') == $ba['id'] ? 'selected' : '' ?>><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+            <?php endforeach; ?>
+            <option value="none" <?= ($old['paid_from'] ?? '') === 'none' ? 'selected' : '' ?>>No journal &mdash; opening balance / already in the books</option>
+          </select>
+          <small class="text-muted">Posts an acquisition journal (Dr asset account / Cr the account selected here) dated on the purchase date.</small>
+          <?php if (isset($errors['paid_from'])): ?><div class="invalid-feedback d-block"><?= e($errors['paid_from']) ?></div><?php endif; ?>
+        </div>
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save & Generate Schedule</button>

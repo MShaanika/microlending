@@ -28,7 +28,14 @@
         <p class="mb-1"><strong>Useful Life:</strong> <?= (int) $asset['useful_life_months'] ?> months</p>
         <p class="mb-1"><strong>Method:</strong> <?= e($asset['depreciation_method']) ?><?= $asset['reducing_balance_rate'] ? ' (' . $asset['reducing_balance_rate'] . '% p.a.)' : '' ?></p>
         <p class="mb-1"><strong>Accumulated <?= $label ?>:</strong> <?= format_money($asset['accumulated_depreciation']) ?></p>
-        <p class="mb-3"><strong>Net Book Value:</strong> <?= format_money($asset['net_book_value']) ?></p>
+        <p class="mb-1"><strong>Net Book Value:</strong> <?= format_money($asset['net_book_value']) ?></p>
+        <p class="mb-3"><strong>Acquisition Journal:</strong>
+          <?php if (!empty($asset['acquisition_journal_no'])): ?>
+            <a href="<?= url('/accounting/journals?q=' . urlencode($asset['acquisition_journal_no'])) ?>"><?= e($asset['acquisition_journal_no']) ?></a>
+          <?php else: ?>
+            <span class="text-muted">None (opening balance)</span>
+          <?php endif; ?>
+        </p>
 
         <div class="d-flex gap-2 flex-wrap">
           <?php if ($asset['status'] === 'Active' && $hasPending): ?>

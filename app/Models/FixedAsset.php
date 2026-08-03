@@ -43,8 +43,11 @@ class FixedAsset extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT a.*, c.category_name, c.asset_nature AS category_nature
-             FROM fixed_assets a JOIN asset_categories c ON c.id = a.category_id
+            "SELECT a.*, c.category_name, c.asset_nature AS category_nature,
+                    j.journal_no AS acquisition_journal_no
+             FROM fixed_assets a
+             JOIN asset_categories c ON c.id = a.category_id
+             LEFT JOIN accounting_journal_entries j ON j.id = a.journal_id
              WHERE a.id = ?",
             [$id]
         );
@@ -58,6 +61,12 @@ class FixedAsset extends Model
     public function updateFields(int $id, array $data): bool
     {
         return $this->update('fixed_assets', $data, 'id', $id);
+    }
+
+    /** Only used to roll back a just-created asset whose acquisition journal failed to post. */
+    public function deleteRecord(int $id): void
+    {
+        $this->query("DELETE FROM fixed_assets WHERE id = ?", [$id]);
     }
 
     public function insertScheduleRows(int $assetId, array $rows): void
