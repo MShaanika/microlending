@@ -3109,4 +3109,19 @@ INSERT INTO accounting_accounts (account_code, account_name, account_type, norma
 ('4050', 'Gain on Disposal of Assets', 'Income', 'Credit', 0, 0, 1),
 ('5235', 'Loss on Disposal of Assets', 'Expense', 'Debit', 0, 0, 1);
 
+-- Automated payment reminders (bin/send_payment_reminders.php, run daily via
+-- cron). One row per (installment, reminder type) tracks the last time that
+-- reminder was sent so a due-soon notice never repeats and an overdue notice
+-- only repeats every few days -- see PaymentReminderService for the rules.
+CREATE TABLE payment_reminder_sends (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loan_schedule_id BIGINT NOT NULL,
+    reminder_type ENUM('DueSoon','Overdue') NOT NULL,
+    last_sent_at DATETIME NOT NULL,
+    send_count INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_schedule_reminder (loan_schedule_id, reminder_type),
+    FOREIGN KEY (loan_schedule_id) REFERENCES loan_schedules(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
