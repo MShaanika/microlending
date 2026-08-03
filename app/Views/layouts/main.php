@@ -186,8 +186,8 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 </div>
               </div>
 
-              <a class="dropdown-item" href="#"><i data-feather="user" class="feather-sm text-info me-1 ms-1"></i> My Profile</a>
-              <a class="dropdown-item" href="#"><i data-feather="settings" class="feather-sm text-warning me-1 ms-1"></i> Account Setting</a>
+              <a class="dropdown-item" href="<?= url('/profile') ?>"><i data-feather="user" class="feather-sm text-info me-1 ms-1"></i> My Profile</a>
+              <a class="dropdown-item" href="<?= url('/profile') ?>"><i data-feather="settings" class="feather-sm text-warning me-1 ms-1"></i> Account Setting</a>
               <div class="dropdown-divider"></div>
               <a class="dropdown-item" href="<?= url('/logout') ?>">
                 <i data-feather="log-out" class="feather-sm text-danger me-1 ms-1"></i> Logout
@@ -224,10 +224,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
           </a>
 
           <div class="dropdown-menu animated flipInY" aria-labelledby="dropdownMenuLink">
-            <a class="dropdown-item" href="#"><i data-feather="user" class="feather-sm text-info me-1 ms-1"></i> My Profile</a>
+            <a class="dropdown-item" href="<?= url('/profile') ?>"><i data-feather="user" class="feather-sm text-info me-1 ms-1"></i> My Profile</a>
             <a class="dropdown-item" href="#"><i data-feather="mail" class="feather-sm text-success me-1 ms-1"></i> Inbox</a>
             <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="#"><i data-feather="settings" class="feather-sm text-warning me-1 ms-1"></i> Account Setting</a>
+            <a class="dropdown-item" href="<?= url('/profile') ?>"><i data-feather="settings" class="feather-sm text-warning me-1 ms-1"></i> Account Setting</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="<?= url('/logout') ?>">
               <i data-feather="log-out" class="feather-sm text-danger me-1 ms-1"></i> Logout

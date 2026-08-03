@@ -115,6 +115,7 @@ use App\Controllers\AiSettingController;
 use App\Controllers\BranchLoginIpRangeController;
 use App\Controllers\DocumentationController;
 use App\Controllers\TicketController;
+use App\Controllers\ProfileController;
 
 $router->get('/', [AuthController::class, 'showLogin']);
 $router->get('/login', [AuthController::class, 'showLogin']);
@@ -977,3 +978,7 @@ $router->post('/tickets/{id}/comment', [TicketController::class, 'comment']);
 $router->post('/tickets/{id}/assign', [TicketController::class, 'assign']);
 $router->post('/tickets/{id}/status', [TicketController::class, 'updateStatus']);
 $router->post('/tickets/{id}/support-session/start', [TicketController::class, 'startSupportSession']);
+
+$router->get('/profile', [ProfileController::class, 'edit']);
+$router->post('/profile', [ProfileController::class, 'update']);
+$router->post('/profile/password', [ProfileController::class, 'changePassword']);

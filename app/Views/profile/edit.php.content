@@ -1,0 +1,77 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-3">My Profile</h4>
+
+        <form method="post" action="<?= url('/profile') ?>">
+          <?= csrf_field() ?>
+
+          <div class="mb-3">
+            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= old('name', $old, $user['name']) ?>">
+            <?php if (isset($errors['name'])): ?><div class="invalid-feedback d-block"><?= e($errors['name']) ?></div><?php endif; ?>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" value="<?= e($user['username']) ?>" disabled>
+            <small class="text-muted">Contact an administrator to change your username.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Email <span class="text-danger">*</span></label>
+            <input type="email" name="email" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= old('email', $old, $user['email']) ?>">
+            <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-control" value="<?= old('phone', $old, (string) ($user['phone'] ?? '')) ?>">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Job Title / Type</label>
+            <input type="text" class="form-control" value="<?= e($user['user_type']) ?>" disabled>
+          </div>
+
+          <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-3">Change Password</h4>
+
+        <form method="post" action="<?= url('/profile/password') ?>">
+          <?= csrf_field() ?>
+
+          <div class="mb-3">
+            <label class="form-label">Current Password <span class="text-danger">*</span></label>
+            <input type="password" name="current_password" class="form-control <?= isset($passwordErrors['current_password']) ? 'is-invalid' : '' ?>">
+            <?php if (isset($passwordErrors['current_password'])): ?><div class="invalid-feedback d-block"><?= e($passwordErrors['current_password']) ?></div><?php endif; ?>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">New Password <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control <?= isset($passwordErrors['password']) ? 'is-invalid' : '' ?>">
+            <?php if (isset($passwordErrors['password'])): ?><div class="invalid-feedback d-block"><?= e($passwordErrors['password']) ?></div><?php endif; ?>
+            <small class="text-muted">At least 8 characters.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Confirm New Password <span class="text-danger">*</span></label>
+            <input type="password" name="password_confirmation" class="form-control">
+          </div>
+
+          <button type="submit" class="btn btn-outline-info waves-effect waves-light"><i class="mdi mdi-lock-reset"></i> Change Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
