@@ -80,6 +80,19 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
       color: #fff !important;
     }
 
+    /* Content area background image -- shows through in the gaps around and
+       between cards, which stay opaque (white) on top of it so page content
+       remains fully readable. Overridden back to plain white when printing,
+       below. */
+    .page-wrapper {
+      background-image: url('<?= asset('assets/images/background/user-info.png') ?>');
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: cover;
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+
     /* Printing a report page (Trial Balance, General Journal/Ledger, etc.)
        should only print the report itself -- not the sidebar, topbar,
        breadcrumb or footer chrome around it. Pages also use a .no-print
