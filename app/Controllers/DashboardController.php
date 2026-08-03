@@ -67,7 +67,10 @@ class DashboardController extends Controller
             'upcomingDue' => DashboardService::upcomingDue(7, $branchId),
             'promisesDueToday' => Auth::can('collections.arrears') ? DashboardService::promisesDueToday($branchId) : [],
             'socialAnalytics' => Auth::can('social_analytics.view') ? DashboardService::socialAnalyticsSummary() : [],
-            'recentActivity' => DashboardService::recentActivity(8),
+            // Admin-only: a full system report -- pending items across every
+            // module needing action, plus the company-wide activity feed.
+            'pendingApprovals' => Auth::can('admin.users') ? DashboardService::pendingApprovals($branchId) : [],
+            'recentActivity' => Auth::can('admin.users') ? DashboardService::recentActivity(8) : [],
         ]);
     }
 }

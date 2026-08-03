@@ -2,9 +2,20 @@
   use App\Core\Auth;
   $deltaUp = $kpis['collected_delta_pct'] >= 0;
   $parBadge = $kpis['par_ratio'] >= 10 ? 'danger' : ($kpis['par_ratio'] >= 5 ? 'warning' : 'success');
+  $hour = (int) date('G');
+  $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
+  $firstName = trim(explode(' ', (string) ($user['name'] ?? 'there'))[0]);
+  $totalPending = array_sum(array_column($pendingApprovals, 'count'));
 ?>
 
 <?= flash_messages() ?>
+
+<div class="card mb-3 bg-info text-white">
+  <div class="card-body">
+    <h4 class="mb-1 text-white"><?= e($greeting) ?>, <?= e($firstName) ?>!</h4>
+    <p class="mb-0 opacity-75"><?= e(date('l, d F Y')) ?></p>
+  </div>
+</div>
 
 <?php if (!empty($branches)): ?>
 <div class="d-flex justify-content-end mb-3">
@@ -358,6 +369,20 @@
   </div>
 </div>
 
+<?php if (Auth::can('admin.users')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h4 class="card-title mb-0"><i class="mdi mdi-shield-account"></i> Admin Report &mdash; Pending Actions</h4>
+      <span class="badge bg-<?= $totalPending > 0 ? 'danger' : 'success' ?>"><?= (int) $totalPending ?> awaiting action</span>
+    </div>
+    <p class="text-muted small">Everything across the system currently waiting on an admin. Click a bar to jump to that list.</p>
+    <div id="pendingChart"></div>
+  </div>
+</div>
+<?php endif; ?>
+
+<?php if (Auth::can('admin.users')): ?>
 <div class="card">
   <div class="card-body">
     <h4 class="card-title">Recent Activity</h4>
@@ -379,6 +404,7 @@
     </ul>
   </div>
 </div>
+<?php endif; ?>
 
 <script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
 <script>
@@ -387,6 +413,26 @@
   var statusData = <?= json_encode($loanStatusDistribution) ?>;
   var agingData = <?= json_encode($arrearsAging) ?>;
   var cashData = <?= json_encode($cashPosition) ?>;
+  var pendingData = <?= json_encode($pendingApprovals) ?>;
+
+  if (document.getElementById('pendingChart')) {
+    new ApexCharts(document.getElementById('pendingChart'), {
+      chart: {
+        type: 'bar', height: 280, toolbar: { show: false },
+        events: {
+          dataPointSelection: function (event, chartContext, config) {
+            var url = pendingData[config.dataPointIndex].url;
+            if (url) { window.location.href = url; }
+          },
+        },
+      },
+      series: [{ name: 'Pending', data: pendingData.map(function (r) { return r.count; }) }],
+      xaxis: { categories: pendingData.map(function (r) { return r.label; }) },
+      colors: ['#ff5c75'],
+      dataLabels: { enabled: true },
+      plotOptions: { bar: { columnWidth: '45%', borderRadius: 4, horizontal: true } },
+    }).render();
+  }
 
   new ApexCharts(document.getElementById('trendChart'), {
     chart: { type: 'area', height: 320, toolbar: { show: false } },

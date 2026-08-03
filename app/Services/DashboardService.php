@@ -252,4 +252,75 @@ class DashboardService
         $stmt->execute();
         return $stmt->fetchAll();
     }
+
+    /**
+     * Admin-only "what's waiting on you" summary -- one row per module that
+     * has a pending/needs-review status, with a count and a link straight to
+     * that filtered list. hrm_leave_applications and debit_order_cancellations
+     * have no branch_id of their own, so those two branch-scope via a join
+     * (employee's branch, loan's branch) instead of a direct column.
+     */
+    public static function pendingApprovals(?int $branchId = null): array
+    {
+        $db = Database::connection();
+        $branchClause = fn(string $column) => $branchId !== null ? " AND {$column} = " . (int) $branchId : "";
+
+        $items = [
+            [
+                'label' => 'Loan Applications',
+                'url' => url('/applications?status=Submitted'),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM loan_applications WHERE status IN ('Submitted','Screening','Documents Required')" . $branchClause('branch_id')
+                )->fetchColumn(),
+            ],
+            [
+                'label' => 'Expenses',
+                'url' => url('/expenses?status=' . urlencode('Pending Approval')),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM expenses WHERE status = 'Pending Approval'" . $branchClause('branch_id')
+                )->fetchColumn(),
+            ],
+            [
+                'label' => 'Leave Requests',
+                'url' => url('/hrm/leave-applications?status=Pending'),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM hrm_leave_applications la
+                     JOIN hrm_employees e ON e.id = la.employee_id
+                     WHERE la.status = 'Pending'" . $branchClause('e.branch_id')
+                )->fetchColumn(),
+            ],
+            [
+                'label' => 'Support Tickets',
+                'url' => url('/tickets?status=Open'),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM support_tickets WHERE status = 'Open'" . $branchClause('branch_id')
+                )->fetchColumn(),
+            ],
+            [
+                'label' => 'Refund Claims',
+                'url' => url('/refund-claims?status=Pending'),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM refund_claims WHERE status IN ('Pending','Under Review')" . $branchClause('branch_id')
+                )->fetchColumn(),
+            ],
+            [
+                'label' => 'Portal Loan Requests',
+                'url' => url('/loan-requests?status=Pending'),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM loan_requests WHERE status = 'Pending'" . $branchClause('branch_id')
+                )->fetchColumn(),
+            ],
+            [
+                'label' => 'Debit Order Cancellations',
+                'url' => url('/debit-order-cancellations?status=Pending'),
+                'count' => (int) $db->query(
+                    "SELECT COUNT(*) FROM debit_order_cancellations doc
+                     JOIN loans l ON l.id = doc.loan_id
+                     WHERE doc.status = 'Pending'" . $branchClause('l.branch_id')
+                )->fetchColumn(),
+            ],
+        ];
+
+        return $items;
+    }
 }
