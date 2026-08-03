@@ -29,13 +29,18 @@
         <p class="mb-1"><strong>Method:</strong> <?= e($asset['depreciation_method']) ?><?= $asset['reducing_balance_rate'] ? ' (' . $asset['reducing_balance_rate'] . '% p.a.)' : '' ?></p>
         <p class="mb-1"><strong>Accumulated <?= $label ?>:</strong> <?= format_money($asset['accumulated_depreciation']) ?></p>
         <p class="mb-1"><strong>Net Book Value:</strong> <?= format_money($asset['net_book_value']) ?></p>
-        <p class="mb-3"><strong>Acquisition Journal:</strong>
+        <p class="mb-1"><strong>Acquisition Journal:</strong>
           <?php if (!empty($asset['acquisition_journal_no'])): ?>
             <a href="<?= url('/accounting/journals?q=' . urlencode($asset['acquisition_journal_no'])) ?>"><?= e($asset['acquisition_journal_no']) ?></a>
           <?php else: ?>
             <span class="text-muted">None (opening balance)</span>
           <?php endif; ?>
         </p>
+        <?php if (!empty($asset['disposal_journal_no'])): ?>
+        <p class="mb-3"><strong>Disposal Journal:</strong>
+          <a href="<?= url('/accounting/journals?q=' . urlencode($asset['disposal_journal_no'])) ?>"><?= e($asset['disposal_journal_no']) ?></a>
+        </p>
+        <?php endif; ?>
 
         <div class="d-flex gap-2 flex-wrap">
           <?php if ($asset['status'] === 'Active' && $hasPending): ?>
@@ -71,6 +76,15 @@
             <div class="mb-2">
               <label class="form-label small mb-0">Disposal Proceeds</label>
               <input type="number" step="0.01" name="disposal_proceeds" class="form-control form-control-sm" value="0">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Received Into</label>
+              <select name="received_into" class="form-select form-select-sm">
+                <option value="">Cash / Default Bank (GL 1010)</option>
+                <?php foreach ($bankAccounts as $ba): ?>
+                  <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div class="mb-2">
               <label class="form-label small mb-0">Notes</label>

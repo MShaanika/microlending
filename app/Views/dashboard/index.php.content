@@ -418,9 +418,13 @@
   if (document.getElementById('pendingChart')) {
     new ApexCharts(document.getElementById('pendingChart'), {
       chart: {
-        type: 'bar', height: 280, toolbar: { show: false },
+        type: 'line', height: 280, toolbar: { show: false },
         events: {
           dataPointSelection: function (event, chartContext, config) {
+            var url = pendingData[config.dataPointIndex].url;
+            if (url) { window.location.href = url; }
+          },
+          markerClick: function (event, chartContext, config) {
             var url = pendingData[config.dataPointIndex].url;
             if (url) { window.location.href = url; }
           },
@@ -430,7 +434,8 @@
       xaxis: { categories: pendingData.map(function (r) { return r.label; }) },
       colors: ['#ff5c75'],
       dataLabels: { enabled: true },
-      plotOptions: { bar: { columnWidth: '45%', borderRadius: 4, horizontal: true } },
+      stroke: { curve: 'smooth', width: 3 },
+      markers: { size: 5, hover: { size: 7 } },
     }).render();
   }
 

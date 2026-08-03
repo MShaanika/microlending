@@ -44,10 +44,13 @@ class FixedAsset extends Model
     {
         return $this->one(
             "SELECT a.*, c.category_name, c.asset_nature AS category_nature,
-                    j.journal_no AS acquisition_journal_no
+                    j.journal_no AS acquisition_journal_no,
+                    dj.journal_no AS disposal_journal_no
              FROM fixed_assets a
              JOIN asset_categories c ON c.id = a.category_id
              LEFT JOIN accounting_journal_entries j ON j.id = a.journal_id
+             LEFT JOIN asset_disposals d ON d.asset_id = a.id
+             LEFT JOIN accounting_journal_entries dj ON dj.id = d.journal_id
              WHERE a.id = ?",
             [$id]
         );

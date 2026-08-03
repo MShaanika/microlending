@@ -3102,4 +3102,11 @@ UPDATE asset_categories SET
     accumulated_depreciation_account_id = (SELECT id FROM accounting_accounts WHERE account_code = '1155')
 WHERE category_name = 'Software & Licenses (Intangible)';
 
+-- Asset disposal accounting: disposing an asset posts a balanced journal
+-- (Dr proceeds bank account + Dr accumulated depreciation, Cr the asset's
+-- cost account, with the balancing gain/loss to one of these two accounts).
+INSERT INTO accounting_accounts (account_code, account_name, account_type, normal_balance, is_control_account, is_cash_bank_account, is_active) VALUES
+('4050', 'Gain on Disposal of Assets', 'Income', 'Credit', 0, 0, 1),
+('5235', 'Loss on Disposal of Assets', 'Expense', 'Debit', 0, 0, 1);
+
 SET FOREIGN_KEY_CHECKS = 1;

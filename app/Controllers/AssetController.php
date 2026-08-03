@@ -251,6 +251,7 @@ class AssetController extends Controller
             'title' => $asset['asset_name'],
             'asset' => $asset,
             'schedule' => $this->assets->schedule((int) $id),
+            'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
         ]);
     }
 
@@ -303,6 +304,50 @@ class AssetController extends Controller
         $proceeds = (float) ($_POST['disposal_proceeds'] ?? 0);
         $nbv = (float) $asset['net_book_value'];
         $gainLoss = round($proceeds - $nbv, 2);
+        $accumDepr = (float) $asset['accumulated_depreciation'];
+        $cost = (float) $asset['capitalized_cost'];
+
+        // Balanced disposal journal: Dr the proceeds bank account and the
+        // asset's accumulated depreciation (clearing both out), Cr the
+        // asset's cost account, with the balancing gain/loss on the
+        // remaining side. See AssetController::store() for the mirror-image
+        // acquisition journal.
+        $disposedInto = (string) ($_POST['received_into'] ?? '');
+        $bankAccountId = ctype_digit($disposedInto) ? (int) $disposedInto : null;
+        $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
+        $bankGlAccount = $bankAccount ? (int) $bankAccount['account_id'] : $this->accounts->idByCode('1010');
+        $bankLabel = $bankAccount ? $bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'] : 'Cash/Bank';
+
+        $lines = [];
+        if ($proceeds > 0) {
+            $lines[] = ['account_id' => $bankGlAccount, 'debit' => $proceeds, 'credit' => 0, 'description' => 'Disposal proceeds into ' . $bankLabel];
+        }
+        if ($accumDepr > 0) {
+            $lines[] = ['account_id' => (int) $asset['accumulated_depreciation_account_id'], 'debit' => $accumDepr, 'credit' => 0, 'description' => 'Clear accumulated depreciation - ' . $asset['asset_no']];
+        }
+        if ($gainLoss > 0) {
+            $lines[] = ['account_id' => $this->accounts->idByCode('4050'), 'debit' => 0, 'credit' => $gainLoss, 'description' => 'Gain on disposal - ' . $asset['asset_no']];
+        } elseif ($gainLoss < 0) {
+            $lines[] = ['account_id' => $this->accounts->idByCode('5235'), 'debit' => abs($gainLoss), 'credit' => 0, 'description' => 'Loss on disposal - ' . $asset['asset_no']];
+        }
+        $lines[] = ['account_id' => (int) $asset['asset_account_id'], 'debit' => 0, 'credit' => $cost, 'description' => 'Disposal of ' . $asset['asset_name'] . ' (' . $asset['asset_no'] . ')'];
+
+        try {
+            $journalId = $this->journal->post(
+                'ASSET_DISPOSED',
+                'fixed_assets',
+                $id,
+                $asset['asset_no'],
+                'Asset disposed: ' . $asset['asset_name'],
+                $lines,
+                Auth::user()['id'] ?? null,
+                $_POST['disposal_date'] ?: date('Y-m-d')
+            );
+        } catch (\RuntimeException $e) {
+            Session::flash('error', 'Asset not disposed: ' . $e->getMessage());
+            $this->redirect('/fixed-assets/' . $id);
+            return;
+        }
 
         $this->assets->insertDisposal([
             'asset_id' => $id,
@@ -312,13 +357,14 @@ class AssetController extends Controller
             'net_book_value_at_disposal' => $nbv,
             'gain_loss_amount' => $gainLoss,
             'notes' => trim($_POST['notes'] ?? '') ?: null,
+            'journal_id' => $journalId,
             'disposed_by' => Auth::user()['id'] ?? null,
         ]);
 
         $this->assets->updateFields($id, ['status' => 'Disposed']);
 
-        Audit::log('Dispose', 'Assets', 'Disposed asset #' . $id . ' (gain/loss ' . format_money($gainLoss) . ')');
-        Session::flash('success', 'Asset disposed. Gain/loss of ' . format_money($gainLoss) . ' recorded.');
+        Audit::log('Dispose', 'Assets', 'Disposed asset #' . $id . ' (gain/loss ' . format_money($gainLoss) . ') via journal #' . $journalId);
+        Session::flash('success', 'Asset disposed. Gain/loss of ' . format_money($gainLoss) . ' posted to the ledger.');
         $this->redirect('/fixed-assets/' . $id);
     }
 }
