@@ -198,7 +198,7 @@ class NotificationSettingController extends Controller
         } else {
             $script = trim((string) $this->settings->get('AI_VOICE_SCRIPT'))
                 ?: 'This is a short test call from DesertLedger to confirm your Bland AI voice settings are working. Say hello, then end the call politely.';
-            $result = BlandVoiceCallService::dispatch($recipient, $script, url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()));
+            $result = BlandVoiceCallService::dispatch($recipient, $script, full_url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()));
         }
 
         if ($result['success']) {
@@ -267,7 +267,7 @@ class NotificationSettingController extends Controller
             'emailConfigured' => !empty($email['SMTP_HOST']),
             'smsConfigured' => !empty($sms['TWILIO_ACCOUNT_SID']) && !empty($sms['TWILIO_AUTH_TOKEN']) && !empty($sms['TWILIO_MESSAGING_SERVICE_SID']),
             'voiceConfigured' => $voiceConfigured,
-            'voiceWebhookUrl' => url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()),
+            'voiceWebhookUrl' => full_url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()),
         ]);
     }
 }

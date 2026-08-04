@@ -75,7 +75,7 @@ class CollectionsAiCallService
             $provider = 'bland';
             $script = trim((string) $settings->get('AI_VOICE_SCRIPT')) ?: self::DEFAULT_SCRIPT;
             $task = NotificationMergeService::render($script, $context);
-            $webhookUrl = url('/api/voice-calls/webhook/' . self::webhookToken());
+            $webhookUrl = full_url('/api/voice-calls/webhook/' . self::webhookToken());
             $result = BlandVoiceCallService::dispatch($phone, $task, $webhookUrl);
         }
 
