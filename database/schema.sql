@@ -3124,4 +3124,49 @@ CREATE TABLE payment_reminder_sends (
     FOREIGN KEY (loan_schedule_id) REFERENCES loan_schedules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- AI voice calling for collections (Bland AI). Manually triggered per case
+-- from the Collections Worklist -- see CollectionsAiCallService. A call's
+-- outcome always lands as a normal collection_contacts note (contact_method
+-- 'AI Call'), and only creates a payment_promises row too if the borrower's
+-- committed date/amount could actually be extracted from the conversation --
+-- same tables and shape every other worklist screen already reads, so
+-- nothing downstream (Dashboard's Promised to Pay Today widget, loan pages)
+-- needed any changes.
+ALTER TABLE collection_contacts
+    MODIFY COLUMN contact_method ENUM('Phone Call','SMS','Email','In-Person Visit','WhatsApp','AI Call') NOT NULL,
+    MODIFY COLUMN outcome ENUM('Promised to Pay','No Answer','Disputed Amount','Agreed to Pay','Refused to Pay','Left Voicemail','Call Failed') NOT NULL;
+
+CREATE TABLE ai_voice_calls (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loan_id BIGINT NOT NULL,
+    borrower_id BIGINT NOT NULL,
+    phone_number VARCHAR(30) NOT NULL,
+    provider VARCHAR(30) DEFAULT 'bland',
+    provider_call_id VARCHAR(100) NULL UNIQUE,
+    status ENUM('Queued','InProgress','Completed','Failed','NoAnswer','Voicemail') DEFAULT 'Queued',
+    duration_seconds INT NULL,
+    transcript TEXT NULL,
+    recording_url VARCHAR(500) NULL,
+    extracted_promise_date DATE NULL,
+    extracted_promise_amount DECIMAL(18,2) NULL,
+    collection_contact_id BIGINT NULL,
+    payment_promise_id BIGINT NULL,
+    triggered_by INT NULL,
+    triggered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loan_id) REFERENCES loans(id),
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id),
+    FOREIGN KEY (collection_contact_id) REFERENCES collection_contacts(id),
+    FOREIGN KEY (payment_promise_id) REFERENCES payment_promises(id),
+    FOREIGN KEY (triggered_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
+('collections.ai_calls', 'Trigger AI Collection Calls', 'Collections');
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE r.role_name IN ('Super Admin', 'Admin', 'Collector') AND p.permission_key = 'collections.ai_calls';
+
 SET FOREIGN_KEY_CHECKS = 1;

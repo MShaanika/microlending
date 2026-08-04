@@ -7,11 +7,14 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\AiVoiceCall;
 use App\Models\CaseEscalation;
 use App\Models\CollectionContact;
 use App\Models\Loan;
+use App\Models\NotificationSetting;
 use App\Models\PaymentPromise;
 use App\Services\ArrearsService;
+use App\Services\CollectionsAiCallService;
 
 class CollectionsController extends Controller
 {
@@ -19,6 +22,7 @@ class CollectionsController extends Controller
     private PaymentPromise $promises;
     private CaseEscalation $escalations;
     private Loan $loans;
+    private AiVoiceCall $aiCalls;
 
     public function __construct()
     {
@@ -26,6 +30,7 @@ class CollectionsController extends Controller
         $this->promises = new PaymentPromise();
         $this->escalations = new CaseEscalation();
         $this->loans = new Loan();
+        $this->aiCalls = new AiVoiceCall();
     }
 
     public function index(): void
@@ -67,6 +72,8 @@ class CollectionsController extends Controller
             'contacts' => $this->contacts->forLoan($loanId),
             'promises' => $this->promises->forLoan($loanId),
             'escalations' => $this->escalations->forLoan($loanId),
+            'aiCalls' => $this->aiCalls->forLoan($loanId),
+            'aiVoiceEnabled' => (new NotificationSetting())->get('AI_VOICE_ENABLED') === '1' && Auth::can('collections.ai_calls'),
         ]);
     }
 
@@ -106,6 +113,29 @@ class CollectionsController extends Controller
 
         Audit::log('Create', 'Collections', 'Logged contact for loan ' . $loan['loan_no']);
         Session::flash('success', 'Contact logged.');
+        $this->redirect('/collections/worklist/' . $loanId);
+    }
+
+    public function triggerAiCall(string $loanId): void
+    {
+        Auth::authorize('collections.ai_calls');
+        $loanId = (int) $loanId;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/collections/worklist/' . $loanId);
+            return;
+        }
+
+        $result = CollectionsAiCallService::trigger($loanId, Auth::user()['id'] ?? null);
+
+        if ($result['sent']) {
+            Audit::log('Create', 'Collections', 'Triggered AI collection call for loan #' . $loanId);
+            Session::flash('success', $result['note']);
+        } else {
+            Session::flash('error', $result['note']);
+        }
+
         $this->redirect('/collections/worklist/' . $loanId);
     }
 

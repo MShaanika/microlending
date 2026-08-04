@@ -8,6 +8,8 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\NotificationSetting;
+use App\Services\BlandVoiceCallService;
+use App\Services\CollectionsAiCallService;
 use App\Services\EmailSenderService;
 use App\Services\SmsSenderService;
 
@@ -18,7 +20,7 @@ class NotificationSettingController extends Controller
     /** Secret fields are never re-populated into the HTML -- the view shows
      *  a masked placeholder, and a blank submission leaves the stored value
      *  untouched rather than overwriting it with an empty string. */
-    private const SECRET_KEYS = ['SMTP_PASSWORD', 'TWILIO_AUTH_TOKEN'];
+    private const SECRET_KEYS = ['SMTP_PASSWORD', 'TWILIO_AUTH_TOKEN', 'BLAND_API_KEY'];
 
     public function __construct()
     {
@@ -123,6 +125,72 @@ class NotificationSettingController extends Controller
         $this->redirect('/notifications/settings');
     }
 
+    public function storeVoiceSettings(): void
+    {
+        Auth::authorize('notifications.settings');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/notifications/settings');
+            return;
+        }
+
+        $userId = Auth::user()['id'] ?? null;
+        $fields = [
+            'AI_VOICE_ENABLED' => isset($_POST['ai_voice_enabled']) ? '1' : '0',
+            'BLAND_VOICE' => trim($_POST['bland_voice'] ?? '') ?: 'maya',
+            'BLAND_FROM_NUMBER' => trim($_POST['bland_from_number'] ?? ''),
+            'AI_VOICE_MAX_DURATION_MINUTES' => (string) max(1, (int) ($_POST['ai_voice_max_duration_minutes'] ?? 5)),
+            'AI_VOICE_CITATION_SCHEMA_ID' => trim($_POST['ai_voice_citation_schema_id'] ?? ''),
+            'AI_VOICE_SCRIPT' => trim($_POST['ai_voice_script'] ?? ''),
+        ];
+
+        foreach ($fields as $key => $value) {
+            $this->settings->set($key, $value, 'AI', $userId);
+        }
+
+        $apiKey = trim($_POST['bland_api_key'] ?? '');
+        if ($apiKey !== '') {
+            $this->settings->set('BLAND_API_KEY', $apiKey, 'AI', $userId);
+        }
+
+        Audit::log('Update', 'Notifications', 'Updated AI voice call (Bland) settings');
+        Session::flash('success', 'AI voice call settings saved.');
+        $this->redirect('/notifications/settings');
+    }
+
+    public function testCall(): void
+    {
+        Auth::authorize('notifications.settings');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/notifications/settings');
+            return;
+        }
+
+        $recipient = trim($_POST['test_recipient'] ?? '');
+        if ($recipient === '') {
+            Session::flash('error', 'Enter a phone number to place a test call.');
+            $this->redirect('/notifications/settings');
+            return;
+        }
+
+        $script = trim((string) $this->settings->get('AI_VOICE_SCRIPT'))
+            ?: 'This is a short test call from DesertLedger to confirm your Bland AI voice settings are working. Say hello, then end the call politely.';
+        $token = CollectionsAiCallService::webhookToken();
+
+        $result = BlandVoiceCallService::dispatch($recipient, $script, url('/api/voice-calls/webhook/' . $token));
+
+        if ($result['success']) {
+            Session::flash('success', 'Test call placed to ' . $recipient . '.');
+        } else {
+            Session::flash('error', 'Test call failed: ' . $result['error']);
+        }
+
+        $this->redirect('/notifications/settings');
+    }
+
     public function testSms(): void
     {
         Auth::authorize('notifications.settings');
@@ -163,12 +231,19 @@ class NotificationSettingController extends Controller
             $sms[$row['setting_key']] = $row['setting_value'];
         }
 
+        $voice = [];
+        foreach ($this->settings->allSettings('AI') as $row) {
+            $voice[$row['setting_key']] = $row['setting_value'];
+        }
+
         $this->view('notifications/settings', [
             'title' => 'Notification Settings',
             'email' => $email,
             'sms' => $sms,
+            'voice' => $voice,
             'emailConfigured' => !empty($email['SMTP_HOST']),
             'smsConfigured' => !empty($sms['TWILIO_ACCOUNT_SID']) && !empty($sms['TWILIO_AUTH_TOKEN']) && !empty($sms['TWILIO_MESSAGING_SERVICE_SID']),
+            'voiceConfigured' => !empty($voice['BLAND_API_KEY']),
         ]);
     }
 }

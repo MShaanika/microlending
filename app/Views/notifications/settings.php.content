@@ -106,4 +106,65 @@
       </div>
     </div>
   </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h4 class="card-title mb-0">AI Voice Calls (Bland AI)</h4>
+          <span class="badge bg-<?= $voiceConfigured ? 'success' : 'secondary' ?>"><?= $voiceConfigured ? 'Configured' : 'Not Configured' ?></span>
+        </div>
+        <p class="text-muted small">Lets staff trigger a real AI phone conversation with a borrower from the Collections Worklist. Get your API key from your Bland AI dashboard -- leave it blank to keep the current one. The Citation Schema ID (also created in your Bland dashboard) is what lets the AI extract a promise-to-pay date and amount from the conversation automatically.</p>
+
+        <form method="post" action="<?= url('/notifications/settings/voice') ?>" class="row g-2 mb-3">
+          <?= csrf_field() ?>
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" name="ai_voice_enabled" id="aiVoiceEnabled" value="1" <?= ($voice['AI_VOICE_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+              <label class="form-check-label" for="aiVoiceEnabled">Enable AI voice calling</label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">Bland API Key</label>
+            <input type="password" name="bland_api_key" class="form-control form-control-sm" value="" placeholder="<?= !empty($voice['BLAND_API_KEY']) ? 'Leave blank to keep current key' : 'Not set' ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Voice</label>
+            <input type="text" name="bland_voice" class="form-control form-control-sm" value="<?= e($voice['BLAND_VOICE'] ?? 'maya') ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Max Call Duration (minutes)</label>
+            <input type="number" min="1" name="ai_voice_max_duration_minutes" class="form-control form-control-sm" value="<?= e($voice['AI_VOICE_MAX_DURATION_MINUTES'] ?? '5') ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">From Number (optional)</label>
+            <input type="text" name="bland_from_number" class="form-control form-control-sm" value="<?= e($voice['BLAND_FROM_NUMBER'] ?? '') ?>" placeholder="+264...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Citation Schema ID (optional)</label>
+            <input type="text" name="ai_voice_citation_schema_id" class="form-control form-control-sm" value="<?= e($voice['AI_VOICE_CITATION_SCHEMA_ID'] ?? '') ?>" placeholder="From your Bland dashboard">
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-0">Call Script (agent instructions)</label>
+            <textarea name="ai_voice_script" class="form-control form-control-sm" rows="4" placeholder="Leave blank to use the built-in default collections script"><?= e($voice['AI_VOICE_SCRIPT'] ?? '') ?></textarea>
+            <small class="text-muted">Supports the same <code>{{merge_field}}</code> placeholders as SMS/email templates -- available: borrower_name, loan_no, days_in_arrears, outstanding_balance, company_name. Keep it respectful: no threats, no mention of the debt to anyone but the borrower, and never reference contacting them at work -- these reflect the debt-collection conduct rules that already apply.</small>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save AI Voice Settings</button>
+          </div>
+        </form>
+
+        <h6 class="mb-2">Place Test Call</h6>
+        <form method="post" action="<?= url('/notifications/settings/voice/test') ?>" class="row g-2">
+          <?= csrf_field() ?>
+          <div class="col-md-8">
+            <input type="text" name="test_recipient" class="form-control form-control-sm" placeholder="+264811234567" required>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-phone-outline"></i> Call Now</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>

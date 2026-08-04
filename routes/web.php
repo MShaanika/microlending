@@ -103,6 +103,7 @@ use App\Controllers\PortalAuthController;
 use App\Controllers\PortalController;
 use App\Controllers\ApplicationController;
 use App\Controllers\ApplicationIntakeController;
+use App\Controllers\VoiceCallWebhookController;
 use App\Controllers\IntakeSourceController;
 use App\Controllers\RescheduleController;
 use App\Controllers\DebitOrderController;
@@ -246,6 +247,10 @@ $router->get('/applications/{id}/generate/{templateCode}', [ApplicationControlle
 // POSTs here directly (cross-origin). See ApplicationIntakeController.
 $router->post('/api/applications/{sourceCode}', [ApplicationIntakeController::class, 'submit']);
 
+// Public, unauthenticated webhook -- Bland AI posts call completion/citation
+// events here. Security is the random token in the URL, not a session.
+$router->post('/api/voice-calls/webhook/{token}', [VoiceCallWebhookController::class, 'receive']);
+
 // Borrower letter requests (Completion / Consolidation) -- staff fulfil by uploading the prepared PDF
 $router->get('/letters', [LetterController::class, 'index']);
 $router->get('/letters/create', [LetterController::class, 'create']);
@@ -311,6 +316,8 @@ $router->post('/notifications/settings/email', [NotificationSettingController::c
 $router->post('/notifications/settings/sms', [NotificationSettingController::class, 'storeSmsSettings']);
 $router->post('/notifications/settings/email/test', [NotificationSettingController::class, 'testEmail']);
 $router->post('/notifications/settings/sms/test', [NotificationSettingController::class, 'testSms']);
+$router->post('/notifications/settings/voice', [NotificationSettingController::class, 'storeVoiceSettings']);
+$router->post('/notifications/settings/voice/test', [NotificationSettingController::class, 'testCall']);
 
 $router->get('/settings/intake-sources', [IntakeSourceController::class, 'index']);
 $router->post('/settings/intake-sources/{id}/regenerate', [IntakeSourceController::class, 'regenerateToken']);
@@ -921,6 +928,7 @@ $router->post('/collections/promises', [CollectionsController::class, 'storeProm
 $router->post('/collections/promises/{id}', [CollectionsController::class, 'updatePromise']);
 $router->post('/collections/escalations', [CollectionsController::class, 'storeEscalation']);
 $router->post('/collections/escalations/{id}/resolve', [CollectionsController::class, 'resolveEscalation']);
+$router->post('/collections/worklist/{loanId}/ai-call', [CollectionsController::class, 'triggerAiCall']);
 
 // Reports
 $router->get('/reports', [ReportController::class, 'index']);
