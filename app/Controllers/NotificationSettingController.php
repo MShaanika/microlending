@@ -11,6 +11,7 @@ use App\Models\NotificationSetting;
 use App\Services\BlandVoiceCallService;
 use App\Services\CollectionsAiCallService;
 use App\Services\EmailSenderService;
+use App\Services\RetellVoiceCallService;
 use App\Services\SmsSenderService;
 
 class NotificationSettingController extends Controller
@@ -20,7 +21,7 @@ class NotificationSettingController extends Controller
     /** Secret fields are never re-populated into the HTML -- the view shows
      *  a masked placeholder, and a blank submission leaves the stored value
      *  untouched rather than overwriting it with an empty string. */
-    private const SECRET_KEYS = ['SMTP_PASSWORD', 'TWILIO_AUTH_TOKEN', 'BLAND_API_KEY'];
+    private const SECRET_KEYS = ['SMTP_PASSWORD', 'TWILIO_AUTH_TOKEN', 'BLAND_API_KEY', 'RETELL_API_KEY'];
 
     public function __construct()
     {
@@ -138,11 +139,14 @@ class NotificationSettingController extends Controller
         $userId = Auth::user()['id'] ?? null;
         $fields = [
             'AI_VOICE_ENABLED' => isset($_POST['ai_voice_enabled']) ? '1' : '0',
+            'AI_VOICE_PROVIDER' => in_array($_POST['ai_voice_provider'] ?? '', ['bland', 'retell'], true) ? $_POST['ai_voice_provider'] : 'bland',
             'BLAND_VOICE' => trim($_POST['bland_voice'] ?? '') ?: 'maya',
             'BLAND_FROM_NUMBER' => trim($_POST['bland_from_number'] ?? ''),
             'AI_VOICE_MAX_DURATION_MINUTES' => (string) max(1, (int) ($_POST['ai_voice_max_duration_minutes'] ?? 5)),
             'AI_VOICE_CITATION_SCHEMA_ID' => trim($_POST['ai_voice_citation_schema_id'] ?? ''),
             'AI_VOICE_SCRIPT' => trim($_POST['ai_voice_script'] ?? ''),
+            'RETELL_AGENT_ID' => trim($_POST['retell_agent_id'] ?? ''),
+            'RETELL_FROM_NUMBER' => trim($_POST['retell_from_number'] ?? ''),
         ];
 
         foreach ($fields as $key => $value) {
@@ -154,7 +158,12 @@ class NotificationSettingController extends Controller
             $this->settings->set('BLAND_API_KEY', $apiKey, 'AI', $userId);
         }
 
-        Audit::log('Update', 'Notifications', 'Updated AI voice call (Bland) settings');
+        $retellApiKey = trim($_POST['retell_api_key'] ?? '');
+        if ($retellApiKey !== '') {
+            $this->settings->set('RETELL_API_KEY', $retellApiKey, 'AI', $userId);
+        }
+
+        Audit::log('Update', 'Notifications', 'Updated AI voice call settings');
         Session::flash('success', 'AI voice call settings saved.');
         $this->redirect('/notifications/settings');
     }
@@ -176,11 +185,21 @@ class NotificationSettingController extends Controller
             return;
         }
 
-        $script = trim((string) $this->settings->get('AI_VOICE_SCRIPT'))
-            ?: 'This is a short test call from DesertLedger to confirm your Bland AI voice settings are working. Say hello, then end the call politely.';
-        $token = CollectionsAiCallService::webhookToken();
+        $provider = trim((string) $this->settings->get('AI_VOICE_PROVIDER')) ?: 'bland';
 
-        $result = BlandVoiceCallService::dispatch($recipient, $script, url('/api/voice-calls/webhook/' . $token));
+        if ($provider === 'retell') {
+            $result = RetellVoiceCallService::dispatch($recipient, [
+                'borrower_name' => 'Test Contact',
+                'loan_no' => 'TEST',
+                'days_in_arrears' => '0',
+                'outstanding_balance' => 'N$0.00',
+                'company_name' => 'DesertLedger',
+            ]);
+        } else {
+            $script = trim((string) $this->settings->get('AI_VOICE_SCRIPT'))
+                ?: 'This is a short test call from DesertLedger to confirm your Bland AI voice settings are working. Say hello, then end the call politely.';
+            $result = BlandVoiceCallService::dispatch($recipient, $script, url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()));
+        }
 
         if ($result['success']) {
             Session::flash('success', 'Test call placed to ' . $recipient . '.');
@@ -235,6 +254,10 @@ class NotificationSettingController extends Controller
         foreach ($this->settings->allSettings('AI') as $row) {
             $voice[$row['setting_key']] = $row['setting_value'];
         }
+        $voiceProvider = $voice['AI_VOICE_PROVIDER'] ?? 'bland';
+        $voiceConfigured = $voiceProvider === 'retell'
+            ? (!empty($voice['RETELL_API_KEY']) && !empty($voice['RETELL_AGENT_ID']) && !empty($voice['RETELL_FROM_NUMBER']))
+            : !empty($voice['BLAND_API_KEY']);
 
         $this->view('notifications/settings', [
             'title' => 'Notification Settings',
@@ -243,7 +266,8 @@ class NotificationSettingController extends Controller
             'voice' => $voice,
             'emailConfigured' => !empty($email['SMTP_HOST']),
             'smsConfigured' => !empty($sms['TWILIO_ACCOUNT_SID']) && !empty($sms['TWILIO_AUTH_TOKEN']) && !empty($sms['TWILIO_MESSAGING_SERVICE_SID']),
-            'voiceConfigured' => !empty($voice['BLAND_API_KEY']),
+            'voiceConfigured' => $voiceConfigured,
+            'voiceWebhookUrl' => url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()),
         ]);
     }
 }

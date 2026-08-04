@@ -111,10 +111,10 @@
     <div class="card h-100">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
-          <h4 class="card-title mb-0">AI Voice Calls (Bland AI)</h4>
+          <h4 class="card-title mb-0">AI Voice Calls</h4>
           <span class="badge bg-<?= $voiceConfigured ? 'success' : 'secondary' ?>"><?= $voiceConfigured ? 'Configured' : 'Not Configured' ?></span>
         </div>
-        <p class="text-muted small">Lets staff trigger a real AI phone conversation with a borrower from the Collections Worklist. Get your API key from your Bland AI dashboard -- leave it blank to keep the current one. The Citation Schema ID (also created in your Bland dashboard) is what lets the AI extract a promise-to-pay date and amount from the conversation automatically.</p>
+        <p class="text-muted small">Lets staff trigger a real AI phone conversation with a borrower from the Collections Worklist. Pick whichever provider you've signed up with below -- only the section for your chosen provider needs to be filled in.</p>
 
         <form method="post" action="<?= url('/notifications/settings/voice') ?>" class="row g-2 mb-3">
           <?= csrf_field() ?>
@@ -124,6 +124,16 @@
               <label class="form-check-label" for="aiVoiceEnabled">Enable AI voice calling</label>
             </div>
           </div>
+          <div class="col-12">
+            <label class="form-label small mb-0">Provider</label>
+            <?php $provider = $voice['AI_VOICE_PROVIDER'] ?? 'bland'; ?>
+            <select name="ai_voice_provider" class="form-select form-select-sm">
+              <option value="bland" <?= $provider === 'bland' ? 'selected' : '' ?>>Bland AI</option>
+              <option value="retell" <?= $provider === 'retell' ? 'selected' : '' ?>>Retell AI</option>
+            </select>
+          </div>
+
+          <div class="col-12"><hr class="my-1"><strong class="small text-muted">If using Bland AI</strong></div>
           <div class="col-md-12">
             <label class="form-label small mb-0">Bland API Key</label>
             <input type="password" name="bland_api_key" class="form-control form-control-sm" value="" placeholder="<?= !empty($voice['BLAND_API_KEY']) ? 'Leave blank to keep current key' : 'Not set' ?>">
@@ -149,6 +159,26 @@
             <textarea name="ai_voice_script" class="form-control form-control-sm" rows="4" placeholder="Leave blank to use the built-in default collections script"><?= e($voice['AI_VOICE_SCRIPT'] ?? '') ?></textarea>
             <small class="text-muted">Supports the same <code>{{merge_field}}</code> placeholders as SMS/email templates -- available: borrower_name, loan_no, days_in_arrears, outstanding_balance, company_name. Keep it respectful: no threats, no mention of the debt to anyone but the borrower, and never reference contacting them at work -- these reflect the debt-collection conduct rules that already apply.</small>
           </div>
+
+          <div class="col-12"><hr class="my-1"><strong class="small text-muted">If using Retell AI</strong></div>
+          <div class="col-md-12">
+            <label class="form-label small mb-0">Retell API Key</label>
+            <input type="password" name="retell_api_key" class="form-control form-control-sm" value="" placeholder="<?= !empty($voice['RETELL_API_KEY']) ? 'Leave blank to keep current key' : 'Not set' ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">Agent ID</label>
+            <input type="text" name="retell_agent_id" class="form-control form-control-sm" value="<?= e($voice['RETELL_AGENT_ID'] ?? '') ?>" placeholder="From your Retell dashboard">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-0">From Number</label>
+            <input type="text" name="retell_from_number" class="form-control form-control-sm" value="<?= e($voice['RETELL_FROM_NUMBER'] ?? '') ?>" placeholder="+264...">
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-0">Webhook URL (paste into your Retell Agent's Webhook URL)</label>
+            <input type="text" class="form-control form-control-sm" value="<?= e($voiceWebhookUrl) ?>" readonly onclick="this.select();">
+            <small class="text-muted">Retell needs its own Agent set up in your Retell dashboard first, with this webhook URL enabled for the <code>call_ended</code> and <code>call_analyzed</code> events, and a <code>post_call_analysis_data</code> extraction schema for "Promise to Pay Date" and "Promise to Pay Amount" -- this is Retell's equivalent of Bland's Citation Schema above. The call script/prompt itself also lives on that Agent, not here.</small>
+          </div>
+
           <div class="col-12">
             <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save AI Voice Settings</button>
           </div>

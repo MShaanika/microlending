@@ -11,13 +11,21 @@ use App\Models\PaymentPromise;
 
 /**
  * Orchestrates a manually-triggered AI collection call end to end:
- * dispatching it (trigger) and, once Bland posts back the outcome
- * (handleWebhook), turning that outcome into the exact same
- * collection_contacts / payment_promises rows a human staff member would
- * create by hand from the Collections Worklist -- see
+ * dispatching it via whichever provider is configured (trigger) and, once
+ * that provider posts back the outcome (handleWebhook), turning it into
+ * the exact same collection_contacts / payment_promises rows a human
+ * staff member would create by hand from the Collections Worklist -- see
  * CollectionsController::storeContact()/storePromise() for the records
  * this deliberately mirrors, so nothing downstream needs to know an AI
- * call was involved at all.
+ * call was involved at all, or which provider placed it.
+ *
+ * Bland takes a freeform script per call (AI_VOICE_SCRIPT, merged here).
+ * Retell instead runs off a pre-configured Agent in its own dashboard and
+ * only takes named variables -- see RetellVoiceCallService's docblock.
+ * handleWebhook() branches on the matched ai_voice_calls row's own
+ * `provider` column (set at dispatch time) rather than sniffing the
+ * payload shape, since that's unambiguous regardless of what either
+ * provider's webhook payload happens to look like.
  */
 class CollectionsAiCallService
 {
@@ -59,19 +67,23 @@ class CollectionsAiCallService
             'outstanding_balance' => format_money((float) ($outstanding['outstanding_balance'] ?? 0)),
         ];
 
-        $script = trim((string) $settings->get('AI_VOICE_SCRIPT')) ?: self::DEFAULT_SCRIPT;
-        $task = NotificationMergeService::render($script, $context);
+        $provider = trim((string) $settings->get('AI_VOICE_PROVIDER')) ?: 'bland';
 
-        $token = self::webhookToken();
-        $webhookUrl = url('/api/voice-calls/webhook/' . $token);
-
-        $result = BlandVoiceCallService::dispatch($phone, $task, $webhookUrl);
+        if ($provider === 'retell') {
+            $result = RetellVoiceCallService::dispatch($phone, $context);
+        } else {
+            $provider = 'bland';
+            $script = trim((string) $settings->get('AI_VOICE_SCRIPT')) ?: self::DEFAULT_SCRIPT;
+            $task = NotificationMergeService::render($script, $context);
+            $webhookUrl = url('/api/voice-calls/webhook/' . self::webhookToken());
+            $result = BlandVoiceCallService::dispatch($phone, $task, $webhookUrl);
+        }
 
         (new AiVoiceCall())->create([
             'loan_id' => $loanId,
             'borrower_id' => (int) $loan['borrower_id'],
             'phone_number' => $phone,
-            'provider' => 'bland',
+            'provider' => $provider,
             'provider_call_id' => $result['callId'],
             'status' => $result['success'] ? 'Queued' : 'Failed',
             'triggered_by' => $userId,
@@ -87,9 +99,9 @@ class CollectionsAiCallService
 
     /**
      * Called by VoiceCallWebhookController once the token is verified.
-     * Bland sends the completion event and, separately, a citations event
-     * with any structured extractions -- both are merged into whichever
-     * ai_voice_calls row matches call_id, since either can arrive first.
+     * Each provider sends a completion event and, separately, an
+     * extraction event -- both are merged into whichever ai_voice_calls
+     * row matches call_id, since either can arrive first.
      */
     public static function handleWebhook(array $payload): void
     {
@@ -104,36 +116,23 @@ class CollectionsAiCallService
             return;
         }
 
+        $parsed = ($call['provider'] ?? 'bland') === 'retell'
+            ? self::parseRetellPayload($payload)
+            : self::parseBlandPayload($payload);
+
         $update = [];
+        if ($parsed['transcript'] !== null) {
+            $update['transcript'] = $parsed['transcript'];
+        }
+        if ($parsed['duration_seconds'] !== null) {
+            $update['duration_seconds'] = $parsed['duration_seconds'];
+        }
+        if ($parsed['recording_url'] !== null) {
+            $update['recording_url'] = $parsed['recording_url'];
+        }
 
-        if (isset($payload['transcript'])) {
-            $update['transcript'] = is_array($payload['transcript']) ? json_encode($payload['transcript']) : (string) $payload['transcript'];
-        }
-        if (isset($payload['duration']) || isset($payload['call_length'])) {
-            $update['duration_seconds'] = (int) ($payload['duration'] ?? $payload['call_length'] ?? 0);
-        }
-        if (isset($payload['recording_url'])) {
-            $update['recording_url'] = (string) $payload['recording_url'];
-        }
-
-        $promiseDate = null;
-        $promiseAmount = null;
-        foreach ((array) ($payload['citations'] ?? []) as $citation) {
-            $name = strtolower((string) ($citation['variable_name'] ?? ''));
-            $value = trim((string) ($citation['value'] ?? ''));
-            if ($value === '') {
-                continue;
-            }
-            if (str_contains($name, 'date') && $promiseDate === null && strtotime($value) !== false) {
-                $promiseDate = date('Y-m-d', strtotime($value));
-            }
-            if (str_contains($name, 'amount') && $promiseAmount === null) {
-                $numeric = preg_replace('/[^0-9.]/', '', $value);
-                if ($numeric !== '' && is_numeric($numeric)) {
-                    $promiseAmount = (float) $numeric;
-                }
-            }
-        }
+        $promiseDate = $parsed['promise_date'];
+        $promiseAmount = $parsed['promise_amount'];
         if ($promiseDate !== null) {
             $update['extracted_promise_date'] = $promiseDate;
         }
@@ -142,7 +141,7 @@ class CollectionsAiCallService
         }
 
         $hasPromise = $promiseDate !== null && $promiseAmount !== null;
-        $outcome = self::mapOutcome($payload, $hasPromise);
+        $outcome = $hasPromise ? 'Promised to Pay' : $parsed['outcome'];
 
         if ($outcome !== null && ($update['status'] ?? $call['status']) !== 'Completed') {
             $update['status'] = 'Completed';
@@ -192,16 +191,95 @@ class CollectionsAiCallService
         $calls->updateFromWebhook((int) $call['id'], $linkUpdate);
     }
 
-    private static function mapOutcome(array $payload, bool $hasPromise): ?string
+    /**
+     * @return array{transcript: ?string, duration_seconds: ?int, recording_url: ?string, promise_date: ?string, promise_amount: ?float, outcome: ?string}
+     */
+    private static function parseBlandPayload(array $payload): array
     {
-        if ($hasPromise) {
-            return 'Promised to Pay';
+        $transcript = null;
+        if (isset($payload['transcript'])) {
+            $transcript = is_array($payload['transcript']) ? json_encode($payload['transcript']) : (string) $payload['transcript'];
+        }
+
+        $duration = null;
+        if (isset($payload['duration']) || isset($payload['call_length'])) {
+            $duration = (int) ($payload['duration'] ?? $payload['call_length'] ?? 0);
+        }
+
+        $promiseDate = null;
+        $promiseAmount = null;
+        foreach ((array) ($payload['citations'] ?? []) as $citation) {
+            $name = strtolower((string) ($citation['variable_name'] ?? ''));
+            $value = trim((string) ($citation['value'] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+            if (str_contains($name, 'date') && $promiseDate === null && strtotime($value) !== false) {
+                $promiseDate = date('Y-m-d', strtotime($value));
+            }
+            if (str_contains($name, 'amount') && $promiseAmount === null) {
+                $numeric = preg_replace('/[^0-9.]/', '', $value);
+                if ($numeric !== '' && is_numeric($numeric)) {
+                    $promiseAmount = (float) $numeric;
+                }
+            }
         }
 
         $signal = strtolower((string) (
             $payload['disposition'] ?? $payload['answered_by'] ?? $payload['status'] ?? ''
         ));
 
+        return [
+            'transcript' => $transcript,
+            'duration_seconds' => $duration,
+            'recording_url' => isset($payload['recording_url']) ? (string) $payload['recording_url'] : null,
+            'promise_date' => $promiseDate,
+            'promise_amount' => $promiseAmount,
+            'outcome' => self::mapSignalToOutcome($signal),
+        ];
+    }
+
+    /**
+     * @return array{transcript: ?string, duration_seconds: ?int, recording_url: ?string, promise_date: ?string, promise_amount: ?float, outcome: ?string}
+     */
+    private static function parseRetellPayload(array $payload): array
+    {
+        $duration = isset($payload['duration_ms']) ? (int) round(((int) $payload['duration_ms']) / 1000) : null;
+
+        $promiseDate = null;
+        $promiseAmount = null;
+        $customData = $payload['call_analysis']['custom_analysis_data'] ?? [];
+        foreach ((array) $customData as $key => $value) {
+            $name = strtolower((string) $key);
+            $value = trim((string) $value);
+            if ($value === '') {
+                continue;
+            }
+            if (str_contains($name, 'date') && $promiseDate === null && strtotime($value) !== false) {
+                $promiseDate = date('Y-m-d', strtotime($value));
+            }
+            if (str_contains($name, 'amount') && $promiseAmount === null) {
+                $numeric = preg_replace('/[^0-9.]/', '', $value);
+                if ($numeric !== '' && is_numeric($numeric)) {
+                    $promiseAmount = (float) $numeric;
+                }
+            }
+        }
+
+        $signal = strtolower((string) ($payload['disconnection_reason'] ?? $payload['call_status'] ?? ''));
+
+        return [
+            'transcript' => isset($payload['transcript']) ? (string) $payload['transcript'] : null,
+            'duration_seconds' => $duration,
+            'recording_url' => isset($payload['recording_url']) ? (string) $payload['recording_url'] : null,
+            'promise_date' => $promiseDate,
+            'promise_amount' => $promiseAmount,
+            'outcome' => self::mapSignalToOutcome($signal),
+        ];
+    }
+
+    private static function mapSignalToOutcome(string $signal): ?string
+    {
         if ($signal === '') {
             return null;
         }
@@ -214,7 +292,7 @@ class CollectionsAiCallService
         if (str_contains($signal, 'fail') || str_contains($signal, 'error')) {
             return 'Call Failed';
         }
-        if (str_contains($signal, 'human') || str_contains($signal, 'complet') || str_contains($signal, 'answer')) {
+        if (str_contains($signal, 'human') || str_contains($signal, 'complet') || str_contains($signal, 'answer') || str_contains($signal, 'hangup') || str_contains($signal, 'ended')) {
             return 'Refused to Pay';
         }
 
