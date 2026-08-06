@@ -2,6 +2,7 @@
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
+use App\Controllers\BranchController;
 use App\Controllers\LoanProductController;
 use App\Controllers\LoanController;
 use App\Controllers\LoanRequestController;
@@ -328,6 +329,13 @@ $router->post('/settings/ai/test', [AiSettingController::class, 'test']);
 $router->get('/settings/branch-ip-ranges', [BranchLoginIpRangeController::class, 'index']);
 $router->post('/settings/branch-ip-ranges', [BranchLoginIpRangeController::class, 'store']);
 $router->post('/settings/branch-ip-ranges/{id}/delete', [BranchLoginIpRangeController::class, 'delete']);
+
+$router->get('/branches', [BranchController::class, 'index']);
+$router->get('/branches/create', [BranchController::class, 'create']);
+$router->post('/branches', [BranchController::class, 'store']);
+$router->get('/branches/{id}/edit', [BranchController::class, 'edit']);
+$router->post('/branches/{id}', [BranchController::class, 'update']);
+$router->post('/branches/{id}/toggle-active', [BranchController::class, 'toggleActive']);
 
 // Refund claims (submitted via the self-service portal, reviewed by staff)
 $router->get('/refund-claims', [RefundClaimController::class, 'index']);

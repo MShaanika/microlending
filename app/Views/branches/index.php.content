@@ -1,0 +1,42 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Branches</h4>
+      <a href="<?= url('/branches/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Branch</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Branch</th><th>Code</th><th>Phone</th><th>Email</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($branches)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No branches yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($branches as $b): ?>
+            <tr>
+              <td><?= e($b['branch_name']) ?></td>
+              <td><?= e($b['branch_code'] ?: '—') ?></td>
+              <td><?= e($b['phone'] ?: '—') ?></td>
+              <td><?= e($b['email'] ?: '—') ?></td>
+              <td><span class="badge bg-<?= $b['is_active'] ? 'success' : 'secondary' ?>"><?= $b['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/branches/' . $b['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <form method="post" action="<?= url('/branches/' . $b['id'] . '/toggle-active') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-<?= $b['is_active'] ? 'danger' : 'success' ?>">
+                    <?= $b['is_active'] ? 'Deactivate' : 'Activate' ?>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
