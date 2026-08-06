@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Controller;
 use App\Models\Branch;
+use App\Models\HrmEmployee;
 use App\Models\IntakeSource;
 use App\Models\LoanApplication;
 use App\Support\PhoneNumberNormalizer;
@@ -24,6 +25,7 @@ class ApplicationIntakeController extends Controller
     private IntakeSource $sources;
     private LoanApplication $applications;
     private Branch $branches;
+    private HrmEmployee $employees;
 
     private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
     private const ALLOWED_DOCUMENT_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -41,6 +43,7 @@ class ApplicationIntakeController extends Controller
         $this->sources = new IntakeSource();
         $this->applications = new LoanApplication();
         $this->branches = new Branch();
+        $this->employees = new HrmEmployee();
     }
 
     public function submit(string $sourceCode): void
@@ -110,6 +113,19 @@ class ApplicationIntakeController extends Controller
             $branchId = (int) $applicationData['branch_id'];
             $validBranchIds = array_column($this->branches->all(), 'id');
             $applicationData['branch_id'] = in_array($branchId, $validBranchIds, true) ? $branchId : null;
+        }
+        // Marketing agent referral link: apply-dg.php already carries a
+        // ?refId= URL param through to a hidden POST field of the same
+        // name (unrelated to intake_field_mappings -- it's read directly
+        // here, not through normalize()). A garbage/unknown code is
+        // silently ignored rather than failing the submission, same
+        // graceful-degrade posture as branch_id above.
+        $refId = trim((string) ($_POST['refId'] ?? ''));
+        if ($refId !== '') {
+            $agent = $this->employees->findByReferralCode($refId);
+            if ($agent) {
+                $applicationData['agent_id'] = (int) $agent['id'];
+            }
         }
         // Normalize to E.164 (+264...) so this number is already Twilio-valid
         // for every later SMS -- approval notice, portal credentials, etc.

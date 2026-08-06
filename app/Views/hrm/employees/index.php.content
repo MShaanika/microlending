@@ -84,7 +84,10 @@
           ?>
             <tr>
               <td><a href="<?= url('/hrm/employees/' . $emp['id']) ?>"><?= e($emp['employee_no']) ?></a></td>
-              <td><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></td>
+              <td>
+                <?= e($emp['first_name'] . ' ' . $emp['last_name']) ?>
+                <?php if (!empty($emp['is_commission_agent'])): ?><span class="badge bg-info ms-1">Agent</span><?php endif; ?>
+              </td>
               <td><?= e($emp['department_name'] ?: '—') ?></td>
               <td><?= e($emp['designation_name'] ?: '—') ?></td>
               <td><?= e($emp['branch_name'] ?: '—') ?></td>

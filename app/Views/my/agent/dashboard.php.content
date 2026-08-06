@@ -1,0 +1,76 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-3">My Referral Link</h4>
+        <?php if ($referralLink): ?>
+          <p class="text-muted small">Share this link with a client, or fill it out with them -- any application submitted through it is automatically credited to you.</p>
+          <div class="input-group mb-2">
+            <input type="text" class="form-control" value="<?= e($referralLink) ?>" readonly id="referralLinkInput">
+            <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('referralLinkInput').value)"><i class="mdi mdi-content-copy"></i> Copy</button>
+          </div>
+        <?php else: ?>
+          <p class="text-muted">No referral code is set up on your account yet -- ask an administrator to add one.</p>
+        <?php endif; ?>
+        <a href="<?= url('/my/referrals/create') ?>" class="btn btn-info waves-effect waves-light w-100 mt-2"><i class="mdi mdi-plus"></i> Submit a Referral Myself</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-3">My Commission Summary</h4>
+        <div class="row text-center">
+          <div class="col-3">
+            <p class="text-muted mb-1 small">Total Commission</p>
+            <h4><?= format_money($totals['total_commission']) ?></h4>
+          </div>
+          <div class="col-3">
+            <p class="text-muted mb-1 small">Earned</p>
+            <h4 class="text-success"><?= format_money($totals['earned']) ?></h4>
+          </div>
+          <div class="col-3">
+            <p class="text-muted mb-1 small">Paid</p>
+            <h4><?= format_money($totals['paid']) ?></h4>
+          </div>
+          <div class="col-3">
+            <p class="text-muted mb-1 small">Outstanding</p>
+            <h4 class="text-warning"><?= format_money($totals['outstanding']) ?></h4>
+          </div>
+        </div>
+        <a href="<?= url('/my/commissions') ?>" class="btn btn-outline-info btn-sm mt-2">View All Commissions</a>
+        <a href="<?= url('/my/referrals/list') ?>" class="btn btn-outline-secondary btn-sm mt-2">Referral History</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-3">Recent Commissions</h4>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr><th>Loan</th><th>Client</th><th class="text-end">Total</th><th class="text-end">Earned</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <?php if (empty($recentCommissions)): ?>
+                <tr><td colspan="5" class="text-center text-muted py-4">No commissions yet.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($recentCommissions as $c): ?>
+                <tr>
+                  <td><?= e($c['loan_no']) ?></td>
+                  <td><?= e($c['borrower_name']) ?></td>
+                  <td class="text-end"><?= format_money($c['total_commission_amount']) ?></td>
+                  <td class="text-end"><?= format_money($c['earned_amount']) ?></td>
+                  <td><span class="badge bg-<?= $c['status'] === 'Fully Earned' ? 'success' : ($c['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($c['status']) ?></span></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

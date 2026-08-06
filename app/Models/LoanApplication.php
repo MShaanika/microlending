@@ -62,6 +62,16 @@ class LoanApplication extends Model
         return $this->one("SELECT * FROM loan_applications WHERE application_no = ?", [$applicationNo]);
     }
 
+    public function allForAgent(int $agentId): array
+    {
+        return $this->all(
+            "SELECT a.*, b.borrower_no FROM loan_applications a
+             LEFT JOIN borrowers b ON b.id = a.borrower_id
+             WHERE a.agent_id = ? ORDER BY a.id DESC",
+            [$agentId]
+        );
+    }
+
     public function create(array $data): int
     {
         return $this->insert('loan_applications', $data);

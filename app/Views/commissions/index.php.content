@@ -1,0 +1,90 @@
+<?= flash_messages() ?>
+
+<div class="row mb-3">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <p class="text-muted mb-1 small">Total Outstanding (Earned, Unpaid)</p>
+        <h3 class="text-warning"><?= format_money($totalOutstanding) ?></h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-2">Commission Rate</h5>
+        <form method="post" action="<?= url('/commissions/settings') ?>" class="d-flex gap-2 align-items-end">
+          <?= csrf_field() ?>
+          <div>
+            <label class="form-label small mb-0">% of interest per loan</label>
+            <input type="number" step="0.01" min="0" max="100" name="commission_rate_percent" class="form-control" value="<?= e((string) $commissionRate) ?>" style="width:120px">
+          </div>
+          <button type="submit" class="btn btn-outline-info btn-sm">Save</button>
+          <span class="text-muted small">Only affects loans disbursed after this change.</span>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">Agent Commissions</h4>
+
+    <form method="get" action="<?= url('/commissions') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="agent_employee_id" class="form-select">
+          <option value="">All Agents</option>
+          <?php foreach ($agents as $a): ?>
+            <option value="<?= (int) $a['id'] ?>" <?= (string) ($filters['agent_employee_id'] ?? '') === (string) $a['id'] ? 'selected' : '' ?>><?= e($a['first_name'] . ' ' . $a['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Accruing', 'Fully Earned', 'Forfeited'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($filters['status'] ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" class="form-control" value="<?= e($filters['date_from'] ?? '') ?>" placeholder="From">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" class="form-control" value="<?= e($filters['date_to'] ?? '') ?>" placeholder="To">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Agent</th><th>Client</th><th class="text-end">Total</th><th class="text-end">Earned</th><th class="text-end">Paid</th><th class="text-end">Outstanding</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-4">No agent commissions yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $c): ?>
+            <tr>
+              <td><?= e($c['loan_no']) ?></td>
+              <td><?= e($c['agent_name']) ?></td>
+              <td><?= e($c['borrower_name']) ?></td>
+              <td class="text-end"><?= format_money($c['total_commission_amount']) ?></td>
+              <td class="text-end"><?= format_money($c['earned_amount']) ?></td>
+              <td class="text-end"><?= format_money($c['paid_amount']) ?></td>
+              <td class="text-end"><?= format_money((float) $c['earned_amount'] - (float) $c['paid_amount']) ?></td>
+              <td><span class="badge bg-<?= $c['status'] === 'Fully Earned' ? 'success' : ($c['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($c['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/commissions/' . $c['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

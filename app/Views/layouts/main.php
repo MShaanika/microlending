@@ -337,6 +337,15 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Templates', 'url' => url('/notifications/templates'), 'perm' => 'notifications.templates'],
               ['label' => 'Settings', 'url' => url('/notifications/settings'), 'perm' => 'notifications.settings'],
             ]],
+            'Commissions' => ['icon' => 'mdi-cash-multiple', 'items' => [
+              ['label' => 'Agent Commissions', 'url' => url('/commissions'), 'perm' => 'commissions.manage'],
+            ]],
+            'My Referrals' => ['icon' => 'mdi-account-cash', 'items' => [
+              ['label' => 'Dashboard', 'url' => url('/my/referrals'), 'perm' => 'referrals.submit'],
+              ['label' => 'New Referral', 'url' => url('/my/referrals/create'), 'perm' => 'referrals.submit'],
+              ['label' => 'Referral History', 'url' => url('/my/referrals/list'), 'perm' => 'referrals.submit'],
+              ['label' => 'My Commissions', 'url' => url('/my/commissions'), 'perm' => 'referrals.submit'],
+            ]],
             'My HR' => ['icon' => 'mdi-account-box', 'items' => [
               ['label' => 'My Leave', 'url' => url('/my/leave'), 'perm' => 'dashboard.view'],
               ['label' => 'My Leave Balance', 'url' => url('/my/leave/balance'), 'perm' => 'dashboard.view'],

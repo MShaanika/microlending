@@ -246,6 +246,7 @@ class LoanWriteOffController extends Controller
 
         $this->loans->updateFields((int) $writeOff['loan_id'], ['loan_status' => 'Written Off']);
         $this->loans->logStatus((int) $writeOff['loan_id'], $writeOff['loan_status'] ?? null, 'Written Off', $userId, 'Written off via ' . $writeOff['write_off_no']);
+        \App\Services\AgentCommissionService::onWriteOff((int) $writeOff['loan_id'], $userId);
 
         if (!empty($writeOff['bad_debt_id'])) {
             $this->badDebts->updateRecord((int) $writeOff['bad_debt_id'], ['status' => 'Written Off']);

@@ -133,6 +133,23 @@
           <input type="number" step="0.5" name="days_per_week" class="form-control" value="<?= e($e['days_per_week'] ?? '5') ?>">
         </div>
       </div>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <div class="form-check mt-4">
+            <input type="checkbox" class="form-check-input" id="is_commission_agent" name="is_commission_agent" value="1" <?= !empty($e['is_commission_agent']) ? 'checked' : '' ?>>
+            <label class="form-check-label" for="is_commission_agent">Marketing / Commission Agent</label>
+          </div>
+        </div>
+        <div class="col-md-5 mb-3">
+          <label class="form-label">Referral Code</label>
+          <div class="input-group">
+            <input type="text" name="referral_code" id="referral_code" class="form-control <?= isset($errors['referral_code']) ? 'is-invalid' : '' ?>" value="<?= e($e['referral_code'] ?? '') ?>" placeholder="e.g. JDOE123">
+            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('referral_code').value = 'AGT' + Math.random().toString(36).slice(2, 8).toUpperCase()">Generate</button>
+          </div>
+          <?php if (isset($errors['referral_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['referral_code']) ?></div><?php endif; ?>
+          <div class="form-text">Their personal link: <code><?= e(full_url('/apply-dg.php')) ?>?refId=&lt;code&gt;</code></div>
+        </div>
+      </div>
     </div>
   </div>
 

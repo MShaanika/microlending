@@ -288,11 +288,20 @@ class LoanController extends Controller
         );
 
         $applicationId = (int) ($_POST['application_id'] ?? 0);
+        // Only the loan tied to the introducing application auto-carries
+        // the agent -- a later top-up/repeat loan for the same borrower
+        // does not auto-attribute to the original referring agent.
+        $agentId = null;
+        if ($applicationId) {
+            $application = (new LoanApplication())->find($applicationId);
+            $agentId = !empty($application['agent_id']) ? (int) $application['agent_id'] : null;
+        }
 
         $loanId = $this->loans->create([
             'branch_id' => (int) $borrower['branch_id'],
             'borrower_id' => (int) $borrower['id'],
             'application_id' => $applicationId ?: null,
+            'agent_id' => $agentId,
             'topup_of_loan_id' => $existingLoan ? (int) $existingLoan['id'] : null,
             'product_id' => (int) $product['id'],
             'plan_id' => (int) $plan['id'],
@@ -672,6 +681,7 @@ class LoanController extends Controller
             'released_at' => date('Y-m-d H:i:s'),
         ]);
         $this->loans->logStatus($id, 'Approved', 'Active', $userId, 'Loan released / disbursed.');
+        \App\Services\AgentCommissionService::onDisbursement($loan, $userId);
 
         $this->loans->createDisbursement([
             'loan_id' => $id,

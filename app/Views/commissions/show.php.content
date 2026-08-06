@@ -1,0 +1,72 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-2"><?= e($commission['loan_no']) ?></h4>
+        <p class="text-muted mb-1">Agent: <?= e($commission['agent_name']) ?></p>
+        <p class="text-muted mb-3">Client: <?= e($commission['borrower_name']) ?></p>
+        <p class="mb-1">Total Interest: <?= format_money($commission['total_interest_amount']) ?></p>
+        <p class="mb-1">Rate: <?= e(rtrim(rtrim(number_format((float) $commission['commission_rate'], 4), '0'), '.')) ?>%</p>
+        <p class="mb-1">Total Commission: <strong><?= format_money($commission['total_commission_amount']) ?></strong></p>
+        <p class="mb-1">Earned: <span class="text-success"><?= format_money($commission['earned_amount']) ?></span></p>
+        <p class="mb-1">Paid: <?= format_money($commission['paid_amount']) ?></p>
+        <?php if ((float) $commission['forfeited_amount'] > 0): ?>
+          <p class="mb-1">Forfeited: <span class="text-danger"><?= format_money($commission['forfeited_amount']) ?></span></p>
+        <?php endif; ?>
+        <p class="mb-0">Status: <span class="badge bg-<?= $commission['status'] === 'Fully Earned' ? 'success' : ($commission['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($commission['status']) ?></span></p>
+      </div>
+    </div>
+
+    <?php $outstanding = round((float) $commission['earned_amount'] - (float) $commission['paid_amount'], 2); ?>
+    <?php if ($outstanding > 0): ?>
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title mb-3">Record Payout</h4>
+          <p class="text-muted small">Up to <?= format_money($outstanding) ?> outstanding. Cash/EFT happens outside the system -- this just records that it was paid.</p>
+          <form method="post" action="<?= url('/commissions/' . $commission['id'] . '/mark-paid') ?>">
+            <?= csrf_field() ?>
+            <div class="mb-2">
+              <label class="form-label">Amount</label>
+              <input type="number" step="0.01" min="0.01" max="<?= $outstanding ?>" name="amount" class="form-control" value="<?= $outstanding ?>">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Notes</label>
+              <input type="text" name="notes" class="form-control" placeholder="e.g. EFT reference">
+            </div>
+            <button type="submit" class="btn btn-info waves-effect waves-light w-100">Record Payout</button>
+          </form>
+        </div>
+      </div>
+    <?php endif; ?>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-3">History</h4>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr><th>Date</th><th>Type</th><th class="text-end">Amount</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <?php if (empty($entries)): ?>
+                <tr><td colspan="4" class="text-center text-muted py-4">No activity yet.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($entries as $e): ?>
+                <tr>
+                  <td><?= e(date('d M Y H:i', strtotime($e['created_at']))) ?></td>
+                  <td><span class="badge bg-<?= $e['entry_type'] === 'Earned' ? 'success' : ($e['entry_type'] === 'Forfeiture' ? 'danger' : 'info') ?>"><?= e($e['entry_type']) ?></span></td>
+                  <td class="text-end"><?= format_money($e['amount']) ?></td>
+                  <td><?= e($e['notes'] ?? '') ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

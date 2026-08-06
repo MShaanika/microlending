@@ -83,6 +83,17 @@ class HrmEmployee extends Model
         return (bool) $this->scalar("SELECT 1 FROM hrm_employees WHERE employee_no = ?", [$employeeNo]);
     }
 
+    public function referralCodeExists(string $code, ?int $excludeId = null): bool
+    {
+        if ($excludeId !== null) {
+            return (bool) $this->scalar(
+                "SELECT 1 FROM hrm_employees WHERE referral_code = ? AND id != ?",
+                [$code, $excludeId]
+            );
+        }
+        return (bool) $this->scalar("SELECT 1 FROM hrm_employees WHERE referral_code = ?", [$code]);
+    }
+
     public function userIdInUse(int $userId, ?int $excludeId = null): bool
     {
         if ($excludeId !== null) {
@@ -92,6 +103,24 @@ class HrmEmployee extends Model
             );
         }
         return (bool) $this->scalar("SELECT 1 FROM hrm_employees WHERE user_id = ?", [$userId]);
+    }
+
+    /** Only active, commission-eligible agents match -- a code alone isn't enough to earn attribution. */
+    public function findByReferralCode(string $code): ?array
+    {
+        return $this->one(
+            "SELECT e.*, " . self::LOOKUP_COLUMNS . " FROM hrm_employees e " . self::LOOKUP_JOINS . "
+             WHERE e.referral_code = ? AND e.is_commission_agent = 1 AND e.status = 'Active'",
+            [$code]
+        );
+    }
+
+    public function commissionAgents(): array
+    {
+        return $this->query(
+            "SELECT e.*, " . self::LOOKUP_COLUMNS . " FROM hrm_employees e " . self::LOOKUP_JOINS . "
+             WHERE e.is_commission_agent = 1 ORDER BY e.first_name, e.last_name"
+        )->fetchAll();
     }
 
     public function counts(): array

@@ -47,6 +47,8 @@ use App\Controllers\HrmAllowanceController;
 use App\Controllers\HrmDeductionController;
 use App\Controllers\HrmPayrollController;
 use App\Controllers\EmployeeSelfServiceController;
+use App\Controllers\AgentSelfServiceController;
+use App\Controllers\CommissionController;
 use App\Controllers\HrmAwardTypeController;
 use App\Controllers\HrmAwardController;
 use App\Controllers\HrmComplaintTypeController;
@@ -642,6 +644,22 @@ $router->get('/my/leave/balance', [EmployeeSelfServiceController::class, 'leaveB
 $router->get('/my/payslips', [EmployeeSelfServiceController::class, 'payslips']);
 $router->get('/my/payslips/{entryId}', [EmployeeSelfServiceController::class, 'payslip']);
 $router->get('/my/attendance', [EmployeeSelfServiceController::class, 'attendance']);
+
+// Marketing agent self-service -- gated by AgentSelfServiceController::
+// resolveEmployee() on a "linked, commission-eligible employee record",
+// not a hrm.*/commissions.* permission -- an agent sees only their own
+// referrals and commissions here.
+$router->get('/my/referrals', [AgentSelfServiceController::class, 'dashboard']);
+$router->get('/my/referrals/create', [AgentSelfServiceController::class, 'referralCreate']);
+$router->post('/my/referrals', [AgentSelfServiceController::class, 'referralStore']);
+$router->get('/my/referrals/list', [AgentSelfServiceController::class, 'referralIndex']);
+$router->get('/my/commissions', [AgentSelfServiceController::class, 'commissions']);
+$router->get('/my/commissions/{id}', [AgentSelfServiceController::class, 'commissionShow']);
+
+$router->get('/commissions', [CommissionController::class, 'index']);
+$router->get('/commissions/{id}', [CommissionController::class, 'show']);
+$router->post('/commissions/{id}/mark-paid', [CommissionController::class, 'markPaid']);
+$router->post('/commissions/settings', [CommissionController::class, 'updateSettings']);
 
 // HRM: Performance & Discipline -- lookup types
 $router->get('/hrm/award-types', [HrmAwardTypeController::class, 'index']);

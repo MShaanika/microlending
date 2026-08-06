@@ -1,0 +1,33 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-3">My Commissions</h4>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Client</th><th class="text-end">Total</th><th class="text-end">Earned</th><th class="text-end">Paid</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No commissions yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $c): ?>
+            <tr>
+              <td><?= e($c['loan_no']) ?></td>
+              <td><?= e($c['borrower_name']) ?></td>
+              <td class="text-end"><?= format_money($c['total_commission_amount']) ?></td>
+              <td class="text-end"><?= format_money($c['earned_amount']) ?></td>
+              <td class="text-end"><?= format_money($c['paid_amount']) ?></td>
+              <td><span class="badge bg-<?= $c['status'] === 'Fully Earned' ? 'success' : ($c['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($c['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/my/commissions/' . $c['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

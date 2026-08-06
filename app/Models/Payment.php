@@ -299,6 +299,8 @@ class Payment extends Model
             'overpayment_amount' => round($remaining, 2),
         ], 'id', $paymentId);
 
+        \App\Services\AgentCommissionService::onPaymentAllocated($loan, $paymentId, $totals['interest'], $userId);
+
         $this->postCollectionAccounting($loan, $paymentId, $amount, $totals, $remaining, $userId, $bankAccountId, $paymentDate);
 
         if ($totals['penalty'] > 0) {

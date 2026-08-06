@@ -48,6 +48,16 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
           <tr><th class="text-muted">Date of Joining</th><td><?= $e['date_of_joining'] ? e(date('d M Y', strtotime($e['date_of_joining']))) : '—' ?></td></tr>
           <tr><th class="text-muted">Basic Salary</th><td><?= $e['basic_salary'] !== null ? format_money($e['basic_salary']) : '—' ?></td></tr>
           <tr><th class="text-muted">Rate per Hour</th><td><?= $e['rate_per_hour'] !== null ? format_money($e['rate_per_hour']) : '—' ?></td></tr>
+          <tr><th class="text-muted">Marketing Agent</th><td>
+            <?php if (!empty($e['is_commission_agent'])): ?>
+              <span class="badge bg-info">Agent</span>
+              <?php if (!empty($e['referral_code'])): ?>
+                &nbsp;<code><?= e(full_url('/apply-dg.php')) ?>?refId=<?= e($e['referral_code']) ?></code>
+              <?php endif; ?>
+            <?php else: ?>
+              —
+            <?php endif; ?>
+          </td></tr>
         </table>
       </div>
     </div>

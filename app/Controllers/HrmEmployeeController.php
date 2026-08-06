@@ -346,6 +346,11 @@ class HrmEmployeeController extends Controller
             $errors['user_id'] = 'That system user is already linked to another employee.';
         }
 
+        $referralCode = trim($post['referral_code'] ?? '') ?: null;
+        if ($referralCode !== null && $this->employees->referralCodeExists($referralCode, $excludeId)) {
+            $errors['referral_code'] = 'That referral code is already in use by another agent.';
+        }
+
         $data = [
             'first_name' => $firstName,
             'last_name' => $lastName,
@@ -377,6 +382,8 @@ class HrmEmployeeController extends Controller
             'hours_per_day' => $post['hours_per_day'] !== '' && isset($post['hours_per_day']) ? (float) $post['hours_per_day'] : 8,
             'days_per_week' => $post['days_per_week'] !== '' && isset($post['days_per_week']) ? (float) $post['days_per_week'] : 5,
             'user_id' => $userId,
+            'is_commission_agent' => !empty($post['is_commission_agent']) ? 1 : 0,
+            'referral_code' => $referralCode,
             'branch_id' => !empty($post['branch_id']) ? (int) $post['branch_id'] : null,
             'department_id' => !empty($post['department_id']) ? (int) $post['department_id'] : null,
             'designation_id' => !empty($post['designation_id']) ? (int) $post['designation_id'] : null,
