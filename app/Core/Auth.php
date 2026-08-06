@@ -3,6 +3,9 @@ namespace App\Core;
 
 class Auth
 {
+    private const REMEMBER_COOKIE = 'mls_remember';
+    private const REMEMBER_DAYS = 30;
+
     public static function check(): bool { return (bool) Session::get('user'); }
     public static function user(): ?array { return Session::get('user'); }
     public static function requireLogin(): void { if (!self::check()) { header('Location: ' . url('/login')); exit; } }
@@ -104,6 +107,15 @@ class Auth
             return false;
         }
 
+        self::loginSession($user);
+        $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
+        Audit::log('Login', 'Security', 'User logged in successfully');
+        return true;
+    }
+
+    /** Shared by attempt() and attemptRememberLogin() so both populate the exact same session shape. */
+    private static function loginSession(array $user): void
+    {
         session_regenerate_id(true);
         Session::put('user', [
             'id' => (int)$user['id'],
@@ -114,9 +126,89 @@ class Auth
             'branch_id' => $user['branch_id'] !== null ? (int) $user['branch_id'] : null,
             'permissions' => self::permissions((int)$user['id'])
         ]);
-        $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
-        Audit::log('Login', 'Security', 'User logged in successfully');
-        return true;
+    }
+
+    /**
+     * Issues a persistent "remember me" cookie for the currently logged-in
+     * user, valid for REMEMBER_DAYS after the PHP session itself expires.
+     * Selector/validator pair (not one bare token): the selector is looked
+     * up directly and cheap, the validator is only ever compared via
+     * hash_equals() against its stored hash -- so neither a slow table scan
+     * nor a timing attack is possible, and a leaked DB dump alone can't be
+     * replayed as a cookie. Call only right after a successful attempt().
+     */
+    public static function remember(int $userId): void
+    {
+        $selector = bin2hex(random_bytes(12));
+        $validator = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::REMEMBER_DAYS . ' days'));
+
+        (new \App\Models\UserRememberToken())->create($userId, $selector, hash('sha256', $validator), $expiresAt);
+        self::setRememberCookie($selector, $validator);
+    }
+
+    /**
+     * Called once per request, before routing (see bootstrap/app.php) --
+     * a no-op if a session is already active or no remember cookie is
+     * present. On success, re-establishes the session exactly as attempt()
+     * would and rotates the token (old row deleted, new one issued) so a
+     * stolen cookie value stops working the moment the real owner's
+     * browser uses it again.
+     */
+    public static function attemptRememberLogin(): void
+    {
+        if (self::check()) {
+            return;
+        }
+
+        $cookie = $_COOKIE[self::REMEMBER_COOKIE] ?? '';
+        if (!str_contains($cookie, '.')) {
+            return;
+        }
+        [$selector, $validator] = explode('.', $cookie, 2);
+
+        $tokens = new \App\Models\UserRememberToken();
+        $record = $tokens->findValidBySelector($selector);
+        if (!$record || !hash_equals($record['validator_hash'], hash('sha256', $validator))) {
+            self::clearRememberCookie();
+            return;
+        }
+
+        $db = Database::connection();
+        $stmt = $db->prepare("SELECT * FROM users WHERE id = ? AND is_active = 1 LIMIT 1");
+        $stmt->execute([$record['user_id']]);
+        $user = $stmt->fetch();
+
+        $tokens->deleteBySelector($selector);
+        if (!$user) {
+            self::clearRememberCookie();
+            return;
+        }
+
+        self::loginSession($user);
+        self::remember((int) $user['id']);
+        Audit::log('Login', 'Security', 'User logged in via remember-me cookie');
+    }
+
+    private static function setRememberCookie(string $selector, string $validator): void
+    {
+        $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+        setcookie(self::REMEMBER_COOKIE, $selector . '.' . $validator, [
+            'expires' => time() + self::REMEMBER_DAYS * 86400,
+            'path' => '/',
+            'secure' => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    private static function clearRememberCookie(): void
+    {
+        if (!isset($_COOKIE[self::REMEMBER_COOKIE])) {
+            return;
+        }
+        unset($_COOKIE[self::REMEMBER_COOKIE]);
+        setcookie(self::REMEMBER_COOKIE, '', ['expires' => time() - 3600, 'path' => '/']);
     }
 
     /**
@@ -157,5 +249,17 @@ class Auth
         return array_column($stmt->fetchAll(), 'permission_key');
     }
 
-    public static function logout(): void { self::clearSupportSession(); Audit::log('Logout', 'Security', 'User logged out'); Session::destroy(); }
+    /** Only this device's remember token is revoked -- other devices the user chose to stay logged in on are untouched. */
+    public static function logout(): void
+    {
+        $cookie = $_COOKIE[self::REMEMBER_COOKIE] ?? '';
+        if (str_contains($cookie, '.')) {
+            [$selector] = explode('.', $cookie, 2);
+            (new \App\Models\UserRememberToken())->deleteBySelector($selector);
+        }
+        self::clearRememberCookie();
+        self::clearSupportSession();
+        Audit::log('Logout', 'Security', 'User logged out');
+        Session::destroy();
+    }
 }

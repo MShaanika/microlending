@@ -181,6 +181,24 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /*
+ * "Remember me" persistent login tokens -- selector/validator pair
+ * (selector looked up directly, validator hash compared with
+ * hash_equals()) rather than a single bare token, so a DB read alone
+ * can't be replayed and lookups aren't timing-attackable. One row per
+ * device/browser the user chose to stay logged in on; Auth::logout()
+ * only removes the current device's row, not every row for the user.
+ */
+CREATE TABLE user_remember_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    selector VARCHAR(24) NOT NULL UNIQUE,
+    validator_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/*
  * Per-branch login IP allow-list. A branch with zero rows here is
  * unrestricted -- restriction only activates once an admin adds at least
  * one range, so deploying this feature never locks anyone out until it's
@@ -2515,6 +2533,7 @@ ALTER TABLE portfolio_snapshots ADD INDEX idx_portfolio_snapshot_date (snapshot_
 ALTER TABLE report_runs ADD INDEX idx_report_runs_definition (report_definition_id), ADD INDEX idx_report_runs_period (period_from, period_to), ADD INDEX idx_report_runs_status (status);
 ALTER TABLE audit_logs ADD INDEX idx_audit_user (user_id), ADD INDEX idx_audit_action (action), ADD INDEX idx_audit_module (module_name), ADD INDEX idx_audit_created (created_at);
 ALTER TABLE login_logs ADD INDEX idx_login_user (user_id), ADD INDEX idx_login_email (email), ADD INDEX idx_login_status (login_status), ADD INDEX idx_login_created (created_at);
+ALTER TABLE user_remember_tokens ADD INDEX idx_remember_user (user_id), ADD INDEX idx_remember_expires (expires_at);
 
 -- =========================================================
 -- SEED DATA

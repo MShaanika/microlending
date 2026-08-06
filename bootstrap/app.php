@@ -22,6 +22,7 @@ if (is_file(ROOT_PATH . '/vendor/autoload.php')) {
     require ROOT_PATH . '/vendor/autoload.php';
 }
 
+use App\Core\Auth;
 use App\Core\Session;
 
 $config = require ROOT_PATH . '/config/app.php';
@@ -31,5 +32,9 @@ $security = require ROOT_PATH . '/config/security.php';
 Session::start($security['session_name'] ?? 'MLS_SESSION');
 
 require APP_PATH . '/Helpers/functions.php';
+
+// No-op if a session is already active or no remember-me cookie is present --
+// see Auth::attemptRememberLogin() for the selector/validator verification.
+Auth::attemptRememberLogin();
 
 return $config;
