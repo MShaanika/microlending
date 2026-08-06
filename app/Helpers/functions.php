@@ -21,6 +21,15 @@ function full_url(string $path=''): string {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443 ? 'https' : 'http';
     return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . url($path);
 }
+// The public "Apply Now" form (apply-dg.php) lives at the domain root
+// (public_html/), one level above this app's own directory (public_html/mls/)
+// -- so it must NOT go through url()/base_url(), which resolve relative to
+// wherever this app is mounted. full_url() would wrongly produce
+// https://host/mls/apply-dg.php; this always resolves to https://host/apply-dg.php.
+function public_site_url(string $path=''): string {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443 ? 'https' : 'http';
+    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . '/' . ltrim($path, '/');
+}
 function e(?string $v): string { return Security::e($v); }
 function csrf_field(): string { return '<input type="hidden" name="_csrf" value="'.Security::csrfToken().'">'; }
 

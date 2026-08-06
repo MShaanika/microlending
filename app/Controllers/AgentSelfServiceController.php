@@ -65,7 +65,7 @@ class AgentSelfServiceController extends Controller
             'title' => 'My Referrals',
             'agent' => $agent,
             'referralLink' => $agent['referral_code']
-                ? full_url('/apply-dg.php?refId=' . urlencode((string) $agent['referral_code']))
+                ? public_site_url('/apply-dg.php?refId=' . urlencode((string) $agent['referral_code']))
                 : null,
             'totals' => [
                 'total_commission' => array_sum(array_column($rows, 'total_commission_amount')),

@@ -147,7 +147,7 @@
             <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('referral_code').value = 'AGT' + Math.random().toString(36).slice(2, 8).toUpperCase()">Generate</button>
           </div>
           <?php if (isset($errors['referral_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['referral_code']) ?></div><?php endif; ?>
-          <div class="form-text">Their personal link: <code><?= e(full_url('/apply-dg.php')) ?>?refId=&lt;code&gt;</code></div>
+          <div class="form-text">Their personal link: <code><?= e(public_site_url('/apply-dg.php')) ?>?refId=&lt;code&gt;</code></div>
         </div>
       </div>
     </div>

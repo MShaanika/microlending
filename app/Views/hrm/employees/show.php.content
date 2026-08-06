@@ -52,7 +52,7 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
             <?php if (!empty($e['is_commission_agent'])): ?>
               <span class="badge bg-info">Agent</span>
               <?php if (!empty($e['referral_code'])): ?>
-                &nbsp;<code><?= e(full_url('/apply-dg.php')) ?>?refId=<?= e($e['referral_code']) ?></code>
+                &nbsp;<code><?= e(public_site_url('/apply-dg.php')) ?>?refId=<?= e($e['referral_code']) ?></code>
               <?php endif; ?>
             <?php else: ?>
               —
