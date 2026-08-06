@@ -8,12 +8,19 @@ class LoanApplication extends Model
 {
     protected string $table = 'loan_applications';
 
-    public function paginated(string $status = '', string $source = '', int $limit = 100): array
+    /**
+     * @param ?int $branchId When set, includes that branch's applications PLUS
+     *  unassigned ones (branch_id IS NULL) rather than an exact match -- an
+     *  application nobody has attributed to a branch yet is still everyone's
+     *  to triage, not stranded outside every branch's inbox.
+     */
+    public function paginated(string $status = '', string $source = '', int $limit = 100, ?int $branchId = null): array
     {
-        $sql = "SELECT a.*, s.source_name, b.borrower_no
+        $sql = "SELECT a.*, s.source_name, b.borrower_no, br.branch_name
                 FROM loan_applications a
                 LEFT JOIN intake_sources s ON s.id = a.intake_source_id
                 LEFT JOIN borrowers b ON b.id = a.borrower_id
+                LEFT JOIN branches br ON br.id = a.branch_id
                 WHERE 1=1";
         $params = [];
 
@@ -27,6 +34,11 @@ class LoanApplication extends Model
             $params[] = $source;
         }
 
+        if ($branchId !== null) {
+            $sql .= " AND (a.branch_id = ? OR a.branch_id IS NULL)";
+            $params[] = $branchId;
+        }
+
         $sql .= " ORDER BY a.id DESC LIMIT " . (int) $limit;
 
         return $this->all($sql, $params);
@@ -35,10 +47,11 @@ class LoanApplication extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT a.*, s.source_name, s.source_code, b.borrower_no
+            "SELECT a.*, s.source_name, s.source_code, b.borrower_no, br.branch_name
              FROM loan_applications a
              LEFT JOIN intake_sources s ON s.id = a.intake_source_id
              LEFT JOIN borrowers b ON b.id = a.borrower_id
+             LEFT JOIN branches br ON br.id = a.branch_id
              WHERE a.id = ?",
             [$id]
         );

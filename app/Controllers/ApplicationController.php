@@ -42,16 +42,42 @@ class ApplicationController extends Controller
     }
 
     /**
-     * loan_applications.branch_id is never actually populated -- incoming
-     * public applications aren't attributed to a branch anywhere in the
-     * intake flow, so applications stay a shared triage inbox visible to
-     * every branch rather than being scoped like Borrowers/Loans/Payments/
-     * Expenses. The one place branch attribution genuinely happens is
-     * convert() (choosing the new borrower's branch), which is scoped.
+     * The public intake form now lets the applicant pick a branch (see
+     * ApplicationIntakeController), so branch_id is populated for new
+     * submissions and applications are scoped like Borrowers/Loans/Payments/
+     * Expenses. Older/unattributed rows (branch_id NULL) stay visible to
+     * every branch as a shared triage inbox -- see assertBranchAccess() and
+     * LoanApplication::paginated() for the NULL-passthrough.
      */
     private function scopeBranchId(): ?int
     {
         return Auth::isSuperAdmin() ? null : (Auth::branchId() ?? 0);
+    }
+
+    /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
+    private function indexBranchId(): ?int
+    {
+        if (!Auth::isSuperAdmin()) {
+            return Auth::branchId() ?? 0;
+        }
+        return !empty($_GET['branch_id']) ? (int) $_GET['branch_id'] : null;
+    }
+
+    /**
+     * Redirects away (404-style) if the application belongs to another real
+     * branch and the viewer isn't Super Admin. An unassigned application
+     * (branch_id NULL) always passes -- nobody owns it yet, so every
+     * branch's staff can still triage it.
+     */
+    private function assertBranchAccess(?array $application): void
+    {
+        if (!$application || Auth::isSuperAdmin() || $application['branch_id'] === null) {
+            return;
+        }
+        if ((int) $application['branch_id'] !== (int) Auth::branchId()) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+        }
     }
 
     private function scopedBranches(?int $scopeBranchId): array
@@ -63,11 +89,14 @@ class ApplicationController extends Controller
     {
         Auth::authorize('applications.view');
         $status = trim((string) ($_GET['status'] ?? ''));
+        $branchId = $this->indexBranchId();
 
         $this->view('applications/index', [
             'title' => 'Online Loan Applications',
-            'applications' => $this->applications->paginated($status),
+            'applications' => $this->applications->paginated($status, '', 100, $branchId),
             'status' => $status,
+            'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
+            'selectedBranchId' => $branchId,
         ]);
     }
 
@@ -81,6 +110,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications');
             return;
         }
+        $this->assertBranchAccess($application);
 
         $this->view('applications/show', [
             'title' => 'Application ' . $application['application_no'],
@@ -111,6 +141,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications');
             return;
         }
+        $this->assertBranchAccess($application);
 
         $proposedInstallment = (float) ($_POST['proposed_installment'] ?? 0);
 
@@ -206,6 +237,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications');
             return;
         }
+        $this->assertBranchAccess($application);
 
         $documentType = ($_POST['document_type'] ?? '') === 'Bank Statement (Merged)' ? 'Bank Statement (Merged)' : 'Bank Statement';
 
@@ -292,6 +324,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications');
             return;
         }
+        $this->assertBranchAccess($application);
 
         $userId = Auth::user()['id'] ?? null;
         $bankStatementDocs = array_values(array_filter(
@@ -418,6 +451,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications/' . $id);
             return;
         }
+        $this->assertBranchAccess($application);
 
         $userId = Auth::user()['id'] ?? null;
         $this->applications->updateRecord($id, [
@@ -459,6 +493,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications/' . $id);
             return;
         }
+        $this->assertBranchAccess($application);
 
         $reason = trim($_POST['rejection_reason'] ?? '');
         if ($reason === '') {
@@ -520,6 +555,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications/' . $id);
             return;
         }
+        $this->assertBranchAccess($application);
 
         $borrowerId = (int) ($application['borrower_id'] ?? 0);
 
@@ -598,6 +634,7 @@ class ApplicationController extends Controller
     public function downloadDocument(string $id, string $documentId): void
     {
         Auth::authorize('applications.view');
+        $this->assertBranchAccess($this->applications->find((int) $id));
         $document = $this->applications->findDocument((int) $id, (int) $documentId);
 
         if (!$document) {
@@ -645,6 +682,7 @@ class ApplicationController extends Controller
             $this->redirect('/applications');
             return;
         }
+        $this->assertBranchAccess($application);
 
         $template = $this->templates->findByCode($templateCode);
         if (!$template) {

@@ -2822,6 +2822,8 @@ INSERT INTO intake_field_mappings (intake_source_id, incoming_field_name, target
 (1, 'last_due_date', 'extra:last_due_date', 0),
 (1, 'signing_place', 'extra:signing_place', 0),
 (1, 'signing_day', 'extra:signing_day', 0),
+(1, 'branch_id', 'branch_id', 0),
+(1, 'how_heard', 'extra:how_heard', 0),
 (1, 'signing_month', 'extra:signing_month', 0),
 (1, 'signing_year', 'extra:signing_year', 0);
 

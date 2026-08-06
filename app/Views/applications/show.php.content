@@ -23,7 +23,8 @@
           <span class="badge bg-<?= $badge ?>"><?= e($application['status']) ?></span>
         </div>
         <p class="text-muted mb-1"><?= e($application['application_no']) ?></p>
-        <p class="text-muted small mb-2">Source: <?= e($application['source_name'] ?: $application['application_source']) ?></p>
+        <p class="text-muted small mb-1">Source: <?= e($application['source_name'] ?: $application['application_source']) ?></p>
+        <p class="text-muted small mb-2">Branch: <?= e($application['branch_name'] ?? '') ?: '<span class="text-muted">Unassigned</span>' ?></p>
         <hr>
         <p class="mb-1"><i class="mdi mdi-phone me-1"></i> <?= e($application['applicant_phone']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($application['applicant_email']) ?: '&mdash;' ?></p>

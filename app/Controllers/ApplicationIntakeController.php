@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Audit;
 use App\Core\Controller;
+use App\Models\Branch;
 use App\Models\IntakeSource;
 use App\Models\LoanApplication;
 use App\Support\PhoneNumberNormalizer;
@@ -22,6 +23,7 @@ class ApplicationIntakeController extends Controller
 {
     private IntakeSource $sources;
     private LoanApplication $applications;
+    private Branch $branches;
 
     private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
     private const ALLOWED_DOCUMENT_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -38,6 +40,7 @@ class ApplicationIntakeController extends Controller
     {
         $this->sources = new IntakeSource();
         $this->applications = new LoanApplication();
+        $this->branches = new Branch();
     }
 
     public function submit(string $sourceCode): void
@@ -99,6 +102,14 @@ class ApplicationIntakeController extends Controller
         }
         if (isset($applicationData['payment_day'])) {
             $applicationData['payment_day'] = (int) $applicationData['payment_day'];
+        }
+        // A garbage/stale branch_id shouldn't fail the whole submission -- just
+        // drop it back to NULL and let staff triage it as unassigned, same as
+        // an application submitted before this field existed.
+        if (isset($applicationData['branch_id'])) {
+            $branchId = (int) $applicationData['branch_id'];
+            $validBranchIds = array_column($this->branches->all(), 'id');
+            $applicationData['branch_id'] = in_array($branchId, $validBranchIds, true) ? $branchId : null;
         }
         // Normalize to E.164 (+264...) so this number is already Twilio-valid
         // for every later SMS -- approval notice, portal credentials, etc.
