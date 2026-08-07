@@ -1,0 +1,49 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">My Clients' Loans</h4>
+    <p class="text-muted small">Loan and this month's payment status for every client you've referred whose application became a loan.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan No</th><th>Client</th><th>Principal</th><th>Loan Status</th><th>This Month</th><th>Next Due</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No loans yet -- these appear once one of your referred applications is converted to a loan.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $l): ?>
+            <?php
+              $loanBadge = match ($l['loan_status']) {
+                'Active', 'Current', 'Released' => 'success',
+                'Completed' => 'primary',
+                'Denied', 'Written Off', 'Cancelled' => 'danger',
+                'Approved' => 'info',
+                default => 'warning',
+              };
+              $monthBadge = match ($l['current_month_status']) {
+                'Paid' => 'success',
+                'Partial' => 'info',
+                'In Arrears' => 'danger',
+                'Written Off' => 'dark',
+                'Pending' => 'warning',
+                default => 'secondary',
+              };
+            ?>
+            <tr>
+              <td><a href="<?= url('/my/loans/' . $l['id']) ?>"><?= e($l['loan_no']) ?></a></td>
+              <td><?= e($l['borrower_name']) ?></td>
+              <td><?= format_money($l['principal_amount']) ?></td>
+              <td><span class="badge bg-<?= $loanBadge ?>"><?= e($l['loan_status']) ?></span></td>
+              <td><span class="badge bg-<?= $monthBadge ?>"><?= e($l['current_month_status'] ?? 'No installment due this month') ?></span></td>
+              <td><?= $l['next_due_date'] ? e(date('d M Y', strtotime($l['next_due_date']))) : '-' ?></td>
+              <td class="text-end"><a href="<?= url('/my/loans/' . $l['id']) ?>" class="btn btn-sm btn-outline-info">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -653,6 +653,10 @@ $router->get('/my/referrals', [AgentSelfServiceController::class, 'dashboard']);
 $router->get('/my/referrals/create', [AgentSelfServiceController::class, 'referralCreate']);
 $router->post('/my/referrals', [AgentSelfServiceController::class, 'referralStore']);
 $router->get('/my/referrals/list', [AgentSelfServiceController::class, 'referralIndex']);
+$router->get('/my/loans', [AgentSelfServiceController::class, 'loans']);
+$router->get('/my/loans/{id}', [AgentSelfServiceController::class, 'loanShow']);
+$router->get('/my/loans/{id}/topup', [AgentSelfServiceController::class, 'topupRequestCreate']);
+$router->post('/my/loans/{id}/topup', [AgentSelfServiceController::class, 'topupRequestStore']);
 $router->get('/my/commissions', [AgentSelfServiceController::class, 'commissions']);
 $router->get('/my/commissions/{id}', [AgentSelfServiceController::class, 'commissionShow']);
 

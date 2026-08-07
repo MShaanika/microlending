@@ -11,7 +11,9 @@ use App\Models\AgentCommission;
 use App\Models\AgentCommissionEntry;
 use App\Models\Branch;
 use App\Models\HrmEmployee;
+use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanRequest;
 use App\Support\PhoneNumberNormalizer;
 
 /**
@@ -25,9 +27,14 @@ class AgentSelfServiceController extends Controller
 {
     private HrmEmployee $employees;
     private LoanApplication $applications;
+    private Loan $loans;
+    private LoanRequest $loanRequests;
     private AgentCommission $commissions;
     private AgentCommissionEntry $commissionEntries;
     private Branch $branches;
+
+    /** Top-ups only make sense while the loan is still live -- matches the set Loan::counts() treats as "active". */
+    private const TOPUP_ELIGIBLE_STATUSES = ['Active', 'Current', 'Released'];
 
     private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
     private const ALLOWED_DOCUMENT_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -46,6 +53,8 @@ class AgentSelfServiceController extends Controller
     {
         $this->employees = new HrmEmployee();
         $this->applications = new LoanApplication();
+        $this->loans = new Loan();
+        $this->loanRequests = new LoanRequest();
         $this->commissions = new AgentCommission();
         $this->commissionEntries = new AgentCommissionEntry();
         $this->branches = new Branch();
@@ -167,6 +176,130 @@ class AgentSelfServiceController extends Controller
             'agent' => $agent,
             'applications' => $this->applications->allForAgent((int) $agent['id']),
         ]);
+    }
+
+    public function loans(): void
+    {
+        $agent = $this->resolveAgent();
+        if (!$agent) {
+            return;
+        }
+
+        $this->view('my/agent/loans_index', [
+            'title' => "My Clients' Loans",
+            'agent' => $agent,
+            'loans' => $this->loans->forAgent((int) $agent['id']),
+        ]);
+    }
+
+    public function loanShow(string $id): void
+    {
+        $agent = $this->resolveAgent();
+        if (!$agent) {
+            return;
+        }
+
+        $loan = $this->loans->findForAgent((int) $id, (int) $agent['id']);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/my/loans');
+            return;
+        }
+
+        $this->view('my/agent/loan_show', [
+            'title' => 'Loan ' . $loan['loan_no'],
+            'agent' => $agent,
+            'loan' => $loan,
+            'schedule' => $this->loans->schedule((int) $id),
+            'canRequestTopup' => in_array($loan['loan_status'], self::TOPUP_ELIGIBLE_STATUSES, true),
+        ]);
+    }
+
+    public function topupRequestCreate(string $id): void
+    {
+        $agent = $this->resolveAgent();
+        if (!$agent) {
+            return;
+        }
+
+        $loan = $this->loans->findForAgent((int) $id, (int) $agent['id']);
+        if (!$loan || !in_array($loan['loan_status'], self::TOPUP_ELIGIBLE_STATUSES, true)) {
+            Session::flash('error', 'This loan is not eligible for a top-up request.');
+            $this->redirect('/my/loans');
+            return;
+        }
+
+        $this->view('my/agent/topup_create', [
+            'title' => 'Request Top-Up',
+            'agent' => $agent,
+            'loan' => $loan,
+            'old' => [],
+            'errors' => [],
+        ]);
+    }
+
+    /**
+     * Same loan_requests row, same 'Pending' status, same staff review queue
+     * (/loan-requests) as PortalController::loanRequestStore()'s Top Up
+     * branch -- the only difference is who is submitting it on the client's
+     * behalf, not the policy the request is subject to.
+     */
+    public function topupRequestStore(string $id): void
+    {
+        $agent = $this->resolveAgent();
+        if (!$agent) {
+            return;
+        }
+
+        $loan = $this->loans->findForAgent((int) $id, (int) $agent['id']);
+        if (!$loan || !in_array($loan['loan_status'], self::TOPUP_ELIGIBLE_STATUSES, true)) {
+            Session::flash('error', 'This loan is not eligible for a top-up request.');
+            $this->redirect('/my/loans');
+            return;
+        }
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/my/loans/' . $id . '/topup');
+            return;
+        }
+
+        $amount = (float) ($_POST['requested_amount'] ?? 0);
+        $term = (int) ($_POST['requested_term_months'] ?? 0);
+        $errors = [];
+        if ($amount <= 0) {
+            $errors['requested_amount'] = 'Enter a valid amount.';
+        }
+        if ($term <= 0) {
+            $errors['requested_term_months'] = 'Enter a valid term in months.';
+        }
+
+        if (!empty($errors)) {
+            $this->view('my/agent/topup_create', [
+                'title' => 'Request Top-Up',
+                'agent' => $agent,
+                'loan' => $loan,
+                'old' => $_POST,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $requestId = $this->loanRequests->create([
+            'borrower_id' => (int) $loan['borrower_id'],
+            'request_type' => 'Top Up',
+            'existing_loan_id' => (int) $loan['id'],
+            'branch_id' => $loan['branch_id'] ?? null,
+            'request_no' => generate_reference('LRQ'),
+            'requested_amount' => $amount,
+            'requested_term_months' => $term,
+            'purpose' => trim($_POST['purpose'] ?? '') ?: null,
+            'status' => 'Pending',
+        ]);
+
+        Audit::log('Create', 'Loan Requests', 'Top-up request #' . $requestId . ' for loan ' . $loan['loan_no'] . ' submitted by marketing agent ' . $agent['first_name'] . ' ' . $agent['last_name'] . '.');
+        Session::flash('success', 'Top-up request submitted for ' . $loan['loan_no'] . '. Staff will review it shortly.');
+        $this->redirect('/my/loans/' . $id);
     }
 
     public function commissions(): void

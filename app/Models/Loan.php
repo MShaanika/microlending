@@ -164,6 +164,46 @@ class Loan extends Model
     }
 
     /**
+     * Agent-scoped variants for the marketing agent self-service portal --
+     * every query filters through the loan's originating application's
+     * agent_id, so an agent only ever sees loans for clients they personally
+     * referred (not other agents', and not walk-in/other-channel clients).
+     */
+    public function forAgent(int $agentId): array
+    {
+        return $this->all(
+            "SELECT l.*, p.product_name, CONCAT(b.first_name,' ',b.last_name) AS borrower_name,
+                    (SELECT ls.status FROM loan_schedules ls
+                     WHERE ls.loan_id = l.id AND MONTH(ls.due_date) = MONTH(CURDATE()) AND YEAR(ls.due_date) = YEAR(CURDATE())
+                     ORDER BY ls.installment_no LIMIT 1) AS current_month_status,
+                    (SELECT ls.due_date FROM loan_schedules ls
+                     WHERE ls.loan_id = l.id AND ls.status IN ('Pending','Partial','In Arrears')
+                     ORDER BY ls.due_date LIMIT 1) AS next_due_date
+             FROM loans l
+             JOIN loan_applications a ON a.id = l.application_id
+             JOIN loan_products p ON p.id = l.product_id
+             JOIN borrowers b ON b.id = l.borrower_id
+             WHERE a.agent_id = ?
+             ORDER BY l.id DESC",
+            [$agentId]
+        );
+    }
+
+    public function findForAgent(int $loanId, int $agentId): ?array
+    {
+        return $this->one(
+            "SELECT l.*, p.product_name, p.interest_method, pl.plan_name, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+             FROM loans l
+             JOIN loan_applications a ON a.id = l.application_id
+             JOIN loan_products p ON p.id = l.product_id
+             JOIN loan_plans pl ON pl.id = l.plan_id
+             JOIN borrowers b ON b.id = l.borrower_id
+             WHERE l.id = ? AND a.agent_id = ?",
+            [$loanId, $agentId]
+        );
+    }
+
+    /**
      * Active/Current loans grouped by borrower, for the Top-up "existing
      * active loan" picker on loan creation.
      */

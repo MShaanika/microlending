@@ -43,6 +43,7 @@
         </div>
         <a href="<?= url('/my/commissions') ?>" class="btn btn-outline-info btn-sm mt-2">View All Commissions</a>
         <a href="<?= url('/my/referrals/list') ?>" class="btn btn-outline-secondary btn-sm mt-2">Referral History</a>
+        <a href="<?= url('/my/loans') ?>" class="btn btn-outline-secondary btn-sm mt-2">My Clients' Loans</a>
       </div>
     </div>
 
