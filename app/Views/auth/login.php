@@ -83,11 +83,6 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
 
                     <div class="form-group">
                         <div class="d-flex">
-                            <div class="checkbox checkbox-info pt-0">
-                                <input id="remember" name="remember" type="checkbox" value="1">
-                                <label for="remember"> Remember me </label>
-                            </div>
-
                             <div class="ms-auto">
                                 <a href="<?= url('/forgot-password') ?>" class="link font-weight-medium">
                                     <i class="fa fa-lock me-1"></i> Forgot pwd?

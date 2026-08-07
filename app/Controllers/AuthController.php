@@ -33,9 +33,8 @@ class AuthController extends Controller
         $login = trim($_POST['login'] ?? '');
         $password = (string)($_POST['password'] ?? '');
         if (Auth::attempt($login, $password)) {
-            if (!empty($_POST['remember'])) {
-                Auth::remember((int) Auth::user()['id']);
-            }
+            // Remember-me is disabled while investigating a login issue --
+            // see Auth::remember().
             $this->redirect('/dashboard');
         }
         // Auth::attempt() flashes a specific message itself for some failure

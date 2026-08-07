@@ -33,8 +33,7 @@ Session::start($security['session_name'] ?? 'MLS_SESSION');
 
 require APP_PATH . '/Helpers/functions.php';
 
-// No-op if a session is already active or no remember-me cookie is present --
-// see Auth::attemptRememberLogin() for the selector/validator verification.
-Auth::attemptRememberLogin();
+// Remember-me auto-login is disabled while investigating a login issue --
+// see Auth::attemptRememberLogin() for the (currently unused) implementation.
 
 return $config;
