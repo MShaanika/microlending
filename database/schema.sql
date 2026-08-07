@@ -169,7 +169,7 @@ CREATE TABLE users (
     email VARCHAR(150) UNIQUE,
     password VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
-    user_type ENUM('Super Admin','Admin','Manager','Loan Officer','Cashier','Accountant','Collector','Borrower') DEFAULT 'Admin',
+    user_type ENUM('Super Admin','Admin','Manager','Loan Officer','Cashier','Accountant','Collector','Marketing Agent','Borrower') DEFAULT 'Admin',
     is_active TINYINT(1) DEFAULT 1,
     bypass_ip_restriction TINYINT(1) NOT NULL DEFAULT 0,
     last_login DATETIME NULL,

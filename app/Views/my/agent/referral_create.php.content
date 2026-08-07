@@ -1,103 +1,396 @@
 <?= flash_messages() ?>
 
+<?php if (!empty($errors)): ?>
+  <div class="alert alert-danger">
+    <strong>Please fix the following before submitting:</strong>
+    <ul class="mb-0">
+      <?php foreach ($errors as $message): ?>
+        <li><?= e($message) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+<?php endif; ?>
+
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-3">New Referral</h4>
+    <h4 class="card-title mb-1">New Referral</h4>
     <p class="text-muted small">This is credited to you automatically. Staff will review and process it once submitted.</p>
 
-    <form method="post" action="<?= url('/my/referrals') ?>">
+    <form method="post" action="<?= url('/my/referrals') ?>" enctype="multipart/form-data">
       <?= csrf_field() ?>
 
-      <?php if (!empty($branches)): ?>
-        <div class="mb-3">
-          <label class="form-label">Branch <span class="text-danger">*</span></label>
-          <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>">
-            <option value="">Select branch</option>
-            <?php foreach ($branches as $b): ?>
-              <option value="<?= (int) $b['id'] ?>" <?= (($old['branch_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-          <?php if (isset($errors['branch_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['branch_id']) ?></div><?php endif; ?>
-        </div>
-      <?php endif; ?>
+      <ul class="nav nav-tabs" id="referralTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-personal-btn" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
+            <i class="mdi mdi-account"></i> Personal
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-address-btn" data-bs-toggle="tab" data-bs-target="#tab-address" type="button" role="tab">
+            <i class="mdi mdi-map-marker"></i> Address &amp; Contact
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-employment-btn" data-bs-toggle="tab" data-bs-target="#tab-employment" type="button" role="tab">
+            <i class="mdi mdi-briefcase"></i> Employment
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-financial-btn" data-bs-toggle="tab" data-bs-target="#tab-financial" type="button" role="tab">
+            <i class="mdi mdi-calculator"></i> Financial
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-banking-btn" data-bs-toggle="tab" data-bs-target="#tab-banking" type="button" role="tab">
+            <i class="mdi mdi-bank"></i> Banking
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-contacts-btn" data-bs-toggle="tab" data-bs-target="#tab-contacts" type="button" role="tab">
+            <i class="mdi mdi-account-multiple"></i> Next of Kin
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-loan-btn" data-bs-toggle="tab" data-bs-target="#tab-loan" type="button" role="tab">
+            <i class="mdi mdi-cash"></i> Loan
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button" role="tab">
+            <i class="mdi mdi-file-document"></i> Documents
+          </button>
+        </li>
+      </ul>
 
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Client First Name <span class="text-danger">*</span></label>
-          <input type="text" name="applicant_first_name" class="form-control <?= isset($errors['applicant_first_name']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_first_name', $old) ?>">
-          <?php if (isset($errors['applicant_first_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_first_name']) ?></div><?php endif; ?>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Client Last Name <span class="text-danger">*</span></label>
-          <input type="text" name="applicant_last_name" class="form-control <?= isset($errors['applicant_last_name']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_last_name', $old) ?>">
-          <?php if (isset($errors['applicant_last_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_last_name']) ?></div><?php endif; ?>
-        </div>
-      </div>
+      <div class="tab-content border border-top-0 p-3 mb-3" id="referralTabsContent">
 
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label class="form-label">ID Number <span class="text-danger">*</span></label>
-          <input type="text" name="applicant_id_number" class="form-control <?= isset($errors['applicant_id_number']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_id_number', $old) ?>">
-          <?php if (isset($errors['applicant_id_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_id_number']) ?></div><?php endif; ?>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Gender</label>
-          <select name="applicant_gender" class="form-select">
-            <option value="">Select</option>
-            <option value="Male" <?= (($old['applicant_gender'] ?? '') === 'Male') ? 'selected' : '' ?>>Male</option>
-            <option value="Female" <?= (($old['applicant_gender'] ?? '') === 'Female') ? 'selected' : '' ?>>Female</option>
-          </select>
-        </div>
-      </div>
+        <!-- Personal -->
+        <div class="tab-pane fade show active" id="tab-personal" role="tabpanel">
+          <div class="row">
+            <?php if (!empty($branches)): ?>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Branch <span class="text-danger">*</span></label>
+                <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>">
+                  <option value="">Select branch</option>
+                  <?php foreach ($branches as $b): ?>
+                    <option value="<?= (int) $b['id'] ?>" <?= (($old['branch_id'] ?? '') == $b['id']) ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <?php if (isset($errors['branch_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['branch_id']) ?></div><?php endif; ?>
+              </div>
+            <?php endif; ?>
 
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Phone Number <span class="text-danger">*</span></label>
-          <input type="tel" name="applicant_phone" class="form-control <?= isset($errors['applicant_phone']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_phone', $old) ?>" placeholder="e.g. 081 234 5678">
-          <?php if (isset($errors['applicant_phone'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_phone']) ?></div><?php endif; ?>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Email</label>
-          <input type="email" name="applicant_email" class="form-control" value="<?= old('applicant_email', $old) ?>">
-        </div>
-      </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Client First Name <span class="text-danger">*</span></label>
+              <input type="text" name="applicant_first_name" class="form-control <?= isset($errors['applicant_first_name']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_first_name', $old) ?>">
+              <?php if (isset($errors['applicant_first_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_first_name']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Middle Name</label>
+              <input type="text" name="applicant_middle_name" class="form-control" value="<?= old('applicant_middle_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Client Last Name <span class="text-danger">*</span></label>
+              <input type="text" name="applicant_last_name" class="form-control <?= isset($errors['applicant_last_name']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_last_name', $old) ?>">
+              <?php if (isset($errors['applicant_last_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_last_name']) ?></div><?php endif; ?>
+            </div>
 
-      <div class="mb-3">
-        <label class="form-label">Address</label>
-        <textarea name="applicant_address" class="form-control" rows="2"><?= old('applicant_address', $old) ?></textarea>
-      </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">ID Number <span class="text-danger">*</span></label>
+              <input type="text" name="applicant_id_number" class="form-control <?= isset($errors['applicant_id_number']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_id_number', $old) ?>">
+              <?php if (isset($errors['applicant_id_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_id_number']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Gender</label>
+              <select name="applicant_gender" class="form-select">
+                <option value="">Select</option>
+                <option value="Male" <?= (($old['applicant_gender'] ?? '') === 'Male') ? 'selected' : '' ?>>Male</option>
+                <option value="Female" <?= (($old['applicant_gender'] ?? '') === 'Female') ? 'selected' : '' ?>>Female</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Employer Name</label>
-          <input type="text" name="employer_name" class="form-control" value="<?= old('employer_name', $old) ?>">
+        <!-- Address & Contact -->
+        <div class="tab-pane fade" id="tab-address" role="tabpanel">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+              <input type="tel" name="applicant_phone" class="form-control <?= isset($errors['applicant_phone']) ? 'is-invalid' : '' ?>" value="<?= old('applicant_phone', $old) ?>" placeholder="e.g. 081 234 5678">
+              <?php if (isset($errors['applicant_phone'])): ?><div class="invalid-feedback d-block"><?= e($errors['applicant_phone']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" name="applicant_email" class="form-control" value="<?= old('applicant_email', $old) ?>">
+            </div>
+            <div class="col-md-12 mb-3">
+              <label class="form-label">Address</label>
+              <textarea name="applicant_address" class="form-control" rows="2"><?= old('applicant_address', $old) ?></textarea>
+            </div>
+          </div>
         </div>
-        <div class="col-md-3 mb-3">
-          <label class="form-label">Gross Salary</label>
-          <input type="number" step="0.01" name="gross_salary" class="form-control" value="<?= old('gross_salary', $old) ?>">
-        </div>
-        <div class="col-md-3 mb-3">
-          <label class="form-label">Net Salary</label>
-          <input type="number" step="0.01" name="net_salary" class="form-control" value="<?= old('net_salary', $old) ?>">
-        </div>
-      </div>
 
-      <div class="section-divider"><hr></div>
+        <!-- Employment -->
+        <div class="tab-pane fade" id="tab-employment" role="tabpanel">
+          <p class="text-muted small">Optional. Fill in if the client is employed &mdash; used for affordability checks.</p>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employer Name</label>
+              <input type="text" name="employer_name" class="form-control" value="<?= old('employer_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employee No</label>
+              <input type="text" name="employee_no" class="form-control" value="<?= old('employee_no', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Job Title</label>
+              <input type="text" name="job_title" class="form-control" value="<?= old('job_title', $old) ?>">
+            </div>
 
-      <div class="row">
-        <div class="col-md-4 mb-3">
-          <label class="form-label">Loan Amount Requested <span class="text-danger">*</span></label>
-          <input type="number" step="0.01" name="requested_amount" class="form-control <?= isset($errors['requested_amount']) ? 'is-invalid' : '' ?>" value="<?= old('requested_amount', $old) ?>">
-          <?php if (isset($errors['requested_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['requested_amount']) ?></div><?php endif; ?>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employment Type</label>
+              <select name="employment_type" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Permanent','Contract','Self-Employed','Government','Casual','Other'] as $t): ?>
+                  <option value="<?= $t ?>" <?= (($old['employment_type'] ?? '') === $t) ? 'selected' : '' ?>><?= $t ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employment Start Date</label>
+              <input type="date" name="employment_start_date" class="form-control" value="<?= old('employment_start_date', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Salary Payment Day</label>
+              <input type="number" min="1" max="31" name="payment_day" class="form-control" value="<?= old('payment_day', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Gross Salary</label>
+              <input type="number" step="0.01" name="gross_salary" class="form-control" value="<?= old('gross_salary', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Net Salary</label>
+              <input type="number" step="0.01" name="net_salary" class="form-control" value="<?= old('net_salary', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employer Phone</label>
+              <input type="text" name="employer_phone" class="form-control" value="<?= old('employer_phone', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Employer Email</label>
+              <input type="email" name="employer_email" class="form-control" value="<?= old('employer_email', $old) ?>">
+            </div>
+            <div class="col-md-8 mb-3">
+              <label class="form-label">Employer Address</label>
+              <textarea name="employer_address" class="form-control" rows="1"><?= old('employer_address', $old) ?></textarea>
+            </div>
+          </div>
         </div>
-        <div class="col-md-4 mb-3">
-          <label class="form-label">Term (months)</label>
-          <input type="number" name="requested_term_months" class="form-control" value="<?= old('requested_term_months', $old) ?: 1 ?>" min="1">
+
+        <!-- Financial (affordability worksheet, same breakdown as the online application) -->
+        <div class="tab-pane fade" id="tab-financial" role="tabpanel">
+          <p class="text-muted small">Optional. Other income, monthly living expenses, and existing contractual payments &mdash; used for affordability assessment.</p>
+
+          <div class="fw-semibold mb-2">Other Income</div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Commission</label>
+              <input type="number" step="0.01" name="aff_commission" class="form-control" value="<?= old('aff_commission', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Pension</label>
+              <input type="number" step="0.01" name="aff_pension" class="form-control" value="<?= old('aff_pension', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Own Business Income</label>
+              <input type="number" step="0.01" name="aff_business_income" class="form-control" value="<?= old('aff_business_income', $old) ?>">
+            </div>
+          </div>
+
+          <div class="fw-semibold mb-2 mt-2">Living Expenses</div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Groceries</label>
+              <input type="number" step="0.01" name="aff_groceries" class="form-control" value="<?= old('aff_groceries', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">School Fees</label>
+              <input type="number" step="0.01" name="aff_school_fees" class="form-control" value="<?= old('aff_school_fees', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Transport</label>
+              <input type="number" step="0.01" name="aff_transport" class="form-control" value="<?= old('aff_transport', $old) ?>">
+            </div>
+          </div>
+
+          <div class="fw-semibold mb-2 mt-2">Existing Contractual Payments</div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Home Loan</label>
+              <input type="number" step="0.01" name="aff_home_loan" class="form-control" value="<?= old('aff_home_loan', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Home Rental</label>
+              <input type="number" step="0.01" name="aff_home_rental" class="form-control" value="<?= old('aff_home_rental', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Credit Card</label>
+              <input type="number" step="0.01" name="aff_credit_card" class="form-control" value="<?= old('aff_credit_card', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Personal Loans</label>
+              <input type="number" step="0.01" name="aff_personal_loans" class="form-control" value="<?= old('aff_personal_loans', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Educational Loan</label>
+              <input type="number" step="0.01" name="aff_education_loan" class="form-control" value="<?= old('aff_education_loan', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Insurance</label>
+              <input type="number" step="0.01" name="aff_insurance" class="form-control" value="<?= old('aff_insurance', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Car Payments</label>
+              <input type="number" step="0.01" name="aff_car_payments" class="form-control" value="<?= old('aff_car_payments', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Cell Phone Contract</label>
+              <input type="number" step="0.01" name="aff_cell_phone" class="form-control" value="<?= old('aff_cell_phone', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Other Credit</label>
+              <input type="number" step="0.01" name="aff_other_credit" class="form-control" value="<?= old('aff_other_credit', $old) ?>">
+            </div>
+          </div>
         </div>
-        <div class="col-md-4 mb-3">
-          <label class="form-label">Purpose</label>
-          <input type="text" name="requested_purpose" class="form-control" value="<?= old('requested_purpose', $old) ?>">
+
+        <!-- Banking -->
+        <div class="tab-pane fade" id="tab-banking" role="tabpanel">
+          <p class="text-muted small">Optional. Client's primary bank account used for disbursements and debit orders.</p>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Bank Name</label>
+              <input type="text" name="bank_name" class="form-control" value="<?= old('bank_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Account Name</label>
+              <input type="text" name="account_name" class="form-control" value="<?= old('account_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Account Number</label>
+              <input type="text" name="account_number" class="form-control" value="<?= old('account_number', $old) ?>">
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Account Type</label>
+              <select name="account_type" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Savings','Cheque','Current'] as $t): ?>
+                  <option value="<?= $t ?>" <?= (($old['account_type'] ?? '') === $t) ? 'selected' : '' ?>><?= $t ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Bank Branch Name</label>
+              <input type="text" name="bank_branch_name" class="form-control" value="<?= old('bank_branch_name', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Bank Branch Code</label>
+              <input type="text" name="bank_branch_code" class="form-control" value="<?= old('bank_branch_code', $old) ?>">
+            </div>
+          </div>
         </div>
+
+        <!-- Next of Kin / Contacts -->
+        <div class="tab-pane fade" id="tab-contacts" role="tabpanel">
+          <p class="text-muted small">Optional. Add next of kin, guarantors or emergency contacts. You can add as many as needed.</p>
+
+          <div id="contacts-container"></div>
+
+          <button type="button" id="add-contact-btn" class="btn btn-sm btn-outline-info">
+            <i class="mdi mdi-plus"></i> Add Contact
+          </button>
+        </div>
+
+        <!-- Loan -->
+        <div class="tab-pane fade" id="tab-loan" role="tabpanel">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Loan Amount Requested <span class="text-danger">*</span></label>
+              <input type="number" step="0.01" name="requested_amount" class="form-control <?= isset($errors['requested_amount']) ? 'is-invalid' : '' ?>" value="<?= old('requested_amount', $old) ?>">
+              <?php if (isset($errors['requested_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['requested_amount']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Term (months)</label>
+              <input type="number" name="requested_term_months" class="form-control" value="<?= old('requested_term_months', $old) ?: 1 ?>" min="1">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Purpose</label>
+              <input type="text" name="requested_purpose" class="form-control" value="<?= old('requested_purpose', $old) ?>">
+            </div>
+          </div>
+        </div>
+
+        <!-- Documents -->
+        <div class="tab-pane fade" id="tab-documents" role="tabpanel">
+          <p class="text-muted small">Optional at referral time &mdash; staff can also collect these during review. Accepted formats: PDF, JPG, PNG &mdash; max 5MB each.</p>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">ID Copy</label>
+              <input type="file" name="id_copy" class="form-control <?= isset($errors['id_copy']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+              <?php if (isset($errors['id_copy'])): ?><div class="invalid-feedback d-block"><?= e($errors['id_copy']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Payslip</label>
+              <input type="file" name="payslip" class="form-control <?= isset($errors['payslip']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+              <?php if (isset($errors['payslip'])): ?><div class="invalid-feedback d-block"><?= e($errors['payslip']) ?></div><?php endif; ?>
+            </div>
+          </div>
+
+          <hr>
+          <div class="fw-semibold mb-2">Bank Statement</div>
+          <div class="mb-3">
+            <div class="d-flex gap-4">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="bank_statement_type" id="bank-stmt-merged" value="merged" <?= (($old['bank_statement_type'] ?? '') === 'merged') ? 'checked' : '' ?>>
+                <label class="form-check-label" for="bank-stmt-merged">Single Merged PDF</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="bank_statement_type" id="bank-stmt-separate" value="separate" <?= (($old['bank_statement_type'] ?? '') === 'separate') ? 'checked' : '' ?>>
+                <label class="form-check-label" for="bank-stmt-separate">Separate Files</label>
+              </div>
+            </div>
+          </div>
+
+          <div id="bank-stmt-merged-wrap" class="row" style="display:none;">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Merged Bank Statement</label>
+              <input type="file" name="bank_statement_merged" class="form-control <?= isset($errors['bank_statement_merged']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+              <?php if (isset($errors['bank_statement_merged'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_statement_merged']) ?></div><?php endif; ?>
+            </div>
+          </div>
+
+          <div id="bank-stmt-separate-wrap" class="row" style="display:none;">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Statement 1</label>
+              <input type="file" name="bank_statement_1" class="form-control <?= isset($errors['bank_statement_1']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+              <?php if (isset($errors['bank_statement_1'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_statement_1']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Statement 2 <span class="text-muted">(optional)</span></label>
+              <input type="file" name="bank_statement_2" class="form-control <?= isset($errors['bank_statement_2']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+              <?php if (isset($errors['bank_statement_2'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_statement_2']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Statement 3 <span class="text-muted">(optional)</span></label>
+              <input type="file" name="bank_statement_3" class="form-control <?= isset($errors['bank_statement_3']) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+              <?php if (isset($errors['bank_statement_3'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_statement_3']) ?></div><?php endif; ?>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Submit Referral</button>
@@ -105,3 +398,80 @@
     </form>
   </div>
 </div>
+
+<template id="contact-row-template">
+  <div class="row contact-row border-top pt-3 mt-2">
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Type</label>
+      <select name="contacts[__INDEX__][contact_type]" class="form-select">
+        <option value="Next of Kin">Next of Kin</option>
+        <option value="Guarantor">Guarantor</option>
+        <option value="Emergency">Emergency</option>
+        <option value="Employer">Employer</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Full Name</label>
+      <input type="text" name="contacts[__INDEX__][full_name]" class="form-control">
+    </div>
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Relationship</label>
+      <input type="text" name="contacts[__INDEX__][relationship]" class="form-control">
+    </div>
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Phone</label>
+      <input type="text" name="contacts[__INDEX__][phone]" class="form-control">
+    </div>
+    <div class="col-md-2 mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" name="contacts[__INDEX__][email]" class="form-control">
+    </div>
+    <div class="col-md-11 mb-3">
+      <label class="form-label">Address</label>
+      <input type="text" name="contacts[__INDEX__][address]" class="form-control">
+    </div>
+    <div class="col-md-1 mb-3 d-flex align-items-end">
+      <button type="button" class="btn btn-sm btn-outline-danger remove-contact-btn"><i class="mdi mdi-delete"></i></button>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  var container = document.getElementById('contacts-container');
+  var template = document.getElementById('contact-row-template');
+  var addBtn = document.getElementById('add-contact-btn');
+  var index = 0;
+
+  function addRow() {
+    var html = template.innerHTML.replace(/__INDEX__/g, index);
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    var row = wrapper.firstElementChild;
+    row.querySelector('.remove-contact-btn').addEventListener('click', function () {
+      row.remove();
+    });
+    container.appendChild(row);
+    index++;
+  }
+
+  addBtn.addEventListener('click', addRow);
+})();
+
+(function () {
+  var mergedRadio = document.getElementById('bank-stmt-merged');
+  var separateRadio = document.getElementById('bank-stmt-separate');
+  var mergedWrap = document.getElementById('bank-stmt-merged-wrap');
+  var separateWrap = document.getElementById('bank-stmt-separate-wrap');
+
+  function syncBankStatement() {
+    mergedWrap.style.display = mergedRadio.checked ? '' : 'none';
+    separateWrap.style.display = separateRadio.checked ? '' : 'none';
+  }
+
+  mergedRadio.addEventListener('change', syncBankStatement);
+  separateRadio.addEventListener('change', syncBankStatement);
+  syncBankStatement();
+})();
+</script>

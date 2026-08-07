@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Core\Auth;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\HrmEmployee;
 use App\Models\User;
 use App\Services\EmailSenderService;
 use App\Services\TurnstileService;
@@ -17,7 +18,7 @@ class AuthController extends Controller
 
     public function showLogin(): void
     {
-        if (Auth::check()) $this->redirect('/dashboard');
+        if (Auth::check()) $this->redirect($this->postLoginPath());
         $this->view('auth/login', ['title' => 'Login']);
     }
     public function login(): void
@@ -35,7 +36,7 @@ class AuthController extends Controller
         if (Auth::attempt($login, $password)) {
             // Remember-me is disabled while investigating a login issue --
             // see Auth::remember().
-            $this->redirect('/dashboard');
+            $this->redirect($this->postLoginPath());
         }
         // Auth::attempt() flashes a specific message itself for some failure
         // reasons (e.g. currently on approved leave) -- only fall back to the
@@ -45,6 +46,17 @@ class AuthController extends Controller
         }
         $this->redirect('/login');
     }
+
+    /** A marketing/commission agent's home is their referrals portal, not the staff dashboard. */
+    private function postLoginPath(): string
+    {
+        $employee = (new HrmEmployee())->findByUserId((int) (Auth::user()['id'] ?? 0));
+        if ($employee && (int) $employee['is_commission_agent'] === 1) {
+            return '/my/referrals';
+        }
+        return '/dashboard';
+    }
+
     public function logout(): void
     {
         Auth::logout();

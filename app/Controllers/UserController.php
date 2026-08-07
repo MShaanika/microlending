@@ -13,7 +13,7 @@ use App\Models\User;
 
 class UserController extends Controller
 {
-    private const USER_TYPES = ['Super Admin', 'Admin', 'Manager', 'Loan Officer', 'Cashier', 'Accountant', 'Collector'];
+    private const USER_TYPES = ['Super Admin', 'Admin', 'Manager', 'Loan Officer', 'Cashier', 'Accountant', 'Collector', 'Marketing Agent'];
 
     private User $users;
     private Role $roles;
