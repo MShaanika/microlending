@@ -30,7 +30,12 @@ class DashboardController extends Controller
 
     public function index(): void
     {
-        Auth::authorize('dashboard.view');
+        // Every logged-in user lands here after login (see AuthController::login()),
+        // so this can't be gated behind the dashboard.view permission itself --
+        // Auth::authorize()'s failure path redirects back to /dashboard, which
+        // would loop forever for any role missing that permission. Individual
+        // sensitive widgets below already have their own Auth::can() checks.
+        Auth::requireLogin();
 
         $borrowers = new Borrower();
         $loans = new Loan();
