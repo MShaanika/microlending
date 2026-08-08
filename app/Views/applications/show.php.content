@@ -50,6 +50,34 @@
       </div>
     </div>
 
+    <?php
+      // extra_data used to only ever hold flat strings (public intake form
+      // field mappings) -- the agent referral form's affordability
+      // worksheet and next-of-kin list are the first array-shaped values
+      // to land here, so a plain (string) cast on $value no longer holds.
+      $renderExtraValue = function ($value) use (&$renderExtraValue): string {
+          if (!is_array($value)) {
+              return e((string) $value);
+          }
+          $isList = array_keys($value) === range(0, count($value) - 1);
+          if ($isList) {
+              // e.g. next_of_kin: a list of contact rows.
+              $rows = array_map(function ($row) use ($renderExtraValue) {
+                  return '<div class="border-bottom pb-1 mb-1">' . $renderExtraValue($row) . '</div>';
+              }, $value);
+              return implode('', $rows);
+          }
+          // e.g. affordability: a flat map of label => amount.
+          $parts = [];
+          foreach ($value as $k => $v) {
+              $label = e(str_replace('_', ' ', ucfirst((string) $k)));
+              $rendered = is_array($v) ? $renderExtraValue($v) : (is_numeric($v) ? format_money((float) $v) : e((string) $v));
+              $parts[] = '<span class="me-2"><span class="text-muted">' . $label . ':</span> ' . $rendered . '</span>';
+          }
+          return implode('', $parts);
+      };
+    ?>
+
     <?php if (!empty($extra)): ?>
       <div class="card">
         <div class="card-body">
@@ -58,7 +86,7 @@
           <table class="table table-sm">
             <tbody>
               <?php foreach ($extra as $key => $value): ?>
-                <tr><td class="text-muted"><?= e(str_replace('_', ' ', ucfirst($key))) ?></td><td><?= e((string) $value) ?></td></tr>
+                <tr><td class="text-muted" style="width:35%"><?= e(str_replace('_', ' ', ucfirst($key))) ?></td><td><?= $renderExtraValue($value) ?></td></tr>
               <?php endforeach; ?>
             </tbody>
           </table>
