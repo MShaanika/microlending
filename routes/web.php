@@ -661,6 +661,7 @@ $router->get('/my/commissions', [AgentSelfServiceController::class, 'commissions
 $router->get('/my/commissions/{id}', [AgentSelfServiceController::class, 'commissionShow']);
 
 $router->get('/commissions', [CommissionController::class, 'index']);
+$router->get('/commissions/submissions', [CommissionController::class, 'submissions']);
 $router->get('/commissions/{id}', [CommissionController::class, 'show']);
 $router->post('/commissions/{id}/mark-paid', [CommissionController::class, 'markPaid']);
 $router->post('/commissions/settings', [CommissionController::class, 'updateSettings']);

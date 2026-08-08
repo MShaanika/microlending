@@ -17,6 +17,22 @@ class Auth
     }
 
     /**
+     * A marketing/commission agent's home is their referrals portal, not
+     * the staff dashboard -- used for the post-login redirect and every
+     * "take me home" link in the shared layout (logo, sidebar Dashboard
+     * item, breadcrumb Home) so an agent is never one click away from a
+     * staff-only screen they have no permissions to actually use.
+     */
+    public static function homePath(): string
+    {
+        $employee = (new \App\Models\HrmEmployee())->findByUserId((int) (self::user()['id'] ?? 0));
+        if ($employee && (int) $employee['is_commission_agent'] === 1) {
+            return '/my/referrals';
+        }
+        return '/dashboard';
+    }
+
+    /**
      * Only Super Admin bypasses branch data scoping -- deliberately
      * narrower than ipAllowed()'s Super Admin + Admin exemption, which is
      * a separate, unrelated gate (network access vs. data visibility).

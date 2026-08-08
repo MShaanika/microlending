@@ -1,0 +1,73 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Agent Submissions</h4>
+      <a href="<?= url('/commissions') ?>" class="btn btn-outline-secondary btn-sm">View Commission Ledger</a>
+    </div>
+    <p class="text-muted small">Every application a marketing agent has ever referred, at whatever stage it's currently at -- not just the ones that have gone on to disburse and earn a commission.</p>
+
+    <form method="get" action="<?= url('/commissions/submissions') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="agent_employee_id" class="form-select">
+          <option value="">All Agents</option>
+          <?php foreach ($agents as $a): ?>
+            <option value="<?= (int) $a['id'] ?>" <?= (string) ($filters['agent_employee_id'] ?? '') === (string) $a['id'] ? 'selected' : '' ?>><?= e($a['first_name'] . ' ' . $a['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <?php foreach (['Pending', 'Approved', 'Rejected', 'Disbursed', 'Paid', 'Defaulted'] as $s): ?>
+            <option value="<?= $s ?>" <?= ($filters['status'] ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" class="form-control" value="<?= e($filters['date_from'] ?? '') ?>" placeholder="From">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" class="form-control" value="<?= e($filters['date_to'] ?? '') ?>" placeholder="To">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Application / Loan</th><th>Agent</th><th>Client</th><th class="text-end">Amount</th><th>Submitted</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No agent submissions match these filters.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <?php
+              $badge = match ($r['lifecycle_status']) {
+                'Disbursed' => 'info',
+                'Paid' => 'success',
+                'Rejected', 'Defaulted' => 'danger',
+                'Approved' => 'primary',
+                default => 'warning',
+              };
+              $viewUrl = $r['loan_id'] ? url('/loans/' . $r['loan_id']) : url('/applications/' . $r['application_id']);
+            ?>
+            <tr>
+              <td><?= e($r['loan_no'] ?: $r['application_no']) ?></td>
+              <td><?= e($r['agent_name']) ?></td>
+              <td><?= e(trim($r['applicant_first_name'] . ' ' . $r['applicant_last_name'])) ?></td>
+              <td class="text-end"><?= format_money($r['requested_amount']) ?></td>
+              <td><?= e(date('d M Y', strtotime($r['submitted_at']))) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($r['lifecycle_status']) ?></span></td>
+              <td class="text-end"><a href="<?= $viewUrl ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

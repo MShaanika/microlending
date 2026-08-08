@@ -11,6 +11,7 @@ use App\Models\AgentCommission;
 use App\Models\AgentCommissionEntry;
 use App\Models\Company;
 use App\Models\HrmEmployee;
+use App\Models\LoanApplication;
 
 class CommissionController extends Controller
 {
@@ -18,6 +19,7 @@ class CommissionController extends Controller
     private AgentCommissionEntry $entries;
     private Company $companies;
     private HrmEmployee $employees;
+    private LoanApplication $applications;
 
     public function __construct()
     {
@@ -25,6 +27,33 @@ class CommissionController extends Controller
         $this->entries = new AgentCommissionEntry();
         $this->companies = new Company();
         $this->employees = new HrmEmployee();
+        $this->applications = new LoanApplication();
+    }
+
+    /**
+     * Every application a marketing agent has ever submitted, whatever
+     * stage it's at now -- broader than index() above, which only lists
+     * loans that have already accrued a commission (i.e. already
+     * disbursed). This is the "what are my agents sending in" overview;
+     * index() is the "what do I owe them" ledger.
+     */
+    public function submissions(): void
+    {
+        Auth::authorize('commissions.manage');
+
+        $filters = [
+            'agent_employee_id' => !empty($_GET['agent_employee_id']) ? (int) $_GET['agent_employee_id'] : null,
+            'status' => trim((string) ($_GET['status'] ?? '')),
+            'date_from' => trim((string) ($_GET['date_from'] ?? '')),
+            'date_to' => trim((string) ($_GET['date_to'] ?? '')),
+        ];
+
+        $this->view('commissions/submissions', [
+            'title' => 'Agent Submissions',
+            'rows' => $this->applications->agentSubmissions(array_filter($filters, fn ($v) => $v !== null && $v !== '')),
+            'filters' => $filters,
+            'agents' => $this->employees->commissionAgents(),
+        ]);
     }
 
     public function index(): void

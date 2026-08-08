@@ -135,7 +135,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
           <i class="ti-menu ti-close"></i>
         </a>
 
-        <a class="navbar-brand" href="<?= url('/dashboard') ?>">
+        <a class="navbar-brand" href="<?= url(Auth::homePath()) ?>">
           
           <span class="logo-text">
             <img src="<?= $sidebarLogoUrl ?>" class="light-logo" alt="homepage" style="height: 76px; max-width: 220px; object-fit: contain;" />
@@ -246,7 +246,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 
           <?php if (Auth::can('dashboard.view')): ?>
           <li class="sidebar-item">
-            <a class="sidebar-link waves-effect waves-dark sidebar-link" href="<?= url('/dashboard') ?>">
+            <a class="sidebar-link waves-effect waves-dark sidebar-link" href="<?= url(Auth::homePath()) ?>">
               <i class="mdi mdi-gauge"></i>
               <span class="hide-menu">Dashboard</span>
             </a>
@@ -529,7 +529,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
           <div class="col-md-5 col-12 align-self-center">
             <ol class="breadcrumb mb-0">
               <li class="breadcrumb-item">
-                <a href="<?= url('/dashboard') ?>">Home</a>
+                <a href="<?= url(Auth::homePath()) ?>">Home</a>
               </li>
               <li class="breadcrumb-item active"><?= e($title ?? 'Dashboard') ?></li>
             </ol>

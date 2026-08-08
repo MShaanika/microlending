@@ -72,6 +72,67 @@ class LoanApplication extends Model
         );
     }
 
+    /**
+     * Admin-facing view of every application a marketing agent has ever
+     * submitted, collapsed into one lifecycle status that spans both this
+     * table and the loan it may have become -- 'Pending'/'Approved'/
+     * 'Rejected' come from the application before conversion; once a loan
+     * exists, 'Disbursed'/'Paid'/'Defaulted' come from the loan instead
+     * (the two are mutually exclusive per row, never both consulted).
+     */
+    public function agentSubmissions(array $filters = []): array
+    {
+        $sql = "SELECT a.id AS application_id, a.application_no, a.applicant_first_name, a.applicant_last_name,
+                       a.requested_amount, a.created_at AS submitted_at, a.status AS application_status,
+                       e.id AS agent_employee_id, CONCAT(e.first_name,' ',e.last_name) AS agent_name,
+                       l.id AS loan_id, l.loan_no, l.loan_status,
+                       CASE
+                         WHEN l.id IS NULL THEN
+                           CASE
+                             WHEN a.status IN ('Submitted','Screening','Documents Required') THEN 'Pending'
+                             WHEN a.status = 'Approved' THEN 'Approved'
+                             WHEN a.status IN ('Rejected','Cancelled') THEN 'Rejected'
+                             ELSE 'Pending'
+                           END
+                         ELSE
+                           CASE
+                             WHEN l.loan_status IN ('Draft','Pending Approval','Approved') THEN 'Approved'
+                             WHEN l.loan_status IN ('Released','Active','Current') THEN 'Disbursed'
+                             WHEN l.loan_status = 'Completed' THEN 'Paid'
+                             WHEN l.loan_status = 'Written Off' THEN 'Defaulted'
+                             WHEN l.loan_status IN ('Denied','Cancelled') THEN 'Rejected'
+                             ELSE 'Approved'
+                           END
+                       END AS lifecycle_status
+                FROM loan_applications a
+                JOIN hrm_employees e ON e.id = a.agent_id
+                LEFT JOIN loans l ON l.application_id = a.id
+                WHERE a.agent_id IS NOT NULL";
+        $params = [];
+
+        if (!empty($filters['agent_employee_id'])) {
+            $sql .= " AND a.agent_id = ?";
+            $params[] = $filters['agent_employee_id'];
+        }
+        if (!empty($filters['date_from'])) {
+            $sql .= " AND a.created_at >= ?";
+            $params[] = $filters['date_from'] . ' 00:00:00';
+        }
+        if (!empty($filters['date_to'])) {
+            $sql .= " AND a.created_at <= ?";
+            $params[] = $filters['date_to'] . ' 23:59:59';
+        }
+
+        if (!empty($filters['status'])) {
+            $sql .= " HAVING lifecycle_status = ?";
+            $params[] = $filters['status'];
+        }
+
+        $sql .= " ORDER BY a.id DESC";
+
+        return $this->all($sql, $params);
+    }
+
     public function create(array $data): int
     {
         return $this->insert('loan_applications', $data);
