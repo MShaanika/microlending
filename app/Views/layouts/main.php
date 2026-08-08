@@ -339,11 +339,13 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             ]],
             'Commissions' => ['icon' => 'mdi-cash-multiple', 'items' => [
               ['label' => 'Agent Commissions', 'url' => url('/commissions'), 'perm' => 'commissions.manage'],
+              ['label' => 'Agent Submissions', 'url' => url('/commissions/submissions'), 'perm' => 'commissions.manage'],
             ]],
             'My Referrals' => ['icon' => 'mdi-account-cash', 'items' => [
               ['label' => 'Dashboard', 'url' => url('/my/referrals'), 'perm' => 'referrals.submit'],
               ['label' => 'New Referral', 'url' => url('/my/referrals/create'), 'perm' => 'referrals.submit'],
               ['label' => 'Referral History', 'url' => url('/my/referrals/list'), 'perm' => 'referrals.submit'],
+              ['label' => "My Clients' Loans", 'url' => url('/my/loans'), 'perm' => 'referrals.submit'],
               ['label' => 'My Commissions', 'url' => url('/my/commissions'), 'perm' => 'referrals.submit'],
             ]],
             'My HR' => ['icon' => 'mdi-account-box', 'items' => [
