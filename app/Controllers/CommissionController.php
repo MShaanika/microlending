@@ -19,7 +19,7 @@ use App\Models\LoanApplication;
 class CommissionController extends Controller
 {
     /** Dr'd for every payout -- see database/agent_commissions_module.sql for the account_code this expects. */
-    private const COMMISSION_EXPENSE_ACCOUNT_CODE = '5227';
+    private const COMMISSION_EXPENSE_ACCOUNT_CODE = '5310';
 
     private AgentCommission $commissions;
     private AgentCommissionEntry $entries;

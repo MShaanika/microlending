@@ -121,11 +121,11 @@ CREATE TABLE agent_commission_entries (
 --       ADD CONSTRAINT fk_commission_entries_journal FOREIGN KEY (journal_id) REFERENCES accounting_journal_entries(id);
 --
 --   INSERT INTO accounting_accounts (account_code, account_name, account_type, afs_line_code, normal_balance, is_control_account, is_cash_bank_account, is_active)
---   VALUES ('5227', 'Agent Commission Expense', 'Expense', 'pl_opex_general', 'Debit', 0, 0, 1);
+--   VALUES ('5310', 'Agent Commission Expense', 'Expense', 'pl_opex_general', 'Debit', 0, 0, 1);
 -- ---------------------------------------------------------
 
 INSERT IGNORE INTO accounting_accounts (account_code, account_name, account_type, afs_line_code, normal_balance, is_control_account, is_cash_bank_account, is_active)
-VALUES ('5227', 'Agent Commission Expense', 'Expense', 'pl_opex_general', 'Debit', 0, 0, 1);
+VALUES ('5310', 'Agent Commission Expense', 'Expense', 'pl_opex_general', 'Debit', 0, 0, 1);
 
 -- ---------------------------------------------------------
 -- Permissions
