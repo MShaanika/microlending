@@ -65,7 +65,7 @@
                   <td><?= e($c['borrower_name']) ?></td>
                   <td class="text-end"><?= format_money($c['total_commission_amount']) ?></td>
                   <td class="text-end"><?= format_money($c['earned_amount']) ?></td>
-                  <td><span class="badge bg-<?= $c['status'] === 'Fully Earned' ? 'success' : ($c['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($c['status']) ?></span></td>
+                  <td><span class="badge bg-<?= commission_status_badge($c['status']) ?>"><?= e($c['status']) ?></span></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>

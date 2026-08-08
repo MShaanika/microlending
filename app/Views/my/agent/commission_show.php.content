@@ -14,7 +14,10 @@
         <?php if ((float) $commission['forfeited_amount'] > 0): ?>
           <p class="mb-1">Forfeited: <span class="text-danger"><?= format_money($commission['forfeited_amount']) ?></span></p>
         <?php endif; ?>
-        <p class="mb-0">Status: <span class="badge bg-<?= $commission['status'] === 'Fully Earned' ? 'success' : ($commission['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($commission['status']) ?></span></p>
+        <p class="mb-0">Status: <span class="badge bg-<?= commission_status_badge($commission['status']) ?>"><?= e($commission['status']) ?></span></p>
+        <?php if (!empty($commission['ineligibility_reason'])): ?>
+          <p class="text-muted small mb-0"><?= e($commission['ineligibility_reason']) ?></p>
+        <?php endif; ?>
       </div>
     </div>
   </div>

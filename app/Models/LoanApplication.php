@@ -62,6 +62,22 @@ class LoanApplication extends Model
         return $this->one("SELECT * FROM loan_applications WHERE application_no = ?", [$applicationNo]);
     }
 
+    /**
+     * "Duplicate Check" rule: true if this ID number already has an
+     * application still in the pipeline (anything short of Rejected/
+     * Cancelled/Converted -- once it's converted to a loan it's no
+     * longer a competing in-flight submission, it's a real loan).
+     */
+    public function hasOpenApplicationForIdNumber(string $idNumber): bool
+    {
+        return (bool) $this->scalar(
+            "SELECT 1 FROM loan_applications
+             WHERE applicant_id_number = ? AND status NOT IN ('Rejected', 'Cancelled', 'Converted to Loan')
+             LIMIT 1",
+            [$idNumber]
+        );
+    }
+
     public function allForAgent(int $agentId): array
     {
         return $this->all(

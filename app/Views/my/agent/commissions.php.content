@@ -20,7 +20,12 @@
               <td class="text-end"><?= format_money($c['total_commission_amount']) ?></td>
               <td class="text-end"><?= format_money($c['earned_amount']) ?></td>
               <td class="text-end"><?= format_money($c['paid_amount']) ?></td>
-              <td><span class="badge bg-<?= $c['status'] === 'Fully Earned' ? 'success' : ($c['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($c['status']) ?></span></td>
+              <td>
+                <span class="badge bg-<?= commission_status_badge($c['status']) ?>"><?= e($c['status']) ?></span>
+                <?php if (!empty($c['ineligibility_reason'])): ?>
+                  <div class="text-muted small"><?= e($c['ineligibility_reason']) ?></div>
+                <?php endif; ?>
+              </td>
               <td class="text-end">
                 <a href="<?= url('/my/commissions/' . $c['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
               </td>

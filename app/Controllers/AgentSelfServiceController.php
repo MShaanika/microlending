@@ -362,6 +362,13 @@ class AgentSelfServiceController extends Controller
         }
         if ($idNumber === '') {
             $errors['applicant_id_number'] = 'ID number is required.';
+        } elseif ($this->applications->hasOpenApplicationForIdNumber($idNumber)) {
+            // Client's "Duplicate Check" rule -- don't let a second
+            // application queue up behind one that's still open,
+            // regardless of which agent/channel it originally came
+            // through. Surfaces right here as a form error, which is
+            // this flow's version of "notify the agent."
+            $errors['applicant_id_number'] = 'A loan application for this ID number is already in progress. Check with staff before submitting another.';
         }
         if ($phone === '') {
             $errors['applicant_phone'] = 'Phone number is required.';

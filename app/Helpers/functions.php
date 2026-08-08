@@ -63,6 +63,17 @@ function format_balance(mixed $amount): string
     return $amount < 0 ? '(' . number_format(abs($amount), 2) . ')' : number_format($amount, 2);
 }
 
+/** Bootstrap badge color for an agent_commissions.status value -- one place so every commission view agrees. */
+function commission_status_badge(string $status): string
+{
+    return match ($status) {
+        'Fully Earned' => 'success',
+        'Forfeited', 'Ineligible' => 'danger',
+        'Accruing' => 'info',
+        default => 'warning', // Pending
+    };
+}
+
 function flash_messages(): string
 {
     $html = '';

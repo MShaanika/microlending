@@ -46,7 +46,7 @@
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
-          <?php foreach (['Accruing', 'Fully Earned', 'Forfeited'] as $s): ?>
+          <?php foreach (['Pending', 'Accruing', 'Fully Earned', 'Forfeited', 'Ineligible'] as $s): ?>
             <option value="<?= $s ?>" <?= ($filters['status'] ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
           <?php endforeach; ?>
         </select>
@@ -80,7 +80,12 @@
               <td class="text-end"><?= format_money($c['earned_amount']) ?></td>
               <td class="text-end"><?= format_money($c['paid_amount']) ?></td>
               <td class="text-end"><?= format_money((float) $c['earned_amount'] - (float) $c['paid_amount']) ?></td>
-              <td><span class="badge bg-<?= $c['status'] === 'Fully Earned' ? 'success' : ($c['status'] === 'Forfeited' ? 'danger' : 'warning') ?>"><?= e($c['status']) ?></span></td>
+              <td>
+                <span class="badge bg-<?= commission_status_badge($c['status']) ?>"><?= e($c['status']) ?></span>
+                <?php if (!empty($c['ineligibility_reason'])): ?>
+                  <div class="text-muted small"><?= e($c['ineligibility_reason']) ?></div>
+                <?php endif; ?>
+              </td>
               <td class="text-end">
                 <a href="<?= url('/commissions/' . $c['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
               </td>

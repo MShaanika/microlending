@@ -72,7 +72,8 @@ CREATE TABLE agent_commissions (
     earned_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
     paid_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
     forfeited_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
-    status ENUM('Accruing','Fully Earned','Forfeited') NOT NULL DEFAULT 'Accruing',
+    status ENUM('Pending','Accruing','Fully Earned','Forfeited','Ineligible') NOT NULL DEFAULT 'Pending',
+    ineligibility_reason VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_loan_commission (loan_id),
@@ -82,6 +83,25 @@ CREATE TABLE agent_commissions (
     CONSTRAINT fk_agent_commissions_agent FOREIGN KEY (agent_employee_id) REFERENCES hrm_employees(id),
     CONSTRAINT fk_agent_commissions_borrower FOREIGN KEY (borrower_id) REFERENCES borrowers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------
+-- Eligibility engine (see AgentCommissionService::evaluateEligibility())
+--
+-- 'Pending' replaces 'Accruing' as the default -- a commission sits
+-- Pending until the client's first repayment, matching the client's
+-- "Commission Hold" rule. 'Ineligible' is a new terminal status for a
+-- referral that never qualified in the first place (existing client,
+-- active loan elsewhere, prior default, prior restructure, or inside
+-- the 30-day cooling period) -- distinct from 'Forfeited', which means
+-- it WAS legitimately accruing and then got cut off by a default.
+--
+-- For an install that already ran the CREATE TABLE above with the old
+-- 3-value enum, apply this separately:
+--
+--   ALTER TABLE agent_commissions
+--       MODIFY COLUMN status ENUM('Pending','Accruing','Fully Earned','Forfeited','Ineligible') NOT NULL DEFAULT 'Pending',
+--       ADD COLUMN ineligibility_reason VARCHAR(255) NULL;
+-- ---------------------------------------------------------
 
 CREATE TABLE agent_commission_entries (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
