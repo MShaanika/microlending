@@ -87,6 +87,8 @@ CREATE TABLE agent_commission_entries (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     agent_commission_id BIGINT NOT NULL,
     payment_id BIGINT NULL,
+    bank_account_id BIGINT NULL,
+    journal_id BIGINT NULL,
     entry_type ENUM('Earned','Payout','Forfeiture') NOT NULL,
     amount DECIMAL(18,2) NOT NULL,
     notes TEXT NULL,
@@ -96,8 +98,34 @@ CREATE TABLE agent_commission_entries (
     INDEX idx_commission_entries_payment (payment_id),
     CONSTRAINT fk_commission_entries_commission FOREIGN KEY (agent_commission_id) REFERENCES agent_commissions(id) ON DELETE CASCADE,
     CONSTRAINT fk_commission_entries_payment FOREIGN KEY (payment_id) REFERENCES payments(id),
+    CONSTRAINT fk_commission_entries_bank_account FOREIGN KEY (bank_account_id) REFERENCES accounting_bank_accounts(id),
+    CONSTRAINT fk_commission_entries_journal FOREIGN KEY (journal_id) REFERENCES accounting_journal_entries(id),
     CONSTRAINT fk_commission_entries_user FOREIGN KEY (created_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------
+-- Commission payout accounting link
+--
+-- markPaid() now posts a real journal entry (Dr this expense account /
+-- Cr whichever bank account staff pick) instead of just logging a
+-- payout note -- see CommissionController::markPaid(). For an install
+-- that already ran the CREATE TABLE above (bank_account_id/journal_id
+-- didn't exist yet), apply this separately instead of re-running the
+-- whole file (which would DROP and recreate agent_commissions/
+-- agent_commission_entries and lose existing data):
+--
+--   ALTER TABLE agent_commission_entries
+--       ADD COLUMN bank_account_id BIGINT NULL AFTER payment_id,
+--       ADD COLUMN journal_id BIGINT NULL AFTER bank_account_id,
+--       ADD CONSTRAINT fk_commission_entries_bank_account FOREIGN KEY (bank_account_id) REFERENCES accounting_bank_accounts(id),
+--       ADD CONSTRAINT fk_commission_entries_journal FOREIGN KEY (journal_id) REFERENCES accounting_journal_entries(id);
+--
+--   INSERT INTO accounting_accounts (account_code, account_name, account_type, afs_line_code, normal_balance, is_control_account, is_cash_bank_account, is_active)
+--   VALUES ('5227', 'Agent Commission Expense', 'Expense', 'pl_opex_general', 'Debit', 0, 0, 1);
+-- ---------------------------------------------------------
+
+INSERT IGNORE INTO accounting_accounts (account_code, account_name, account_type, afs_line_code, normal_balance, is_control_account, is_cash_bank_account, is_active)
+VALUES ('5227', 'Agent Commission Expense', 'Expense', 'pl_opex_general', 'Debit', 0, 0, 1);
 
 -- ---------------------------------------------------------
 -- Permissions

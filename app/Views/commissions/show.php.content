@@ -24,12 +24,21 @@
       <div class="card">
         <div class="card-body">
           <h4 class="card-title mb-3">Record Payout</h4>
-          <p class="text-muted small">Up to <?= format_money($outstanding) ?> outstanding. Cash/EFT happens outside the system -- this just records that it was paid.</p>
+          <p class="text-muted small">Up to <?= format_money($outstanding) ?> outstanding. Posts a journal entry (Dr Agent Commission Expense / Cr the bank account below) as soon as this is submitted.</p>
           <form method="post" action="<?= url('/commissions/' . $commission['id'] . '/mark-paid') ?>">
             <?= csrf_field() ?>
             <div class="mb-2">
               <label class="form-label">Amount</label>
               <input type="number" step="0.01" min="0.01" max="<?= $outstanding ?>" name="amount" class="form-control" value="<?= $outstanding ?>">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Paying From</label>
+              <select name="bank_account_id" class="form-select" required>
+                <option value="">Select bank account</option>
+                <?php foreach ($bankAccounts as $ba): ?>
+                  <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div class="mb-2">
               <label class="form-label">Notes</label>
@@ -49,17 +58,27 @@
         <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead>
-              <tr><th>Date</th><th>Type</th><th class="text-end">Amount</th><th>Notes</th></tr>
+              <tr><th>Date</th><th>Type</th><th class="text-end">Amount</th><th>Paid From</th><th>Notes</th></tr>
             </thead>
             <tbody>
               <?php if (empty($entries)): ?>
-                <tr><td colspan="4" class="text-center text-muted py-4">No activity yet.</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">No activity yet.</td></tr>
               <?php endif; ?>
               <?php foreach ($entries as $e): ?>
                 <tr>
                   <td><?= e(date('d M Y H:i', strtotime($e['created_at']))) ?></td>
                   <td><span class="badge bg-<?= $e['entry_type'] === 'Earned' ? 'success' : ($e['entry_type'] === 'Forfeiture' ? 'danger' : 'info') ?>"><?= e($e['entry_type']) ?></span></td>
                   <td class="text-end"><?= format_money($e['amount']) ?></td>
+                  <td>
+                    <?php if ($e['bank_name']): ?>
+                      <?= e($e['bank_name'] . ' - ' . $e['bank_account_name']) ?>
+                      <?php if ($e['journal_id']): ?>
+                        <a href="<?= url('/accounting/journals/' . $e['journal_id']) ?>" class="ms-1" title="View journal entry"><i class="mdi mdi-book-open-variant"></i></a>
+                      <?php endif; ?>
+                    <?php else: ?>
+                      -
+                    <?php endif; ?>
+                  </td>
                   <td><?= e($e['notes'] ?? '') ?></td>
                 </tr>
               <?php endforeach; ?>

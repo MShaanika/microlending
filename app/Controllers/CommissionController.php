@@ -7,19 +7,28 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\AccountingAccount;
+use App\Models\AccountingJournal;
 use App\Models\AgentCommission;
 use App\Models\AgentCommissionEntry;
+use App\Models\BankAccount;
 use App\Models\Company;
 use App\Models\HrmEmployee;
 use App\Models\LoanApplication;
 
 class CommissionController extends Controller
 {
+    /** Dr'd for every payout -- see database/agent_commissions_module.sql for the account_code this expects. */
+    private const COMMISSION_EXPENSE_ACCOUNT_CODE = '5227';
+
     private AgentCommission $commissions;
     private AgentCommissionEntry $entries;
     private Company $companies;
     private HrmEmployee $employees;
     private LoanApplication $applications;
+    private BankAccount $bankAccounts;
+    private AccountingAccount $accounts;
+    private AccountingJournal $journal;
 
     public function __construct()
     {
@@ -28,6 +37,9 @@ class CommissionController extends Controller
         $this->companies = new Company();
         $this->employees = new HrmEmployee();
         $this->applications = new LoanApplication();
+        $this->bankAccounts = new BankAccount();
+        $this->accounts = new AccountingAccount();
+        $this->journal = new AccountingJournal();
     }
 
     /**
@@ -94,6 +106,7 @@ class CommissionController extends Controller
             'title' => 'Commission - ' . $commission['loan_no'],
             'commission' => $commission,
             'entries' => $this->entries->forCommission((int) $commission['id']),
+            'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
         ]);
     }
 
@@ -117,9 +130,16 @@ class CommissionController extends Controller
 
         $outstanding = round((float) $commission['earned_amount'] - (float) $commission['paid_amount'], 2);
         $amount = round((float) ($_POST['amount'] ?? 0), 2);
+        $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
+        $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
 
         if ($amount <= 0 || $amount > $outstanding) {
             Session::flash('error', 'Enter a payout amount between 0 and ' . format_money($outstanding) . '.');
+            $this->redirect('/commissions/' . $id);
+            return;
+        }
+        if (!$bankAccount) {
+            Session::flash('error', 'Select which bank account this is being paid from.');
             $this->redirect('/commissions/' . $id);
             return;
         }
@@ -127,9 +147,40 @@ class CommissionController extends Controller
         $userId = Auth::user()['id'] ?? null;
         $notes = trim($_POST['notes'] ?? '') ?: null;
 
+        try {
+            $expenseAccountId = $this->accounts->idByCode(self::COMMISSION_EXPENSE_ACCOUNT_CODE);
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/commissions/' . $id);
+            return;
+        }
+
+        $bankLabel = $bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'];
+
+        try {
+            $journalId = $this->journal->post(
+                'COMMISSION_PAYOUT',
+                'agent_commissions',
+                $id,
+                $commission['loan_no'],
+                'Agent commission paid: ' . $commission['agent_name'] . ' - ' . $commission['loan_no'],
+                [
+                    ['account_id' => $expenseAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Commission payout - ' . $commission['loan_no']],
+                    ['account_id' => (int) $bankAccount['account_id'], 'debit' => 0, 'credit' => $amount, 'description' => 'Paid from ' . $bankLabel],
+                ],
+                $userId
+            );
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/commissions/' . $id);
+            return;
+        }
+
         $this->entries->create([
             'agent_commission_id' => $id,
             'payment_id' => null,
+            'bank_account_id' => $bankAccountId,
+            'journal_id' => $journalId,
             'entry_type' => 'Payout',
             'amount' => $amount,
             'notes' => $notes,
@@ -140,8 +191,8 @@ class CommissionController extends Controller
             'paid_amount' => round((float) $commission['paid_amount'] + $amount, 2),
         ]);
 
-        Audit::log('Payout', 'Commissions', 'Recorded ' . format_money($amount) . ' commission payout on #' . $id . ' (' . $commission['loan_no'] . ')');
-        Session::flash('success', format_money($amount) . ' payout recorded.');
+        Audit::log('Payout', 'Commissions', 'Recorded ' . format_money($amount) . ' commission payout on #' . $id . ' (' . $commission['loan_no'] . ') from ' . $bankLabel . '.');
+        Session::flash('success', format_money($amount) . ' payout recorded and journal entry posted.');
         $this->redirect('/commissions/' . $id);
     }
 

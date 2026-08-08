@@ -14,7 +14,10 @@ class AgentCommissionEntry extends Model
     public function forCommission(int $agentCommissionId): array
     {
         return $this->all(
-            "SELECT * FROM agent_commission_entries WHERE agent_commission_id = ? ORDER BY id ASC",
+            "SELECT e.*, ba.bank_name, ba.account_name AS bank_account_name
+             FROM agent_commission_entries e
+             LEFT JOIN accounting_bank_accounts ba ON ba.id = e.bank_account_id
+             WHERE e.agent_commission_id = ? ORDER BY e.id ASC",
             [$agentCommissionId]
         );
     }
