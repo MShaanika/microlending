@@ -16,7 +16,7 @@
     <h4 class="card-title mb-1">New Referral</h4>
     <p class="text-muted small">This is credited to you automatically. Staff will review and process it once submitted.</p>
 
-    <form method="post" action="<?= url('/my/referrals') ?>" enctype="multipart/form-data">
+    <form method="post" action="<?= url('/my/referrals') ?>" enctype="multipart/form-data" id="referral-form">
       <?= csrf_field() ?>
 
       <ul class="nav nav-tabs" id="referralTabs" role="tablist">
@@ -393,7 +393,7 @@
 
       </div>
 
-      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Submit Referral</button>
+      <button type="submit" id="referral-submit-btn" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Submit Referral</button>
       <a href="<?= url('/my/referrals') ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>
@@ -473,5 +473,54 @@
   mergedRadio.addEventListener('change', syncBankStatement);
   separateRadio.addEventListener('change', syncBankStatement);
   syncBankStatement();
+})();
+
+(function () {
+  // This form spans 8 tabs, but the browser's native validation (e.g. the
+  // Email field's format check) can only focus/report an invalid field
+  // that's actually visible -- one sitting in a tab the agent isn't on
+  // makes the browser silently refuse to submit with zero feedback,
+  // which just reads as "the button doesn't work." Also, uploading
+  // several documents on a slow connection takes a real amount of time
+  // with no visual change otherwise, which reads the same way -- so once
+  // validation passes, show a spinner instead of leaving the button
+  // looking inert while the upload is in flight.
+  var form = document.getElementById('referral-form');
+  var submitBtn = document.getElementById('referral-submit-btn');
+  var submitBtnDefaultHtml = submitBtn.innerHTML;
+
+  submitBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    if (!form.checkValidity()) {
+      var invalid = form.querySelector(':invalid');
+      var pane = invalid ? invalid.closest('.tab-pane') : null;
+      if (pane && window.bootstrap) {
+        var tabBtn = document.getElementById(pane.id + '-btn');
+        if (tabBtn) {
+          new bootstrap.Tab(tabBtn).show();
+        }
+      }
+      setTimeout(function () {
+        if (invalid) invalid.reportValidity();
+      }, 150);
+      return;
+    }
+
+    if (submitBtn.disabled) {
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
+    form.submit();
+  });
+
+  // If the browser restores this page from cache after the agent hits
+  // "back" (e.g. to fix something after an error), the button must not
+  // still be showing the spinner from the previous attempt.
+  window.addEventListener('pageshow', function () {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = submitBtnDefaultHtml;
+  });
 })();
 </script>
