@@ -124,4 +124,57 @@ class LoanProductController extends Controller
         Session::flash('success', 'Plan added.');
         $this->redirect('/loan-products');
     }
+
+    /** Deactivating a product hides it (and, independently, its plans) from the "new loan" picker -- see LoanProduct::activeWithPlans() -- without touching any loan already issued under it. */
+    public function toggleActive(string $id): void
+    {
+        Auth::authorize('loans.edit');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/loan-products');
+            return;
+        }
+
+        $product = $this->products->find($id);
+        if (!$product) {
+            Session::flash('error', 'Loan product not found.');
+            $this->redirect('/loan-products');
+            return;
+        }
+
+        $newState = $product['is_active'] ? 0 : 1;
+        $this->products->updateRecord($id, ['is_active' => $newState]);
+
+        Audit::log('Update', 'Loan Products', ($newState ? 'Activated' : 'Deactivated') . ' loan product ' . $product['product_code'] . '.');
+        Session::flash('success', 'Loan product ' . ($newState ? 'activated' : 'deactivated') . '.');
+        $this->redirect('/loan-products');
+    }
+
+    public function togglePlanActive(string $planId): void
+    {
+        Auth::authorize('loans.edit');
+        $planId = (int) $planId;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/loan-products');
+            return;
+        }
+
+        $plan = $this->products->findPlan($planId);
+        if (!$plan) {
+            Session::flash('error', 'Plan not found.');
+            $this->redirect('/loan-products');
+            return;
+        }
+
+        $newState = $plan['is_active'] ? 0 : 1;
+        $this->products->updatePlan($planId, ['is_active' => $newState]);
+
+        Audit::log('Update', 'Loan Products', ($newState ? 'Activated' : 'Deactivated') . ' plan #' . $planId . '.');
+        Session::flash('success', 'Plan ' . ($newState ? 'activated' : 'deactivated') . '.');
+        $this->redirect('/loan-products');
+    }
 }

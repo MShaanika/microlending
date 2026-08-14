@@ -45,6 +45,11 @@ class LoanProduct extends Model
         return $this->insert('loan_products', $data);
     }
 
+    public function updateRecord(int $id, array $data): bool
+    {
+        return $this->update('loan_products', $data, 'id', $id);
+    }
+
     public function addPlan(array $data): int
     {
         return $this->insert('loan_plans', $data);
@@ -53,5 +58,10 @@ class LoanProduct extends Model
     public function findPlan(int $id): ?array
     {
         return $this->one("SELECT * FROM loan_plans WHERE id = ?", [$id]);
+    }
+
+    public function updatePlan(int $id, array $data): bool
+    {
+        return $this->update('loan_plans', $data, 'id', $id);
     }
 }

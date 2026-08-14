@@ -22,6 +22,10 @@
         <div class="text-end">
           <span class="badge bg-info"><?= e($product['interest_method']) ?></span>
           <span class="badge bg-<?= $product['is_active'] ? 'success' : 'secondary' ?>"><?= $product['is_active'] ? 'Active' : 'Inactive' ?></span>
+          <form method="post" action="<?= url('/loan-products/' . $product['id'] . '/toggle-active') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $product['is_active'] ? 'Deactivate' : 'Activate' ?> this product? <?= $product['is_active'] ? 'Staff will no longer be able to select it for new loans, but existing loans are unaffected.' : '' ?>');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-outline-<?= $product['is_active'] ? 'secondary' : 'success' ?>"><?= $product['is_active'] ? 'Deactivate' : 'Activate' ?></button>
+          </form>
         </div>
       </div>
 
@@ -35,7 +39,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-hover">
           <thead>
-            <tr><th>Plan</th><th>Months</th><th>Rate</th><th>Admin Fee</th><th>Status</th></tr>
+            <tr><th>Plan</th><th>Months</th><th>Rate</th><th>Admin Fee</th><th>Status</th><th class="text-end">Action</th></tr>
           </thead>
           <tbody>
             <?php foreach ($product['plans'] as $plan): ?>
@@ -45,6 +49,12 @@
                 <td><?= e($plan['interest_rate']) ?>%</td>
                 <td><?= format_money($plan['admin_fee']) ?></td>
                 <td><span class="badge bg-<?= $plan['is_active'] ? 'success' : 'secondary' ?>"><?= $plan['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+                <td class="text-end">
+                  <form method="post" action="<?= url('/loan-products/plans/' . $plan['id'] . '/toggle-active') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $plan['is_active'] ? 'Deactivate' : 'Activate' ?> this plan?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-<?= $plan['is_active'] ? 'secondary' : 'success' ?>"><?= $plan['is_active'] ? 'Deactivate' : 'Activate' ?></button>
+                  </form>
+                </td>
               </tr>
             <?php endforeach; ?>
           </tbody>

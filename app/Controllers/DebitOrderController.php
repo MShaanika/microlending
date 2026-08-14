@@ -85,6 +85,13 @@ class DebitOrderController extends Controller
         }
         $this->assertBranchAccess($loan, '/loans');
 
+        $existing = $this->debitOrders->liveForLoan((int) $loanId);
+        if ($existing) {
+            Session::flash('error', 'This loan already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one -- Collexia collects every active mandate independently, so a second one means the client gets deducted twice.');
+            $this->redirect('/debit-orders/' . $existing['id']);
+            return;
+        }
+
         $this->view('debit_orders/create', [
             'title' => 'Register Debit Order - ' . $loan['loan_no'],
             'loan' => $loan,
@@ -157,6 +164,13 @@ class DebitOrderController extends Controller
             return;
         }
         $this->assertBranchAccess($loan, '/loans');
+
+        $existing = $this->debitOrders->liveForLoan($loanId);
+        if ($existing) {
+            Session::flash('error', 'This loan already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one.');
+            $this->redirect('/debit-orders/' . $existing['id']);
+            return;
+        }
 
         $errors = [];
         foreach (['bank_code', 'account_number', 'debit_day', 'debit_amount', 'start_date'] as $field) {

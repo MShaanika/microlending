@@ -149,6 +149,8 @@ $router->get('/loan-products', [LoanProductController::class, 'index']);
 $router->get('/loan-products/create', [LoanProductController::class, 'create']);
 $router->post('/loan-products', [LoanProductController::class, 'store']);
 $router->post('/loan-products/{id}/plans', [LoanProductController::class, 'addPlan']);
+$router->post('/loan-products/{id}/toggle-active', [LoanProductController::class, 'toggleActive']);
+$router->post('/loan-products/plans/{planId}/toggle-active', [LoanProductController::class, 'togglePlanActive']);
 
 // Loans
 $router->get('/loans', [LoanController::class, 'index']);
