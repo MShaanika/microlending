@@ -52,12 +52,27 @@ class TrainingController extends Controller
             'training_type_id' => $_GET['training_type_id'] ?? null,
             'department_id' => $_GET['department_id'] ?? null,
         ];
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'start_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->trainings->paginated($filters, $search, $sort, $dir, $page, $perPage);
+
         $this->view('training/trainings/index', [
             'title' => 'Trainings',
-            'trainings' => $this->trainings->allTrainings($filters),
+            'trainings' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'types' => $this->types->allTypes(),
             'departments' => $this->departments->allDepartments(),
             'filters' => $filters,
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

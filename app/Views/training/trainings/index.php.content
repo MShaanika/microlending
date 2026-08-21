@@ -10,44 +10,73 @@
       <?php endif; ?>
     </div>
 
-    <form method="get" action="<?= url('/training/trainings') ?>" class="row g-2 align-items-end mb-3">
-      <div class="col-md-3">
-        <label class="form-label">Status</label>
-        <select name="status" class="form-select" onchange="this.form.submit()">
-          <option value="">All</option>
-          <?php foreach (['Scheduled', 'Ongoing', 'Completed', 'Cancelled'] as $s): ?>
-            <option value="<?= e($s) ?>" <?= (($filters['status'] ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
-          <?php endforeach; ?>
-        </select>
+    <form method="get" action="<?= url('/training/trainings') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search trainings..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Training Type</label>
-        <select name="training_type_id" class="form-select" onchange="this.form.submit()">
-          <option value="">All</option>
-          <?php foreach ($types as $t): ?>
-            <option value="<?= (int) $t['id'] ?>" <?= (($filters['training_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['name']) ?></option>
+      <div class="d-flex gap-2">
+        <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
           <?php endforeach; ?>
         </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Department</label>
-        <select name="department_id" class="form-select" onchange="this.form.submit()">
-          <option value="">All</option>
-          <?php foreach ($departments as $d): ?>
-            <option value="<?= (int) $d['id'] ?>" <?= (($filters['department_id'] ?? '') == $d['id']) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
-          <?php endforeach; ?>
-        </select>
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="mdi mdi-filter-variant"></i> Filters
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:260px">
+            <div class="mb-2">
+              <label class="form-label small">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">All</option>
+                <?php foreach (['Scheduled', 'Ongoing', 'Completed', 'Cancelled'] as $s): ?>
+                  <option value="<?= e($s) ?>" <?= (($filters['status'] ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Training Type</label>
+              <select name="training_type_id" class="form-select form-select-sm">
+                <option value="">All</option>
+                <?php foreach ($types as $t): ?>
+                  <option value="<?= (int) $t['id'] ?>" <?= (($filters['training_type_id'] ?? '') == $t['id']) ? 'selected' : '' ?>><?= e($t['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Department</label>
+              <select name="department_id" class="form-select form-select-sm">
+                <option value="">All</option>
+                <?php foreach ($departments as $d): ?>
+                  <option value="<?= (int) $d['id'] ?>" <?= (($filters['department_id'] ?? '') == $d['id']) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-info w-100">Apply Filters</button>
+          </div>
+        </div>
       </div>
     </form>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Title</th><th>Type</th><th>Trainer</th><th>Dates</th><th>Department</th><th>Status</th><th></th></tr>
+          <tr>
+            <?= sortable_th('Title', 'title', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Type', 'training_type', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Trainer', 'trainer', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Dates', 'start_date', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Department', 'department', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <th class="text-end">Actions</th>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($trainings)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No trainings yet.</td></tr>
+            <tr><td colspan="7" class="text-center text-muted py-4">No trainings found.</td></tr>
           <?php endif; ?>
           <?php $statusBadge = ['Scheduled' => 'info', 'Ongoing' => 'warning', 'Completed' => 'success', 'Cancelled' => 'dark']; ?>
           <?php foreach ($trainings as $t): ?>
@@ -68,6 +97,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($trainings) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

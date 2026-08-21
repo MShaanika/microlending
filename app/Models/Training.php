@@ -17,6 +17,15 @@ class Training extends Model
         b.branch_name AS branch_name, d.department_name AS department_name
     ";
 
+    private const SORTABLE = [
+        'title' => 't.title',
+        'training_type' => 'tt.name',
+        'trainer' => 'tr.name',
+        'start_date' => 't.start_date',
+        'department' => 'd.department_name',
+        'status' => 't.status',
+    ];
+
     public function allTrainings(array $filters = []): array
     {
         $sql = "SELECT t.*, " . self::LOOKUP_COLUMNS . " FROM trainings t " . self::LOOKUP_JOINS;
@@ -42,6 +51,48 @@ class Training extends Model
         $sql .= ' ORDER BY t.start_date DESC';
 
         return $this->query($sql, $params)->fetchAll();
+    }
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(array $filters = [], string $search = '', string $sort = 'start_date', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+
+        if ($search !== '') {
+            $where[] = 't.title LIKE ?';
+            $params[] = '%' . $search . '%';
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 't.status = ?';
+            $params[] = $filters['status'];
+        }
+        if (!empty($filters['training_type_id'])) {
+            $where[] = 't.training_type_id = ?';
+            $params[] = $filters['training_type_id'];
+        }
+        if (!empty($filters['department_id'])) {
+            $where[] = 't.department_id = ?';
+            $params[] = $filters['department_id'];
+        }
+
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM trainings t " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+        $orderCol = self::SORTABLE[$sort] ?? 't.start_date';
+        $orderDir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT t.*, " . self::LOOKUP_COLUMNS . " FROM trainings t " . self::LOOKUP_JOINS . "{$whereSql}
+             ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
     }
 
     public function find(int $id): ?array
