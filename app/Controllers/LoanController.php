@@ -542,6 +542,12 @@ class LoanController extends Controller
         $ledger = LoanStatementService::ledger((int) $id);
         $company = $this->companies->primary();
 
+        // Dompdf can echo PHP deprecation notices (a version mismatch in
+        // its own type hints) directly to output while rendering. Buffer
+        // explicitly around the build call so that never reaches the
+        // response and corrupts it with "headers already sent" -- don't
+        // rely on php.ini's output_buffering already being on.
+        ob_start();
         $pdf = LoanStatementPdfExporter::build($loan, $borrower, $schedule, $ledger, $company);
 
         while (ob_get_level() > 0) {

@@ -55,12 +55,23 @@ class AfsReportController extends Controller
         $companyName = $company['company_name'] ?? 'Company';
         $safeCompanyName = preg_replace('/[^A-Za-z0-9_-]/', '_', $companyName);
 
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-
         if ($format === 'pdf') {
+            // Dompdf can echo PHP deprecation notices (a version mismatch
+            // in its own type hints, nothing this app controls) directly
+            // to output while rendering. Explicitly buffer around the
+            // build call -- rather than assuming some ambient buffer is
+            // already active from php.ini's output_buffering (confirmed
+            // 0 on the CLI SAPI; the web SAPI's setting isn't the same
+            // thing and wasn't worth trusting) -- so those notices are
+            // always captured and discarded instead of corrupting the
+            // response with "headers already sent".
+            ob_start();
             $pdf = AfsPdfExporter::build($companyName, $startDate, $endDate, $fiscalYearId);
+
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
             $filename = 'AFS_' . $safeCompanyName . '_' . $startDate . '_to_' . $endDate . '.pdf';
 
             header('Content-Type: application/pdf');
@@ -72,6 +83,10 @@ class AfsReportController extends Controller
 
         $exporter = new AfsExcelExporter($companyName, $startDate, $endDate, $fiscalYearId);
         $spreadsheet = $exporter->build();
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
 
         $filename = 'AFS_' . $safeCompanyName . '_' . $startDate . '_to_' . $endDate . '.xlsx';
 
