@@ -24,9 +24,24 @@ class PerformanceIndicatorController extends Controller
     public function index(): void
     {
         Auth::authorize('performance.view');
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'category');
+        $dir = (string) ($_GET['dir'] ?? 'asc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->indicators->paginated($search, $sort, $dir, $page, $perPage);
+
         $this->view('performance/indicators/index', [
             'title' => 'Performance Indicators',
-            'indicators' => $this->indicators->allIndicators(),
+            'indicators' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

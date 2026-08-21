@@ -15,6 +15,57 @@ class PerformanceEmployeeGoal extends Model
         t.name AS goal_type_name
     ";
 
+    private const SORTABLE = [
+        'employee' => 'e.first_name',
+        'title' => 'g.title',
+        'goal_type' => 't.name',
+        'end_date' => 'g.end_date',
+        'status' => 'g.status',
+    ];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(array $filters = [], string $search = '', string $sort = 'end_date', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+
+        if ($search !== '') {
+            $where[] = "(g.title LIKE ? OR CONCAT(e.first_name, ' ', e.last_name) LIKE ?)";
+            $like = '%' . $search . '%';
+            array_push($params, $like, $like);
+        }
+        if (!empty($filters['employee_id'])) {
+            $where[] = 'g.employee_id = ?';
+            $params[] = $filters['employee_id'];
+        }
+        if (!empty($filters['goal_type_id'])) {
+            $where[] = 'g.goal_type_id = ?';
+            $params[] = $filters['goal_type_id'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 'g.status = ?';
+            $params[] = $filters['status'];
+        }
+
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM performance_employee_goals g " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+        $orderCol = self::SORTABLE[$sort] ?? 'g.end_date';
+        $orderDir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT g.*, " . self::LOOKUP_COLUMNS . " FROM performance_employee_goals g " . self::LOOKUP_JOINS . "{$whereSql}
+             ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function allGoals(array $filters = []): array
     {
         $sql = "SELECT g.*, " . self::LOOKUP_COLUMNS . " FROM performance_employee_goals g " . self::LOOKUP_JOINS;

@@ -10,40 +10,67 @@
       <?php endif; ?>
     </div>
 
-    <form method="get" action="<?= url('/performance/employee-reviews') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
-        <select name="employee_id" class="form-select">
-          <option value="">All employees</option>
-          <?php foreach ($employees as $emp): ?>
-            <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+    <form method="get" action="<?= url('/performance/employee-reviews') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search by employee..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <div class="d-flex gap-2">
+        <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
           <?php endforeach; ?>
         </select>
-      </div>
-      <div class="col-md-3">
-        <select name="review_cycle_id" class="form-select">
-          <option value="">All cycles</option>
-          <?php foreach ($cycles as $c): ?>
-            <option value="<?= (int) $c['id'] ?>" <?= (string) $filters['review_cycle_id'] === (string) $c['id'] ? 'selected' : '' ?>><?= e($c['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All statuses</option>
-          <?php foreach ($statuses as $s): ?>
-            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-1">
-        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="mdi mdi-filter-variant"></i> Filters
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:260px">
+            <div class="mb-2">
+              <label class="form-label small">Employee</label>
+              <select name="employee_id" class="form-select form-select-sm">
+                <option value="">All employees</option>
+                <?php foreach ($employees as $emp): ?>
+                  <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Cycle</label>
+              <select name="review_cycle_id" class="form-select form-select-sm">
+                <option value="">All cycles</option>
+                <?php foreach ($cycles as $c): ?>
+                  <option value="<?= (int) $c['id'] ?>" <?= (string) $filters['review_cycle_id'] === (string) $c['id'] ? 'selected' : '' ?>><?= e($c['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">All statuses</option>
+                <?php foreach ($statuses as $s): ?>
+                  <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-info w-100">Apply Filters</button>
+          </div>
+        </div>
       </div>
     </form>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Employee</th><th>Reviewer</th><th>Cycle</th><th>Review Date</th><th>Status</th></tr>
+          <tr>
+            <?= sortable_th('Employee', 'employee', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Reviewer', 'reviewer', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Cycle', 'review_cycle', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Review Date', 'review_date', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($reviews)): ?>
@@ -62,6 +89,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($reviews) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

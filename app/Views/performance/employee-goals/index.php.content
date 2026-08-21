@@ -13,40 +13,70 @@ use App\Models\PerformanceEmployeeGoal;
       <?php endif; ?>
     </div>
 
-    <form method="get" action="<?= url('/performance/employee-goals') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
-        <select name="employee_id" class="form-select">
-          <option value="">All employees</option>
-          <?php foreach ($employees as $emp): ?>
-            <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+    <form method="get" action="<?= url('/performance/employee-goals') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search goals..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <div class="d-flex gap-2">
+        <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
           <?php endforeach; ?>
         </select>
-      </div>
-      <div class="col-md-3">
-        <select name="goal_type_id" class="form-select">
-          <option value="">All goal types</option>
-          <?php foreach ($goalTypes as $gt): ?>
-            <option value="<?= (int) $gt['id'] ?>" <?= (string) $filters['goal_type_id'] === (string) $gt['id'] ? 'selected' : '' ?>><?= e($gt['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All statuses</option>
-          <?php foreach ($statuses as $s): ?>
-            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-1">
-        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="mdi mdi-filter-variant"></i> Filters
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:260px">
+            <div class="mb-2">
+              <label class="form-label small">Employee</label>
+              <select name="employee_id" class="form-select form-select-sm">
+                <option value="">All employees</option>
+                <?php foreach ($employees as $emp): ?>
+                  <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Goal Type</label>
+              <select name="goal_type_id" class="form-select form-select-sm">
+                <option value="">All goal types</option>
+                <?php foreach ($goalTypes as $gt): ?>
+                  <option value="<?= (int) $gt['id'] ?>" <?= (string) $filters['goal_type_id'] === (string) $gt['id'] ? 'selected' : '' ?>><?= e($gt['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">All statuses</option>
+                <?php foreach ($statuses as $s): ?>
+                  <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-info w-100">Apply Filters</button>
+          </div>
+        </div>
       </div>
     </form>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Employee</th><th>Title</th><th>Goal Type</th><th>Period</th><th>Target</th><th>Progress</th><th>Status</th><?php if (Auth::can('performance.manage')): ?><th></th><?php endif; ?></tr>
+          <tr>
+            <?= sortable_th('Employee', 'employee', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Title', 'title', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Goal Type', 'goal_type', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Period', 'end_date', $_GET, $sort, $dir) ?>
+            <th>Target</th>
+            <th>Progress</th>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <?php if (Auth::can('performance.manage')): ?><th class="text-end">Actions</th><?php endif; ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($goals)): ?>
@@ -85,6 +115,11 @@ use App\Models\PerformanceEmployeeGoal;
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($goals) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

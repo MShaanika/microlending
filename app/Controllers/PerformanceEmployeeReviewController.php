@@ -41,14 +41,28 @@ class PerformanceEmployeeReviewController extends Controller
             'review_cycle_id' => $_GET['review_cycle_id'] ?? '',
             'status' => $_GET['status'] ?? '',
         ];
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'review_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->reviews->paginated($filters, $search, $sort, $dir, $page, $perPage);
 
         $this->view('performance/employee-reviews/index', [
             'title' => 'Employee Reviews',
-            'reviews' => $this->reviews->allReviews($filters),
+            'reviews' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'employees' => $this->employees->allEmployees(),
             'cycles' => $this->cycles->allCycles(),
             'statuses' => self::STATUSES,
             'filters' => $filters,
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 
