@@ -63,6 +63,49 @@ function format_balance(mixed $amount): string
     return $amount < 0 ? '(' . number_format(abs($amount), 2) . ')' : number_format($amount, 2);
 }
 
+/**
+ * Sortable <th> for a list view -- click toggles asc/desc on that column,
+ * preserving every other query param (search, filters, per-page) via
+ * $query (pass $_GET). Used across the Recruitment module's list-view
+ * standard; safe to reuse anywhere a plain server-rendered table needs
+ * click-to-sort without a JS grid library.
+ */
+function sortable_th(string $label, string $column, array $query, string $currentSort, string $currentDir): string
+{
+    $isActive = $currentSort === $column;
+    $nextDir = ($isActive && $currentDir === 'asc') ? 'desc' : 'asc';
+    $q = array_merge($query, ['sort' => $column, 'dir' => $nextDir]);
+    $icon = $isActive ? ($currentDir === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down') : 'mdi-unfold-more-horizontal';
+    return '<th><a href="?' . e(http_build_query($q)) . '" class="text-dark text-decoration-none d-inline-flex align-items-center gap-1">'
+        . e($label) . '<i class="mdi ' . $icon . ' small text-muted"></i></a></th>';
+}
+
+/**
+ * Previous/page-numbers/Next pagination, preserving every other query
+ * param via $query (pass $_GET). Returns '' when there's only one page,
+ * so callers can echo it unconditionally.
+ */
+function pagination_nav(int $page, int $totalPages, array $query): string
+{
+    if ($totalPages <= 1) {
+        return '';
+    }
+
+    $link = function (int $targetPage) use ($query): string {
+        return '?' . e(http_build_query(array_merge($query, ['page' => $targetPage])));
+    };
+
+    $html = '<nav aria-label="Page navigation"><ul class="pagination pagination-sm mb-0">';
+    $html .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '"><a class="page-link" href="' . $link(max(1, $page - 1)) . '">Previous</a></li>';
+    for ($p = 1; $p <= $totalPages; $p++) {
+        $html .= '<li class="page-item' . ($p === $page ? ' active' : '') . '"><a class="page-link" href="' . $link($p) . '">' . $p . '</a></li>';
+    }
+    $html .= '<li class="page-item' . ($page >= $totalPages ? ' disabled' : '') . '"><a class="page-link" href="' . $link(min($totalPages, $page + 1)) . '">Next</a></li>';
+    $html .= '</ul></nav>';
+
+    return $html;
+}
+
 /** Bootstrap badge color for an agent_commissions.status value -- one place so every commission view agrees. */
 function commission_status_badge(string $status): string
 {

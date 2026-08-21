@@ -37,10 +37,25 @@ class RecruitmentJobPostingController extends Controller
     {
         Auth::authorize('recruitment.view');
         $filters = ['status' => $_GET['status'] ?? null];
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'created_at');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->postings->allPostings($filters, $search, $sort, $dir, $page, $perPage);
+
         $this->view('recruitment/job-postings/index', [
             'title' => 'Job Postings',
-            'postings' => $this->postings->allPostings($filters),
+            'postings' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'filters' => $filters,
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

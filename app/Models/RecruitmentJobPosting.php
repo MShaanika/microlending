@@ -12,11 +12,22 @@ class RecruitmentJobPosting extends Model
     ";
     private const LOOKUP_COLUMNS = "t.name AS job_type_name, l.name AS location_name";
 
-    public function allPostings(array $filters = []): array
+    /** Whitelist of sortable columns -- $sort comes from the query string, never interpolate it directly. */
+    private const SORTABLE = [
+        'title' => 'j.title',
+        'job_type' => 't.name',
+        'location' => 'l.name',
+        'candidates' => 'candidate_count',
+        'published' => 'j.is_published',
+        'status' => 'j.status',
+        'created_at' => 'j.created_at',
+    ];
+
+    /**
+     * @return array{rows: array, total: int, totalPages: int}
+     */
+    public function allPostings(array $filters = [], string $search = '', string $sort = 'created_at', string $dir = 'desc', int $page = 1, int $perPage = 10): array
     {
-        $sql = "SELECT j.*, " . self::LOOKUP_COLUMNS . ",
-                (SELECT COUNT(*) FROM recruitment_candidates c WHERE c.job_id = j.id) AS candidate_count
-                FROM recruitment_job_postings j " . self::LOOKUP_JOINS;
         $where = [];
         $params = [];
 
@@ -24,13 +35,30 @@ class RecruitmentJobPosting extends Model
             $where[] = 'j.status = ?';
             $params[] = $filters['status'];
         }
-
-        if ($where) {
-            $sql .= ' WHERE ' . implode(' AND ', $where);
+        if ($search !== '') {
+            $where[] = '(j.title LIKE ? OR j.posting_code LIKE ?)';
+            $like = '%' . $search . '%';
+            array_push($params, $like, $like);
         }
-        $sql .= ' ORDER BY j.created_at DESC';
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
-        return $this->query($sql, $params)->fetchAll();
+        $total = (int) $this->scalar("SELECT COUNT(*) FROM recruitment_job_postings j" . $whereSql, $params);
+
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['created_at'];
+        $orderDir = strtolower($dir) === 'asc' ? 'ASC' : 'DESC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $sql = "SELECT j.*, " . self::LOOKUP_COLUMNS . ",
+                (SELECT COUNT(*) FROM recruitment_candidates c WHERE c.job_id = j.id) AS candidate_count
+                FROM recruitment_job_postings j " . self::LOOKUP_JOINS
+                . $whereSql . " ORDER BY $orderCol $orderDir LIMIT $perPage OFFSET $offset";
+
+        return [
+            'rows' => $this->query($sql, $params)->fetchAll(),
+            'total' => $total,
+            'totalPages' => max(1, (int) ceil($total / $perPage)),
+        ];
     }
 
     public function publishedActive(): array
