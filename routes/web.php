@@ -895,6 +895,8 @@ $router->post('/recruitment/job-postings/{id}/rounds/{roundId}/delete', [Recruit
 $router->get('/recruitment/candidates', [RecruitmentCandidateController::class, 'index']);
 $router->get('/recruitment/candidates/create', [RecruitmentCandidateController::class, 'create']);
 $router->post('/recruitment/candidates', [RecruitmentCandidateController::class, 'store']);
+$router->get('/recruitment/candidates/{id}/edit', [RecruitmentCandidateController::class, 'edit']);
+$router->post('/recruitment/candidates/{id}', [RecruitmentCandidateController::class, 'update']);
 $router->get('/recruitment/candidates/{id}', [RecruitmentCandidateController::class, 'show']);
 $router->post('/recruitment/candidates/{id}/status', [RecruitmentCandidateController::class, 'updateStatus']);
 $router->post('/recruitment/candidates/{id}/delete', [RecruitmentCandidateController::class, 'delete']);

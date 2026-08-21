@@ -10,59 +10,107 @@
       <?php endif; ?>
     </div>
 
-    <form method="get" action="<?= url('/recruitment/candidates') ?>" class="row g-2 align-items-end mb-3">
-      <div class="col-md-3">
-        <label class="form-label">Job Posting</label>
-        <select name="job_id" class="form-select" onchange="this.form.submit()">
-          <option value="">All</option>
-          <?php foreach ($postings as $p): ?>
-            <option value="<?= (int) $p['id'] ?>" <?= (($filters['job_id'] ?? '') == $p['id']) ? 'selected' : '' ?>><?= e($p['title']) ?></option>
+    <form method="get" action="<?= url('/recruitment/candidates') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search Candidates..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
           <?php endforeach; ?>
         </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Status</label>
-        <select name="status" class="form-select" onchange="this.form.submit()">
-          <option value="">All</option>
-          <?php foreach ($statuses as $s): ?>
-            <option value="<?= e($s) ?>" <?= (($filters['status'] ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Search</label>
-        <input type="text" name="search" class="form-control" value="<?= e($filters['search'] ?? '') ?>" placeholder="Name or email">
-      </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="mdi mdi-filter-outline"></i> Filters
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:260px">
+            <label class="form-label small mb-1">Job Posting</label>
+            <select name="job_id" class="form-select form-select-sm mb-2" onchange="this.form.submit()">
+              <option value="">All</option>
+              <?php foreach ($postings as $p): ?>
+                <option value="<?= (int) $p['id'] ?>" <?= (($filters['job_id'] ?? '') == $p['id']) ? 'selected' : '' ?>><?= e($p['title']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <label class="form-label small mb-1">Status</label>
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">All</option>
+              <?php foreach ($statuses as $s): ?>
+                <option value="<?= e($s) ?>" <?= (($filters['status'] ?? '') === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
       </div>
     </form>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Name</th><th>Job</th><th>Email</th><th>Source</th><th>Applied</th><th>Status</th><th></th></tr>
+          <tr>
+            <?= sortable_th('Tracking ID', 'tracking_id', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Name', 'name', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Email', 'email', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Job', 'job', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Source', 'source', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Applied', 'application_date', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <th class="text-end">Actions</th>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($candidates)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No candidates yet.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No candidates found.</td></tr>
           <?php endif; ?>
           <?php $statusBadge = ['New' => 'info', 'Screening' => 'secondary', 'Interview' => 'warning', 'Offer' => 'primary', 'Hired' => 'success', 'Rejected' => 'danger']; ?>
           <?php foreach ($candidates as $c): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/candidates/' . $c['id']) ?>"><?= e($c['first_name'] . ' ' . $c['last_name']) ?></a></td>
-              <td><?= e($c['job_title'] ?: '—') ?></td>
+              <td><a href="<?= url('/recruitment/candidates/' . $c['id']) ?>"><?= e($c['tracking_id']) ?></a></td>
+              <td><?= e($c['first_name'] . ' ' . $c['last_name']) ?></td>
               <td><?= e($c['email']) ?></td>
+              <td><?= e($c['job_title'] ?: '—') ?></td>
               <td><?= e($c['source_name'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($c['application_date']))) ?></td>
-              <td><span class="badge bg-<?= $statusBadge[$c['status']] ?? 'secondary' ?>"><?= e($c['status']) ?></span></td>
+              <td>
+                <?php if (Auth::can('recruitment.manage')): ?>
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-<?= $statusBadge[$c['status']] ?? 'secondary' ?> dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <?= e($c['status']) ?>
+                    </button>
+                    <ul class="dropdown-menu">
+                      <?php foreach ($statuses as $s): ?>
+                        <li>
+                          <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/status') ?>">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="status" value="<?= e($s) ?>">
+                            <button type="submit" class="dropdown-item<?= $s === $c['status'] ? ' active' : '' ?>"><?= e($s) ?></button>
+                          </form>
+                        </li>
+                      <?php endforeach; ?>
+                    </ul>
+                  </div>
+                <?php else: ?>
+                  <span class="badge bg-<?= $statusBadge[$c['status']] ?? 'secondary' ?>"><?= e($c['status']) ?></span>
+                <?php endif; ?>
+              </td>
               <td class="text-end">
                 <a href="<?= url('/recruitment/candidates/' . $c['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <?php if (Auth::can('recruitment.manage')): ?>
+                <a href="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($candidates) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

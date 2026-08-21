@@ -122,6 +122,73 @@ class RecruitmentCandidateController extends Controller
         $this->redirect('/recruitment/candidates/' . $id);
     }
 
+    public function edit(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+        $candidate = $this->candidates->find($id);
+        if (!$candidate) {
+            Session::flash('error', 'Candidate not found.');
+            $this->redirect('/recruitment/candidates');
+            return;
+        }
+        $this->view('recruitment/candidates/edit', [
+            'title' => 'Edit Candidate',
+            'candidate' => $candidate,
+            'postings' => $this->postings->allPostings(),
+            'sources' => $this->sources->activeSources(),
+            'old' => $candidate,
+            'errors' => [],
+        ]);
+    }
+
+    public function update(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/candidates/' . $id . '/edit');
+            return;
+        }
+
+        $candidate = $this->candidates->find($id);
+        if (!$candidate) {
+            Session::flash('error', 'Candidate not found.');
+            $this->redirect('/recruitment/candidates');
+            return;
+        }
+
+        [$data, $errors] = $this->validate($_POST);
+
+        if (!empty($errors)) {
+            $this->view('recruitment/candidates/edit', [
+                'title' => 'Edit Candidate',
+                'candidate' => $candidate,
+                'postings' => $this->postings->allPostings(),
+                'sources' => $this->sources->activeSources(),
+                'old' => $_POST,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $this->candidates->updateRecord($id, $data);
+
+        foreach (['profile' => 'profile_path', 'resume' => 'resume_path', 'cover_letter' => 'cover_letter_path'] as $field => $column) {
+            if (!empty($_FILES[$field]['name'])) {
+                $error = $this->validateFile($_FILES[$field]);
+                if ($error === null) {
+                    $path = $this->storeFile($id, $_FILES[$field]);
+                    $this->candidates->updateRecord($id, [$column => $path]);
+                }
+            }
+        }
+
+        Audit::log('Update', 'Recruitment', 'Updated candidate #' . $id . ' - ' . $data['first_name'] . ' ' . $data['last_name']);
+        Session::flash('success', 'Candidate updated.');
+        $this->redirect('/recruitment/candidates/' . $id);
+    }
+
     public function show(int $id): void
     {
         Auth::authorize('recruitment.view');
