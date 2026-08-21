@@ -341,7 +341,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Agent Commissions', 'url' => url('/commissions'), 'perm' => 'commissions.manage'],
               ['label' => 'Agent Submissions', 'url' => url('/commissions/submissions'), 'perm' => 'commissions.manage'],
             ]],
-            'My Referrals' => ['icon' => 'mdi-account-cash', 'items' => [
+            'My Referrals' => ['icon' => 'mdi-gift', 'items' => [
               ['label' => 'Dashboard', 'url' => url('/my/referrals'), 'perm' => 'referrals.submit'],
               ['label' => 'New Referral', 'url' => url('/my/referrals/create'), 'perm' => 'referrals.submit'],
               ['label' => 'Referral History', 'url' => url('/my/referrals/list'), 'perm' => 'referrals.submit'],
@@ -354,7 +354,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'My Payslips', 'url' => url('/my/payslips'), 'perm' => 'dashboard.view'],
               ['label' => 'My Attendance', 'url' => url('/my/attendance'), 'perm' => 'dashboard.view'],
             ]],
-            'Employees' => ['icon' => 'mdi-account-tie', 'items' => [
+            'Employees' => ['icon' => 'mdi-account-card-details', 'items' => [
               ['label' => 'Employees', 'url' => url('/hrm/employees'), 'perm' => 'hrm.view'],
               ['label' => 'Add Employee', 'url' => url('/hrm/employees/create'), 'perm' => 'hrm.manage'],
               ['label' => 'Departments', 'url' => url('/hrm/departments'), 'perm' => 'hrm.view'],
@@ -379,7 +379,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Staff Loans', 'url' => url('/hrm/staff-loans'), 'perm' => 'hrm.view'],
               ['label' => 'Staff Loan Types', 'url' => url('/hrm/staff-loan-types'), 'perm' => 'hrm.manage'],
             ]],
-            'Recognition & Discipline' => ['icon' => 'mdi-medal', 'items' => [
+            'Recognition & Discipline' => ['icon' => 'mdi-trophy-award', 'items' => [
               ['label' => 'Awards', 'url' => url('/hrm/awards'), 'perm' => 'hrm.view'],
               ['label' => 'Complaints', 'url' => url('/hrm/complaints'), 'perm' => 'hrm.view'],
               ['label' => 'Warnings', 'url' => url('/hrm/warnings'), 'perm' => 'hrm.view'],
