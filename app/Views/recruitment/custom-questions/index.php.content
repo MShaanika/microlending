@@ -10,6 +10,11 @@
       <?php endif; ?>
     </div>
 
+    <form method="get" action="<?= url('/recruitment/custom-questions') ?>" class="d-flex gap-2 mb-3" style="max-width:420px;">
+      <input type="text" name="q" class="form-control" placeholder="Search questions..." value="<?= e($search) ?>">
+      <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+    </form>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -17,7 +22,7 @@
         </thead>
         <tbody>
           <?php if (empty($questions)): ?>
-            <tr><td colspan="6" class="text-center text-muted py-4">No application questions yet.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">No application questions found.</td></tr>
           <?php endif; ?>
           <?php foreach ($questions as $q): ?>
             <tr>

@@ -23,9 +23,11 @@ class RecruitmentCustomQuestionController extends Controller
     public function index(): void
     {
         Auth::authorize('recruitment.view');
+        $search = trim((string) ($_GET['q'] ?? ''));
         $this->view('recruitment/custom-questions/index', [
             'title' => 'Application Questions',
-            'questions' => $this->questions->allQuestions(),
+            'questions' => $this->questions->search($search),
+            'search' => $search,
         ]);
     }
 

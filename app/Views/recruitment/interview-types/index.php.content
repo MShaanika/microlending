@@ -10,14 +10,33 @@
       <?php endif; ?>
     </div>
 
+    <form method="get" action="<?= url('/recruitment/interview-types') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search interview types..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <?php foreach ([10, 25, 50, 100] as $pp): ?>
+          <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Name</th><th>Description</th><th>Status</th><?php if (Auth::can('recruitment.manage')): ?><th></th><?php endif; ?></tr>
+          <tr>
+            <?= sortable_th('Name', 'name', $_GET, $sort, $dir) ?>
+            <th>Description</th>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <?php if (Auth::can('recruitment.manage')): ?><th class="text-end">Actions</th><?php endif; ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($types)): ?>
-            <tr><td colspan="4" class="text-center text-muted py-4">No interview types yet.</td></tr>
+            <tr><td colspan="4" class="text-center text-muted py-4">No interview types found.</td></tr>
           <?php endif; ?>
           <?php foreach ($types as $t): ?>
             <tr>
@@ -37,6 +56,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($types) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

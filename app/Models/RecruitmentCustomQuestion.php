@@ -11,6 +11,23 @@ class RecruitmentCustomQuestion extends Model
         return $this->query("SELECT * FROM recruitment_custom_questions ORDER BY sort_order, id")->fetchAll();
     }
 
+    /**
+     * Search only, no sort/pagination -- sort_order here is the actual
+     * question sequence shown on the application form, not a cosmetic
+     * default, and this list is always small enough that paging it would
+     * just add friction without any real benefit.
+     */
+    public function search(string $search = ''): array
+    {
+        if ($search === '') {
+            return $this->allQuestions();
+        }
+        return $this->query(
+            "SELECT * FROM recruitment_custom_questions WHERE question LIKE ? ORDER BY sort_order, id",
+            ['%' . $search . '%']
+        )->fetchAll();
+    }
+
     public function activeQuestions(): array
     {
         return $this->query("SELECT * FROM recruitment_custom_questions WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll();
