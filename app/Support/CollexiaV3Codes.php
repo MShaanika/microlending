@@ -87,6 +87,26 @@ class CollexiaV3Codes
     ];
 
     /**
+     * responseCode on each Download Payments response entry -- Appendix A.
+     * "0" means the collection succeeded; every other code is a rejection
+     * reason. Keys are strings since the spec defines responseCode as a
+     * string field (e.g. "0", "02"), not an integer.
+     */
+    public const RESPONSE_CODES = [
+        '0' => 'Transaction Successful',
+        '02' => 'Insufficient Funds (Rejected)',
+        '03' => 'Debits not allowed to this Account',
+        '06' => 'Account Frozen',
+        '12' => 'Account Closed',
+        '18' => 'Account holder deceased',
+        '30' => 'No authority to debit',
+        '40' => 'Item limit exceeded',
+        '44' => 'Unable to Process',
+        '48' => 'Account no fails CDV routine',
+        '56' => 'Non Fica Compliant Account',
+    ];
+
+    /**
      * Day-of-month collection day, as a plain integer per the V3 spec
      * (1-30, or 31/99 for "last day of the month") -- unlike the v1.0
      * Excel spec's zero-padded string code, V3's collectionDay is a JSON
