@@ -10,39 +10,72 @@
       <?php endif; ?>
     </div>
 
+    <form method="get" action="<?= url('/recruitment/candidate-onboardings') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search by candidate..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <?php foreach ([10, 25, 50, 100] as $pp): ?>
+          <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Candidate</th><th>Checklist</th><th>Start Date</th><th>Buddy</th><th>Status</th><?php if (Auth::can('recruitment.manage')): ?><th></th><?php endif; ?></tr>
+          <tr>
+            <?= sortable_th('Candidate', 'candidate', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Checklist', 'checklist', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Start Date', 'start_date', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Buddy', 'buddy', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <th class="text-end">Actions</th>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($onboardings)): ?>
-            <tr><td colspan="6" class="text-center text-muted py-4">No onboarding records yet.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">No onboarding records found.</td></tr>
           <?php endif; ?>
           <?php $statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed' => 'success']; ?>
           <?php foreach ($onboardings as $o): ?>
             <tr>
-              <td><?= e($o['candidate_name']) ?></td>
+              <td><a href="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>"><?= e($o['candidate_name']) ?></a></td>
               <td><?= e($o['checklist_name'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($o['start_date']))) ?></td>
               <td><?= e($o['buddy_name'] ?: '—') ?></td>
-              <td><span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?>"><?= e($o['status']) ?></span></td>
-              <?php if (Auth::can('recruitment.manage')): ?>
-              <td class="text-end">
-                <form method="post" action="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/status') ?>" class="d-inline-flex gap-1">
-                  <?= csrf_field() ?>
-                  <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
-                    <?php foreach (['Pending', 'In Progress', 'Completed'] as $s): ?>
-                      <option value="<?= e($s) ?>" <?= ($o['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </form>
+              <td>
+                <?php if (Auth::can('recruitment.manage')): ?>
+                  <form method="post" action="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/status') ?>" class="d-inline-flex gap-1">
+                    <?= csrf_field() ?>
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
+                      <?php foreach (['Pending', 'In Progress', 'Completed'] as $s): ?>
+                        <option value="<?= e($s) ?>" <?= ($o['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </form>
+                <?php else: ?>
+                  <span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?>"><?= e($o['status']) ?></span>
+                <?php endif; ?>
               </td>
-              <?php endif; ?>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <?php if (Auth::can('recruitment.manage')): ?>
+                <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <?php endif; ?>
+              </td>
             </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($onboardings) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

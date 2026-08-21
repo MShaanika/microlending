@@ -10,6 +10,7 @@ use App\Core\Session;
 use App\Models\HrmEmployee;
 use App\Models\RecruitmentCandidate;
 use App\Models\RecruitmentCandidateOnboarding;
+use App\Models\RecruitmentChecklistItem;
 use App\Models\RecruitmentOnboardingChecklist;
 
 class RecruitmentCandidateOnboardingController extends Controller
@@ -19,6 +20,7 @@ class RecruitmentCandidateOnboardingController extends Controller
     private RecruitmentCandidateOnboarding $onboardings;
     private RecruitmentCandidate $candidates;
     private RecruitmentOnboardingChecklist $checklists;
+    private RecruitmentChecklistItem $checklistItems;
     private HrmEmployee $employees;
 
     public function __construct()
@@ -26,16 +28,114 @@ class RecruitmentCandidateOnboardingController extends Controller
         $this->onboardings = new RecruitmentCandidateOnboarding();
         $this->candidates = new RecruitmentCandidate();
         $this->checklists = new RecruitmentOnboardingChecklist();
+        $this->checklistItems = new RecruitmentChecklistItem();
         $this->employees = new HrmEmployee();
     }
 
     public function index(): void
     {
         Auth::authorize('recruitment.view');
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'start_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->onboardings->paginated($search, $sort, $dir, $page, $perPage);
+
         $this->view('recruitment/candidate-onboardings/index', [
             'title' => 'Candidate Onboarding',
-            'onboardings' => $this->onboardings->allOnboardings(),
+            'onboardings' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
+    }
+
+    public function show(int $id): void
+    {
+        Auth::authorize('recruitment.view');
+        $onboarding = $this->onboardings->find($id);
+        if (!$onboarding) {
+            Session::flash('error', 'Onboarding record not found.');
+            $this->redirect('/recruitment/candidate-onboardings');
+            return;
+        }
+        $this->view('recruitment/candidate-onboardings/show', [
+            'title' => 'Onboarding: ' . $onboarding['candidate_name'],
+            'onboarding' => $onboarding,
+            'checklistItems' => $onboarding['checklist_id'] ? $this->checklistItems->forChecklist((int) $onboarding['checklist_id']) : [],
+            'statuses' => self::STATUSES,
+        ]);
+    }
+
+    public function edit(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+        $onboarding = $this->onboardings->find($id);
+        if (!$onboarding) {
+            Session::flash('error', 'Onboarding record not found.');
+            $this->redirect('/recruitment/candidate-onboardings');
+            return;
+        }
+        $this->view('recruitment/candidate-onboardings/edit', [
+            'title' => 'Edit Onboarding',
+            'onboarding' => $onboarding,
+            'checklists' => $this->checklists->activeChecklists(),
+            'employees' => $this->employees->allEmployees(['status' => 'Active']),
+            'old' => $onboarding,
+            'errors' => [],
+        ]);
+    }
+
+    public function update(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/candidate-onboardings/' . $id . '/edit');
+            return;
+        }
+
+        $onboarding = $this->onboardings->find($id);
+        if (!$onboarding) {
+            Session::flash('error', 'Onboarding record not found.');
+            $this->redirect('/recruitment/candidate-onboardings');
+            return;
+        }
+
+        $startDate = $_POST['start_date'] ?? '';
+        $errors = [];
+        if ($startDate === '') {
+            $errors['start_date'] = 'Start date is required.';
+        }
+
+        if (!empty($errors)) {
+            $this->view('recruitment/candidate-onboardings/edit', [
+                'title' => 'Edit Onboarding',
+                'onboarding' => $onboarding,
+                'checklists' => $this->checklists->activeChecklists(),
+                'employees' => $this->employees->allEmployees(['status' => 'Active']),
+                'old' => $_POST,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $this->onboardings->updateRecord($id, [
+            'checklist_id' => !empty($_POST['checklist_id']) ? (int) $_POST['checklist_id'] : null,
+            'start_date' => $startDate,
+            'buddy_employee_id' => !empty($_POST['buddy_employee_id']) ? (int) $_POST['buddy_employee_id'] : null,
+        ]);
+
+        Audit::log('Update', 'Recruitment', 'Updated onboarding #' . $id);
+        Session::flash('success', 'Onboarding updated.');
+        $this->redirect('/recruitment/candidate-onboardings/' . $id);
     }
 
     public function create(): void
@@ -86,23 +186,29 @@ class RecruitmentCandidateOnboardingController extends Controller
     {
         Auth::authorize('recruitment.manage');
 
+        // Posted from both the list's inline dropdown and the detail page --
+        // return wherever the request came from rather than always the list.
+        $backTo = str_contains($_SERVER['HTTP_REFERER'] ?? '', '/candidate-onboardings/' . $id)
+            ? '/recruitment/candidate-onboardings/' . $id
+            : '/recruitment/candidate-onboardings';
+
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
-            $this->redirect('/recruitment/candidate-onboardings');
+            $this->redirect($backTo);
             return;
         }
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
             Session::flash('error', 'Invalid status.');
-            $this->redirect('/recruitment/candidate-onboardings');
+            $this->redirect($backTo);
             return;
         }
 
         $this->onboardings->updateRecord($id, ['status' => $status]);
         Audit::log('Update', 'Recruitment', 'Updated onboarding #' . $id . ' status to ' . $status);
         Session::flash('success', 'Onboarding status updated.');
-        $this->redirect('/recruitment/candidate-onboardings');
+        $this->redirect($backTo);
     }
 
     public function delete(int $id): void

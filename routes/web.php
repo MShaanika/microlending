@@ -948,6 +948,9 @@ $router->post('/recruitment/onboarding-checklists/{id}/items/{itemId}/delete', [
 $router->get('/recruitment/candidate-onboardings', [RecruitmentCandidateOnboardingController::class, 'index']);
 $router->get('/recruitment/candidate-onboardings/create', [RecruitmentCandidateOnboardingController::class, 'create']);
 $router->post('/recruitment/candidate-onboardings', [RecruitmentCandidateOnboardingController::class, 'store']);
+$router->get('/recruitment/candidate-onboardings/{id}/edit', [RecruitmentCandidateOnboardingController::class, 'edit']);
+$router->post('/recruitment/candidate-onboardings/{id}', [RecruitmentCandidateOnboardingController::class, 'update']);
+$router->get('/recruitment/candidate-onboardings/{id}', [RecruitmentCandidateOnboardingController::class, 'show']);
 $router->post('/recruitment/candidate-onboardings/{id}/status', [RecruitmentCandidateOnboardingController::class, 'updateStatus']);
 $router->post('/recruitment/candidate-onboardings/{id}/delete', [RecruitmentCandidateOnboardingController::class, 'delete']);
 

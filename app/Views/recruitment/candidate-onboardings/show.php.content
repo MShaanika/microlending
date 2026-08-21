@@ -1,0 +1,76 @@
+<?php
+use App\Core\Auth;
+$o = $onboarding;
+$statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed' => 'success'];
+?>
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Onboarding: <?= e($o['candidate_name']) ?></h4>
+    <span class="text-muted"><?= e($o['checklist_name'] ?: 'No checklist assigned') ?></span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?> fs-6"><?= e($o['status']) ?></span>
+    <?php if (Auth::can('recruitment.manage')): ?>
+      <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+    <?php endif; ?>
+  </div>
+</div>
+
+<?php if (Auth::can('recruitment.manage')): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="post" action="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/status') ?>" class="row g-2 align-items-end">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= e($s) ?>" <?= ($o['status'] === $s) ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info">Update Status</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm table-borderless mb-0">
+      <tr><th class="text-muted" style="width:20%">Start Date</th><td><?= e(date('d M Y', strtotime($o['start_date']))) ?></td>
+          <th class="text-muted" style="width:20%">Buddy</th><td><?= e($o['buddy_name'] ?: '—') ?></td></tr>
+    </table>
+  </div>
+</div>
+
+<?php if (!empty($checklistItems)): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title mb-1">Checklist: <?= e($o['checklist_name']) ?></h5>
+    <p class="text-muted small">Reference items from the checklist template -- there's no per-item completion tracking yet, this is what should get done, not a live progress tracker.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead><tr><th>Task</th><th>Category</th><th>Assigned To</th><th>Due Day</th><th>Required</th></tr></thead>
+        <tbody>
+          <?php foreach ($checklistItems as $item): ?>
+            <tr>
+              <td><?= e($item['task_name']) ?></td>
+              <td><?= e($item['category'] ?: '—') ?></td>
+              <td><?= e($item['assigned_to_role'] ?: '—') ?></td>
+              <td><?= $item['due_day'] !== null ? 'Day ' . (int) $item['due_day'] : '—' ?></td>
+              <td><?= !empty($item['is_required']) ? '<span class="badge bg-warning text-dark">Required</span>' : '—' ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<a href="<?= url('/recruitment/candidate-onboardings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
