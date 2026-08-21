@@ -23,6 +23,7 @@ use App\Controllers\FiscalYearController;
 use App\Controllers\TrialBalanceController;
 use App\Controllers\CashBookController;
 use App\Controllers\AfsReportController;
+use App\Controllers\AfsManualFigureController;
 use App\Controllers\BadDebtProvisionController;
 use App\Controllers\LoanWriteOffController;
 use App\Controllers\LoanRecoveryController;
@@ -427,6 +428,8 @@ $router->get('/accounting/cash-book', [CashBookController::class, 'index']);
 $router->get('/accounting/cash-book/export.xlsx', [CashBookController::class, 'exportExcel']);
 $router->get('/accounting/afs-export', [AfsReportController::class, 'index']);
 $router->get('/accounting/afs-export/download', [AfsReportController::class, 'export']);
+$router->get('/accounting/afs-manual-figures/{fiscalYearId}', [AfsManualFigureController::class, 'edit']);
+$router->post('/accounting/afs-manual-figures/{fiscalYearId}', [AfsManualFigureController::class, 'update']);
 
 $router->get('/accounting/bad-debt-provisions', [BadDebtProvisionController::class, 'index']);
 $router->get('/accounting/bad-debt-provisions/preview', [BadDebtProvisionController::class, 'preview']);

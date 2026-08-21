@@ -6,6 +6,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Models\FiscalYear;
 use App\Services\AfsExcelExporter;
+use App\Services\AfsPdfExporter;
 use App\Services\AfsReportService;
 
 class AfsReportController extends Controller
@@ -33,8 +34,10 @@ class AfsReportController extends Controller
 
         $startDate = $_GET['start_date'] ?? '';
         $endDate = $_GET['end_date'] ?? '';
+        $format = ($_GET['format'] ?? '') === 'pdf' ? 'pdf' : 'xlsx';
 
-        if ($fiscalYearId = (int) ($_GET['fiscal_year_id'] ?? 0)) {
+        $fiscalYearId = (int) ($_GET['fiscal_year_id'] ?? 0) ?: null;
+        if ($fiscalYearId) {
             $fy = $this->fiscalYears->find($fiscalYearId);
             if ($fy) {
                 $startDate = $fy['start_date'];
@@ -50,15 +53,27 @@ class AfsReportController extends Controller
 
         $company = AfsReportService::companyInfo();
         $companyName = $company['company_name'] ?? 'Company';
-
-        $exporter = new AfsExcelExporter($companyName, $startDate, $endDate);
-        $spreadsheet = $exporter->build();
-
-        $filename = 'AFS_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $companyName) . '_' . $startDate . '_to_' . $endDate . '.xlsx';
+        $safeCompanyName = preg_replace('/[^A-Za-z0-9_-]/', '_', $companyName);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
+
+        if ($format === 'pdf') {
+            $pdf = AfsPdfExporter::build($companyName, $startDate, $endDate, $fiscalYearId);
+            $filename = 'AFS_' . $safeCompanyName . '_' . $startDate . '_to_' . $endDate . '.pdf';
+
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            echo $pdf;
+            exit;
+        }
+
+        $exporter = new AfsExcelExporter($companyName, $startDate, $endDate, $fiscalYearId);
+        $spreadsheet = $exporter->build();
+
+        $filename = 'AFS_' . $safeCompanyName . '_' . $startDate . '_to_' . $endDate . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $filename . '"');

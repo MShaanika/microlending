@@ -3,10 +3,20 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">Annual Financial Statements Export</h4>
-    <p class="text-muted small">Generates the Profit &amp; Loss, Balance Sheet and Cash Flow statement as a single Excel workbook, in the client's approved AFS layout, computed live from posted journal entries.</p>
+    <p class="text-muted small">
+      Generates Profit &amp; Loss, Balance Sheet, Cash Flow, Statement of Changes in Equity, Tax Computation, and
+      Notes to the AFS as a single workbook (Excel) or document (PDF), computed live from posted journal entries.
+      Tax Computation and the Notes sections also pull from the
+      <?php if (!empty($fiscalYears)): ?>
+        <a href="<?= url('/accounting/afs-manual-figures/' . (int) $fiscalYears[0]['id']) ?>">AFS Manual Figures</a>
+      <?php else: ?>
+        AFS Manual Figures
+      <?php endif; ?>
+      screen for a fiscal year (prior-year assessed loss, capital allowances, and similar judgment figures that can't be derived from the ledger) -- only available when a specific fiscal year is selected below, not a custom date range.
+    </p>
 
     <form method="get" action="<?= url('/accounting/afs-export/download') ?>" class="row g-3 mt-2">
-      <div class="col-md-4">
+      <div class="col-md-5">
         <label class="form-label">Fiscal Year</label>
         <select name="fiscal_year_id" id="fiscal_year_id" class="form-select">
           <option value="">-- Custom date range --</option>
@@ -25,9 +35,13 @@
         <label class="form-label">End Date</label>
         <input type="date" name="end_date" id="end_date" class="form-control" value="<?= e(date('Y-m-d')) ?>">
       </div>
-      <div class="col-md-2 d-flex align-items-end">
-        <button type="submit" class="btn btn-info w-100 waves-effect waves-light">
-          <i class="mdi mdi-file-excel"></i> Export
+      <div class="col-md-1"></div>
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" name="format" value="xlsx" class="btn btn-info waves-effect waves-light">
+          <i class="mdi mdi-file-excel"></i> Download Excel
+        </button>
+        <button type="submit" name="format" value="pdf" class="btn btn-outline-danger waves-effect waves-light">
+          <i class="mdi mdi-file-pdf-box"></i> Download PDF
         </button>
       </div>
     </form>

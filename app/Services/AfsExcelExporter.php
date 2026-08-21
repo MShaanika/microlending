@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AfsManualFigure;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -37,11 +38,33 @@ class AfsExcelExporter
     private float $cashOpening;
     private int $netProfitAfterTaxRow = 0;
 
-    public function __construct(string $companyName, string $startDate, string $endDate)
+    private ?int $fiscalYearId;
+    /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
+    private array $taxFigures = [];
+    /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
+    private array $policyFigures = [];
+    /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
+    private array $memberFigures = [];
+    /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
+    private array $borrowingFigures = [];
+    /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
+    private array $ownershipFigures = [];
+
+    public function __construct(string $companyName, string $startDate, string $endDate, ?int $fiscalYearId = null)
     {
         $this->companyName = $companyName;
         $this->startDate = $startDate;
         $this->endDate = $endDate;
+        $this->fiscalYearId = $fiscalYearId;
+
+        if ($fiscalYearId) {
+            $figures = new AfsManualFigure();
+            $this->taxFigures = $figures->forSection($fiscalYearId, 'tax_computation');
+            $this->policyFigures = $figures->forSection($fiscalYearId, 'notes_policies');
+            $this->memberFigures = $figures->forSection($fiscalYearId, 'notes_members_transactions');
+            $this->borrowingFigures = $figures->forSection($fiscalYearId, 'notes_borrowings');
+            $this->ownershipFigures = $figures->forSection($fiscalYearId, 'notes_ownership');
+        }
 
         $plCodes = array_merge(
             array_column(AfsReportService::profitLossLines(), 'code'),
@@ -78,6 +101,9 @@ class AfsExcelExporter
         $this->buildProfitLoss($spreadsheet->createSheet());
         $this->buildBalanceSheet($spreadsheet->createSheet());
         $this->buildCashFlow($spreadsheet->createSheet());
+        $this->buildStatementOfChangesInEquity($spreadsheet->createSheet());
+        $this->buildTaxComputation($spreadsheet->createSheet());
+        $this->buildNotesToAfs($spreadsheet->createSheet());
 
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -321,6 +347,258 @@ class AfsExcelExporter
         $row++;
 
         $this->dataFormulaRow($sheet, $row, 'Check to actual closing cash (must be zero)', "C{$closingRow}-" . $this->numericLiteral($this->cashClosing));
+    }
+
+    // ------------------------------------------------------------------
+    // Statement of Changes in Equity
+    // ------------------------------------------------------------------
+
+    private function buildStatementOfChangesInEquity($sheet): void
+    {
+        $sheet->setTitle('ChangesInEquity');
+        $this->applyColumnWidths($sheet, ['A' => 3, 'B' => 34, 'C' => 18, 'D' => 18, 'E' => 18]);
+
+        $this->title($sheet, 'STATEMENT OF CHANGES IN EQUITY', 'For the year ended ' . $this->formatDate($this->endDate));
+
+        $eq = AfsReportService::equityRollForward($this->startDate, $this->endDate);
+
+        $row = 5;
+        $sheet->setCellValue("C{$row}", 'Members Contributions');
+        $sheet->setCellValue("D{$row}", 'Accumulated Profit/(Loss)');
+        $sheet->setCellValue("E{$row}", 'Total');
+        $sheet->getStyle("C{$row}:E{$row}")->getFont()->setBold(true);
+        $row++;
+
+        $this->equityRow($sheet, $row++, 'Balance at beginning of year', $eq['contributions_opening'], $eq['profit_opening']);
+        $this->equityRow($sheet, $row++, 'Members contribution', $eq['contributions_movement'], 0.0);
+        $this->equityRow($sheet, $row++, 'Net profit/(loss) for the year', 0.0, $eq['profit_movement']);
+
+        $sheet->getStyle("B" . ($row) . ":E" . ($row))->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN);
+        $this->equityRow($sheet, $row, 'Balance at end of year', $eq['contributions_closing'], $eq['profit_closing'], true);
+    }
+
+    private function equityRow($sheet, int $row, string $label, float $contributions, float $profit, bool $bold = false): void
+    {
+        $sheet->setCellValue("B{$row}", $label);
+        $sheet->setCellValue("C{$row}", round($contributions, 2));
+        $sheet->setCellValue("D{$row}", round($profit, 2));
+        $sheet->setCellValue("E{$row}", round($contributions + $profit, 2));
+        $sheet->getStyle("C{$row}:E{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+        if ($bold) {
+            $sheet->getStyle("B{$row}:E{$row}")->getFont()->setBold(true);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Tax Computation
+    // ------------------------------------------------------------------
+
+    private function buildTaxComputation($sheet): void
+    {
+        $sheet->setTitle('TaxComputation');
+        $this->applyColumnWidths($sheet, ['A' => 3, 'B' => 42, 'C' => 16]);
+
+        $this->title($sheet, 'TAX COMPUTATION', 'For the year ended ' . $this->formatDate($this->endDate));
+
+        $num = fn (string $key): float => (float) ($this->taxFigures[$key]['value_number'] ?? 0);
+
+        $profitBeforeTax = AfsReportService::netProfitForPeriod($this->startDate, $this->endDate, true);
+        $depreciation = $this->plMovement['pl_opex_depreciation'] ?? 0.0;
+
+        $row = 5;
+        $profitRow = $row;
+        $this->dataRow($sheet, $row++, 'Profit as per Income Statement', $profitBeforeTax);
+        $deprecRow = $row;
+        $this->dataRow($sheet, $row++, 'Add: Back Depreciation', $depreciation);
+        $investRow = $row;
+        $this->dataRow($sheet, $row++, 'Investment made as per Section 17(1)(a)', -$num('section17_investment'));
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, 'Less: Capital Allowances');
+        $caStart = $row;
+        $capitalAllowanceTotal = 0.0;
+        for ($i = 1; $i <= 5; $i++) {
+            $entry = $this->taxFigures['capital_allowance_' . $i] ?? null;
+            if (!$entry || empty($entry['label']) || $entry['value_number'] === null) {
+                continue;
+            }
+            $this->dataRow($sheet, $row++, $entry['label'], -abs((float) $entry['value_number']));
+            $capitalAllowanceTotal += abs((float) $entry['value_number']);
+        }
+        $caEnd = max($caStart, $row - 1);
+        $caTotalRow = $row;
+        if ($row > $caStart) {
+            $this->totalRow($sheet, $row++, 'Total Capital Allowances', "SUM(C{$caStart}:C{$caEnd})");
+        } else {
+            $this->dataRow($sheet, $row++, 'Total Capital Allowances', 0);
+        }
+        $row++;
+
+        $recvRow = $row;
+        $this->dataRow($sheet, $row++, 'Less: Receivables & Prepayment', -$num('receivables_prepayment'));
+        $insRow = $row;
+        $this->dataRow($sheet, $row++, 'Insurances and warranty', -$num('insurance_warranty'));
+        $row++;
+
+        $taxableIncomeRow = $row;
+        $this->totalRow(
+            $sheet,
+            $row++,
+            'Estimated taxable income for the year',
+            "C{$profitRow}+C{$deprecRow}+C{$investRow}-C{$caTotalRow}+C{$recvRow}+C{$insRow}",
+            true
+        );
+
+        $priorYearRow = $row;
+        $this->dataRow($sheet, $row++, 'Estimated assessable loss or profit prior year', $num('prior_year_assessed'));
+        $currentAssessedRow = $row;
+        $this->totalRow($sheet, $row++, 'Estimated assessable loss/profit for the year', "C{$taxableIncomeRow}+C{$priorYearRow}", true);
+        $row++;
+
+        $taxRate = $num('tax_rate') ?: 32.0;
+        $this->dataFormulaRow($sheet, $row, "Tax at {$taxRate}%", "MAX(C{$currentAssessedRow},0)*{$taxRate}/100");
+    }
+
+    // ------------------------------------------------------------------
+    // Notes to the AFS
+    // ------------------------------------------------------------------
+
+    private function buildNotesToAfs($sheet): void
+    {
+        $sheet->setTitle('NotesToAFS');
+        $this->applyColumnWidths($sheet, ['A' => 3, 'B' => 34, 'C' => 16, 'D' => 16, 'E' => 16, 'F' => 16, 'G' => 16, 'H' => 16]);
+
+        $this->title($sheet, 'NOTES TO THE ANNUAL FINANCIAL STATEMENTS', 'For the year ended ' . $this->formatDate($this->endDate));
+
+        $row = 5;
+
+        $row = $this->sectionHeader($sheet, $row, '1. ACCOUNTING POLICIES');
+        $row = $this->wrappedTextRow($sheet, $row, '1.1 Property, plant and equipment', $this->policyFigures['ppe_policy']['value_text'] ?? '');
+        $row = $this->wrappedTextRow($sheet, $row, '1.2 Revenue', $this->policyFigures['revenue_policy']['value_text'] ?? '');
+        $row = $this->wrappedTextRow($sheet, $row, '1.3 Inventories', $this->policyFigures['inventory_policy']['value_text'] ?? '');
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, "2. MEMBERS' NET INVESTMENT");
+        $eq = AfsReportService::equityRollForward($this->startDate, $this->endDate);
+        $this->dataRow($sheet, $row++, 'Balance at beginning of year', $eq['contributions_opening'] + $eq['profit_opening']);
+        $this->dataRow($sheet, $row++, 'Contributions introduced', $eq['contributions_movement']);
+        $this->dataRow($sheet, $row++, 'Net profit/(loss) for the year', $eq['profit_movement']);
+        $this->totalRow($sheet, $row++, 'Balance at end of year', $this->numericLiteral($eq['contributions_closing'] + $eq['profit_closing']));
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, '3. TRANSACTIONS WITH MEMBERS');
+        $anyMember = false;
+        for ($i = 1; $i <= 5; $i++) {
+            $entry = $this->memberFigures['transaction_' . $i] ?? null;
+            if (!$entry || empty($entry['label']) || $entry['value_number'] === null) {
+                continue;
+            }
+            $this->dataRow($sheet, $row++, $entry['label'], (float) $entry['value_number']);
+            $anyMember = true;
+        }
+        if (!$anyMember) {
+            $sheet->setCellValue("B{$row}", 'None recorded.');
+            $sheet->getStyle("B{$row}")->getFont()->setItalic(true);
+            $row++;
+        }
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, '4. PROPERTY, VEHICLES, PLANT AND EQUIPMENT');
+        $fa = AfsReportService::fixedAssetNote($this->startDate, $this->endDate);
+        $headers = ['Category', 'Opening NBV', 'Additions', 'Disposals', 'Depreciation', 'Closing NBV'];
+        foreach ($headers as $i => $h) {
+            $sheet->setCellValueByColumnAndRow(2 + $i, $row, $h);
+        }
+        $sheet->getStyle("B{$row}:G{$row}")->getFont()->setBold(true);
+        $row++;
+        foreach ($fa['rows'] as $r) {
+            $sheet->setCellValue("B{$row}", $r['category']);
+            $sheet->setCellValue("C{$row}", $r['nbv_opening']);
+            $sheet->setCellValue("D{$row}", $r['additions']);
+            $sheet->setCellValue("E{$row}", -$r['disposals_cost']);
+            $sheet->setCellValue("F{$row}", -$r['depreciation']);
+            $sheet->setCellValue("G{$row}", $r['nbv_closing']);
+            $sheet->getStyle("C{$row}:G{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $row++;
+        }
+        $t = $fa['totals'];
+        $sheet->setCellValue("B{$row}", 'TOTAL');
+        $sheet->setCellValue("C{$row}", $t['nbv_opening']);
+        $sheet->setCellValue("D{$row}", $t['additions']);
+        $sheet->setCellValue("E{$row}", -$t['disposals_cost']);
+        $sheet->setCellValue("F{$row}", -$t['depreciation']);
+        $sheet->setCellValue("G{$row}", $t['nbv_closing']);
+        $sheet->getStyle("B{$row}:G{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("C{$row}:G{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+        $sheet->getStyle("B{$row}:G{$row}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN);
+        $row += 2;
+
+        $row = $this->sectionHeader($sheet, $row, '5. INTEREST BEARING BORROWINGS');
+        $anyBorrowing = false;
+        for ($i = 1; $i <= 3; $i++) {
+            $entry = $this->borrowingFigures['borrowing_' . $i] ?? null;
+            if (!$entry || empty($entry['label'])) {
+                continue;
+            }
+            $sheet->setCellValue("B{$row}", $entry['label'] . ($entry['value_text'] ? ' - ' . $entry['value_text'] : ''));
+            $sheet->setCellValue("C{$row}", $entry['value_number'] !== null ? round((float) $entry['value_number'], 2) : null);
+            $sheet->getStyle("C{$row}")->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+            $row++;
+            $anyBorrowing = true;
+        }
+        $glBorrowings = $this->bsBalance['bs_interest_bearing_borrowings'] ?? 0.0;
+        $this->totalRow($sheet, $row++, 'Interest Bearing Borrowings total (per ledger)', $this->numericLiteral($glBorrowings));
+        if (!$anyBorrowing) {
+            $sheet->setCellValue("B{$row}", 'No narrative recorded -- see AFS Manual Figures.');
+            $sheet->getStyle("B{$row}")->getFont()->setItalic(true);
+            $row++;
+        }
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, '6. MEMBERS CONTRIBUTIONS');
+        $anyOwner = false;
+        for ($i = 1; $i <= 3; $i++) {
+            $entry = $this->ownershipFigures['owner_' . $i] ?? null;
+            if (!$entry || empty($entry['label']) || $entry['value_number'] === null) {
+                continue;
+            }
+            $sheet->setCellValue("B{$row}", $entry['label']);
+            $sheet->setCellValue("C{$row}", round((float) $entry['value_number'], 2) . '%');
+            $row++;
+            $anyOwner = true;
+        }
+        if (!$anyOwner) {
+            $sheet->setCellValue("B{$row}", 'Not recorded -- see AFS Manual Figures.');
+            $sheet->getStyle("B{$row}")->getFont()->setItalic(true);
+            $row++;
+        }
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, '7. CASH GENERATED FROM OPERATIONS');
+        $profitBeforeTax = AfsReportService::netProfitForPeriod($this->startDate, $this->endDate, true);
+        $depreciation = $this->plMovement['pl_opex_depreciation'] ?? 0.0;
+        $financeCost = $this->plMovement['pl_finance_cost'] ?? 0.0;
+        $this->dataRow($sheet, $row++, 'Profit/(loss) before tax', $profitBeforeTax);
+        $this->dataRow($sheet, $row++, 'Depreciation', $depreciation);
+        $this->dataRow($sheet, $row++, 'Finance charges', $financeCost);
+        $this->totalRow($sheet, $row++, 'Cash generated from operations', $this->numericLiteral($profitBeforeTax + $depreciation + $financeCost), true);
+        $row++;
+
+        $row = $this->sectionHeader($sheet, $row, '8. CASH AND CASH EQUIVALENTS');
+        $this->totalRow($sheet, $row++, 'Cash at bank and in hand', $this->numericLiteral($this->cashClosing), true);
+    }
+
+    /** A label row followed by a wrapped-text row spanning several columns, for policy paragraphs. */
+    private function wrappedTextRow($sheet, int $row, string $label, string $text): int
+    {
+        $sheet->setCellValue("B{$row}", $label);
+        $sheet->getStyle("B{$row}")->getFont()->setBold(true);
+        $row++;
+        $sheet->mergeCells("B{$row}:H{$row}");
+        $sheet->setCellValue("B{$row}", $text);
+        $sheet->getStyle("B{$row}")->getAlignment()->setWrapText(true);
+        $sheet->getRowDimension($row)->setRowHeight(-1);
+        return $row + 1;
     }
 
     // ------------------------------------------------------------------

@@ -184,4 +184,178 @@ class AfsReportService
         $row = $stmt->fetch();
         return $row ?: null;
     }
+
+    /**
+     * Net profit after taxation for a period, as a plain number -- the
+     * same waterfall AfsExcelExporter::buildProfitLoss() renders as Excel
+     * formulas, extracted here so other sheets (Statement of Changes in
+     * Equity, Tax Computation) can share one source of truth instead of
+     * re-deriving it.
+     */
+    public static function netProfitForPeriod(string $startDate, string $endDate, bool $beforeTax = false): float
+    {
+        $codes = array_merge(
+            array_column(self::profitLossLines(), 'code'),
+            array_column(self::costOfSaleLines(), 'code'),
+            array_column(self::operatingExpenseLines(), 'code'),
+            ['pl_finance_cost', 'pl_taxation']
+        );
+        $mv = self::movementByCode(array_values(array_unique($codes)), $startDate, $endDate);
+
+        $income = array_sum(array_map(fn ($l) => $mv[$l['code']] ?? 0.0, self::profitLossLines()));
+        $cos = array_sum(array_map(fn ($l) => $mv[$l['code']] ?? 0.0, self::costOfSaleLines()));
+        $opex = array_sum(array_map(fn ($l) => $mv[$l['code']] ?? 0.0, self::operatingExpenseLines()));
+
+        $netBeforeTax = ($income - $cos) - $opex - ($mv['pl_finance_cost'] ?? 0.0);
+        if ($beforeTax) {
+            return round($netBeforeTax, 2);
+        }
+        return round($netBeforeTax - ($mv['pl_taxation'] ?? 0.0), 2);
+    }
+
+    /**
+     * Statement of Changes in Equity inputs: opening/movement/closing for
+     * Members Contributions and Accumulated Profit. Opening accumulated
+     * profit is the cumulative net profit from inception through the day
+     * before startDate (there's no separate "Retained Earnings" ledger
+     * balance maintained via a year-end closing entry in this system --
+     * see AfsExcelExporter::buildBalanceSheet()'s "Retained profit" line,
+     * which is likewise computed from the P&L rather than a GL balance).
+     */
+    public static function equityRollForward(string $startDate, string $endDate): array
+    {
+        $openingAsOf = date('Y-m-d', strtotime($startDate . ' -1 day'));
+
+        $contribOpening = self::balanceByCode(['bs_members_contributions'], $openingAsOf)['bs_members_contributions'] ?? 0.0;
+        $contribMovement = self::movementByCode(['bs_members_contributions'], $startDate, $endDate)['bs_members_contributions'] ?? 0.0;
+
+        $profitOpening = self::netProfitForPeriod('1970-01-01', $openingAsOf);
+        $profitMovement = self::netProfitForPeriod($startDate, $endDate);
+
+        return [
+            'contributions_opening' => round($contribOpening, 2),
+            'contributions_movement' => round($contribMovement, 2),
+            'contributions_closing' => round($contribOpening + $contribMovement, 2),
+            'profit_opening' => round($profitOpening, 2),
+            'profit_movement' => round($profitMovement, 2),
+            'profit_closing' => round($profitOpening + $profitMovement, 2),
+        ];
+    }
+
+    /**
+     * Property/Plant/Equipment note: opening carrying amount, at-cost and
+     * accumulated-depreciation splits, additions, disposals, the period's
+     * depreciation charge, and closing carrying amount -- one row per
+     * active asset_categories row that has at least one asset, plus a
+     * TOTAL row. Driven by asset_depreciation_schedules (posted rows only)
+     * for point-in-time opening/closing accumulated depreciation, not the
+     * live fixed_assets.accumulated_depreciation column, since that only
+     * ever holds today's value.
+     */
+    public static function fixedAssetNote(string $startDate, string $endDate): array
+    {
+        $db = Database::connection();
+
+        $categories = $db->query("SELECT id, category_name FROM asset_categories ORDER BY category_name")->fetchAll();
+
+        $rows = [];
+        $totals = ['cost_opening' => 0.0, 'accum_opening' => 0.0, 'additions' => 0.0, 'disposals_cost' => 0.0, 'depreciation' => 0.0, 'cost_closing' => 0.0, 'accum_closing' => 0.0, 'nbv_opening' => 0.0, 'nbv_closing' => 0.0];
+
+        foreach ($categories as $cat) {
+            $assetsStmt = $db->prepare(
+                "SELECT fa.id, fa.capitalized_cost, fa.purchase_date, ad.disposal_date
+                 FROM fixed_assets fa
+                 LEFT JOIN asset_disposals ad ON ad.asset_id = fa.id
+                 WHERE fa.category_id = ? AND fa.purchase_date <= ?"
+            );
+            $assetsStmt->execute([$cat['id'], $endDate]);
+            $assetRows = $assetsStmt->fetchAll();
+
+            $costOpening = 0.0;
+            $additions = 0.0;
+            $disposalsCost = 0.0;
+            $assetIds = [];
+
+            foreach ($assetRows as $a) {
+                // Fully disposed before this period started -- irrelevant to it.
+                if ($a['disposal_date'] && $a['disposal_date'] < $startDate) {
+                    continue;
+                }
+                $assetIds[] = (int) $a['id'];
+                $cost = (float) $a['capitalized_cost'];
+                if ($a['purchase_date'] < $startDate) {
+                    $costOpening += $cost;
+                } else {
+                    $additions += $cost;
+                }
+                if ($a['disposal_date'] && $a['disposal_date'] >= $startDate && $a['disposal_date'] <= $endDate) {
+                    $disposalsCost += $cost;
+                }
+            }
+
+            if (empty($assetIds)) {
+                continue;
+            }
+
+            $placeholders = implode(',', array_fill(0, count($assetIds), '?'));
+
+            $accumOpeningStmt = $db->prepare(
+                "SELECT COALESCE(SUM(depreciation_amount),0) FROM asset_depreciation_schedules
+                 WHERE asset_id IN ($placeholders) AND status = 'Posted' AND period_date < ?"
+            );
+            $accumOpeningStmt->execute(array_merge($assetIds, [$startDate]));
+            $accumOpening = (float) $accumOpeningStmt->fetchColumn();
+
+            $depreciationStmt = $db->prepare(
+                "SELECT COALESCE(SUM(depreciation_amount),0) FROM asset_depreciation_schedules
+                 WHERE asset_id IN ($placeholders) AND status = 'Posted' AND period_date BETWEEN ? AND ?"
+            );
+            $depreciationStmt->execute(array_merge($assetIds, [$startDate, $endDate]));
+            $depreciation = (float) $depreciationStmt->fetchColumn();
+
+            // Accumulated depreciation removed from the books for whatever
+            // was disposed this period: cost - NBV at disposal (algebraic
+            // split, since asset_disposals only stores the NBV, not the
+            // cost/accum-depreciation breakdown separately).
+            $disposalsAccumStmt = $db->prepare(
+                "SELECT COALESCE(SUM(fa.capitalized_cost - ad.net_book_value_at_disposal),0)
+                 FROM asset_disposals ad JOIN fixed_assets fa ON fa.id = ad.asset_id
+                 WHERE fa.category_id = ? AND ad.disposal_date BETWEEN ? AND ?"
+            );
+            $disposalsAccumStmt->execute([$cat['id'], $startDate, $endDate]);
+            $disposalsAccum = (float) $disposalsAccumStmt->fetchColumn();
+
+            $costClosing = $costOpening + $additions - $disposalsCost;
+            $accumClosing = $accumOpening + $depreciation - $disposalsAccum;
+
+            $rows[] = [
+                'category' => $cat['category_name'],
+                'cost_opening' => round($costOpening, 2),
+                'accum_opening' => round($accumOpening, 2),
+                'nbv_opening' => round($costOpening - $accumOpening, 2),
+                'additions' => round($additions, 2),
+                'disposals_cost' => round($disposalsCost, 2),
+                'depreciation' => round($depreciation, 2),
+                'cost_closing' => round($costClosing, 2),
+                'accum_closing' => round($accumClosing, 2),
+                'nbv_closing' => round($costClosing - $accumClosing, 2),
+            ];
+
+            $totals['cost_opening'] += $costOpening;
+            $totals['accum_opening'] += $accumOpening;
+            $totals['nbv_opening'] += $costOpening - $accumOpening;
+            $totals['additions'] += $additions;
+            $totals['disposals_cost'] += $disposalsCost;
+            $totals['depreciation'] += $depreciation;
+            $totals['cost_closing'] += $costClosing;
+            $totals['accum_closing'] += $accumClosing;
+            $totals['nbv_closing'] += $costClosing - $accumClosing;
+        }
+
+        foreach ($totals as $key => $value) {
+            $totals[$key] = round($value, 2);
+        }
+
+        return ['rows' => $rows, 'totals' => $totals];
+    }
 }

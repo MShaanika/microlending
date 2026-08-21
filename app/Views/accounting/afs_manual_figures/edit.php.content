@@ -1,0 +1,111 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">AFS Manual Figures - <?= e($fiscalYear['financial_year']) ?></h4>
+    <p class="text-muted small mb-3">
+      Everything here feeds the Tax Computation and Notes to the AFS sections of the
+      <a href="<?= url('/accounting/afs-export') ?>">AFS export</a>. These are judgment figures that can't be derived
+      from the books -- carried-forward tax positions, capital allowance amounts, and narrative disclosures. Blank
+      rows are simply left out of the exported document.
+    </p>
+
+    <form method="post" action="<?= url('/accounting/afs-manual-figures/' . $fiscalYear['id']) ?>">
+      <?= csrf_field() ?>
+
+      <h5 class="mt-4">Tax Computation</h5>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Investment made (Section 17(1)(a))</label>
+          <input type="number" step="0.01" name="section17_investment" class="form-control" value="<?= e($tax['section17_investment']['value_number'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Less: Receivables &amp; Prepayment</label>
+          <input type="number" step="0.01" name="receivables_prepayment" class="form-control" value="<?= e($tax['receivables_prepayment']['value_number'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Insurances and warranty</label>
+          <input type="number" step="0.01" name="insurance_warranty" class="form-control" value="<?= e($tax['insurance_warranty']['value_number'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Tax Rate (%)</label>
+          <input type="number" step="0.01" name="tax_rate" class="form-control" value="<?= e($tax['tax_rate']['value_number'] ?? 32) ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Estimated assessable loss/profit, prior year</label>
+          <input type="number" step="0.01" name="prior_year_assessed" class="form-control" value="<?= e($tax['prior_year_assessed']['value_number'] ?? '') ?>">
+          <div class="form-text">Negative for a loss carried forward (e.g. -63841), positive for a profit.</div>
+        </div>
+      </div>
+
+      <label class="form-label mt-2">Capital Allowances</label>
+      <?php for ($i = 1; $i <= $capitalAllowanceSlots; $i++): ?>
+        <div class="row mb-2">
+          <div class="col-md-6">
+            <input type="text" name="capital_allowance_label_<?= $i ?>" class="form-control" placeholder="Category, e.g. Motor Vehicles" value="<?= e($tax['capital_allowance_' . $i]['label'] ?? '') ?>">
+          </div>
+          <div class="col-md-4">
+            <input type="number" step="0.01" name="capital_allowance_amount_<?= $i ?>" class="form-control" placeholder="Allowance amount" value="<?= e($tax['capital_allowance_' . $i]['value_number'] ?? '') ?>">
+          </div>
+        </div>
+      <?php endfor; ?>
+
+      <h5 class="mt-4">Notes: Accounting Policies</h5>
+      <div class="mb-3">
+        <label class="form-label">Property, Plant and Equipment</label>
+        <textarea name="ppe_policy" class="form-control" rows="3"><?= e($policies['ppe_policy']['value_text'] ?? $defaultPolicyText['ppe_policy']) ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Revenue</label>
+        <textarea name="revenue_policy" class="form-control" rows="2"><?= e($policies['revenue_policy']['value_text'] ?? $defaultPolicyText['revenue_policy']) ?></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Inventories</label>
+        <textarea name="inventory_policy" class="form-control" rows="2"><?= e($policies['inventory_policy']['value_text'] ?? $defaultPolicyText['inventory_policy']) ?></textarea>
+      </div>
+
+      <h5 class="mt-4">Notes: Transactions With Members</h5>
+      <?php for ($i = 1; $i <= $memberSlots; $i++): ?>
+        <div class="row mb-2">
+          <div class="col-md-8">
+            <input type="text" name="member_label_<?= $i ?>" class="form-control" placeholder="Description, e.g. Salaries @ N$1,000.00 per month" value="<?= e($members['transaction_' . $i]['label'] ?? '') ?>">
+          </div>
+          <div class="col-md-4">
+            <input type="number" step="0.01" name="member_amount_<?= $i ?>" class="form-control" placeholder="Amount" value="<?= e($members['transaction_' . $i]['value_number'] ?? '') ?>">
+          </div>
+        </div>
+      <?php endfor; ?>
+
+      <h5 class="mt-4">Notes: Interest Bearing Borrowings</h5>
+      <?php for ($i = 1; $i <= $borrowingSlots; $i++): ?>
+        <div class="row mb-2">
+          <div class="col-md-3">
+            <input type="text" name="borrowing_label_<?= $i ?>" class="form-control" placeholder="Lender, e.g. FNB Namibia" value="<?= e($borrowings['borrowing_' . $i]['label'] ?? '') ?>">
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="borrowing_narrative_<?= $i ?>" class="form-control" placeholder="Narrative, e.g. bears interest at 10% per annum..." value="<?= e($borrowings['borrowing_' . $i]['value_text'] ?? '') ?>">
+          </div>
+          <div class="col-md-3">
+            <input type="number" step="0.01" name="borrowing_amount_<?= $i ?>" class="form-control" placeholder="Amount" value="<?= e($borrowings['borrowing_' . $i]['value_number'] ?? '') ?>">
+          </div>
+        </div>
+      <?php endfor; ?>
+
+      <h5 class="mt-4">Notes: Members' Ownership</h5>
+      <?php for ($i = 1; $i <= $ownershipSlots; $i++): ?>
+        <div class="row mb-2">
+          <div class="col-md-8">
+            <input type="text" name="owner_label_<?= $i ?>" class="form-control" placeholder="Member name" value="<?= e($ownership['owner_' . $i]['label'] ?? '') ?>">
+          </div>
+          <div class="col-md-4">
+            <input type="number" step="0.01" name="owner_pct_<?= $i ?>" class="form-control" placeholder="Ownership %" value="<?= e($ownership['owner_' . $i]['value_number'] ?? '') ?>">
+          </div>
+        </div>
+      <?php endfor; ?>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light mt-3"><i class="mdi mdi-content-save"></i> Save</button>
+    </form>
+  </div>
+</div>
