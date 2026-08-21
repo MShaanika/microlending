@@ -14,6 +14,9 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?> fs-6"><?= e($o['status']) ?></span>
     <span class="badge bg-<?= $approvalBadge[$o['approval_status']] ?? 'secondary' ?> fs-6"><?= e($o['approval_status']) ?></span>
+    <?php if (Auth::can('recruitment.manage') && !$o['converted_to_employee']): ?>
+      <a href="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+    <?php endif; ?>
   </div>
 </div>
 

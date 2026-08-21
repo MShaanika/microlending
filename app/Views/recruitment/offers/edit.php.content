@@ -1,0 +1,62 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Edit Offer</h4>
+    <p class="text-muted small mb-3">For <?= e($offer['candidate_name']) ?> &middot; <?= e($offer['job_title'] ?: 'Uncategorized') ?></p>
+    <form method="post" action="<?= url('/recruitment/offers/' . $offer['id']) ?>">
+      <?= csrf_field() ?>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Department</label>
+          <select name="department_id" class="form-select">
+            <option value="">— None —</option>
+            <?php foreach ($departments as $d): ?>
+              <option value="<?= (int) $d['id'] ?>" <?= (($old['department_id'] ?? '') == $d['id']) ? 'selected' : '' ?>><?= e($d['department_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Position Title</label>
+          <input type="text" name="position" class="form-control" value="<?= e($old['position'] ?? '') ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Offer Date</label>
+          <input type="date" name="offer_date" class="form-control" value="<?= e($old['offer_date'] ?? date('Y-m-d')) ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Expiration Date</label>
+          <input type="date" name="expiration_date" class="form-control" value="<?= e($old['expiration_date'] ?? '') ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Salary *</label>
+          <input type="number" step="0.01" min="0" name="salary" class="form-control <?= isset($errors['salary']) ? 'is-invalid' : '' ?>" value="<?= e($old['salary'] ?? '') ?>">
+          <?php if (isset($errors['salary'])): ?><div class="invalid-feedback"><?= e($errors['salary']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bonus</label>
+          <input type="number" step="0.01" min="0" name="bonus" class="form-control" value="<?= e($old['bonus'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Equity</label>
+          <input type="text" name="equity" class="form-control" value="<?= e($old['equity'] ?? '') ?>">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Start Date *</label>
+        <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= e($old['start_date'] ?? '') ?>">
+        <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback"><?= e($errors['start_date']) ?></div><?php endif; ?>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Benefits</label>
+        <textarea name="benefits" class="form-control" rows="3"><?= e($old['benefits'] ?? '') ?></textarea>
+      </div>
+      <button type="submit" class="btn btn-info">Save</button>
+      <a href="<?= url('/recruitment/offers/' . $offer['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

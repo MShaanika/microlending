@@ -919,6 +919,8 @@ $router->post('/recruitment/interviews/{id}/feedback/{feedbackId}/delete', [Recr
 $router->get('/recruitment/offers', [RecruitmentOfferController::class, 'index']);
 $router->get('/recruitment/offers/create', [RecruitmentOfferController::class, 'create']);
 $router->post('/recruitment/offers', [RecruitmentOfferController::class, 'store']);
+$router->get('/recruitment/offers/{id}/edit', [RecruitmentOfferController::class, 'edit']);
+$router->post('/recruitment/offers/{id}', [RecruitmentOfferController::class, 'update']);
 $router->get('/recruitment/offers/{id}', [RecruitmentOfferController::class, 'show']);
 $router->post('/recruitment/offers/{id}/status', [RecruitmentOfferController::class, 'updateStatus']);
 $router->post('/recruitment/offers/{id}/approval', [RecruitmentOfferController::class, 'updateApprovalStatus']);

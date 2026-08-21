@@ -47,9 +47,24 @@ class RecruitmentOfferController extends Controller
     public function index(): void
     {
         Auth::authorize('recruitment.view');
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'offer_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->offers->paginated($search, $sort, $dir, $page, $perPage);
+
         $this->view('recruitment/offers/index', [
             'title' => 'Offers',
-            'offers' => $this->offers->allOffers(),
+            'offers' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 
@@ -98,6 +113,91 @@ class RecruitmentOfferController extends Controller
 
         Audit::log('Create', 'Recruitment', 'Created offer #' . $id);
         Session::flash('success', 'Offer created.');
+        $this->redirect('/recruitment/offers/' . $id);
+    }
+
+    /** Candidate is fixed once an offer exists -- edit covers terms (salary, dates, benefits), not who it's for. Blocked once converted to an employee, since the offer is now historical record. */
+    public function edit(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+        $offer = $this->offers->find($id);
+        if (!$offer) {
+            Session::flash('error', 'Offer not found.');
+            $this->redirect('/recruitment/offers');
+            return;
+        }
+        if ($offer['converted_to_employee']) {
+            Session::flash('error', 'This offer has already been converted to an employee and can no longer be edited.');
+            $this->redirect('/recruitment/offers/' . $id);
+            return;
+        }
+        $this->view('recruitment/offers/edit', [
+            'title' => 'Edit Offer',
+            'offer' => $offer,
+            'departments' => $this->departments->allDepartments(),
+            'old' => $offer,
+            'errors' => [],
+        ]);
+    }
+
+    public function update(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/offers/' . $id . '/edit');
+            return;
+        }
+
+        $offer = $this->offers->find($id);
+        if (!$offer) {
+            Session::flash('error', 'Offer not found.');
+            $this->redirect('/recruitment/offers');
+            return;
+        }
+        if ($offer['converted_to_employee']) {
+            Session::flash('error', 'This offer has already been converted to an employee and can no longer be edited.');
+            $this->redirect('/recruitment/offers/' . $id);
+            return;
+        }
+
+        $salary = ($_POST['salary'] ?? '') !== '' ? (float) $_POST['salary'] : null;
+        $startDate = $_POST['start_date'] ?? '';
+        $errors = [];
+        if ($salary === null) {
+            $errors['salary'] = 'Salary is required.';
+        }
+        if ($startDate === '') {
+            $errors['start_date'] = 'Start date is required.';
+        }
+
+        $data = [
+            'department_id' => !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null,
+            'offer_date' => $_POST['offer_date'] ?: date('Y-m-d'),
+            'position' => trim($_POST['position'] ?? '') ?: $offer['position'],
+            'salary' => $salary ?? 0,
+            'bonus' => ($_POST['bonus'] ?? '') !== '' ? (float) $_POST['bonus'] : null,
+            'equity' => trim($_POST['equity'] ?? '') ?: null,
+            'benefits' => trim($_POST['benefits'] ?? '') ?: null,
+            'start_date' => $startDate ?: null,
+            'expiration_date' => !empty($_POST['expiration_date']) ? $_POST['expiration_date'] : null,
+        ];
+
+        if (!empty($errors)) {
+            $this->view('recruitment/offers/edit', [
+                'title' => 'Edit Offer',
+                'offer' => $offer,
+                'departments' => $this->departments->allDepartments(),
+                'old' => $_POST,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $this->offers->updateRecord($id, $data);
+        Audit::log('Update', 'Recruitment', 'Updated offer #' . $id);
+        Session::flash('success', 'Offer updated.');
         $this->redirect('/recruitment/offers/' . $id);
     }
 
