@@ -17,12 +17,50 @@ class RecruitmentInterview extends Model
         r.name AS round_name, t.name AS interview_type_name
     ";
 
+    private const SORTABLE = [
+        'candidate' => 'candidate_name',
+        'job' => 'j.title',
+        'round' => 'r.name',
+        'type' => 't.name',
+        'scheduled_date' => 'i.scheduled_date',
+        'status' => 'i.status',
+    ];
+
     public function allInterviews(): array
     {
         return $this->query(
             "SELECT i.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_interviews i " . self::LOOKUP_JOINS . "
              ORDER BY i.scheduled_date DESC"
         )->fetchAll();
+    }
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(string $search = '', string $sort = 'scheduled_date', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    {
+        $where = '';
+        $params = [];
+        if ($search !== '') {
+            $where = " WHERE (c.first_name LIKE ? OR c.last_name LIKE ? OR j.title LIKE ?)";
+            $like = '%' . $search . '%';
+            array_push($params, $like, $like, $like);
+        }
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM recruitment_interviews i " . self::LOOKUP_JOINS . $where,
+            $params
+        );
+
+        $orderCol = self::SORTABLE[$sort] ?? 'i.scheduled_date';
+        $orderDir = strtolower($dir) === 'asc' ? 'ASC' : 'DESC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT i.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_interviews i " . self::LOOKUP_JOINS
+                . $where . " ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
     }
 
     public function forCandidate(int $candidateId): array

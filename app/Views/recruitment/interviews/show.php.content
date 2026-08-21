@@ -11,7 +11,12 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
     <h4 class="mb-0">Interview: <?= e($i['candidate_name']) ?></h4>
     <span class="text-muted"><?= e($i['job_title'] ?: 'Uncategorized') ?> &middot; <?= e($i['round_name'] ?: 'No round') ?> &middot; <?= e($i['interview_type_name'] ?: 'No type') ?></span>
   </div>
-  <span class="badge bg-<?= $statusBadge[$i['status']] ?? 'secondary' ?> fs-6"><?= e($i['status']) ?></span>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-<?= $statusBadge[$i['status']] ?? 'secondary' ?> fs-6"><?= e($i['status']) ?></span>
+    <?php if (Auth::can('recruitment.manage')): ?>
+      <a href="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+    <?php endif; ?>
+  </div>
 </div>
 
 <div class="card mb-3">

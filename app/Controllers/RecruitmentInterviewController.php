@@ -39,9 +39,24 @@ class RecruitmentInterviewController extends Controller
     public function index(): void
     {
         Auth::authorize('recruitment.view');
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'scheduled_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->interviews->paginated($search, $sort, $dir, $page, $perPage);
+
         $this->view('recruitment/interviews/index', [
             'title' => 'Interviews',
-            'interviews' => $this->interviews->allInterviews(),
+            'interviews' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 
@@ -86,6 +101,81 @@ class RecruitmentInterviewController extends Controller
 
         Audit::log('Create', 'Recruitment', 'Scheduled interview #' . $id);
         Session::flash('success', 'Interview scheduled.');
+        $this->redirect('/recruitment/interviews/' . $id);
+    }
+
+    /** Candidate is fixed once an interview is scheduled -- edit covers logistics (round/type/date/interviewers), not who it's for. */
+    public function edit(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+        $interview = $this->interviews->find($id);
+        if (!$interview) {
+            Session::flash('error', 'Interview not found.');
+            $this->redirect('/recruitment/interviews');
+            return;
+        }
+        $this->view('recruitment/interviews/edit', [
+            'title' => 'Edit Interview',
+            'interview' => $interview,
+            'rounds' => $interview['job_id'] ? $this->rounds->forJob((int) $interview['job_id']) : [],
+            'types' => $this->types->activeTypes(),
+            'users' => $this->users->allActive(),
+            'old' => array_merge($interview, ['interviewer_ids' => json_decode((string) $interview['interviewer_ids'], true) ?: []]),
+            'errors' => [],
+        ]);
+    }
+
+    public function update(int $id): void
+    {
+        Auth::authorize('recruitment.manage');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/recruitment/interviews/' . $id . '/edit');
+            return;
+        }
+
+        $interview = $this->interviews->find($id);
+        if (!$interview) {
+            Session::flash('error', 'Interview not found.');
+            $this->redirect('/recruitment/interviews');
+            return;
+        }
+
+        $scheduledDate = $_POST['scheduled_date'] ?? '';
+        $errors = [];
+        if ($scheduledDate === '') {
+            $errors['scheduled_date'] = 'Scheduled date is required.';
+        }
+
+        $interviewerIds = array_filter(array_map('intval', $_POST['interviewer_ids'] ?? []));
+        $data = [
+            'round_id' => !empty($_POST['round_id']) ? (int) $_POST['round_id'] : null,
+            'interview_type_id' => !empty($_POST['interview_type_id']) ? (int) $_POST['interview_type_id'] : null,
+            'scheduled_date' => $scheduledDate ?: null,
+            'scheduled_time' => trim($_POST['scheduled_time'] ?? '') ?: null,
+            'duration' => !empty($_POST['duration']) ? (int) $_POST['duration'] : null,
+            'location' => trim($_POST['location'] ?? '') ?: null,
+            'meeting_link' => trim($_POST['meeting_link'] ?? '') ?: null,
+            'interviewer_ids' => json_encode(array_values($interviewerIds)),
+        ];
+
+        if (!empty($errors)) {
+            $this->view('recruitment/interviews/edit', [
+                'title' => 'Edit Interview',
+                'interview' => $interview,
+                'rounds' => $interview['job_id'] ? $this->rounds->forJob((int) $interview['job_id']) : [],
+                'types' => $this->types->activeTypes(),
+                'users' => $this->users->allActive(),
+                'old' => array_merge($_POST, ['interviewer_ids' => $interviewerIds]),
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        $this->interviews->updateRecord($id, $data);
+        Audit::log('Update', 'Recruitment', 'Updated interview #' . $id);
+        Session::flash('success', 'Interview updated.');
         $this->redirect('/recruitment/interviews/' . $id);
     }
 

@@ -908,6 +908,8 @@ $router->get('/recruitment/candidates/{id}/rounds.json', [RecruitmentInterviewCo
 $router->get('/recruitment/interviews', [RecruitmentInterviewController::class, 'index']);
 $router->get('/recruitment/interviews/create', [RecruitmentInterviewController::class, 'create']);
 $router->post('/recruitment/interviews', [RecruitmentInterviewController::class, 'store']);
+$router->get('/recruitment/interviews/{id}/edit', [RecruitmentInterviewController::class, 'edit']);
+$router->post('/recruitment/interviews/{id}', [RecruitmentInterviewController::class, 'update']);
 $router->get('/recruitment/interviews/{id}', [RecruitmentInterviewController::class, 'show']);
 $router->post('/recruitment/interviews/{id}/status', [RecruitmentInterviewController::class, 'updateStatus']);
 $router->post('/recruitment/interviews/{id}/delete', [RecruitmentInterviewController::class, 'delete']);
