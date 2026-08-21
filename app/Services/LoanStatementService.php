@@ -5,24 +5,25 @@ namespace App\Services;
 use App\Core\Database;
 
 /**
- * Builds a chronological transaction ledger for a loan -- disbursement,
- * every posted payment, every penalty charge, and every missed due date,
- * each with the running balance the borrower still owes after that event.
- * This is the actual "statement of account" content; the existing invoice
- * view only ever showed the planned schedule, not what actually happened
- * and when.
+ * Builds a chronological transaction ledger for a loan -- the disbursed
+ * principal, every charge (interest, NAMFISA levy, duty stamp, admin fee)
+ * on its own line dated to the installment it belongs to, every penalty,
+ * and every posted payment -- each with the running balance the borrower
+ * still owes after that event. This is the actual "statement of account"
+ * content; the existing invoice view only ever showed the planned
+ * schedule, not what actually happened and when.
  *
- * The opening balance is the loan's original contractual amount (principal
- * + interest + fees + NAMFISA levy + duty stamp) taken from the schedule's
- * own due columns, which never change after creation -- only penalty_due
- * and the *_paid tracking columns move later, so summing those columns is
- * immune to penalties added after disbursement.
+ * Disbursement is booked as a single Debit for the principal only --
+ * interest/levy/stamp/fees are charged separately, one set of lines per
+ * loan_schedules row (dated to that installment's due_date), so a reader
+ * can see exactly what was charged and when rather than one lump sum on
+ * day one. Only non-zero charge types produce a line.
  *
- * "Payment Missed" events are a neutral factual record ("nothing had
- * arrived against this installment by its due date"), not a business rule
- * -- unlike PenaltyAccrualService::GRACE_DAYS, there's no grace buffer
- * here, and the event isn't retracted if a late payment eventually shows
- * up (that just adds its own, separate "Payment received" line later).
+ * There is deliberately no "Payment Missed" line anymore -- those were a
+ * neutral factual record but carried no debit/credit amount, so they
+ * cluttered the ledger with rows that moved no money. Whether an
+ * installment is overdue is already visible from the amortization
+ * schedule table above this one and from comparing due_date to today.
  */
 class LoanStatementService
 {
@@ -31,11 +32,14 @@ class LoanStatementService
         $db = Database::connection();
 
         $stmt = $db->prepare(
-            "SELECT COALESCE(SUM(principal_due + interest_due + fees_due + namfisa_levy_due + duty_stamp_due), 0) AS total
+            "SELECT COALESCE(SUM(principal_due), 0) AS principal,
+                    COALESCE(SUM(principal_due + interest_due + fees_due + namfisa_levy_due + duty_stamp_due), 0) AS total
              FROM loan_schedules WHERE loan_id = ?"
         );
         $stmt->execute([$loanId]);
-        $openingBalance = round((float) $stmt->fetchColumn(), 2);
+        $totals = $stmt->fetch();
+        $principalTotal = round((float) $totals['principal'], 2);
+        $openingBalance = round((float) $totals['total'], 2);
 
         $disbursement = $db->prepare(
             "SELECT disbursement_date, amount, disbursement_method, reference_no
@@ -43,6 +47,13 @@ class LoanStatementService
         );
         $disbursement->execute([$loanId]);
         $disbursementRow = $disbursement->fetch();
+
+        $charges = $db->prepare(
+            "SELECT installment_no, due_date, interest_due, namfisa_levy_due, duty_stamp_due, fees_due
+             FROM loan_schedules WHERE loan_id = ? ORDER BY installment_no"
+        );
+        $charges->execute([$loanId]);
+        $chargeRows = $charges->fetchAll();
 
         $payments = $db->prepare(
             "SELECT p.id, p.payment_no, p.payment_date, p.payment_source, p.reference_no, p.amount_received,
@@ -64,21 +75,6 @@ class LoanStatementService
         $penalties->execute([$loanId]);
         $penaltyRows = $penalties->fetchAll();
 
-        $today = date('Y-m-d');
-        $missed = $db->prepare(
-            "SELECT ls.installment_no, ls.due_date
-             FROM loan_schedules ls
-             WHERE ls.loan_id = ? AND ls.due_date <= ?
-               AND NOT EXISTS (
-                   SELECT 1 FROM payment_allocations pa
-                   JOIN payments p ON p.id = pa.payment_id
-                   WHERE pa.schedule_id = ls.id AND p.status = 'Posted' AND p.payment_date <= ls.due_date
-               )
-             ORDER BY ls.installment_no"
-        );
-        $missed->execute([$loanId, $today]);
-        $missedRows = $missed->fetchAll();
-
         $events = [];
 
         if ($disbursementRow) {
@@ -87,20 +83,61 @@ class LoanStatementService
                 'type' => 'Disbursement',
                 'description' => 'Loan disbursed (' . $disbursementRow['disbursement_method'] . ')'
                     . ($disbursementRow['reference_no'] ? ' - Ref ' . $disbursementRow['reference_no'] : ''),
-                'debit' => $openingBalance,
+                'debit' => $principalTotal,
                 'credit' => 0.0,
             ];
         } else {
             // No disbursement record found (e.g. legacy/edge case) -- still
-            // seed the ledger with the contractual opening balance so the
-            // running total is correct from the first real transaction.
+            // seed the ledger with the principal so the running total is
+            // correct from the first real transaction.
             $events[] = [
                 'date' => null,
                 'type' => 'Opening Balance',
-                'description' => 'Opening balance',
-                'debit' => $openingBalance,
+                'description' => 'Opening principal balance',
+                'debit' => $principalTotal,
                 'credit' => 0.0,
             ];
+        }
+
+        foreach ($chargeRows as $c) {
+            $monthLabel = $c['due_date'] ? date('F', strtotime($c['due_date'])) : null;
+
+            if ((float) $c['interest_due'] > 0.009) {
+                $events[] = [
+                    'date' => $c['due_date'],
+                    'type' => 'Interest',
+                    'description' => 'Interest charged' . ($monthLabel ? ' for ' . $monthLabel : '') . ' - Installment ' . $c['installment_no'],
+                    'debit' => round((float) $c['interest_due'], 2),
+                    'credit' => 0.0,
+                ];
+            }
+            if ((float) $c['namfisa_levy_due'] > 0.009) {
+                $events[] = [
+                    'date' => $c['due_date'],
+                    'type' => 'Fee',
+                    'description' => 'NAMFISA Levy charged - Installment ' . $c['installment_no'],
+                    'debit' => round((float) $c['namfisa_levy_due'], 2),
+                    'credit' => 0.0,
+                ];
+            }
+            if ((float) $c['duty_stamp_due'] > 0.009) {
+                $events[] = [
+                    'date' => $c['due_date'],
+                    'type' => 'Fee',
+                    'description' => 'Stamp Duty charged - Installment ' . $c['installment_no'],
+                    'debit' => round((float) $c['duty_stamp_due'], 2),
+                    'credit' => 0.0,
+                ];
+            }
+            if ((float) $c['fees_due'] > 0.009) {
+                $events[] = [
+                    'date' => $c['due_date'],
+                    'type' => 'Fee',
+                    'description' => 'Admin Fee charged - Installment ' . $c['installment_no'],
+                    'debit' => round((float) $c['fees_due'], 2),
+                    'credit' => 0.0,
+                ];
+            }
         }
 
         foreach ($paymentRows as $p) {
@@ -129,23 +166,20 @@ class LoanStatementService
             ];
         }
 
-        foreach ($missedRows as $m) {
-            $events[] = [
-                'date' => $m['due_date'],
-                'type' => 'Missed',
-                'description' => 'Payment missed - Installment ' . $m['installment_no'],
-                'debit' => 0.0,
-                'credit' => 0.0,
-            ];
-        }
-
         usort($events, function ($a, $b) {
             $dateCompare = strcmp((string) $a['date'], (string) $b['date']);
             if ($dateCompare !== 0) {
                 return $dateCompare;
             }
-            // Disbursement/opening always sorts first on its date.
-            $rank = fn ($e) => $e['type'] === 'Disbursement' || $e['type'] === 'Opening Balance' ? 0 : 1;
+            // On a tied date: disbursement first, then charges (a charge
+            // must land on the balance before a same-day payment can be
+            // read as paying it off), then penalties, then payments last.
+            $rank = fn ($e) => match (true) {
+                $e['type'] === 'Disbursement' || $e['type'] === 'Opening Balance' => 0,
+                $e['type'] === 'Interest' || $e['type'] === 'Fee' => 1,
+                $e['type'] === 'Penalty' => 2,
+                default => 3,
+            };
             return $rank($a) <=> $rank($b);
         });
 
