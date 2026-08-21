@@ -16,6 +16,7 @@ use App\Controllers\AccountingAccountController;
 use App\Controllers\BankAccountController;
 use App\Controllers\JournalEntryController;
 use App\Controllers\AdjustmentJournalController;
+use App\Controllers\DisbursementAccrualRestatementController;
 use App\Controllers\RecurringJournalController;
 use App\Controllers\GeneralLedgerController;
 use App\Controllers\FiscalYearController;
@@ -385,6 +386,9 @@ $router->get('/accounting/journals/create', [JournalEntryController::class, 'cre
 $router->post('/accounting/journals', [JournalEntryController::class, 'store']);
 $router->get('/accounting/journals/{id}', [JournalEntryController::class, 'show']);
 $router->post('/accounting/journals/{id}/reverse', [JournalEntryController::class, 'reverse']);
+
+$router->get('/accounting/disbursement-restatement', [DisbursementAccrualRestatementController::class, 'preview']);
+$router->post('/accounting/disbursement-restatement/run', [DisbursementAccrualRestatementController::class, 'run']);
 
 $router->get('/accounting/adjustment-journals', [AdjustmentJournalController::class, 'index']);
 $router->get('/accounting/adjustment-journals/create', [AdjustmentJournalController::class, 'create']);

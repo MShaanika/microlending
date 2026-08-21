@@ -328,8 +328,11 @@ class Payment extends Model
 
     /**
      * Dr Bank Account (full amount received)
-     *   Cr Loans Receivable       (principal + levy + stamp collected -- what was booked at disbursement)
-     *   Cr Interest Income        (interest collected -- recognized on collection, not accrual)
+     *   Cr Loans Receivable       (principal collected -- relieves the receivable booked at disbursement)
+     *   Cr Interest Receivable    (interest collected -- relieves the receivable booked at disbursement)
+     *   Cr NAMFISA Levy Receivable / Cr Stamp Duty Receivable (levy/stamp collected -- same relief;
+     *                              the matching Payable side doesn't move here, it was already fully
+     *                              booked at disbursement and settles separately when actually remitted)
      *   Cr Admin Fee Income       (fees collected)
      *   Cr Penalty Receivable     (penalty collected -- relieves the receivable raised by the
      *                              penalty accrual run; penalty_due is only ever non-zero because
@@ -337,12 +340,12 @@ class Payment extends Model
      *   Cr Refunds Payable        (any amount left over after clearing the whole schedule --
      *                              an overpayment owed back to the borrower)
      *
-     * Plus, for the penalty portion only, a self-contained reclassification
-     * that recognizes the deferred income now that cash has actually been
-     * collected (this system does not recognize any income before it's in
-     * hand):
-     *   Dr Deferred Penalty Income
-     *     Cr Penalty Income
+     * Plus, for the interest and penalty portions, a self-contained
+     * reclassification that recognizes the deferred income now that cash
+     * has actually been collected (this system does not recognize any
+     * income before it's in hand):
+     *   Dr Deferred Interest Income / Dr Deferred Penalty Income
+     *     Cr Interest Income / Cr Penalty Income
      */
     private function postCollectionAccounting(array $loan, int $paymentId, float $amount, array $totals, float $overpayment, ?int $userId, ?int $bankAccountId = null, ?string $paymentDate = null): void
     {
@@ -368,16 +371,43 @@ class Payment extends Model
             ],
         ];
 
-        $receivablePortion = round($totals['principal'] + $totals['namfisa_levy'] + $totals['duty_stamp'], 2);
-        if ($receivablePortion > 0) {
+        if ($totals['principal'] > 0) {
             $lines[] = [
                 'account_id' => $accounts->idByCode('1020'),
                 'debit' => 0,
-                'credit' => $receivablePortion,
+                'credit' => round($totals['principal'], 2),
                 'description' => 'Loan receivable settled for ' . $loan['loan_no'],
             ];
         }
+        if ($totals['namfisa_levy'] > 0) {
+            $lines[] = [
+                'account_id' => $accounts->idByCode('1051'),
+                'debit' => 0,
+                'credit' => round($totals['namfisa_levy'], 2),
+                'description' => 'NAMFISA levy receivable settled for ' . $loan['loan_no'],
+            ];
+        }
+        if ($totals['duty_stamp'] > 0) {
+            $lines[] = [
+                'account_id' => $accounts->idByCode('1060'),
+                'debit' => 0,
+                'credit' => round($totals['duty_stamp'], 2),
+                'description' => 'Stamp duty receivable settled for ' . $loan['loan_no'],
+            ];
+        }
         if ($totals['interest'] > 0) {
+            $lines[] = [
+                'account_id' => $accounts->idByCode('1030'),
+                'debit' => 0,
+                'credit' => $totals['interest'],
+                'description' => 'Interest receivable settled for ' . $loan['loan_no'],
+            ];
+            $lines[] = [
+                'account_id' => $accounts->idByCode('2011'),
+                'debit' => $totals['interest'],
+                'credit' => 0,
+                'description' => 'Deferred interest income recognized for ' . $loan['loan_no'],
+            ];
             $lines[] = [
                 'account_id' => $accounts->idByCode('4010'),
                 'debit' => 0,

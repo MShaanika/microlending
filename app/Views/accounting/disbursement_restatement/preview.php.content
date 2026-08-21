@@ -1,0 +1,51 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Disbursement Accrual Restatement</h4>
+    <p class="text-muted small mb-3">
+      One-time catch-up for loans disbursed before the full-accrual accounting fix. Posts a single adjusting
+      journal per affected loan, moving its still-outstanding interest, NAMFISA levy, and stamp duty out of the
+      old lumped Loans Receivable balance and into their own receivable accounts (interest additionally into
+      Deferred Interest Income). Nothing already collected is touched -- it was already recognized correctly.
+      Written Off loans and loans with nothing outstanding are automatically skipped. Safe to run more than once:
+      already-restated loans are skipped on a re-run.
+    </p>
+
+    <?php if ($summary['loan_count'] === 0): ?>
+      <div class="alert alert-success mb-0">Nothing to restate -- every Active/Current loan is already on the new method, or has no outstanding interest/levy/stamp.</div>
+    <?php else: ?>
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Loans Affected</div>
+            <div class="fs-4 fw-bold"><?= (int) $summary['loan_count'] ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Interest to Move</div>
+            <div class="fs-5"><?= format_money($summary['total_interest']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">NAMFISA Levy to Move</div>
+            <div class="fs-5"><?= format_money($summary['total_levy']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Stamp Duty to Move</div>
+            <div class="fs-5"><?= format_money($summary['total_stamp']) ?></div>
+          </div>
+        </div>
+      </div>
+
+      <form method="post" action="<?= url('/accounting/disbursement-restatement/run') ?>" onsubmit="return confirm('Post <?= (int) $summary['loan_count'] ?> restatement journal(s) now? This cannot be undone from this screen.');">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-warning"><i class="mdi mdi-file-document-edit"></i> Post Restatement for <?= (int) $summary['loan_count'] ?> Loan(s)</button>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>
