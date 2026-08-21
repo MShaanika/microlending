@@ -1,0 +1,63 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+      <h4 class="card-title mb-0">Collexia API Settings</h4>
+      <?php if (!$configured): ?>
+        <span class="badge bg-secondary">Not configured</span>
+      <?php elseif (!$enabled): ?>
+        <span class="badge bg-warning">Configured, disabled</span>
+      <?php else: ?>
+        <span class="badge bg-success">Enabled</span>
+      <?php endif; ?>
+    </div>
+    <p class="text-muted small mb-3">
+      Credentials for Collexia's EnDO V3 JSON REST API (mandate placement, status, and cancellation from a debit order's detail page).
+      This is separate from the existing Excel-based batch export -- while disabled or unconfigured, that older process is unaffected and keeps working exactly as it does today.
+    </p>
+
+    <form method="post" action="<?= url('/collexia/settings') ?>">
+      <?= csrf_field() ?>
+
+      <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="collexia_enabled" name="collexia_enabled" <?= $enabled ? 'checked' : '' ?>>
+        <label class="form-check-label" for="collexia_enabled">Enable the Collexia API integration</label>
+        <div class="form-text">When off, every action that would call Collexia is blocked with a clear message -- nothing falls through to a partial or guessed call.</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Host / Base URL</label>
+          <input type="text" name="collexia_base_url" class="form-control" placeholder="https://switch.collexia.co" value="<?= e($settings['collexia_base_url'] ?? '') ?>">
+          <div class="form-text">Just the host -- the <code>/api/coswitchuadsrest/v3/...</code> path is added automatically.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Merchant GID</label>
+          <input type="text" name="collexia_merchant_gid" class="form-control" value="<?= e($settings['collexia_merchant_gid'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Remote GID</label>
+          <input type="text" name="collexia_remote_gid" class="form-control" value="<?= e($settings['collexia_remote_gid'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">System Username</label>
+          <input type="text" name="collexia_system_username" class="form-control" value="<?= e($settings['collexia_system_username'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Front-End Username</label>
+          <input type="text" name="collexia_front_end_username" class="form-control" value="<?= e($settings['collexia_front_end_username'] ?? '') ?>">
+        </div>
+      </div>
+
+      <div class="alert alert-warning small">
+        <strong>Still missing from Collexia:</strong> the Digital Signature algorithm (v3.0 added this requirement but the signing method itself was withheld pending a separate confidential document). Requests sent from here carry no signature until that's supplied -- confirm with Collexia whether that blocks going live before relying on this for real mandates.
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
+    </form>
+  </div>
+</div>

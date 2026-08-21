@@ -116,4 +116,19 @@ class CollexiaV3Codes
     {
         return ($day >= 1 && $day <= 30) ? $day : 31;
     }
+
+    /**
+     * Maps CollexiaCodes::BANKS' 2-letter v1.0 codes to this spec's
+     * numeric BanId, for debit orders originally captured against the
+     * older code set. Returns null for a bank with no v1.0 equivalent
+     * (Bank of Namibia, 69, is central-bank-only and was never a debtor
+     * bank option in the old form).
+     */
+    public static function fromLegacyBankCode(string $legacyCode): ?int
+    {
+        return [
+            'BW' => 64, 'FN' => 65, 'TB' => 66, 'AB' => 67,
+            'BB' => 68, 'LB' => 70, 'NB' => 71, 'SB' => 72,
+        ][$legacyCode] ?? null;
+    }
 }

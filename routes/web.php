@@ -118,6 +118,8 @@ use App\Controllers\DebitOrderController;
 use App\Controllers\DebitOrderCancellationController;
 use App\Controllers\DebitOrderRunController;
 use App\Controllers\DebitOrderCollectionController;
+use App\Controllers\DebitOrderCollexiaController;
+use App\Controllers\CollexiaSettingController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ExpenseCategoryController;
 use App\Controllers\AiSettingController;
@@ -187,6 +189,17 @@ $router->get('/debit-orders', [DebitOrderController::class, 'index']);
 $router->get('/loans/{id}/debit-orders/create', [DebitOrderController::class, 'create']);
 $router->post('/debit-orders', [DebitOrderController::class, 'store']);
 $router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
+
+$router->get('/collexia/settings', [CollexiaSettingController::class, 'edit']);
+$router->post('/collexia/settings', [CollexiaSettingController::class, 'update']);
+
+$router->post('/debit-orders/{id}/collexia/place', [DebitOrderCollexiaController::class, 'placeMandate']);
+$router->post('/debit-orders/{id}/collexia/final-fate', [DebitOrderCollexiaController::class, 'checkFinalFate']);
+$router->post('/debit-orders/{id}/collexia/sync', [DebitOrderCollexiaController::class, 'syncStatus']);
+$router->post('/debit-orders/{id}/collexia/cancel', [DebitOrderCollexiaController::class, 'cancelMandate']);
+$router->get('/debit-orders/{id}/collexia/installments', [DebitOrderCollexiaController::class, 'installments']);
+$router->post('/debit-orders/{id}/collexia/installments/update', [DebitOrderCollexiaController::class, 'updateInstallment']);
+
 $router->get('/debit-orders/{id}/cancel', [DebitOrderCancellationController::class, 'create']);
 $router->get('/debit-order-cancellations', [DebitOrderCancellationController::class, 'index']);
 $router->post('/debit-order-cancellations', [DebitOrderCancellationController::class, 'store']);

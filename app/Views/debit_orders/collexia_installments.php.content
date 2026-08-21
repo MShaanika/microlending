@@ -1,0 +1,63 @@
+<?php use App\Support\CollexiaV3Codes; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+      <h4 class="card-title mb-0">Reschedule Installments</h4>
+      <a href="<?= url('/debit-orders/' . $debitOrder['id']) ?>" class="btn btn-outline-secondary btn-sm">Back to Debit Order</a>
+    </div>
+    <p class="text-muted small mb-3">
+      Mandate <?= e($debitOrder['collexia_api_contract_reference']) ?> &bull; <?= e($debitOrder['debit_order_no']) ?>
+    </p>
+
+    <div class="table-responsive mb-4">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Installment No</th><th>Scheduled Date</th><th>Amount</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($installments)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-4">No installments returned by Collexia for this mandate.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($installments as $i): ?>
+            <tr>
+              <td><?= (int) ($i['installmentNo'] ?? $i['noOfInstallment'] ?? 0) ?></td>
+              <td><?= e($i['scheduledDate'] ?? '—') ?></td>
+              <td><?= isset($i['installmentAmount']) ? format_money((float) $i['installmentAmount']) : '—' ?></td>
+              <td><?= e(CollexiaV3Codes::INSTALLMENT_STATUSES[(int) ($i['status'] ?? 0)] ?? 'Unknown') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php if (!empty($installments)): ?>
+      <h5>Submit a Reschedule</h5>
+      <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/installments/update') ?>" class="row g-2 align-items-end">
+        <?= csrf_field() ?>
+        <div class="col-md-4">
+          <label class="form-label">Installment</label>
+          <select name="int_id" class="form-select" required>
+            <?php foreach ($installments as $i): ?>
+              <option value="<?= (int) ($i['intId'] ?? 0) ?>">
+                #<?= (int) ($i['installmentNo'] ?? $i['noOfInstallment'] ?? 0) ?> -- <?= e($i['scheduledDate'] ?? '') ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">New Scheduled Date</label>
+          <input type="date" name="scheduled_date" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">New Amount</label>
+          <input type="number" step="0.01" min="0.01" name="installment_amount" class="form-control" required>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-info w-100">Submit</button>
+        </div>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\CollexiaSetting;
+
 /**
  * Collexia EnDO JSON REST API client, per "CO JSON REST API Interface
  * Specification V3.0" (15 April 2025). Covers all 8 endpoints under
@@ -23,16 +25,30 @@ namespace App\Services;
  * confidential nature." Until Collexia supplies that document, requests
  * sent by this client carry no signature. digitalSignature() is a named
  * stub marking exactly where that needs to be wired in.
+ *
+ * Credentials and the enabled/disabled toggle are read from CollexiaSetting
+ * (DB-backed, editable at /collexia/settings), not a config file -- so
+ * staff can enter Collexia's values through the interface once supplied,
+ * without a code deploy.
  */
 class CollexiaEndoApiClient
 {
     private const BASE_PATH = '/api/coswitchuadsrest/v3';
 
     private array $config;
+    private bool $enabled;
 
     public function __construct()
     {
-        $this->config = self::loadConfig();
+        $settings = new CollexiaSetting();
+        $this->enabled = $settings->isEnabled();
+        $this->config = [
+            'base_url' => $settings->get('collexia_base_url'),
+            'merchant_gid' => $settings->get('collexia_merchant_gid') ?: null,
+            'remote_gid' => $settings->get('collexia_remote_gid') ?: null,
+            'system_username' => $settings->get('collexia_system_username'),
+            'front_end_username' => $settings->get('collexia_front_end_username'),
+        ];
     }
 
     /** 6.1 Request for Mandate Load -- POST /mandates/load. $mandate keys per spec 9.3. */
@@ -149,9 +165,13 @@ class CollexiaEndoApiClient
 
     private function post(string $path, array $body): array
     {
+        if (!$this->enabled) {
+            throw new \RuntimeException('The Collexia API integration is disabled (System Setup > Collexia Settings).');
+        }
+
         $baseUrl = rtrim((string) ($this->config['base_url'] ?? ''), '/');
         if ($baseUrl === '') {
-            throw new \RuntimeException('Collexia API base_url is not configured (config/services.php: collexia.base_url).');
+            throw new \RuntimeException('Collexia API is not configured yet -- fill in the host and credentials under System Setup > Collexia Settings.');
         }
 
         $ch = curl_init($baseUrl . self::BASE_PATH . $path);
@@ -188,11 +208,5 @@ class CollexiaEndoApiClient
         }
 
         return $data;
-    }
-
-    private static function loadConfig(): array
-    {
-        $config = require ROOT_PATH . '/config/services.php';
-        return $config['collexia'] ?? [];
     }
 }

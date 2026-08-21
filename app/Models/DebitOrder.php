@@ -114,6 +114,21 @@ class DebitOrder extends Model
         return $this->update('debit_orders', ['collexia_status' => 'Registered'], 'id', $id);
     }
 
+    /**
+     * Records the outcome of an EnDO V3 API call (placeMandate/checkFinalFate/
+     * syncStatus/cancelMandate) -- separate from collexia_status/
+     * merchant_system_contract_no, which belong to the older Excel batch flow.
+     */
+    public function updateCollexiaApiState(int $id, array $data): bool
+    {
+        return $this->update('debit_orders', $data, 'id', $id);
+    }
+
+    public function findByCollexiaApiContractReference(string $contractReference): ?array
+    {
+        return $this->one("SELECT * FROM debit_orders WHERE collexia_api_contract_reference = ?", [$contractReference]);
+    }
+
     public function create(array $data): int
     {
         return $this->insert('debit_orders', $data);

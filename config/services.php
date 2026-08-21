@@ -15,17 +15,7 @@ return [
         'secret_key' => '1x0000000000000000000000000000000AA',
     ],
 
-    // Collexia JSON REST API (EnDO), "CO JSON REST API Interface
-    // Specification V3.0". base_url is left empty on purpose so an
-    // unconfigured environment fails loudly (RuntimeException) instead of
-    // silently calling a guessed host. Production overrides all of these
-    // with the real values supplied by Collexia once the API acceptance
-    // with Collexia/Creditinfo's legal review has concluded.
-    'collexia' => [
-        'base_url' => '',
-        'merchant_gid' => null,
-        'remote_gid' => null,
-        'system_username' => '',
-        'front_end_username' => '',
-    ],
+    // Collexia's EnDO V3 REST API credentials moved to the DB-backed
+    // CollexiaSetting model (editable at /collexia/settings) so staff can
+    // enter them through the interface -- see CollexiaEndoApiClient.
 ];

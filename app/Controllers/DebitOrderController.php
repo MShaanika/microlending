@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\Borrower;
+use App\Models\CollexiaSetting;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCancellation;
 use App\Models\Loan;
@@ -25,6 +26,7 @@ class DebitOrderController extends Controller
     private DebitOrderCancellation $cancellations;
     private Loan $loans;
     private Borrower $borrowers;
+    private CollexiaSetting $collexiaSettings;
 
     public function __construct()
     {
@@ -32,6 +34,7 @@ class DebitOrderController extends Controller
         $this->cancellations = new DebitOrderCancellation();
         $this->loans = new Loan();
         $this->borrowers = new Borrower();
+        $this->collexiaSettings = new CollexiaSetting();
     }
 
     /** Hard scope -- null means unrestricted (Super Admin only). */
@@ -244,6 +247,8 @@ class DebitOrderController extends Controller
             'title' => 'Debit Order ' . $debitOrder['debit_order_no'],
             'debitOrder' => $debitOrder,
             'pendingCancellation' => $this->cancellations->findPendingForDebitOrder((int) $id),
+            'collexiaEnabled' => $this->collexiaSettings->isEnabled(),
+            'collexiaConfigured' => $this->collexiaSettings->isConfigured(),
         ]);
     }
 }
