@@ -411,8 +411,12 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             'Recruitment' => ['icon' => 'mdi-account-search', 'items' => [
               ['label' => 'Job Postings', 'url' => url('/recruitment/job-postings'), 'perm' => 'recruitment.view'],
               ['label' => 'Candidates', 'url' => url('/recruitment/candidates'), 'perm' => 'recruitment.view'],
+              ['label' => 'Interview Rounds', 'url' => url('/recruitment/interview-rounds'), 'perm' => 'recruitment.view'],
               ['label' => 'Interviews', 'url' => url('/recruitment/interviews'), 'perm' => 'recruitment.view'],
+              ['label' => 'Interview Feedback', 'url' => url('/recruitment/interview-feedback'), 'perm' => 'recruitment.view'],
+              ['label' => 'Candidate Assessments', 'url' => url('/recruitment/candidate-assessments'), 'perm' => 'recruitment.view'],
               ['label' => 'Offers', 'url' => url('/recruitment/offers'), 'perm' => 'recruitment.view'],
+              ['label' => 'Checklist Items', 'url' => url('/recruitment/checklist-items'), 'perm' => 'recruitment.view'],
               ['label' => 'Onboarding', 'url' => url('/recruitment/candidate-onboardings'), 'perm' => 'recruitment.view'],
               ['label' => 'Onboarding Checklists', 'url' => url('/recruitment/onboarding-checklists'), 'perm' => 'recruitment.manage'],
               ['label' => 'Offer Letter Templates', 'url' => url('/recruitment/offer-letter-templates'), 'perm' => 'recruitment.manage'],
@@ -421,6 +425,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Candidate Sources', 'url' => url('/recruitment/candidate-sources'), 'perm' => 'recruitment.manage'],
               ['label' => 'Interview Types', 'url' => url('/recruitment/interview-types'), 'perm' => 'recruitment.manage'],
               ['label' => 'Application Questions', 'url' => url('/recruitment/custom-questions'), 'perm' => 'recruitment.manage'],
+              ['label' => 'System Setup', 'url' => url('/recruitment/settings'), 'perm' => 'recruitment.manage'],
             ]],
             'Training' => ['icon' => 'mdi-school', 'items' => [
               ['label' => 'Trainings', 'url' => url('/training/trainings'), 'perm' => 'training.view'],

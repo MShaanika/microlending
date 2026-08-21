@@ -89,6 +89,11 @@ use App\Controllers\RecruitmentOfferController;
 use App\Controllers\RecruitmentOfferLetterTemplateController;
 use App\Controllers\RecruitmentOnboardingChecklistController;
 use App\Controllers\RecruitmentCandidateOnboardingController;
+use App\Controllers\RecruitmentInterviewRoundController;
+use App\Controllers\RecruitmentInterviewFeedbackController;
+use App\Controllers\RecruitmentCandidateAssessmentController;
+use App\Controllers\RecruitmentChecklistItemController;
+use App\Controllers\RecruitmentSettingController;
 use App\Controllers\RecruitmentFrontendController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
@@ -892,6 +897,8 @@ $router->post('/recruitment/job-postings/{id}/delete', [RecruitmentJobPostingCon
 $router->post('/recruitment/job-postings/{id}/rounds', [RecruitmentJobPostingController::class, 'addRound']);
 $router->post('/recruitment/job-postings/{id}/rounds/{roundId}/delete', [RecruitmentJobPostingController::class, 'deleteRound']);
 
+$router->get('/recruitment/interview-rounds', [RecruitmentInterviewRoundController::class, 'index']);
+
 $router->get('/recruitment/candidates', [RecruitmentCandidateController::class, 'index']);
 $router->get('/recruitment/candidates/create', [RecruitmentCandidateController::class, 'create']);
 $router->post('/recruitment/candidates', [RecruitmentCandidateController::class, 'store']);
@@ -905,6 +912,8 @@ $router->post('/recruitment/candidates/{id}/assessments/{assessmentId}/delete', 
 $router->get('/recruitment/candidates/{id}/files/{field}', [RecruitmentCandidateController::class, 'downloadFile']);
 $router->get('/recruitment/candidates/{id}/rounds.json', [RecruitmentInterviewController::class, 'getRoundsForCandidate']);
 
+$router->get('/recruitment/candidate-assessments', [RecruitmentCandidateAssessmentController::class, 'index']);
+
 $router->get('/recruitment/interviews', [RecruitmentInterviewController::class, 'index']);
 $router->get('/recruitment/interviews/create', [RecruitmentInterviewController::class, 'create']);
 $router->post('/recruitment/interviews', [RecruitmentInterviewController::class, 'store']);
@@ -915,6 +924,8 @@ $router->post('/recruitment/interviews/{id}/status', [RecruitmentInterviewContro
 $router->post('/recruitment/interviews/{id}/delete', [RecruitmentInterviewController::class, 'delete']);
 $router->post('/recruitment/interviews/{id}/feedback', [RecruitmentInterviewController::class, 'addFeedback']);
 $router->post('/recruitment/interviews/{id}/feedback/{feedbackId}/delete', [RecruitmentInterviewController::class, 'deleteFeedback']);
+
+$router->get('/recruitment/interview-feedback', [RecruitmentInterviewFeedbackController::class, 'index']);
 
 $router->get('/recruitment/offers', [RecruitmentOfferController::class, 'index']);
 $router->get('/recruitment/offers/create', [RecruitmentOfferController::class, 'create']);
@@ -945,6 +956,8 @@ $router->post('/recruitment/onboarding-checklists/{id}/delete', [RecruitmentOnbo
 $router->post('/recruitment/onboarding-checklists/{id}/items', [RecruitmentOnboardingChecklistController::class, 'addItem']);
 $router->post('/recruitment/onboarding-checklists/{id}/items/{itemId}/delete', [RecruitmentOnboardingChecklistController::class, 'deleteItem']);
 
+$router->get('/recruitment/checklist-items', [RecruitmentChecklistItemController::class, 'index']);
+
 $router->get('/recruitment/candidate-onboardings', [RecruitmentCandidateOnboardingController::class, 'index']);
 $router->get('/recruitment/candidate-onboardings/create', [RecruitmentCandidateOnboardingController::class, 'create']);
 $router->post('/recruitment/candidate-onboardings', [RecruitmentCandidateOnboardingController::class, 'store']);
@@ -953,6 +966,9 @@ $router->post('/recruitment/candidate-onboardings/{id}', [RecruitmentCandidateOn
 $router->get('/recruitment/candidate-onboardings/{id}', [RecruitmentCandidateOnboardingController::class, 'show']);
 $router->post('/recruitment/candidate-onboardings/{id}/status', [RecruitmentCandidateOnboardingController::class, 'updateStatus']);
 $router->post('/recruitment/candidate-onboardings/{id}/delete', [RecruitmentCandidateOnboardingController::class, 'delete']);
+
+$router->get('/recruitment/settings', [RecruitmentSettingController::class, 'edit']);
+$router->post('/recruitment/settings', [RecruitmentSettingController::class, 'update']);
 
 // Recruitment: public careers portal (unauthenticated)
 $router->get('/careers', [RecruitmentFrontendController::class, 'index']);

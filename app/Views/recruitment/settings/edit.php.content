@@ -1,0 +1,39 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Recruitment System Setup</h4>
+    <p class="text-muted small mb-3">Content shown on the public careers pages (<a href="<?= url('/careers') ?>" target="_blank">/careers</a>).</p>
+
+    <form method="post" action="<?= url('/recruitment/settings') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">About the Company</label>
+        <textarea name="about_company" class="form-control" rows="4" placeholder="Shown at the top of the careers listing page."><?= e($settings['about_company'] ?? '') ?></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Application Tips</label>
+        <textarea name="application_tips" class="form-control" rows="4" placeholder="Shown next to the application form on each job posting."><?= e($settings['application_tips'] ?? '') ?></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">What Happens Next</label>
+        <textarea name="what_happens_next" class="form-control" rows="4" placeholder="Shown on the confirmation page after a candidate submits an application."><?= e($settings['what_happens_next'] ?? '') ?></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Need Help</label>
+        <textarea name="need_help" class="form-control" rows="3" placeholder="Shown on the application-tracking page, e.g. contact details for support."><?= e($settings['need_help'] ?? '') ?></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Tracking FAQ</label>
+        <textarea name="tracking_faq" class="form-control" rows="4" placeholder="Shown on the application-tracking page, e.g. answers to common questions."><?= e($settings['tracking_faq'] ?? '') ?></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+    </form>
+  </div>
+</div>

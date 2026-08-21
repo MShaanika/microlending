@@ -37,6 +37,14 @@ $j = $job;
     </div>
 
     <div class="col-md-5">
+      <?php if (!empty($settings['application_tips'])): ?>
+        <div class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title"><i class="mdi mdi-lightbulb-on-outline"></i> Application Tips</h6>
+            <p class="mb-0 small"><?= nl2br(e($settings['application_tips'])) ?></p>
+          </div>
+        </div>
+      <?php endif; ?>
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">Apply for this Position</h5>

@@ -25,6 +25,15 @@ $faviconUrl = !empty($company['favicon']) ? asset($company['favicon']) : asset('
           <a href="<?= url('/careers') ?>" class="btn btn-outline-secondary">Back to Careers</a>
         </div>
       </div>
+
+      <?php if (!empty($settings['what_happens_next'])): ?>
+        <div class="card mt-3">
+          <div class="card-body">
+            <h6 class="card-title">What Happens Next</h6>
+            <p class="mb-0 small text-start"><?= nl2br(e($settings['what_happens_next'])) ?></p>
+          </div>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>

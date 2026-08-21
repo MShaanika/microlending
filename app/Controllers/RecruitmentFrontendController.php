@@ -70,6 +70,7 @@ class RecruitmentFrontendController extends Controller
             'job' => $job,
             'questions' => $this->questions->findMany($questionIds),
             'company' => $this->company->primary() ?: [],
+            'settings' => $this->settings->allSettings(),
             'old' => [],
             'errors' => [],
         ]);
@@ -89,6 +90,7 @@ class RecruitmentFrontendController extends Controller
                 'job' => $job,
                 'questions' => $this->questions->findMany(json_decode($job['custom_questions'] ?? '[]', true) ?: []),
                 'company' => $this->company->primary() ?: [],
+                'settings' => $this->settings->allSettings(),
                 'old' => $_POST,
                 'errors' => ['_general' => 'Security token expired. Please try again.'],
             ]);
@@ -107,6 +109,7 @@ class RecruitmentFrontendController extends Controller
                 'job' => $job,
                 'questions' => $this->questions->findMany($questionIds),
                 'company' => $this->company->primary() ?: [],
+                'settings' => $this->settings->allSettings(),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);
@@ -136,6 +139,7 @@ class RecruitmentFrontendController extends Controller
         $this->view('recruitment/public/apply_success', [
             'trackingId' => $data['tracking_id'],
             'company' => $this->company->primary() ?: [],
+            'settings' => $this->settings->allSettings(),
         ]);
     }
 
@@ -150,6 +154,7 @@ class RecruitmentFrontendController extends Controller
 
         $this->view('recruitment/public/track', [
             'company' => $this->company->primary() ?: [],
+            'settings' => $this->settings->allSettings(),
             'result' => $candidate,
             'pendingOffers' => $offers,
             'trackingId' => $trackingId,

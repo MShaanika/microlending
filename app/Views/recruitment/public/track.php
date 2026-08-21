@@ -52,6 +52,24 @@ $statusBadge = ['New' => 'info', 'Screening' => 'secondary', 'Interview' => 'war
       <div class="text-center mt-3">
         <a href="<?= url('/careers') ?>" class="btn btn-outline-secondary btn-sm">Back to Careers</a>
       </div>
+
+      <?php if (!empty($settings['tracking_faq'])): ?>
+        <div class="card mt-3">
+          <div class="card-body">
+            <h6 class="card-title">Frequently Asked Questions</h6>
+            <p class="mb-0 small"><?= nl2br(e($settings['tracking_faq'])) ?></p>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($settings['need_help'])): ?>
+        <div class="card mt-3">
+          <div class="card-body">
+            <h6 class="card-title">Need Help?</h6>
+            <p class="mb-0 small"><?= nl2br(e($settings['need_help'])) ?></p>
+          </div>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>

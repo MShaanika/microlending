@@ -1,0 +1,66 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Checklist Items</h4>
+    </div>
+    <p class="text-muted small">Items are added and removed from each onboarding checklist's detail page. This is a searchable overview across all checklists.</p>
+
+    <form method="get" action="<?= url('/recruitment/checklist-items') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search by task or checklist..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <?php foreach ([10, 25, 50, 100] as $pp): ?>
+          <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <?= sortable_th('Checklist', 'checklist', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Task', 'task', $_GET, $sort, $dir) ?>
+            <th>Required</th>
+            <th>Category</th>
+            <th>Assigned To Role</th>
+            <?= sortable_th('Due Day', 'due_day', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <th class="text-end">Checklist</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($items)): ?>
+            <tr><td colspan="8" class="text-center text-muted py-4">No checklist items found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($items as $i): ?>
+            <tr>
+              <td><?= e($i['checklist_name'] ?: '—') ?></td>
+              <td><?= e($i['task_name']) ?></td>
+              <td><?= $i['is_required'] ? '<span class="badge bg-danger">Required</span>' : '<span class="badge bg-secondary">Optional</span>' ?></td>
+              <td><?= e($i['category'] ?: '—') ?></td>
+              <td><?= e($i['assigned_to_role'] ?: '—') ?></td>
+              <td><?= $i['due_day'] !== null ? 'Day ' . (int) $i['due_day'] : '—' ?></td>
+              <td><span class="badge bg-<?= $i['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($i['status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/onboarding-checklists/' . $i['checklist_id']) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($items) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>

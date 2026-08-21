@@ -1,0 +1,63 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Interview Feedback</h4>
+    </div>
+    <p class="text-muted small">Feedback is recorded and removed from each interview's detail page. This is a searchable overview across all interviews.</p>
+
+    <form method="get" action="<?= url('/recruitment/interview-feedback') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search by candidate..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <?php foreach ([10, 25, 50, 100] as $pp): ?>
+          <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <?= sortable_th('Candidate', 'candidate', $_GET, $sort, $dir) ?>
+            <th>Submitted By</th>
+            <?= sortable_th('Overall Rating', 'overall_rating', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Recommendation', 'recommendation', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Submitted', 'created_at', $_GET, $sort, $dir) ?>
+            <th class="text-end">Interview</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($feedback)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No interview feedback found.</td></tr>
+          <?php endif; ?>
+          <?php $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warning', 'Reject' => 'danger', 'Strong Reject' => 'danger']; ?>
+          <?php foreach ($feedback as $f): ?>
+            <tr>
+              <td><?= e($f['candidate_name'] ?: '—') ?></td>
+              <td><?= e($f['submitted_by_name'] ?: '—') ?></td>
+              <td><?= $f['overall_rating'] !== null ? (int) $f['overall_rating'] . ' / 5' : '—' ?></td>
+              <td><span class="badge bg-<?= $recBadge[$f['recommendation']] ?? 'secondary' ?>"><?= e($f['recommendation']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($f['created_at']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/interviews/' . $f['interview_id']) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($feedback) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>

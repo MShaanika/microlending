@@ -1,0 +1,65 @@
+<?php use App\Core\Auth; ?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Candidate Assessments</h4>
+    </div>
+    <p class="text-muted small">Assessments are recorded and removed from each candidate's detail page. This is a searchable overview across all candidates.</p>
+
+    <form method="get" action="<?= url('/recruitment/candidate-assessments') ?>" class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="d-flex gap-2 flex-grow-1" style="min-width:260px; max-width:420px;">
+        <input type="text" name="q" class="form-control" placeholder="Search by assessment or candidate..." value="<?= e($search) ?>">
+        <button class="btn btn-success flex-shrink-0" type="submit"><i class="mdi mdi-magnify"></i> Search</button>
+      </div>
+      <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <?php foreach ([10, 25, 50, 100] as $pp): ?>
+          <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <?= sortable_th('Candidate', 'candidate', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Assessment', 'assessment_name', $_GET, $sort, $dir) ?>
+            <th>Score</th>
+            <th>Conducted By</th>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Assessment Date', 'assessment_date', $_GET, $sort, $dir) ?>
+            <th class="text-end">Candidate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($assessments)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No candidate assessments found.</td></tr>
+          <?php endif; ?>
+          <?php $statusBadge = ['Pass' => 'success', 'Fail' => 'danger', 'Pending' => 'warning']; ?>
+          <?php foreach ($assessments as $a): ?>
+            <tr>
+              <td><?= e($a['candidate_name'] ?: '—') ?></td>
+              <td><?= e($a['assessment_name']) ?></td>
+              <td><?= $a['score'] !== null ? e($a['score']) . ' / ' . e($a['max_score'] ?? '—') : '—' ?></td>
+              <td><?= e($a['conducted_by_name'] ?: '—') ?></td>
+              <td><span class="badge bg-<?= $statusBadge[$a['pass_fail_status']] ?? 'secondary' ?>"><?= e($a['pass_fail_status']) ?></span></td>
+              <td><?= e(date('d M Y', strtotime($a['assessment_date']))) ?></td>
+              <td class="text-end">
+                <a href="<?= url('/recruitment/candidates/' . $a['candidate_id']) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-eye"></i> View</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($assessments) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>
