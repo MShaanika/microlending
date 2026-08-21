@@ -23,10 +23,18 @@ class RecruitmentJobPosting extends Model
         'created_at' => 'j.created_at',
     ];
 
+    /** Flat, unpaginated list -- for dropdowns (Candidate/Interview forms etc.), never for a list-view table. */
+    public function allPostings(): array
+    {
+        return $this->query(
+            "SELECT j.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_job_postings j " . self::LOOKUP_JOINS . " ORDER BY j.title"
+        )->fetchAll();
+    }
+
     /**
      * @return array{rows: array, total: int, totalPages: int}
      */
-    public function allPostings(array $filters = [], string $search = '', string $sort = 'created_at', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    public function paginated(array $filters = [], string $search = '', string $sort = 'created_at', string $dir = 'desc', int $page = 1, int $perPage = 10): array
     {
         $where = [];
         $params = [];

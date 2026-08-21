@@ -43,13 +43,27 @@ class RecruitmentCandidateController extends Controller
         $filters = [
             'job_id' => $_GET['job_id'] ?? null,
             'status' => $_GET['status'] ?? null,
-            'search' => $_GET['search'] ?? null,
+            'search' => trim((string) ($_GET['q'] ?? '')),
         ];
+        $sort = (string) ($_GET['sort'] ?? 'application_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->candidates->paginated($filters, $sort, $dir, $page, $perPage);
+
         $this->view('recruitment/candidates/index', [
             'title' => 'Candidates',
-            'candidates' => $this->candidates->allCandidates($filters),
+            'candidates' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'postings' => $this->postings->allPostings(),
             'filters' => $filters,
+            'search' => $filters['search'],
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
             'statuses' => self::STATUSES,
         ]);
     }

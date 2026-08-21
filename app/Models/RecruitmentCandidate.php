@@ -12,6 +12,56 @@ class RecruitmentCandidate extends Model
     ";
     private const LOOKUP_COLUMNS = "j.title AS job_title, j.posting_code, s.name AS source_name";
 
+    private const SORTABLE = [
+        'tracking_id' => 'c.tracking_id',
+        'name' => 'c.first_name',
+        'email' => 'c.email',
+        'job' => 'j.title',
+        'source' => 's.name',
+        'application_date' => 'c.application_date',
+        'status' => 'c.status',
+    ];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(array $filters = [], string $sort = 'application_date', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['job_id'])) {
+            $where[] = 'c.job_id = ?';
+            $params[] = $filters['job_id'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 'c.status = ?';
+            $params[] = $filters['status'];
+        }
+        if (!empty($filters['search'])) {
+            $where[] = '(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR c.tracking_id LIKE ?)';
+            $term = '%' . $filters['search'] . '%';
+            array_push($params, $term, $term, $term, $term);
+        }
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM recruitment_candidates c " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+
+        $orderCol = self::SORTABLE[$sort] ?? 'c.application_date';
+        $orderDir = strtolower($dir) === 'asc' ? 'ASC' : 'DESC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT c.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_candidates c " . self::LOOKUP_JOINS
+                . $whereSql . " ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function allCandidates(array $filters = []): array
     {
         $sql = "SELECT c.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_candidates c " . self::LOOKUP_JOINS;

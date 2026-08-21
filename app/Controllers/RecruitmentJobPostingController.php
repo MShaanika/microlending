@@ -43,7 +43,7 @@ class RecruitmentJobPostingController extends Controller
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
 
-        $result = $this->postings->allPostings($filters, $search, $sort, $dir, $page, $perPage);
+        $result = $this->postings->paginated($filters, $search, $sort, $dir, $page, $perPage);
 
         $this->view('recruitment/job-postings/index', [
             'title' => 'Job Postings',
