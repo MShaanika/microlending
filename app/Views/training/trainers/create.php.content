@@ -61,7 +61,7 @@
         </select>
       </div>
       <button type="submit" class="btn btn-info">Save</button>
-      <a href="<?= url('/training/trainers') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/training/trainers') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

@@ -29,7 +29,7 @@ class HrmComplaintTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/complaint-types/index', [
+        $data = [
             'title' => 'Complaint Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmComplaintTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/complaint-types/index', $data);
+            return;
+        }
+        $this->view('hrm/complaint-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/complaint-types/create', [
-            'title' => 'Add Complaint Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Complaint Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/complaint-types/create', $data);
+            return;
+        }
+        $this->view('hrm/complaint-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmComplaintTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/complaint-types/create');
             return;
@@ -65,6 +76,9 @@ class HrmComplaintTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/complaint-types/create', [
                 'title' => 'Add Complaint Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class HrmComplaintTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created complaint type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Complaint type created.');
+        }
         Session::flash('success', 'Complaint type created.');
         $this->redirect('/hrm/complaint-types');
     }
@@ -85,15 +103,20 @@ class HrmComplaintTypeController extends Controller
         Auth::authorize('hrm.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Complaint type not found.'], 404);
+            }
             Session::flash('error', 'Complaint type not found.');
             $this->redirect('/hrm/complaint-types');
             return;
         }
-        $this->view('hrm/complaint-types/edit', [
-            'title' => 'Edit Complaint Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Complaint Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/complaint-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/complaint-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class HrmComplaintTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/complaint-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class HrmComplaintTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Complaint type not found.'], 404);
+            }
             Session::flash('error', 'Complaint type not found.');
             $this->redirect('/hrm/complaint-types');
             return;
@@ -116,6 +145,9 @@ class HrmComplaintTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/complaint-types/edit', [
                 'title' => 'Edit Complaint Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class HrmComplaintTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated complaint type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Complaint type updated.');
+        }
         Session::flash('success', 'Complaint type updated.');
         $this->redirect('/hrm/complaint-types');
     }

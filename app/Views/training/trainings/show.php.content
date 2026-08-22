@@ -16,7 +16,7 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$t['status']] ?? 'secondary' ?> fs-6"><?= e($t['status']) ?></span>
     <?php if (Auth::can('training.manage')): ?>
-      <a href="<?= url('/training/trainings/' . $t['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/training/trainings/' . $t['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/training/trainings/' . $t['id'] . '/edit') ?>" data-modal-title="Edit Training" data-modal-size="xl"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
   </div>
 </div>
@@ -43,7 +43,7 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
     <h5 class="card-title">Roster</h5>
 
     <?php if (Auth::can('training.manage') && !empty($notEnrolled)): ?>
-    <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enroll') ?>" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enroll') ?>" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-9">
         <label class="form-label">Enroll Employees</label>
@@ -75,12 +75,12 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
               <td class="text-end">
                 <?php if (Auth::can('training.manage')): ?>
                   <?php if ($en['status'] !== 'Completed'): ?>
-                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enrollments/' . $en['id'] . '/complete') ?>" class="d-inline">
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enrollments/' . $en['id'] . '/complete') ?>" class="d-inline" data-modal-behavior="reload">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-check"></i></button>
                   </form>
                   <?php endif; ?>
-                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enrollments/' . $en['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Remove this employee from the training?');">
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/enrollments/' . $en['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Remove this employee from the training?');" data-modal-behavior="reload">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>
                   </form>
@@ -99,7 +99,7 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
     <h5 class="card-title">Tasks</h5>
 
     <?php if (Auth::can('training.manage')): ?>
-    <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks') ?>" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks') ?>" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Task Title</label>
@@ -140,12 +140,12 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
               <td class="text-end">
                 <?php if (Auth::can('training.manage')): ?>
                   <?php if ($tk['status'] !== 'Completed'): ?>
-                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks/' . $tk['id'] . '/complete') ?>" class="d-inline">
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks/' . $tk['id'] . '/complete') ?>" class="d-inline" data-modal-behavior="reload">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-check"></i></button>
                   </form>
                   <?php endif; ?>
-                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks/' . $tk['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
+                  <form method="post" action="<?= url('/training/trainings/' . $t['id'] . '/tasks/' . $tk['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this task?');" data-modal-behavior="reload">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                   </form>
@@ -164,7 +164,7 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
     <h5 class="card-title">Feedback</h5>
 
     <?php if (Auth::can('training.manage') && !empty($assignableTasks)): ?>
-    <form method="post" action="" id="feedbackForm" class="row g-2 align-items-end mb-3">
+    <form method="post" action="" id="feedbackForm" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Task</label>
@@ -214,4 +214,4 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
   </div>
 </div>
 
-<a href="<?= url('/training/trainings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/training/trainings') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

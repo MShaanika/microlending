@@ -29,7 +29,7 @@ class HrmAnnouncementCategoryController extends Controller
 
         $result = $this->categories->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/announcement-categories/index', [
+        $data = [
             'title' => 'Announcement Categories',
             'categories' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmAnnouncementCategoryController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/announcement-categories/index', $data);
+            return;
+        }
+        $this->view('hrm/announcement-categories/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/announcement-categories/create', [
-            'title' => 'Add Announcement Category',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Announcement Category', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/announcement-categories/create', $data);
+            return;
+        }
+        $this->view('hrm/announcement-categories/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmAnnouncementCategoryController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/announcement-categories/create');
             return;
@@ -65,6 +76,9 @@ class HrmAnnouncementCategoryController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/announcement-categories/create', [
                 'title' => 'Add Announcement Category',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class HrmAnnouncementCategoryController extends Controller
         $id = $this->categories->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created announcement category #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Announcement category created.');
+        }
         Session::flash('success', 'Announcement category created.');
         $this->redirect('/hrm/announcement-categories');
     }
@@ -85,15 +103,20 @@ class HrmAnnouncementCategoryController extends Controller
         Auth::authorize('hrm.manage');
         $category = $this->categories->find($id);
         if (!$category) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Announcement category not found.'], 404);
+            }
             Session::flash('error', 'Announcement category not found.');
             $this->redirect('/hrm/announcement-categories');
             return;
         }
-        $this->view('hrm/announcement-categories/edit', [
-            'title' => 'Edit Announcement Category',
-            'category' => $category,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Announcement Category', 'category' => $category, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/announcement-categories/edit', $data);
+            return;
+        }
+        $this->view('hrm/announcement-categories/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class HrmAnnouncementCategoryController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/announcement-categories/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class HrmAnnouncementCategoryController extends Controller
 
         $category = $this->categories->find($id);
         if (!$category) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Announcement category not found.'], 404);
+            }
             Session::flash('error', 'Announcement category not found.');
             $this->redirect('/hrm/announcement-categories');
             return;
@@ -116,6 +145,9 @@ class HrmAnnouncementCategoryController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/announcement-categories/edit', [
                 'title' => 'Edit Announcement Category',
                 'category' => array_merge($category, $_POST),
@@ -127,6 +159,10 @@ class HrmAnnouncementCategoryController extends Controller
         $this->categories->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated announcement category #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Announcement category updated.');
+        }
         Session::flash('success', 'Announcement category updated.');
         $this->redirect('/hrm/announcement-categories');
     }

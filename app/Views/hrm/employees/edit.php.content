@@ -228,5 +228,5 @@
   </div>
 
   <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
-  <a href="<?= url('/hrm/employees/' . $e['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+  <a href="<?= url('/hrm/employees/' . $e['id']) ?>" class="btn btn-outline-secondary" data-modal-url="<?= url('/hrm/employees/' . $e['id']) ?>" data-modal-title="<?= e($e['first_name'] . ' ' . $e['last_name']) ?>" data-modal-size="xl">Cancel</a>
 </form>

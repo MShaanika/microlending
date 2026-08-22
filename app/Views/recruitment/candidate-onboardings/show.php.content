@@ -13,7 +13,7 @@ $statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?> fs-6"><?= e($o['status']) ?></span>
     <?php if (Auth::can('recruitment.manage')): ?>
-      <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" data-modal-title="Edit Onboarding" data-modal-size="lg"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
   </div>
 </div>
@@ -21,7 +21,7 @@ $statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed
 <?php if (Auth::can('recruitment.manage')): ?>
 <div class="card mb-3">
   <div class="card-body">
-    <form method="post" action="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/status') ?>" class="row g-2 align-items-end">
+    <form method="post" action="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/status') ?>" class="row g-2 align-items-end" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Status</label>
@@ -73,4 +73,4 @@ $statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed
 </div>
 <?php endif; ?>
 
-<a href="<?= url('/recruitment/candidate-onboardings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/recruitment/candidate-onboardings') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

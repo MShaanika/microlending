@@ -55,7 +55,7 @@ class RecruitmentOfferController extends Controller
 
         $result = $this->offers->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/offers/index', [
+        $data = [
             'title' => 'Offers',
             'offers' => $result['rows'],
             'total' => $result['total'],
@@ -65,19 +65,31 @@ class RecruitmentOfferController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offers/index', $data);
+            return;
+        }
+        $this->view('recruitment/offers/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/offers/create', [
+        $data = [
             'title' => 'Create Offer',
             'candidates' => $this->candidates->offerEligible(),
             'departments' => $this->departments->allDepartments(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offers/create', $data);
+            return;
+        }
+        $this->view('recruitment/offers/create', $data);
     }
 
     public function store(): void
@@ -85,6 +97,9 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offers/create');
             return;
@@ -93,6 +108,9 @@ class RecruitmentOfferController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/offers/create', [
                 'title' => 'Create Offer',
                 'candidates' => $this->candidates->offerEligible(),
@@ -112,6 +130,10 @@ class RecruitmentOfferController extends Controller
         }
 
         Audit::log('Create', 'Recruitment', 'Created offer #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Offer created.');
+        }
         Session::flash('success', 'Offer created.');
         $this->redirect('/recruitment/offers/' . $id);
     }
@@ -122,22 +144,34 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
         $offer = $this->offers->find($id);
         if (!$offer) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Offer not found.'], 404);
+            }
             Session::flash('error', 'Offer not found.');
             $this->redirect('/recruitment/offers');
             return;
         }
         if ($offer['converted_to_employee']) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This offer has already been converted to an employee and can no longer be edited.'], 422);
+            }
             Session::flash('error', 'This offer has already been converted to an employee and can no longer be edited.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
         }
-        $this->view('recruitment/offers/edit', [
+        $data = [
             'title' => 'Edit Offer',
             'offer' => $offer,
             'departments' => $this->departments->allDepartments(),
             'old' => $offer,
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offers/edit', $data);
+            return;
+        }
+        $this->view('recruitment/offers/edit', $data);
     }
 
     public function update(int $id): void
@@ -145,6 +179,9 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offers/' . $id . '/edit');
             return;
@@ -152,11 +189,17 @@ class RecruitmentOfferController extends Controller
 
         $offer = $this->offers->find($id);
         if (!$offer) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Offer not found.'], 404);
+            }
             Session::flash('error', 'Offer not found.');
             $this->redirect('/recruitment/offers');
             return;
         }
         if ($offer['converted_to_employee']) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This offer has already been converted to an employee and can no longer be edited.'], 422);
+            }
             Session::flash('error', 'This offer has already been converted to an employee and can no longer be edited.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
@@ -185,6 +228,9 @@ class RecruitmentOfferController extends Controller
         ];
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/offers/edit', [
                 'title' => 'Edit Offer',
                 'offer' => $offer,
@@ -197,6 +243,10 @@ class RecruitmentOfferController extends Controller
 
         $this->offers->updateRecord($id, $data);
         Audit::log('Update', 'Recruitment', 'Updated offer #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Offer updated.');
+        }
         Session::flash('success', 'Offer updated.');
         $this->redirect('/recruitment/offers/' . $id);
     }
@@ -206,16 +256,25 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.view');
         $offer = $this->offers->find($id);
         if (!$offer) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Offer not found.'], 404);
+            }
             Session::flash('error', 'Offer not found.');
             $this->redirect('/recruitment/offers');
             return;
         }
-        $this->view('recruitment/offers/show', [
+        $data = [
             'title' => 'Offer: ' . $offer['candidate_name'],
             'offer' => $offer,
             'templates' => $this->templates->activeTemplates(),
             'statuses' => self::STATUSES,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offers/show', $data);
+            return;
+        }
+        $this->view('recruitment/offers/show', $data);
     }
 
     public function updateStatus(int $id): void
@@ -223,6 +282,9 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
@@ -230,6 +292,9 @@ class RecruitmentOfferController extends Controller
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['status' => 'Invalid status.']);
+            }
             Session::flash('error', 'Invalid status.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
@@ -245,6 +310,10 @@ class RecruitmentOfferController extends Controller
 
         $this->offers->updateRecord($id, $update);
         Audit::log('Update', 'Recruitment', 'Updated offer #' . $id . ' status to ' . $status);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Offer status updated.', '/recruitment/offers/' . $id);
+        }
         Session::flash('success', 'Offer status updated.');
         $this->redirect('/recruitment/offers/' . $id);
     }
@@ -254,6 +323,9 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
@@ -261,6 +333,9 @@ class RecruitmentOfferController extends Controller
 
         $approval = $_POST['approval_status'] ?? '';
         if (!in_array($approval, ['Approved', 'Rejected'], true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['approval_status' => 'Invalid approval decision.']);
+            }
             Session::flash('error', 'Invalid approval decision.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
@@ -272,6 +347,10 @@ class RecruitmentOfferController extends Controller
         ]);
 
         Audit::log('Update', 'Recruitment', 'Offer #' . $id . ' approval ' . strtolower($approval));
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Offer ' . strtolower($approval) . '.', '/recruitment/offers/' . $id);
+        }
         Session::flash('success', 'Offer ' . strtolower($approval) . '.');
         $this->redirect('/recruitment/offers/' . $id);
     }
@@ -281,6 +360,9 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offers');
             return;
@@ -288,6 +370,10 @@ class RecruitmentOfferController extends Controller
 
         $this->offers->delete($id);
         Audit::log('Delete', 'Recruitment', 'Deleted offer #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Offer deleted.');
+        }
         Session::flash('success', 'Offer deleted.');
         $this->redirect('/recruitment/offers');
     }
@@ -297,11 +383,17 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
         $offer = $this->offers->find($id);
         if (!$offer) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Offer not found.'], 404);
+            }
             Session::flash('error', 'Offer not found.');
             $this->redirect('/recruitment/offers');
             return;
         }
         if ($offer['converted_to_employee']) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This offer has already been converted to an employee.'], 422);
+            }
             Session::flash('error', 'This offer has already been converted to an employee.');
             $this->redirect('/recruitment/offers/' . $id);
             return;
@@ -322,7 +414,7 @@ class RecruitmentOfferController extends Controller
             'basic_salary' => $offer['salary'] ?? '',
         ];
 
-        $this->view('recruitment/offers/convert', [
+        $data = [
             'title' => 'Convert Offer to Employee',
             'offer' => $offer,
             'branches' => $this->branches->all(),
@@ -332,7 +424,13 @@ class RecruitmentOfferController extends Controller
             'availableUsers' => $this->users->paginated('', 'active'),
             'old' => $prefill,
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offers/convert', $data);
+            return;
+        }
+        $this->view('recruitment/offers/convert', $data);
     }
 
     public function convertToEmployeeStore(int $id): void
@@ -340,6 +438,9 @@ class RecruitmentOfferController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offers/' . $id . '/convert');
             return;
@@ -347,6 +448,9 @@ class RecruitmentOfferController extends Controller
 
         $offer = $this->offers->find($id);
         if (!$offer || $offer['converted_to_employee']) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This offer cannot be converted.'], 422);
+            }
             Session::flash('error', 'This offer cannot be converted.');
             $this->redirect('/recruitment/offers');
             return;
@@ -355,6 +459,9 @@ class RecruitmentOfferController extends Controller
         [$data, $errors] = $this->validateEmployee($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/offers/convert', [
                 'title' => 'Convert Offer to Employee',
                 'offer' => $offer,
@@ -388,6 +495,10 @@ class RecruitmentOfferController extends Controller
         }
 
         Audit::log('Convert', 'Recruitment', 'Converted offer #' . $id . ' to employee #' . $employeeId);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Candidate converted to employee.', null, ['redirect' => url('/hrm/employees/' . $employeeId)]);
+        }
         Session::flash('success', 'Candidate converted to employee.');
         $this->redirect('/hrm/employees/' . $employeeId);
     }

@@ -36,7 +36,7 @@
         <input type="number" name="sort_order" class="form-control" value="<?= e($old['sort_order'] ?? '0') ?>">
       </div>
       <button type="submit" class="btn btn-info">Save</button>
-      <a href="<?= url('/recruitment/custom-questions') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/recruitment/custom-questions') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

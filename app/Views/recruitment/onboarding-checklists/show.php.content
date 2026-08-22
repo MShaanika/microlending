@@ -14,7 +14,7 @@
     <h5 class="card-title">Checklist Items</h5>
 
     <?php if (Auth::can('recruitment.manage')): ?>
-    <form method="post" action="<?= url('/recruitment/onboarding-checklists/' . $checklist['id'] . '/items') ?>" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/recruitment/onboarding-checklists/' . $checklist['id'] . '/items') ?>" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-3">
         <label class="form-label">Task</label>
@@ -60,7 +60,7 @@
               <td><?= $it['is_required'] ? '<i class="mdi mdi-check text-success"></i>' : '—' ?></td>
               <td class="text-end">
                 <?php if (Auth::can('recruitment.manage')): ?>
-                <form method="post" action="<?= url('/recruitment/onboarding-checklists/' . $checklist['id'] . '/items/' . $it['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this item?');">
+                <form method="post" action="<?= url('/recruitment/onboarding-checklists/' . $checklist['id'] . '/items/' . $it['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this item?');" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>
@@ -74,4 +74,4 @@
   </div>
 </div>
 
-<a href="<?= url('/recruitment/onboarding-checklists') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/recruitment/onboarding-checklists') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

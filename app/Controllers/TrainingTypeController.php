@@ -35,7 +35,7 @@ class TrainingTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('training/types/index', [
+        $data = [
             'title' => 'Training Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -45,19 +45,31 @@ class TrainingTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('training/types/index', $data);
+            return;
+        }
+        $this->view('training/types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('training.manage');
-        $this->view('training/types/create', [
+        $data = [
             'title' => 'Add Training Type',
             'departments' => $this->departments->allDepartments(),
             'branches' => $this->branches->all(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('training/types/create', $data);
+            return;
+        }
+        $this->view('training/types/create', $data);
     }
 
     public function store(): void
@@ -65,6 +77,9 @@ class TrainingTypeController extends Controller
         Auth::authorize('training.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/training/types/create');
             return;
@@ -73,6 +88,9 @@ class TrainingTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('training/types/create', [
                 'title' => 'Add Training Type',
                 'departments' => $this->departments->allDepartments(),
@@ -86,6 +104,10 @@ class TrainingTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Training', 'Created training type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Training type created.');
+        }
         Session::flash('success', 'Training type created.');
         $this->redirect('/training/types');
     }
@@ -95,17 +117,26 @@ class TrainingTypeController extends Controller
         Auth::authorize('training.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Training type not found.'], 404);
+            }
             Session::flash('error', 'Training type not found.');
             $this->redirect('/training/types');
             return;
         }
-        $this->view('training/types/edit', [
+        $data = [
             'title' => 'Edit Training Type',
             'type' => $type,
             'departments' => $this->departments->allDepartments(),
             'branches' => $this->branches->all(),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('training/types/edit', $data);
+            return;
+        }
+        $this->view('training/types/edit', $data);
     }
 
     public function update(int $id): void
@@ -113,6 +144,9 @@ class TrainingTypeController extends Controller
         Auth::authorize('training.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/training/types/' . $id . '/edit');
             return;
@@ -120,6 +154,9 @@ class TrainingTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Training type not found.'], 404);
+            }
             Session::flash('error', 'Training type not found.');
             $this->redirect('/training/types');
             return;
@@ -128,6 +165,9 @@ class TrainingTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('training/types/edit', [
                 'title' => 'Edit Training Type',
                 'type' => array_merge($type, $_POST),
@@ -141,6 +181,10 @@ class TrainingTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'Training', 'Updated training type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Training type updated.');
+        }
         Session::flash('success', 'Training type updated.');
         $this->redirect('/training/types');
     }

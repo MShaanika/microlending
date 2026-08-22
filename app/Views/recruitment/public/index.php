@@ -49,7 +49,7 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
             <?php if (!empty($job['description'])): ?>
               <p class="card-text"><?= e(mb_strimwidth(strip_tags($job['description']), 0, 160, '...')) ?></p>
             <?php endif; ?>
-            <a href="<?= url('/careers/' . $job['posting_code']) ?>" class="btn btn-info btn-sm">View &amp; Apply</a>
+            <a href="<?= url('/careers/' . $job['posting_code']) ?>" class="btn btn-info btn-sm" data-modal-url="<?= url('/careers/' . $job['posting_code']) ?>" data-modal-title="<?= e($job['title']) ?>" data-modal-size="xl" data-modal-refresh="0">View &amp; Apply</a>
           </div>
         </div>
       </div>
@@ -59,5 +59,6 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
 
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
+<script src="<?= asset('dist/js/app-ui.js') ?>"></script>
 </body>
 </html>

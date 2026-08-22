@@ -6,7 +6,7 @@
     <h4 class="mb-0">Conduct Review: <?= e($r['employee_name']) ?></h4>
     <span class="text-muted">Reviewer: <?= e($r['reviewer_name'] ?: '—') ?> &middot; <?= e($r['review_cycle_name'] ?: 'No cycle') ?></span>
   </div>
-  <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+  <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/performance/employee-reviews/' . $r['id']) ?>" data-modal-title="Employee Review" data-modal-size="lg">Back</a>
 </div>
 
 <form method="post" action="<?= url('/performance/employee-reviews/' . $r['id'] . '/conduct') ?>">
@@ -54,5 +54,5 @@
   <div class="alert alert-info">Submitting marks this review as <strong>Completed</strong>. Indicators left unrated are excluded from the average score.</div>
 
   <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-check"></i> Submit Review</button>
-  <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+  <a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" class="btn btn-outline-secondary" data-modal-url="<?= url('/performance/employee-reviews/' . $r['id']) ?>" data-modal-title="Employee Review" data-modal-size="lg">Cancel</a>
 </form>

@@ -24,22 +24,29 @@ class RecruitmentCustomQuestionController extends Controller
     {
         Auth::authorize('recruitment.view');
         $search = trim((string) ($_GET['q'] ?? ''));
-        $this->view('recruitment/custom-questions/index', [
+        $data = [
             'title' => 'Application Questions',
             'questions' => $this->questions->search($search),
             'search' => $search,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/custom-questions/index', $data);
+            return;
+        }
+        $this->view('recruitment/custom-questions/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/custom-questions/create', [
-            'title' => 'Add Application Question',
-            'types' => self::TYPES,
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Application Question', 'types' => self::TYPES, 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/custom-questions/create', $data);
+            return;
+        }
+        $this->view('recruitment/custom-questions/create', $data);
     }
 
     public function store(): void
@@ -47,6 +54,9 @@ class RecruitmentCustomQuestionController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/custom-questions/create');
             return;
@@ -55,6 +65,9 @@ class RecruitmentCustomQuestionController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/custom-questions/create', [
                 'title' => 'Add Application Question',
                 'types' => self::TYPES,
@@ -67,6 +80,10 @@ class RecruitmentCustomQuestionController extends Controller
         $id = $this->questions->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created application question #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Question created.');
+        }
         Session::flash('success', 'Question created.');
         $this->redirect('/recruitment/custom-questions');
     }
@@ -76,16 +93,20 @@ class RecruitmentCustomQuestionController extends Controller
         Auth::authorize('recruitment.manage');
         $question = $this->questions->find($id);
         if (!$question) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Question not found.'], 404);
+            }
             Session::flash('error', 'Question not found.');
             $this->redirect('/recruitment/custom-questions');
             return;
         }
-        $this->view('recruitment/custom-questions/edit', [
-            'title' => 'Edit Application Question',
-            'question' => $question,
-            'types' => self::TYPES,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Application Question', 'question' => $question, 'types' => self::TYPES, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/custom-questions/edit', $data);
+            return;
+        }
+        $this->view('recruitment/custom-questions/edit', $data);
     }
 
     public function update(int $id): void
@@ -93,6 +114,9 @@ class RecruitmentCustomQuestionController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/custom-questions/' . $id . '/edit');
             return;
@@ -100,6 +124,9 @@ class RecruitmentCustomQuestionController extends Controller
 
         $question = $this->questions->find($id);
         if (!$question) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Question not found.'], 404);
+            }
             Session::flash('error', 'Question not found.');
             $this->redirect('/recruitment/custom-questions');
             return;
@@ -108,6 +135,9 @@ class RecruitmentCustomQuestionController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/custom-questions/edit', [
                 'title' => 'Edit Application Question',
                 'question' => array_merge($question, $_POST),
@@ -120,6 +150,10 @@ class RecruitmentCustomQuestionController extends Controller
         $this->questions->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated application question #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Question updated.');
+        }
         Session::flash('success', 'Question updated.');
         $this->redirect('/recruitment/custom-questions');
     }

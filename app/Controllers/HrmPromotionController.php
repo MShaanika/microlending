@@ -46,7 +46,7 @@ class HrmPromotionController extends Controller
 
         $result = $this->promotions->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/promotions/index', [
+        $data = [
             'title' => 'Promotions',
             'promotions' => $result['rows'],
             'total' => $result['total'],
@@ -57,13 +57,19 @@ class HrmPromotionController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/promotions/index', $data);
+            return;
+        }
+        $this->view('hrm/promotions/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/promotions/create', [
+        $data = [
             'title' => 'Record a Promotion',
             'employees' => $this->employees->allEmployees(),
             'branches' => $this->branches->all(),
@@ -71,7 +77,13 @@ class HrmPromotionController extends Controller
             'designations' => $this->designations->allDesignations(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/promotions/create', $data);
+            return;
+        }
+        $this->view('hrm/promotions/create', $data);
     }
 
     public function store(): void
@@ -79,6 +91,9 @@ class HrmPromotionController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/promotions/create');
             return;
@@ -87,6 +102,9 @@ class HrmPromotionController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/promotions/create', [
                 'title' => 'Record a Promotion',
                 'employees' => $this->employees->allEmployees(),
@@ -115,6 +133,10 @@ class HrmPromotionController extends Controller
         ]);
 
         Audit::log('Create', 'HRM', 'Promotion #' . $id . ' recorded for employee #' . $data['employee_id'] . '; branch/department/designation updated');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Promotion recorded and employee record updated.');
+        }
         Session::flash('success', 'Promotion recorded and employee record updated.');
         $this->redirect('/hrm/promotions');
     }
@@ -124,14 +146,20 @@ class HrmPromotionController extends Controller
         Auth::authorize('hrm.view');
         $promotion = $this->promotions->find($id);
         if (!$promotion) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Promotion not found.'], 404);
+            }
             Session::flash('error', 'Promotion not found.');
             $this->redirect('/hrm/promotions');
             return;
         }
-        $this->view('hrm/promotions/show', [
-            'title' => 'Promotion',
-            'promotion' => $promotion,
-        ]);
+        $data = ['title' => 'Promotion', 'promotion' => $promotion];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/promotions/show', $data);
+            return;
+        }
+        $this->view('hrm/promotions/show', $data);
     }
 
     public function approve(int $id): void
@@ -149,6 +177,9 @@ class HrmPromotionController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/promotions/' . $id);
             return;
@@ -156,6 +187,9 @@ class HrmPromotionController extends Controller
 
         $promotion = $this->promotions->find($id);
         if (!$promotion || $promotion['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending promotions can be decided.'], 422);
+            }
             Session::flash('error', 'Only pending promotions can be decided.');
             $this->redirect('/hrm/promotions');
             return;
@@ -167,6 +201,10 @@ class HrmPromotionController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Promotion #' . $id . ' ' . strtolower($status));
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Promotion ' . strtolower($status) . '.', '/hrm/promotions/' . $id);
+        }
         Session::flash('success', 'Promotion ' . strtolower($status) . '.');
         $this->redirect('/hrm/promotions/' . $id);
     }
@@ -176,6 +214,9 @@ class HrmPromotionController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/promotions');
             return;
@@ -183,6 +224,10 @@ class HrmPromotionController extends Controller
 
         $this->promotions->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted promotion #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Promotion deleted.');
+        }
         Session::flash('success', 'Promotion deleted.');
         $this->redirect('/hrm/promotions');
     }

@@ -42,7 +42,7 @@ class HrmComplaintController extends Controller
 
         $result = $this->complaints->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/complaints/index', [
+        $data = [
             'title' => 'Complaints',
             'complaints' => $result['rows'],
             'total' => $result['total'],
@@ -54,19 +54,31 @@ class HrmComplaintController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/complaints/index', $data);
+            return;
+        }
+        $this->view('hrm/complaints/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/complaints/create', [
+        $data = [
             'title' => 'File a Complaint',
             'employees' => $this->employees->allEmployees(),
             'complaintTypes' => $this->complaintTypes->allTypes(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/complaints/create', $data);
+            return;
+        }
+        $this->view('hrm/complaints/create', $data);
     }
 
     public function store(): void
@@ -74,6 +86,9 @@ class HrmComplaintController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/complaints/create');
             return;
@@ -82,6 +97,9 @@ class HrmComplaintController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/complaints/create', [
                 'title' => 'File a Complaint',
                 'employees' => $this->employees->allEmployees(),
@@ -97,6 +115,10 @@ class HrmComplaintController extends Controller
         $id = $this->complaints->create($data);
 
         Audit::log('Create', 'HRM', 'Complaint #' . $id . ' filed against employee handling');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Complaint filed.');
+        }
         Session::flash('success', 'Complaint filed.');
         $this->redirect('/hrm/complaints');
     }
@@ -106,15 +128,20 @@ class HrmComplaintController extends Controller
         Auth::authorize('hrm.view');
         $complaint = $this->complaints->find($id);
         if (!$complaint) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Complaint not found.'], 404);
+            }
             Session::flash('error', 'Complaint not found.');
             $this->redirect('/hrm/complaints');
             return;
         }
-        $this->view('hrm/complaints/show', [
-            'title' => 'Complaint',
-            'complaint' => $complaint,
-            'statuses' => self::STATUSES,
-        ]);
+        $data = ['title' => 'Complaint', 'complaint' => $complaint, 'statuses' => self::STATUSES];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/complaints/show', $data);
+            return;
+        }
+        $this->view('hrm/complaints/show', $data);
     }
 
     public function updateStatus(int $id): void
@@ -122,6 +149,9 @@ class HrmComplaintController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/complaints/' . $id);
             return;
@@ -129,6 +159,9 @@ class HrmComplaintController extends Controller
 
         $complaint = $this->complaints->find($id);
         if (!$complaint) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Complaint not found.'], 404);
+            }
             Session::flash('error', 'Complaint not found.');
             $this->redirect('/hrm/complaints');
             return;
@@ -136,6 +169,9 @@ class HrmComplaintController extends Controller
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['status' => 'Invalid status.']);
+            }
             Session::flash('error', 'Invalid status.');
             $this->redirect('/hrm/complaints/' . $id);
             return;
@@ -152,6 +188,10 @@ class HrmComplaintController extends Controller
         $this->complaints->updateRecord($id, $update);
 
         Audit::log('Update', 'HRM', 'Complaint #' . $id . ' status set to ' . $status);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Complaint status updated.', '/hrm/complaints/' . $id);
+        }
         Session::flash('success', 'Complaint status updated.');
         $this->redirect('/hrm/complaints/' . $id);
     }
@@ -161,6 +201,9 @@ class HrmComplaintController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/complaints');
             return;
@@ -168,6 +211,10 @@ class HrmComplaintController extends Controller
 
         $this->complaints->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted complaint #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Complaint deleted.');
+        }
         Session::flash('success', 'Complaint deleted.');
         $this->redirect('/hrm/complaints');
     }

@@ -10,10 +10,16 @@
     return $cells.length === 1 && $cells.first().attr('colspan');
   }
 
-  $(function () {
+  // Exposed so the AJAX modal/list-refresh code (app-ui.js) can re-run this
+  // after swapping in fresh table markup -- DOMContentLoaded only fires
+  // once, but a refreshed table still needs DataTables applied to it.
+  window.initDataTables = function () {
     $('table.table').not('.no-datatable').each(function () {
       var $table = $(this);
 
+      if ($.fn.DataTable.isDataTable($table)) {
+        return;
+      }
       if (isEmptyStateTable($table)) {
         return;
       }
@@ -24,5 +30,7 @@
         buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
       });
     });
-  });
+  };
+
+  $(window.initDataTables);
 })(jQuery);

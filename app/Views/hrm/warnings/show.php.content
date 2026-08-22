@@ -33,7 +33,7 @@ $sevBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$w
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title text-success">Approve</h5>
-        <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/approve') ?>">
+        <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/approve') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
         </form>
@@ -44,7 +44,7 @@ $sevBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$w
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title text-danger">Reject</h5>
-        <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/reject') ?>">
+        <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/reject') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
         </form>
@@ -58,7 +58,7 @@ $sevBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$w
 <div class="card mb-3">
   <div class="card-body">
     <h5 class="card-title">Employee Response</h5>
-    <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/respond') ?>">
+    <form method="post" action="<?= url('/hrm/warnings/' . $w['id'] . '/respond') ?>" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="mb-2">
         <textarea name="employee_response" rows="3" class="form-control" placeholder="Record the employee's response to this warning"><?= e($w['employee_response'] ?? '') ?></textarea>
@@ -72,4 +72,4 @@ $sevBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$w
   <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
 </form>
 <?php endif; ?>
-<a href="<?= url('/hrm/warnings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/warnings') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

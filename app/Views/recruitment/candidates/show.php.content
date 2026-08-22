@@ -15,7 +15,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$c['status']] ?? 'secondary' ?> fs-6"><?= e($c['status']) ?></span>
     <?php if (Auth::can('recruitment.manage')): ?>
-      <a href="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" data-modal-title="Edit Candidate" data-modal-size="xl"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
   </div>
 </div>
@@ -23,7 +23,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
 <?php if (Auth::can('recruitment.manage')): ?>
 <div class="card mb-3">
   <div class="card-body">
-    <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/status') ?>" class="row g-2 align-items-end">
+    <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/status') ?>" class="row g-2 align-items-end" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Pipeline Status</label>
@@ -63,7 +63,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
 
 <div class="card mb-3">
   <div class="card-body">
-    <h5 class="card-title d-flex justify-content-between">Interviews <a href="<?= url('/recruitment/interviews/create') ?>" class="btn btn-sm btn-outline-info">Schedule</a></h5>
+    <h5 class="card-title d-flex justify-content-between">Interviews <a href="<?= url('/recruitment/interviews/create') ?>" class="btn btn-sm btn-outline-info" data-modal-url="<?= url('/recruitment/interviews/create') ?>" data-modal-title="Schedule Interview" data-modal-size="lg">Schedule</a></h5>
     <div class="table-responsive">
       <table class="table table-sm">
         <thead><tr><th>Date</th><th>Round</th><th>Type</th><th>Status</th></tr></thead>
@@ -73,7 +73,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
           <?php endif; ?>
           <?php foreach ($interviews as $i): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/interviews/' . $i['id']) ?>"><?= e(date('d M Y', strtotime($i['scheduled_date']))) ?></a></td>
+              <td><a href="<?= url('/recruitment/interviews/' . $i['id']) ?>" data-modal-url="<?= url('/recruitment/interviews/' . $i['id']) ?>" data-modal-title="Interview: <?= e($c['first_name'] . ' ' . $c['last_name']) ?>" data-modal-size="xl"><?= e(date('d M Y', strtotime($i['scheduled_date']))) ?></a></td>
               <td><?= e($i['round_name'] ?: '—') ?></td>
               <td><?= e($i['interview_type_name'] ?: '—') ?></td>
               <td><?= e($i['status']) ?></td>
@@ -90,7 +90,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
     <h5 class="card-title">Assessments</h5>
 
     <?php if (Auth::can('recruitment.manage')): ?>
-    <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/assessments') ?>" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/assessments') ?>" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-3">
         <label class="form-label">Assessment</label>
@@ -133,7 +133,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
               <td><?= e(date('d M Y', strtotime($a['assessment_date']))) ?></td>
               <td class="text-end">
                 <?php if (Auth::can('recruitment.manage')): ?>
-                <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/assessments/' . $a['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this assessment?');">
+                <form method="post" action="<?= url('/recruitment/candidates/' . $c['id'] . '/assessments/' . $a['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this assessment?');" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>
@@ -149,7 +149,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
 
 <div class="card mb-3">
   <div class="card-body">
-    <h5 class="card-title d-flex justify-content-between">Offers <a href="<?= url('/recruitment/offers/create') ?>" class="btn btn-sm btn-outline-info">Create Offer</a></h5>
+    <h5 class="card-title d-flex justify-content-between">Offers <a href="<?= url('/recruitment/offers/create') ?>" class="btn btn-sm btn-outline-info" data-modal-url="<?= url('/recruitment/offers/create') ?>" data-modal-title="Create Offer" data-modal-size="lg">Create Offer</a></h5>
     <div class="table-responsive">
       <table class="table table-sm">
         <thead><tr><th>Position</th><th>Salary</th><th>Status</th><th>Approval</th></tr></thead>
@@ -159,7 +159,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
           <?php endif; ?>
           <?php foreach ($offers as $o): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/offers/' . $o['id']) ?>"><?= e($o['position']) ?></a></td>
+              <td><a href="<?= url('/recruitment/offers/' . $o['id']) ?>" data-modal-url="<?= url('/recruitment/offers/' . $o['id']) ?>" data-modal-title="Offer: <?= e($c['first_name'] . ' ' . $c['last_name']) ?>" data-modal-size="xl"><?= e($o['position']) ?></a></td>
               <td><?= format_money($o['salary']) ?></td>
               <td><?= e($o['status']) ?></td>
               <td><?= e($o['approval_status']) ?></td>
@@ -171,4 +171,4 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
   </div>
 </div>
 
-<a href="<?= url('/recruitment/candidates') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/recruitment/candidates') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

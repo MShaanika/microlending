@@ -153,7 +153,7 @@
         </div>
       </div>
       <button type="submit" class="btn btn-info">Save</button>
-      <a href="<?= url('/recruitment/candidates/' . $candidate['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/recruitment/candidates/' . $candidate['id']) ?>" class="btn btn-outline-secondary" data-modal-url="<?= url('/recruitment/candidates/' . $candidate['id']) ?>" data-modal-title="<?= e($candidate['first_name'] . ' ' . $candidate['last_name']) ?>" data-modal-size="xl">Cancel</a>
     </form>
   </div>
 </div>

@@ -35,7 +35,7 @@ class HrmDesignationController extends Controller
 
         $result = $this->designations->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/designations/index', [
+        $data = [
             'title' => 'Designations',
             'designations' => $result['rows'],
             'total' => $result['total'],
@@ -45,19 +45,31 @@ class HrmDesignationController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/designations/index', $data);
+            return;
+        }
+        $this->view('hrm/designations/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/designations/create', [
+        $data = [
             'title' => 'Add Designation',
             'branches' => $this->branches->all(),
             'departments' => $this->departments->allDepartments(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/designations/create', $data);
+            return;
+        }
+        $this->view('hrm/designations/create', $data);
     }
 
     public function store(): void
@@ -65,6 +77,9 @@ class HrmDesignationController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/designations/create');
             return;
@@ -79,6 +94,9 @@ class HrmDesignationController extends Controller
         }
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/designations/create', [
                 'title' => 'Add Designation',
                 'branches' => $this->branches->all(),
@@ -98,6 +116,10 @@ class HrmDesignationController extends Controller
         ]);
 
         Audit::log('Create', 'HRM', 'Created designation #' . $id . ' - ' . $name);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Designation created.');
+        }
         Session::flash('success', 'Designation created.');
         $this->redirect('/hrm/designations');
     }
@@ -107,17 +129,26 @@ class HrmDesignationController extends Controller
         Auth::authorize('hrm.manage');
         $designation = $this->designations->find($id);
         if (!$designation) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Designation not found.'], 404);
+            }
             Session::flash('error', 'Designation not found.');
             $this->redirect('/hrm/designations');
             return;
         }
-        $this->view('hrm/designations/edit', [
+        $data = [
             'title' => 'Edit Designation',
             'designation' => $designation,
             'branches' => $this->branches->all(),
             'departments' => $this->departments->allDepartments(true),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/designations/edit', $data);
+            return;
+        }
+        $this->view('hrm/designations/edit', $data);
     }
 
     public function update(int $id): void
@@ -125,6 +156,9 @@ class HrmDesignationController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/designations/' . $id . '/edit');
             return;
@@ -132,6 +166,9 @@ class HrmDesignationController extends Controller
 
         $designation = $this->designations->find($id);
         if (!$designation) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Designation not found.'], 404);
+            }
             Session::flash('error', 'Designation not found.');
             $this->redirect('/hrm/designations');
             return;
@@ -146,6 +183,9 @@ class HrmDesignationController extends Controller
         }
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/designations/edit', [
                 'title' => 'Edit Designation',
                 'designation' => array_merge($designation, $_POST),
@@ -163,6 +203,10 @@ class HrmDesignationController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Updated designation #' . $id . ' - ' . $name);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Designation updated.');
+        }
         Session::flash('success', 'Designation updated.');
         $this->redirect('/hrm/designations');
     }

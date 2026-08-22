@@ -56,7 +56,7 @@
         <textarea name="benefits" class="form-control" rows="3"><?= e($old['benefits'] ?? '') ?></textarea>
       </div>
       <button type="submit" class="btn btn-info">Save</button>
-      <a href="<?= url('/recruitment/offers/' . $offer['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/recruitment/offers/' . $offer['id']) ?>" class="btn btn-outline-secondary" data-modal-url="<?= url('/recruitment/offers/' . $offer['id']) ?>" data-modal-title="Offer: <?= e($offer['candidate_name']) ?>" data-modal-size="xl">Cancel</a>
     </form>
   </div>
 </div>

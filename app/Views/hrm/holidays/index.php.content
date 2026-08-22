@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Holidays</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/holidays/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Holiday</a>
+        <a href="<?= url('/hrm/holidays/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/holidays/create') ?>" data-modal-title="Add Holiday" data-modal-size="md"><i class="mdi mdi-plus"></i> Add Holiday</a>
       <?php endif; ?>
     </div>
 
@@ -60,7 +60,7 @@
               <td><?= $h['is_paid'] ? 'Yes' : 'No' ?></td>
               <?php if (Auth::can('hrm.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/hrm/holidays/' . $h['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/hrm/holidays/' . $h['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/hrm/holidays/' . $h['id'] . '/edit') ?>" data-modal-title="Edit Holiday" data-modal-size="md"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/hrm/holidays/' . $h['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this holiday?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

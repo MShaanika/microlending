@@ -49,7 +49,7 @@ class PerformanceEmployeeReviewController extends Controller
 
         $result = $this->reviews->paginated($filters, $search, $sort, $dir, $page, $perPage);
 
-        $this->view('performance/employee-reviews/index', [
+        $data = [
             'title' => 'Employee Reviews',
             'reviews' => $result['rows'],
             'total' => $result['total'],
@@ -63,13 +63,19 @@ class PerformanceEmployeeReviewController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/employee-reviews/index', $data);
+            return;
+        }
+        $this->view('performance/employee-reviews/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('performance.manage');
-        $this->view('performance/employee-reviews/create', [
+        $data = [
             'title' => 'Schedule Employee Review',
             'employees' => $this->employees->allEmployees(),
             'reviewers' => $this->users->allActive(),
@@ -77,7 +83,13 @@ class PerformanceEmployeeReviewController extends Controller
             'statuses' => self::STATUSES,
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/employee-reviews/create', $data);
+            return;
+        }
+        $this->view('performance/employee-reviews/create', $data);
     }
 
     public function store(): void
@@ -85,6 +97,9 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/employee-reviews/create');
             return;
@@ -93,6 +108,9 @@ class PerformanceEmployeeReviewController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/employee-reviews/create', [
                 'title' => 'Schedule Employee Review',
                 'employees' => $this->employees->allEmployees(),
@@ -109,6 +127,10 @@ class PerformanceEmployeeReviewController extends Controller
         $id = $this->reviews->create($data);
 
         Audit::log('Create', 'Performance', 'Employee review #' . $id . ' scheduled');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Employee review scheduled.');
+        }
         Session::flash('success', 'Employee review scheduled.');
         $this->redirect('/performance/employee-reviews/' . $id);
     }
@@ -118,17 +140,26 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.view');
         $review = $this->reviews->find($id);
         if (!$review) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee review not found.'], 404);
+            }
             Session::flash('error', 'Employee review not found.');
             $this->redirect('/performance/employee-reviews');
             return;
         }
-        $this->view('performance/employee-reviews/show', [
+        $data = [
             'title' => 'Employee Review',
             'review' => $review,
             'ratings' => PerformanceEmployeeReview::ratingsMap($review),
             'averageRating' => PerformanceEmployeeReview::averageRating($review),
             'indicatorsByCategory' => $this->indicators->activeGroupedByCategory(),
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/employee-reviews/show', $data);
+            return;
+        }
+        $this->view('performance/employee-reviews/show', $data);
     }
 
     public function edit(int $id): void
@@ -136,11 +167,14 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.manage');
         $review = $this->reviews->find($id);
         if (!$review) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee review not found.'], 404);
+            }
             Session::flash('error', 'Employee review not found.');
             $this->redirect('/performance/employee-reviews');
             return;
         }
-        $this->view('performance/employee-reviews/edit', [
+        $data = [
             'title' => 'Edit Employee Review',
             'review' => $review,
             'employees' => $this->employees->allEmployees(),
@@ -148,7 +182,13 @@ class PerformanceEmployeeReviewController extends Controller
             'cycles' => $this->cycles->activeCycles(),
             'statuses' => self::STATUSES,
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/employee-reviews/edit', $data);
+            return;
+        }
+        $this->view('performance/employee-reviews/edit', $data);
     }
 
     public function update(int $id): void
@@ -156,6 +196,9 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/employee-reviews/' . $id . '/edit');
             return;
@@ -163,6 +206,9 @@ class PerformanceEmployeeReviewController extends Controller
 
         $review = $this->reviews->find($id);
         if (!$review) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee review not found.'], 404);
+            }
             Session::flash('error', 'Employee review not found.');
             $this->redirect('/performance/employee-reviews');
             return;
@@ -171,6 +217,9 @@ class PerformanceEmployeeReviewController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/employee-reviews/edit', [
                 'title' => 'Edit Employee Review',
                 'review' => array_merge($review, $_POST),
@@ -186,6 +235,10 @@ class PerformanceEmployeeReviewController extends Controller
         $this->reviews->updateRecord($id, $data);
 
         Audit::log('Update', 'Performance', 'Updated employee review #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Employee review updated.');
+        }
         Session::flash('success', 'Employee review updated.');
         $this->redirect('/performance/employee-reviews/' . $id);
     }
@@ -195,16 +248,25 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.manage');
         $review = $this->reviews->find($id);
         if (!$review) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee review not found.'], 404);
+            }
             Session::flash('error', 'Employee review not found.');
             $this->redirect('/performance/employee-reviews');
             return;
         }
-        $this->view('performance/employee-reviews/conduct', [
+        $data = [
             'title' => 'Conduct Review',
             'review' => $review,
             'existingRatings' => PerformanceEmployeeReview::ratingsMap($review),
             'indicatorsByCategory' => $this->indicators->activeGroupedByCategory(),
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/employee-reviews/conduct', $data);
+            return;
+        }
+        $this->view('performance/employee-reviews/conduct', $data);
     }
 
     public function conductStore(int $id): void
@@ -212,6 +274,9 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/employee-reviews/' . $id . '/conduct');
             return;
@@ -219,6 +284,9 @@ class PerformanceEmployeeReviewController extends Controller
 
         $review = $this->reviews->find($id);
         if (!$review) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee review not found.'], 404);
+            }
             Session::flash('error', 'Employee review not found.');
             $this->redirect('/performance/employee-reviews');
             return;
@@ -241,6 +309,10 @@ class PerformanceEmployeeReviewController extends Controller
         ]);
 
         Audit::log('Update', 'Performance', 'Conducted employee review #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Review submitted.', '/performance/employee-reviews/' . $id);
+        }
         Session::flash('success', 'Review submitted.');
         $this->redirect('/performance/employee-reviews/' . $id);
     }
@@ -250,6 +322,9 @@ class PerformanceEmployeeReviewController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/employee-reviews');
             return;
@@ -257,6 +332,10 @@ class PerformanceEmployeeReviewController extends Controller
 
         $this->reviews->delete($id);
         Audit::log('Delete', 'Performance', 'Deleted employee review #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Employee review deleted.');
+        }
         Session::flash('success', 'Employee review deleted.');
         $this->redirect('/performance/employee-reviews');
     }

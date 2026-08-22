@@ -59,7 +59,7 @@
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Promotion</button>
-      <a href="<?= url('/hrm/promotions') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/hrm/promotions') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

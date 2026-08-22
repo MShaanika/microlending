@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Announcements</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/announcements/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Announcement</a>
+        <a href="<?= url('/hrm/announcements/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/announcements/create') ?>" data-modal-title="New Announcement" data-modal-size="lg"><i class="mdi mdi-plus"></i> New Announcement</a>
       <?php endif; ?>
     </div>
 
@@ -65,7 +65,7 @@
             $prioBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$a['priority']] ?? 'secondary';
           ?>
             <tr>
-              <td><a href="<?= url('/hrm/announcements/' . $a['id']) ?>"><?= e($a['title']) ?></a></td>
+              <td><a href="<?= url('/hrm/announcements/' . $a['id']) ?>" data-modal-url="<?= url('/hrm/announcements/' . $a['id']) ?>" data-modal-title="Announcement" data-modal-size="lg"><?= e($a['title']) ?></a></td>
               <td><?= e($a['category_name'] ?: '—') ?></td>
               <td class="text-muted small"><?= e($a['department_names'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($a['start_date']))) ?> &ndash; <?= e(date('d M Y', strtotime($a['end_date']))) ?></td>

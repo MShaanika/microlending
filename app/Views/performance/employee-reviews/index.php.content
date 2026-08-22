@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Employee Reviews</h4>
       <?php if (Auth::can('performance.manage')): ?>
-        <a href="<?= url('/performance/employee-reviews/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Schedule Review</a>
+        <a href="<?= url('/performance/employee-reviews/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/performance/employee-reviews/create') ?>" data-modal-title="Schedule Employee Review" data-modal-size="lg"><i class="mdi mdi-plus"></i> Schedule Review</a>
       <?php endif; ?>
     </div>
 
@@ -80,7 +80,7 @@
             $statusBadge = ['Pending' => 'warning', 'In Progress' => 'info', 'Completed' => 'success', 'Cancelled' => 'dark'][$r['status']] ?? 'secondary';
           ?>
             <tr>
-              <td><a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>"><?= e($r['employee_name']) ?></a></td>
+              <td><a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" data-modal-url="<?= url('/performance/employee-reviews/' . $r['id']) ?>" data-modal-title="Employee Review" data-modal-size="lg"><?= e($r['employee_name']) ?></a></td>
               <td><?= e($r['reviewer_name'] ?: '—') ?></td>
               <td><?= e($r['review_cycle_name'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($r['review_date']))) ?></td>

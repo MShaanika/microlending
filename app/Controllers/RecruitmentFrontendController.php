@@ -65,15 +65,20 @@ class RecruitmentFrontendController extends Controller
         }
 
         $questionIds = json_decode($job['custom_questions'] ?? '[]', true) ?: [];
-
-        $this->view('recruitment/public/show', [
+        $data = [
             'job' => $job,
             'questions' => $this->questions->findMany($questionIds),
             'company' => $this->company->primary() ?: [],
             'settings' => $this->settings->allSettings(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/public/show', $data);
+            return;
+        }
+        $this->view('recruitment/public/show', $data);
     }
 
     public function apply(string $code): void
@@ -86,6 +91,9 @@ class RecruitmentFrontendController extends Controller
         }
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             $this->view('recruitment/public/show', [
                 'job' => $job,
                 'questions' => $this->questions->findMany(json_decode($job['custom_questions'] ?? '[]', true) ?: []),
@@ -105,6 +113,9 @@ class RecruitmentFrontendController extends Controller
         }
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/public/show', [
                 'job' => $job,
                 'questions' => $this->questions->findMany($questionIds),
@@ -136,6 +147,13 @@ class RecruitmentFrontendController extends Controller
             }
         }
 
+        if ($this->isAjax()) {
+            $this->jsonSuccess(
+                'Application submitted! Your tracking code is ' . $data['tracking_id'] . '.',
+                null,
+                ['redirect' => url('/careers/track?tracking_id=' . $data['tracking_id'])]
+            );
+        }
         $this->view('recruitment/public/apply_success', [
             'trackingId' => $data['tracking_id'],
             'company' => $this->company->primary() ?: [],

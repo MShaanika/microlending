@@ -44,7 +44,7 @@ class HrmZoomMeetingController extends Controller
 
         $result = $this->meetings->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/zoom-meetings/index', [
+        $data = [
             'title' => 'Zoom Meetings',
             'meetings' => $result['rows'],
             'total' => $result['total'],
@@ -56,20 +56,32 @@ class HrmZoomMeetingController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/zoom-meetings/index', $data);
+            return;
+        }
+        $this->view('hrm/zoom-meetings/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/zoom-meetings/create', [
+        $data = [
             'title' => 'Schedule Zoom Meeting',
             'users' => $this->users->allActive(),
             'employees' => $this->employees->allEmployees(['status' => 'Active']),
             'zoomEnabled' => $this->settings->isEnabled(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/zoom-meetings/create', $data);
+            return;
+        }
+        $this->view('hrm/zoom-meetings/create', $data);
     }
 
     public function store(): void
@@ -77,12 +89,18 @@ class HrmZoomMeetingController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/zoom-meetings/create');
             return;
         }
 
         if (!$this->settings->isEnabled()) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Zoom meeting integration is disabled. Configure it under Zoom Settings first.']);
+            }
             Session::flash('error', 'Zoom meeting integration is disabled. Configure it under Zoom Settings first.');
             $this->redirect('/hrm/zoom-meetings/create');
             return;
@@ -91,6 +109,9 @@ class HrmZoomMeetingController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/zoom-meetings/create', [
                 'title' => 'Schedule Zoom Meeting',
                 'users' => $this->users->allActive(),
@@ -106,6 +127,9 @@ class HrmZoomMeetingController extends Controller
             $zoom = new ZoomApiService();
             $zoomResponse = $zoom->createMeeting($data);
         } catch (\Throwable $e) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => $e->getMessage()]);
+            }
             Session::flash('error', $e->getMessage());
             $this->redirect('/hrm/zoom-meetings/create');
             return;
@@ -120,6 +144,10 @@ class HrmZoomMeetingController extends Controller
         $id = $this->meetings->create($data);
 
         Audit::log('Create', 'HRM', 'Scheduled Zoom meeting #' . $id . ' - ' . $data['title']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Zoom meeting scheduled.');
+        }
         Session::flash('success', 'Zoom meeting scheduled.');
         $this->redirect('/hrm/zoom-meetings');
     }
@@ -129,16 +157,22 @@ class HrmZoomMeetingController extends Controller
         Auth::authorize('hrm.manage');
         $meeting = $this->meetings->find($id);
         if (!$meeting) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Meeting not found.'], 404);
+            }
             Session::flash('error', 'Meeting not found.');
             $this->redirect('/hrm/zoom-meetings');
             return;
         }
         if ($meeting['status'] !== 'Scheduled') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only meetings still in Scheduled status can be edited.'], 422);
+            }
             Session::flash('error', 'Only meetings still in Scheduled status can be edited.');
             $this->redirect('/hrm/zoom-meetings');
             return;
         }
-        $this->view('hrm/zoom-meetings/edit', [
+        $data = [
             'title' => 'Edit Zoom Meeting',
             'meeting' => $meeting,
             'selectedParticipants' => json_decode($meeting['participants'] ?? '[]', true) ?: [],
@@ -146,7 +180,13 @@ class HrmZoomMeetingController extends Controller
             'employees' => $this->employees->allEmployees(['status' => 'Active']),
             'zoomEnabled' => $this->settings->isEnabled(),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/zoom-meetings/edit', $data);
+            return;
+        }
+        $this->view('hrm/zoom-meetings/edit', $data);
     }
 
     public function update(int $id): void
@@ -154,6 +194,9 @@ class HrmZoomMeetingController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/zoom-meetings/' . $id . '/edit');
             return;
@@ -161,12 +204,18 @@ class HrmZoomMeetingController extends Controller
 
         $meeting = $this->meetings->find($id);
         if (!$meeting || $meeting['status'] !== 'Scheduled') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This meeting cannot be edited.'], 422);
+            }
             Session::flash('error', 'This meeting cannot be edited.');
             $this->redirect('/hrm/zoom-meetings');
             return;
         }
 
         if (!$this->settings->isEnabled()) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Zoom meeting integration is disabled.']);
+            }
             Session::flash('error', 'Zoom meeting integration is disabled.');
             $this->redirect('/hrm/zoom-meetings/' . $id . '/edit');
             return;
@@ -175,6 +224,9 @@ class HrmZoomMeetingController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/zoom-meetings/edit', [
                 'title' => 'Edit Zoom Meeting',
                 'meeting' => array_merge($meeting, $_POST),
@@ -194,6 +246,9 @@ class HrmZoomMeetingController extends Controller
                 $data['start_url'] = $zoomResponse['start_url'] ?? $meeting['start_url'];
                 $data['join_url'] = $zoomResponse['join_url'] ?? $meeting['join_url'];
             } catch (\Throwable $e) {
+                if ($this->isAjax()) {
+                    $this->jsonErrors(['_general' => $e->getMessage()]);
+                }
                 Session::flash('error', $e->getMessage());
                 $this->redirect('/hrm/zoom-meetings/' . $id . '/edit');
                 return;
@@ -203,6 +258,10 @@ class HrmZoomMeetingController extends Controller
         $this->meetings->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated Zoom meeting #' . $id . ' - ' . $data['title']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Zoom meeting updated.');
+        }
         Session::flash('success', 'Zoom meeting updated.');
         $this->redirect('/hrm/zoom-meetings');
     }
@@ -212,6 +271,9 @@ class HrmZoomMeetingController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/zoom-meetings');
             return;
@@ -219,6 +281,9 @@ class HrmZoomMeetingController extends Controller
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['status' => 'Invalid status.']);
+            }
             Session::flash('error', 'Invalid status.');
             $this->redirect('/hrm/zoom-meetings');
             return;
@@ -226,6 +291,10 @@ class HrmZoomMeetingController extends Controller
 
         $this->meetings->updateRecord($id, ['status' => $status]);
         Audit::log('Update', 'HRM', 'Updated Zoom meeting #' . $id . ' status to ' . $status);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Meeting status updated.');
+        }
         Session::flash('success', 'Meeting status updated.');
         $this->redirect('/hrm/zoom-meetings');
     }
@@ -235,6 +304,9 @@ class HrmZoomMeetingController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/zoom-meetings');
             return;
@@ -251,6 +323,10 @@ class HrmZoomMeetingController extends Controller
 
         $this->meetings->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted Zoom meeting #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Zoom meeting deleted.');
+        }
         Session::flash('success', 'Zoom meeting deleted.');
         $this->redirect('/hrm/zoom-meetings');
     }

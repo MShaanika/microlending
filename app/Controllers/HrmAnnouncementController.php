@@ -43,7 +43,7 @@ class HrmAnnouncementController extends Controller
 
         $result = $this->announcements->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/announcements/index', [
+        $data = [
             'title' => 'Announcements',
             'announcements' => $result['rows'],
             'total' => $result['total'],
@@ -55,19 +55,31 @@ class HrmAnnouncementController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/announcements/index', $data);
+            return;
+        }
+        $this->view('hrm/announcements/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/announcements/create', [
+        $data = [
             'title' => 'New Announcement',
             'categories' => $this->categories->allCategories(),
             'departments' => $this->departments->allDepartments(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/announcements/create', $data);
+            return;
+        }
+        $this->view('hrm/announcements/create', $data);
     }
 
     public function store(): void
@@ -75,6 +87,9 @@ class HrmAnnouncementController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/announcements/create');
             return;
@@ -83,6 +98,9 @@ class HrmAnnouncementController extends Controller
         [$data, $departmentIds, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/announcements/create', [
                 'title' => 'New Announcement',
                 'categories' => $this->categories->allCategories(),
@@ -99,6 +117,10 @@ class HrmAnnouncementController extends Controller
         $this->announcements->syncDepartments($id, $departmentIds);
 
         Audit::log('Create', 'HRM', 'Announcement #' . $id . ' created - ' . $data['title']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Announcement created as Draft.');
+        }
         Session::flash('success', 'Announcement created as Draft.');
         $this->redirect('/hrm/announcements');
     }
@@ -108,16 +130,25 @@ class HrmAnnouncementController extends Controller
         Auth::authorize('hrm.view');
         $announcement = $this->announcements->find($id);
         if (!$announcement) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Announcement not found.'], 404);
+            }
             Session::flash('error', 'Announcement not found.');
             $this->redirect('/hrm/announcements');
             return;
         }
-        $this->view('hrm/announcements/show', [
+        $data = [
             'title' => 'Announcement',
             'announcement' => $announcement,
             'departmentNames' => $this->announcements->departmentNamesFor($id),
             'statuses' => self::STATUSES,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/announcements/show', $data);
+            return;
+        }
+        $this->view('hrm/announcements/show', $data);
     }
 
     public function updateStatus(int $id): void
@@ -125,6 +156,9 @@ class HrmAnnouncementController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/announcements/' . $id);
             return;
@@ -132,6 +166,9 @@ class HrmAnnouncementController extends Controller
 
         $announcement = $this->announcements->find($id);
         if (!$announcement) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Announcement not found.'], 404);
+            }
             Session::flash('error', 'Announcement not found.');
             $this->redirect('/hrm/announcements');
             return;
@@ -139,6 +176,9 @@ class HrmAnnouncementController extends Controller
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['status' => 'Invalid status.']);
+            }
             Session::flash('error', 'Invalid status.');
             $this->redirect('/hrm/announcements/' . $id);
             return;
@@ -150,6 +190,10 @@ class HrmAnnouncementController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Announcement #' . $id . ' status set to ' . $status);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Announcement status updated.', '/hrm/announcements/' . $id);
+        }
         Session::flash('success', 'Announcement status updated.');
         $this->redirect('/hrm/announcements/' . $id);
     }
@@ -159,6 +203,9 @@ class HrmAnnouncementController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/announcements');
             return;
@@ -166,6 +213,10 @@ class HrmAnnouncementController extends Controller
 
         $this->announcements->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted announcement #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Announcement deleted.');
+        }
         Session::flash('success', 'Announcement deleted.');
         $this->redirect('/hrm/announcements');
     }

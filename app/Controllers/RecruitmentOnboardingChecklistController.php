@@ -32,7 +32,7 @@ class RecruitmentOnboardingChecklistController extends Controller
 
         $result = $this->checklists->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/onboarding-checklists/index', [
+        $data = [
             'title' => 'Onboarding Checklists',
             'checklists' => $result['rows'],
             'total' => $result['total'],
@@ -42,17 +42,25 @@ class RecruitmentOnboardingChecklistController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/onboarding-checklists/index', $data);
+            return;
+        }
+        $this->view('recruitment/onboarding-checklists/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/onboarding-checklists/create', [
-            'title' => 'Add Onboarding Checklist',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Onboarding Checklist', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/onboarding-checklists/create', $data);
+            return;
+        }
+        $this->view('recruitment/onboarding-checklists/create', $data);
     }
 
     public function store(): void
@@ -60,6 +68,9 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/onboarding-checklists/create');
             return;
@@ -68,6 +79,9 @@ class RecruitmentOnboardingChecklistController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/onboarding-checklists/create', [
                 'title' => 'Add Onboarding Checklist',
                 'old' => $_POST,
@@ -79,6 +93,10 @@ class RecruitmentOnboardingChecklistController extends Controller
         $id = $this->checklists->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created onboarding checklist #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Checklist created.');
+        }
         Session::flash('success', 'Checklist created.');
         $this->redirect('/recruitment/onboarding-checklists/' . $id);
     }
@@ -88,15 +106,20 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.view');
         $checklist = $this->checklists->find($id);
         if (!$checklist) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Checklist not found.'], 404);
+            }
             Session::flash('error', 'Checklist not found.');
             $this->redirect('/recruitment/onboarding-checklists');
             return;
         }
-        $this->view('recruitment/onboarding-checklists/show', [
-            'title' => $checklist['name'],
-            'checklist' => $checklist,
-            'items' => $this->items->forChecklist($id),
-        ]);
+        $data = ['title' => $checklist['name'], 'checklist' => $checklist, 'items' => $this->items->forChecklist($id)];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/onboarding-checklists/show', $data);
+            return;
+        }
+        $this->view('recruitment/onboarding-checklists/show', $data);
     }
 
     public function edit(int $id): void
@@ -104,15 +127,20 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.manage');
         $checklist = $this->checklists->find($id);
         if (!$checklist) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Checklist not found.'], 404);
+            }
             Session::flash('error', 'Checklist not found.');
             $this->redirect('/recruitment/onboarding-checklists');
             return;
         }
-        $this->view('recruitment/onboarding-checklists/edit', [
-            'title' => 'Edit Onboarding Checklist',
-            'checklist' => $checklist,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Onboarding Checklist', 'checklist' => $checklist, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/onboarding-checklists/edit', $data);
+            return;
+        }
+        $this->view('recruitment/onboarding-checklists/edit', $data);
     }
 
     public function update(int $id): void
@@ -120,6 +148,9 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/onboarding-checklists/' . $id . '/edit');
             return;
@@ -127,6 +158,9 @@ class RecruitmentOnboardingChecklistController extends Controller
 
         $checklist = $this->checklists->find($id);
         if (!$checklist) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Checklist not found.'], 404);
+            }
             Session::flash('error', 'Checklist not found.');
             $this->redirect('/recruitment/onboarding-checklists');
             return;
@@ -135,6 +169,9 @@ class RecruitmentOnboardingChecklistController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/onboarding-checklists/edit', [
                 'title' => 'Edit Onboarding Checklist',
                 'checklist' => array_merge($checklist, $_POST),
@@ -146,6 +183,10 @@ class RecruitmentOnboardingChecklistController extends Controller
         $this->checklists->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated onboarding checklist #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Checklist updated.');
+        }
         Session::flash('success', 'Checklist updated.');
         $this->redirect('/recruitment/onboarding-checklists');
     }
@@ -155,6 +196,9 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/onboarding-checklists');
             return;
@@ -162,6 +206,10 @@ class RecruitmentOnboardingChecklistController extends Controller
 
         $this->checklists->delete($id);
         Audit::log('Delete', 'Recruitment', 'Deleted onboarding checklist #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Checklist deleted.');
+        }
         Session::flash('success', 'Checklist deleted.');
         $this->redirect('/recruitment/onboarding-checklists');
     }
@@ -171,6 +219,9 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/onboarding-checklists/' . $id);
             return;
@@ -178,6 +229,9 @@ class RecruitmentOnboardingChecklistController extends Controller
 
         $taskName = trim($_POST['task_name'] ?? '');
         if ($taskName === '') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['task_name' => 'Task name is required.']);
+            }
             Session::flash('error', 'Task name is required.');
             $this->redirect('/recruitment/onboarding-checklists/' . $id);
             return;
@@ -194,6 +248,9 @@ class RecruitmentOnboardingChecklistController extends Controller
             'status' => 'Active',
         ]);
 
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Checklist item added.', '/recruitment/onboarding-checklists/' . $id);
+        }
         Session::flash('success', 'Checklist item added.');
         $this->redirect('/recruitment/onboarding-checklists/' . $id);
     }
@@ -203,12 +260,19 @@ class RecruitmentOnboardingChecklistController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/onboarding-checklists/' . $id);
             return;
         }
 
         $this->items->delete($itemId);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Checklist item deleted.', '/recruitment/onboarding-checklists/' . $id);
+        }
         Session::flash('success', 'Checklist item deleted.');
         $this->redirect('/recruitment/onboarding-checklists/' . $id);
     }

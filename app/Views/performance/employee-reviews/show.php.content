@@ -33,10 +33,10 @@ $statusBadge = ['Pending' => 'warning', 'In Progress' => 'info', 'Completed' => 
 
 <?php if (Auth::can('performance.manage') && $r['status'] !== 'Cancelled'): ?>
 <div class="mb-3">
-  <a href="<?= url('/performance/employee-reviews/' . $r['id'] . '/conduct') ?>" class="btn btn-info btn-sm">
+  <a href="<?= url('/performance/employee-reviews/' . $r['id'] . '/conduct') ?>" class="btn btn-info btn-sm" data-modal-url="<?= url('/performance/employee-reviews/' . $r['id'] . '/conduct') ?>" data-modal-title="Conduct Review" data-modal-size="lg">
     <i class="mdi mdi-star-outline"></i> <?= $r['status'] === 'Completed' ? 'Re-conduct Review' : 'Conduct Review' ?>
   </a>
-  <a href="<?= url('/performance/employee-reviews/' . $r['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm">Edit Schedule</a>
+  <a href="<?= url('/performance/employee-reviews/' . $r['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/performance/employee-reviews/' . $r['id'] . '/edit') ?>" data-modal-title="Edit Employee Review" data-modal-size="lg">Edit Schedule</a>
 </div>
 <?php endif; ?>
 
@@ -74,4 +74,4 @@ $statusBadge = ['Pending' => 'warning', 'In Progress' => 'info', 'Completed' => 
   </div>
 </div>
 
-<a href="<?= url('/performance/employee-reviews') ?>" class="btn btn-outline-secondary btn-sm mt-3">Back</a>
+<a href="<?= url('/performance/employee-reviews') ?>" class="btn btn-outline-secondary btn-sm mt-3" data-bs-dismiss="modal">Back</a>

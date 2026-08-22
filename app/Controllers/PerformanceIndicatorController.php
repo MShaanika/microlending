@@ -32,7 +32,7 @@ class PerformanceIndicatorController extends Controller
 
         $result = $this->indicators->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('performance/indicators/index', [
+        $data = [
             'title' => 'Performance Indicators',
             'indicators' => $result['rows'],
             'total' => $result['total'],
@@ -42,18 +42,25 @@ class PerformanceIndicatorController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/indicators/index', $data);
+            return;
+        }
+        $this->view('performance/indicators/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('performance.manage');
-        $this->view('performance/indicators/create', [
-            'title' => 'Add Performance Indicator',
-            'categories' => $this->categories->allCategories(),
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Performance Indicator', 'categories' => $this->categories->allCategories(), 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/indicators/create', $data);
+            return;
+        }
+        $this->view('performance/indicators/create', $data);
     }
 
     public function store(): void
@@ -61,6 +68,9 @@ class PerformanceIndicatorController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/indicators/create');
             return;
@@ -69,6 +79,9 @@ class PerformanceIndicatorController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/indicators/create', [
                 'title' => 'Add Performance Indicator',
                 'categories' => $this->categories->allCategories(),
@@ -81,6 +94,10 @@ class PerformanceIndicatorController extends Controller
         $id = $this->indicators->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Performance', 'Created performance indicator #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Performance indicator created.');
+        }
         Session::flash('success', 'Performance indicator created.');
         $this->redirect('/performance/indicators');
     }
@@ -90,16 +107,20 @@ class PerformanceIndicatorController extends Controller
         Auth::authorize('performance.manage');
         $indicator = $this->indicators->find($id);
         if (!$indicator) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Performance indicator not found.'], 404);
+            }
             Session::flash('error', 'Performance indicator not found.');
             $this->redirect('/performance/indicators');
             return;
         }
-        $this->view('performance/indicators/edit', [
-            'title' => 'Edit Performance Indicator',
-            'indicator' => $indicator,
-            'categories' => $this->categories->allCategories(),
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Performance Indicator', 'indicator' => $indicator, 'categories' => $this->categories->allCategories(), 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/indicators/edit', $data);
+            return;
+        }
+        $this->view('performance/indicators/edit', $data);
     }
 
     public function update(int $id): void
@@ -107,6 +128,9 @@ class PerformanceIndicatorController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/indicators/' . $id . '/edit');
             return;
@@ -114,6 +138,9 @@ class PerformanceIndicatorController extends Controller
 
         $indicator = $this->indicators->find($id);
         if (!$indicator) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Performance indicator not found.'], 404);
+            }
             Session::flash('error', 'Performance indicator not found.');
             $this->redirect('/performance/indicators');
             return;
@@ -122,6 +149,9 @@ class PerformanceIndicatorController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/indicators/edit', [
                 'title' => 'Edit Performance Indicator',
                 'indicator' => array_merge($indicator, $_POST),
@@ -134,6 +164,10 @@ class PerformanceIndicatorController extends Controller
         $this->indicators->updateRecord($id, $data);
 
         Audit::log('Update', 'Performance', 'Updated performance indicator #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Performance indicator updated.');
+        }
         Session::flash('success', 'Performance indicator updated.');
         $this->redirect('/performance/indicators');
     }
@@ -143,6 +177,9 @@ class PerformanceIndicatorController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/indicators');
             return;
@@ -150,6 +187,10 @@ class PerformanceIndicatorController extends Controller
 
         $this->indicators->delete($id);
         Audit::log('Delete', 'Performance', 'Deleted performance indicator #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Performance indicator deleted.');
+        }
         Session::flash('success', 'Performance indicator deleted.');
         $this->redirect('/performance/indicators');
     }

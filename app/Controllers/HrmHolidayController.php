@@ -31,7 +31,7 @@ class HrmHolidayController extends Controller
 
         $result = $this->holidays->paginated($year, $search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/holidays/index', [
+        $data = [
             'title' => 'Holidays',
             'holidays' => $result['rows'],
             'total' => $result['total'],
@@ -42,17 +42,25 @@ class HrmHolidayController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/holidays/index', $data);
+            return;
+        }
+        $this->view('hrm/holidays/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/holidays/create', [
-            'title' => 'Add Holiday',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Holiday', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/holidays/create', $data);
+            return;
+        }
+        $this->view('hrm/holidays/create', $data);
     }
 
     public function store(): void
@@ -60,6 +68,9 @@ class HrmHolidayController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/holidays/create');
             return;
@@ -68,6 +79,9 @@ class HrmHolidayController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/holidays/create', [
                 'title' => 'Add Holiday',
                 'old' => $_POST,
@@ -80,6 +94,10 @@ class HrmHolidayController extends Controller
         $id = $this->holidays->create($data);
 
         Audit::log('Create', 'HRM', 'Created holiday #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Holiday added.');
+        }
         Session::flash('success', 'Holiday added.');
         $this->redirect('/hrm/holidays');
     }
@@ -89,15 +107,20 @@ class HrmHolidayController extends Controller
         Auth::authorize('hrm.manage');
         $holiday = $this->holidays->find($id);
         if (!$holiday) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Holiday not found.'], 404);
+            }
             Session::flash('error', 'Holiday not found.');
             $this->redirect('/hrm/holidays');
             return;
         }
-        $this->view('hrm/holidays/edit', [
-            'title' => 'Edit Holiday',
-            'holiday' => $holiday,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Holiday', 'holiday' => $holiday, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/holidays/edit', $data);
+            return;
+        }
+        $this->view('hrm/holidays/edit', $data);
     }
 
     public function update(int $id): void
@@ -105,6 +128,9 @@ class HrmHolidayController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/holidays/' . $id . '/edit');
             return;
@@ -112,6 +138,9 @@ class HrmHolidayController extends Controller
 
         $holiday = $this->holidays->find($id);
         if (!$holiday) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Holiday not found.'], 404);
+            }
             Session::flash('error', 'Holiday not found.');
             $this->redirect('/hrm/holidays');
             return;
@@ -120,6 +149,9 @@ class HrmHolidayController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/holidays/edit', [
                 'title' => 'Edit Holiday',
                 'holiday' => array_merge($holiday, $_POST),
@@ -131,6 +163,10 @@ class HrmHolidayController extends Controller
         $this->holidays->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated holiday #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Holiday updated.');
+        }
         Session::flash('success', 'Holiday updated.');
         $this->redirect('/hrm/holidays');
     }

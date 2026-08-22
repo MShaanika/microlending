@@ -29,7 +29,7 @@ class HrmDeductionTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/deduction-types/index', [
+        $data = [
             'title' => 'Deduction Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmDeductionTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/deduction-types/index', $data);
+            return;
+        }
+        $this->view('hrm/deduction-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/deduction-types/create', [
-            'title' => 'Add Deduction Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Deduction Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/deduction-types/create', $data);
+            return;
+        }
+        $this->view('hrm/deduction-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmDeductionTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/deduction-types/create');
             return;
@@ -65,6 +76,9 @@ class HrmDeductionTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/deduction-types/create', [
                 'title' => 'Add Deduction Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class HrmDeductionTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created deduction type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Deduction type created.');
+        }
         Session::flash('success', 'Deduction type created.');
         $this->redirect('/hrm/deduction-types');
     }
@@ -85,15 +103,20 @@ class HrmDeductionTypeController extends Controller
         Auth::authorize('hrm.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Deduction type not found.'], 404);
+            }
             Session::flash('error', 'Deduction type not found.');
             $this->redirect('/hrm/deduction-types');
             return;
         }
-        $this->view('hrm/deduction-types/edit', [
-            'title' => 'Edit Deduction Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Deduction Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/deduction-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/deduction-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class HrmDeductionTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/deduction-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class HrmDeductionTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Deduction type not found.'], 404);
+            }
             Session::flash('error', 'Deduction type not found.');
             $this->redirect('/hrm/deduction-types');
             return;
@@ -116,6 +145,9 @@ class HrmDeductionTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/deduction-types/edit', [
                 'title' => 'Edit Deduction Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class HrmDeductionTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated deduction type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Deduction type updated.');
+        }
         Session::flash('success', 'Deduction type updated.');
         $this->redirect('/hrm/deduction-types');
     }

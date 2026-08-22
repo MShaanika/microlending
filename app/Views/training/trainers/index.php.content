@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Trainers</h4>
       <?php if (Auth::can('training.manage')): ?>
-        <a href="<?= url('/training/trainers/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Trainer</a>
+        <a href="<?= url('/training/trainers/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/training/trainers/create') ?>" data-modal-title="Add Trainer" data-modal-size="lg"><i class="mdi mdi-plus"></i> Add Trainer</a>
       <?php endif; ?>
     </div>
 
@@ -51,7 +51,7 @@
               <td><span class="badge bg-<?= $t['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($t['status']) ?></span></td>
               <?php if (Auth::can('training.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/training/trainers/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/training/trainers/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/training/trainers/' . $t['id'] . '/edit') ?>" data-modal-title="Edit Trainer" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/training/trainers/' . $t['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this trainer?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

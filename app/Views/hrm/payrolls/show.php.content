@@ -13,12 +13,12 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
   <div>
     <span class="badge bg-<?= $statusBadge ?> fs-6 me-2"><?= e($p['status']) ?></span>
     <?php if ($p['status'] !== 'Completed' && Auth::can('hrm.manage')): ?>
-      <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/run') ?>" class="d-inline">
+      <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/run') ?>" class="d-inline" data-modal-behavior="reload">
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-play"></i> Run Payroll</button>
       </form>
     <?php endif; ?>
-    <a href="<?= url('/hrm/payrolls') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+    <a href="<?= url('/hrm/payrolls') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>
   </div>
 </div>
 
@@ -83,7 +83,7 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
               <td class="text-end">
                 <a href="<?= url('/hrm/payrolls/' . $p['id'] . '/entries/' . $e['id'] . '/payslip') ?>" class="btn btn-sm btn-outline-info">Payslip</a>
                 <?php if (Auth::can('hrm.manage') && $e['status'] !== 'Paid'): ?>
-                <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/entries/' . $e['id'] . '/mark-paid') ?>" class="d-inline">
+                <form method="post" action="<?= url('/hrm/payrolls/' . $p['id'] . '/entries/' . $e['id'] . '/mark-paid') ?>" class="d-inline" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
                 </form>

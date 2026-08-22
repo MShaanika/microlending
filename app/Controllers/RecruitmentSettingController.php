@@ -24,10 +24,13 @@ class RecruitmentSettingController extends Controller
     public function edit(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/settings/edit', [
-            'title' => 'Recruitment System Setup',
-            'settings' => $this->settings->allSettings(),
-        ]);
+        $data = ['title' => 'Recruitment System Setup', 'settings' => $this->settings->allSettings()];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/settings/edit', $data);
+            return;
+        }
+        $this->view('recruitment/settings/edit', $data);
     }
 
     public function update(): void
@@ -35,6 +38,9 @@ class RecruitmentSettingController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/settings');
             return;
@@ -45,6 +51,10 @@ class RecruitmentSettingController extends Controller
         }
 
         Audit::log('Update', 'Recruitment', 'Updated recruitment careers page settings');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Settings saved.');
+        }
         Session::flash('success', 'Settings saved.');
         $this->redirect('/recruitment/settings');
     }

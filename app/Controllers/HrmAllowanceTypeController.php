@@ -29,7 +29,7 @@ class HrmAllowanceTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/allowance-types/index', [
+        $data = [
             'title' => 'Allowance Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmAllowanceTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/allowance-types/index', $data);
+            return;
+        }
+        $this->view('hrm/allowance-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/allowance-types/create', [
-            'title' => 'Add Allowance Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Allowance Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/allowance-types/create', $data);
+            return;
+        }
+        $this->view('hrm/allowance-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmAllowanceTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/allowance-types/create');
             return;
@@ -65,6 +76,9 @@ class HrmAllowanceTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/allowance-types/create', [
                 'title' => 'Add Allowance Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class HrmAllowanceTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created allowance type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Allowance type created.');
+        }
         Session::flash('success', 'Allowance type created.');
         $this->redirect('/hrm/allowance-types');
     }
@@ -85,15 +103,20 @@ class HrmAllowanceTypeController extends Controller
         Auth::authorize('hrm.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Allowance type not found.'], 404);
+            }
             Session::flash('error', 'Allowance type not found.');
             $this->redirect('/hrm/allowance-types');
             return;
         }
-        $this->view('hrm/allowance-types/edit', [
-            'title' => 'Edit Allowance Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Allowance Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/allowance-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/allowance-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class HrmAllowanceTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/allowance-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class HrmAllowanceTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Allowance type not found.'], 404);
+            }
             Session::flash('error', 'Allowance type not found.');
             $this->redirect('/hrm/allowance-types');
             return;
@@ -116,6 +145,9 @@ class HrmAllowanceTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/allowance-types/edit', [
                 'title' => 'Edit Allowance Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class HrmAllowanceTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated allowance type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Allowance type updated.');
+        }
         Session::flash('success', 'Allowance type updated.');
         $this->redirect('/hrm/allowance-types');
     }

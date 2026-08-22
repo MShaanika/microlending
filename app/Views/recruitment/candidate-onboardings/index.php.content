@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Candidate Onboarding</h4>
       <?php if (Auth::can('recruitment.manage')): ?>
-        <a href="<?= url('/recruitment/candidate-onboardings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Start Onboarding</a>
+        <a href="<?= url('/recruitment/candidate-onboardings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/recruitment/candidate-onboardings/create') ?>" data-modal-title="Start Onboarding" data-modal-size="lg"><i class="mdi mdi-plus"></i> Start Onboarding</a>
       <?php endif; ?>
     </div>
 
@@ -43,7 +43,7 @@
           <?php $statusBadge = ['Pending' => 'secondary', 'In Progress' => 'warning', 'Completed' => 'success']; ?>
           <?php foreach ($onboardings as $o): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>"><?= e($o['candidate_name']) ?></a></td>
+              <td><a href="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>" data-modal-url="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>" data-modal-title="<?= e('Onboarding: ' . $o['candidate_name']) ?>" data-modal-size="lg"><?= e($o['candidate_name']) ?></a></td>
               <td><?= e($o['checklist_name'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($o['start_date']))) ?></td>
               <td><?= e($o['buddy_name'] ?: '—') ?></td>
@@ -62,9 +62,9 @@
                 <?php endif; ?>
               </td>
               <td class="text-end">
-                <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary" data-modal-url="<?= url('/recruitment/candidate-onboardings/' . $o['id']) ?>" data-modal-title="<?= e('Onboarding: ' . $o['candidate_name']) ?>" data-modal-size="lg"><i class="mdi mdi-eye"></i></a>
                 <?php if (Auth::can('recruitment.manage')): ?>
-                <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/candidate-onboardings/' . $o['id'] . '/edit') ?>" data-modal-title="Edit Onboarding" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                 <?php endif; ?>
               </td>
             </tr>

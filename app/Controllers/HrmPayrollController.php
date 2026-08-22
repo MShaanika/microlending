@@ -42,7 +42,7 @@ class HrmPayrollController extends Controller
 
         $result = $this->payrolls->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/payrolls/index', [
+        $data = [
             'title' => 'Payroll',
             'payrolls' => $result['rows'],
             'total' => $result['total'],
@@ -53,18 +53,30 @@ class HrmPayrollController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/payrolls/index', $data);
+            return;
+        }
+        $this->view('hrm/payrolls/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/payrolls/create', [
+        $data = [
             'title' => 'New Payroll Run',
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/payrolls/create', $data);
+            return;
+        }
+        $this->view('hrm/payrolls/create', $data);
     }
 
     public function store(): void
@@ -72,6 +84,9 @@ class HrmPayrollController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/payrolls/create');
             return;
@@ -80,6 +95,9 @@ class HrmPayrollController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/payrolls/create', [
                 'title' => 'New Payroll Run',
                 'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
@@ -94,6 +112,10 @@ class HrmPayrollController extends Controller
         $id = $this->payrolls->create($data);
 
         Audit::log('Create', 'HRM', 'Created payroll run #' . $id . ' - ' . $data['title']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Payroll run created. Click "Run Payroll" to generate payslips.');
+        }
         Session::flash('success', 'Payroll run created. Click "Run Payroll" to generate payslips.');
         $this->redirect('/hrm/payrolls/' . $id);
     }
@@ -103,15 +125,24 @@ class HrmPayrollController extends Controller
         Auth::authorize('hrm.view');
         $payroll = $this->payrolls->find($id);
         if (!$payroll) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Payroll run not found.'], 404);
+            }
             Session::flash('error', 'Payroll run not found.');
             $this->redirect('/hrm/payrolls');
             return;
         }
-        $this->view('hrm/payrolls/show', [
+        $data = [
             'title' => $payroll['title'],
             'payroll' => $payroll,
             'entries' => $this->entries->forPayroll($id),
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/payrolls/show', $data);
+            return;
+        }
+        $this->view('hrm/payrolls/show', $data);
     }
 
     public function run(int $id): void
@@ -119,6 +150,9 @@ class HrmPayrollController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/payrolls/' . $id);
             return;
@@ -126,11 +160,17 @@ class HrmPayrollController extends Controller
 
         $payroll = $this->payrolls->find($id);
         if (!$payroll) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Payroll run not found.'], 404);
+            }
             Session::flash('error', 'Payroll run not found.');
             $this->redirect('/hrm/payrolls');
             return;
         }
         if ($payroll['status'] === 'Completed') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This payroll has already been run. Delete and recreate it to run again from scratch.'], 422);
+            }
             Session::flash('error', 'This payroll has already been run. Delete and recreate it to run again from scratch.');
             $this->redirect('/hrm/payrolls/' . $id);
             return;
@@ -139,11 +179,18 @@ class HrmPayrollController extends Controller
         try {
             $result = PayrollService::run($id, Auth::user()['id'] ?? null);
             Audit::log('Update', 'HRM', 'Ran payroll #' . $id . ' -- ' . $result['new_entries'] . ' new payslips');
-            Session::flash('success', $result['new_entries'] > 0
+            $message = $result['new_entries'] > 0
                 ? "Payroll processed. {$result['new_entries']} new payslips created (total: {$result['total_entries']})."
-                : "Payroll already processed for all {$result['total_entries']} employees.");
+                : "Payroll already processed for all {$result['total_entries']} employees.";
+            if ($this->isAjax()) {
+                $this->jsonSuccess($message, '/hrm/payrolls/' . $id);
+            }
+            Session::flash('success', $message);
         } catch (\Throwable $e) {
             $this->payrolls->updateRecord($id, ['status' => 'Draft']);
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Failed to process payroll: ' . $e->getMessage()]);
+            }
             Session::flash('error', 'Failed to process payroll: ' . $e->getMessage());
         }
 
@@ -177,6 +224,9 @@ class HrmPayrollController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/payrolls/' . $payrollId);
             return;
@@ -184,6 +234,10 @@ class HrmPayrollController extends Controller
 
         $this->entries->updateStatus($entryId, 'Paid');
         Audit::log('Update', 'HRM', 'Marked payslip #' . $entryId . ' as paid');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Payslip marked as paid.', '/hrm/payrolls/' . $payrollId);
+        }
         Session::flash('success', 'Payslip marked as paid.');
         $this->redirect('/hrm/payrolls/' . $payrollId);
     }

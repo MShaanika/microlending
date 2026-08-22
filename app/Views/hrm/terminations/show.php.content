@@ -35,7 +35,7 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'danger', 'Rejected' => 's
       <div class="card-body">
         <h5 class="card-title text-danger">Approve</h5>
         <p class="text-muted small">This will mark the employee's status as Terminated.</p>
-        <form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/approve') ?>" onsubmit="return confirm('Approve this termination? The employee will be marked as Terminated.');">
+        <form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/approve') ?>" onsubmit="return confirm('Approve this termination? The employee will be marked as Terminated.');" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-check"></i> Approve</button>
         </form>
@@ -46,7 +46,7 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'danger', 'Rejected' => 's
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title text-secondary">Reject</h5>
-        <form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/reject') ?>">
+        <form method="post" action="<?= url('/hrm/terminations/' . $t['id'] . '/reject') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-close"></i> Reject</button>
         </form>
@@ -62,4 +62,4 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'danger', 'Rejected' => 's
   <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
 </form>
 <?php endif; ?>
-<a href="<?= url('/hrm/terminations') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/terminations') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

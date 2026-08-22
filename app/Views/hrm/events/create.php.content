@@ -72,7 +72,7 @@
       <div class="alert alert-info">New events start as <strong>Pending</strong> and need to be approved before they're confirmed.</div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Event</button>
-      <a href="<?= url('/hrm/events') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/hrm/events') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

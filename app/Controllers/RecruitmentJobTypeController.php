@@ -29,7 +29,7 @@ class RecruitmentJobTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/job-types/index', [
+        $data = [
             'title' => 'Job Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class RecruitmentJobTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/job-types/index', $data);
+            return;
+        }
+        $this->view('recruitment/job-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/job-types/create', [
-            'title' => 'Add Job Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Job Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/job-types/create', $data);
+            return;
+        }
+        $this->view('recruitment/job-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class RecruitmentJobTypeController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/job-types/create');
             return;
@@ -65,6 +76,9 @@ class RecruitmentJobTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/job-types/create', [
                 'title' => 'Add Job Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class RecruitmentJobTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created job type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Job type created.');
+        }
         Session::flash('success', 'Job type created.');
         $this->redirect('/recruitment/job-types');
     }
@@ -85,15 +103,20 @@ class RecruitmentJobTypeController extends Controller
         Auth::authorize('recruitment.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Job type not found.'], 404);
+            }
             Session::flash('error', 'Job type not found.');
             $this->redirect('/recruitment/job-types');
             return;
         }
-        $this->view('recruitment/job-types/edit', [
-            'title' => 'Edit Job Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Job Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/job-types/edit', $data);
+            return;
+        }
+        $this->view('recruitment/job-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class RecruitmentJobTypeController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/job-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class RecruitmentJobTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Job type not found.'], 404);
+            }
             Session::flash('error', 'Job type not found.');
             $this->redirect('/recruitment/job-types');
             return;
@@ -116,6 +145,9 @@ class RecruitmentJobTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/job-types/edit', [
                 'title' => 'Edit Job Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class RecruitmentJobTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated job type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Job type updated.');
+        }
         Session::flash('success', 'Job type updated.');
         $this->redirect('/recruitment/job-types');
     }

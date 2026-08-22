@@ -33,7 +33,7 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => '
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title text-success">Approve</h5>
-        <form method="post" action="<?= url('/hrm/leave-applications/' . $a['id'] . '/approve') ?>">
+        <form method="post" action="<?= url('/hrm/leave-applications/' . $a['id'] . '/approve') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <div class="mb-2">
             <textarea name="approver_comment" rows="2" class="form-control" placeholder="Optional comment"></textarea>
@@ -47,7 +47,7 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => '
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title text-danger">Reject</h5>
-        <form method="post" action="<?= url('/hrm/leave-applications/' . $a['id'] . '/reject') ?>">
+        <form method="post" action="<?= url('/hrm/leave-applications/' . $a['id'] . '/reject') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <div class="mb-2">
             <textarea name="approver_comment" rows="2" class="form-control" placeholder="Reason for rejection"></textarea>
@@ -60,4 +60,4 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => '
 </div>
 <?php endif; ?>
 
-<a href="<?= url('/hrm/leave-applications') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/leave-applications') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

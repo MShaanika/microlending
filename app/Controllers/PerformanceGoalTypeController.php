@@ -29,7 +29,7 @@ class PerformanceGoalTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('performance/goal-types/index', [
+        $data = [
             'title' => 'Goal Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class PerformanceGoalTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/goal-types/index', $data);
+            return;
+        }
+        $this->view('performance/goal-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('performance.manage');
-        $this->view('performance/goal-types/create', [
-            'title' => 'Add Goal Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Goal Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/goal-types/create', $data);
+            return;
+        }
+        $this->view('performance/goal-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class PerformanceGoalTypeController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/goal-types/create');
             return;
@@ -65,6 +76,9 @@ class PerformanceGoalTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/goal-types/create', [
                 'title' => 'Add Goal Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class PerformanceGoalTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Performance', 'Created goal type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Goal type created.');
+        }
         Session::flash('success', 'Goal type created.');
         $this->redirect('/performance/goal-types');
     }
@@ -85,15 +103,20 @@ class PerformanceGoalTypeController extends Controller
         Auth::authorize('performance.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Goal type not found.'], 404);
+            }
             Session::flash('error', 'Goal type not found.');
             $this->redirect('/performance/goal-types');
             return;
         }
-        $this->view('performance/goal-types/edit', [
-            'title' => 'Edit Goal Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Goal Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/goal-types/edit', $data);
+            return;
+        }
+        $this->view('performance/goal-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class PerformanceGoalTypeController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/goal-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class PerformanceGoalTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Goal type not found.'], 404);
+            }
             Session::flash('error', 'Goal type not found.');
             $this->redirect('/performance/goal-types');
             return;
@@ -116,6 +145,9 @@ class PerformanceGoalTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/goal-types/edit', [
                 'title' => 'Edit Goal Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class PerformanceGoalTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'Performance', 'Updated goal type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Goal type updated.');
+        }
         Session::flash('success', 'Goal type updated.');
         $this->redirect('/performance/goal-types');
     }

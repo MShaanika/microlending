@@ -59,7 +59,7 @@ class HrmEmployeeController extends Controller
 
         $result = $this->employees->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/employees/index', [
+        $data = [
             'title' => 'Employees',
             'employees' => $result['rows'],
             'total' => $result['total'],
@@ -72,17 +72,29 @@ class HrmEmployeeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/employees/index', $data);
+            return;
+        }
+        $this->view('hrm/employees/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/employees/create', array_merge($this->formData(), [
+        $data = array_merge($this->formData(), [
             'title' => 'Add Employee',
             'old' => [],
             'errors' => [],
-        ]));
+        ]);
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/employees/create', $data);
+            return;
+        }
+        $this->view('hrm/employees/create', $data);
     }
 
     public function store(): void
@@ -90,6 +102,9 @@ class HrmEmployeeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/employees/create');
             return;
@@ -98,6 +113,9 @@ class HrmEmployeeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/employees/create', array_merge($this->formData(), [
                 'title' => 'Add Employee',
                 'old' => $_POST,
@@ -115,6 +133,10 @@ class HrmEmployeeController extends Controller
         $id = $this->employees->create($data);
 
         Audit::log('Create', 'HRM', 'Created employee #' . $id . ' - ' . $data['first_name'] . ' ' . $data['last_name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Employee added.');
+        }
         Session::flash('success', 'Employee added.');
         $this->redirect('/hrm/employees/' . $id);
     }
@@ -124,16 +146,25 @@ class HrmEmployeeController extends Controller
         Auth::authorize('hrm.view');
         $employee = $this->employees->find($id);
         if (!$employee) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee not found.'], 404);
+            }
             Session::flash('error', 'Employee not found.');
             $this->redirect('/hrm/employees');
             return;
         }
-        $this->view('hrm/employees/show', [
+        $data = [
             'title' => $employee['first_name'] . ' ' . $employee['last_name'],
             'employee' => $employee,
             'documents' => $this->documents->forEmployee($id),
             'documentTypes' => $this->documentTypes->allTypes(),
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/employees/show', $data);
+            return;
+        }
+        $this->view('hrm/employees/show', $data);
     }
 
     public function uploadDocument(int $id): void
@@ -141,6 +172,9 @@ class HrmEmployeeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/employees/' . $id);
             return;
@@ -148,6 +182,9 @@ class HrmEmployeeController extends Controller
 
         $employee = $this->employees->find($id);
         if (!$employee) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee not found.'], 404);
+            }
             Session::flash('error', 'Employee not found.');
             $this->redirect('/hrm/employees');
             return;
@@ -156,6 +193,9 @@ class HrmEmployeeController extends Controller
         $file = $_FILES['document'] ?? null;
         $error = $this->validateDocument($file);
         if ($error) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['document' => $error]);
+            }
             Session::flash('error', $error);
             $this->redirect('/hrm/employees/' . $id);
             return;
@@ -164,6 +204,10 @@ class HrmEmployeeController extends Controller
         $this->storeDocument($id, $employee['employee_no'], $file, !empty($_POST['document_type_id']) ? (int) $_POST['document_type_id'] : null, Auth::user()['id'] ?? null);
 
         Audit::log('Create', 'HRM', 'Uploaded document for employee #' . $id . ' - ' . $file['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Document uploaded.', '/hrm/employees/' . $id);
+        }
         Session::flash('success', 'Document uploaded.');
         $this->redirect('/hrm/employees/' . $id);
     }
@@ -205,6 +249,9 @@ class HrmEmployeeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/employees/' . $id);
             return;
@@ -212,6 +259,9 @@ class HrmEmployeeController extends Controller
 
         $document = $this->documents->find($documentId);
         if (!$document || (int) $document['employee_id'] !== $id) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Document not found.'], 404);
+            }
             Session::flash('error', 'Document not found.');
             $this->redirect('/hrm/employees/' . $id);
             return;
@@ -224,6 +274,10 @@ class HrmEmployeeController extends Controller
         $this->documents->delete($documentId);
 
         Audit::log('Delete', 'HRM', 'Deleted document #' . $documentId . ' for employee #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Document deleted.', '/hrm/employees/' . $id);
+        }
         Session::flash('success', 'Document deleted.');
         $this->redirect('/hrm/employees/' . $id);
     }
@@ -278,15 +332,24 @@ class HrmEmployeeController extends Controller
         Auth::authorize('hrm.manage');
         $employee = $this->employees->find($id);
         if (!$employee) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee not found.'], 404);
+            }
             Session::flash('error', 'Employee not found.');
             $this->redirect('/hrm/employees');
             return;
         }
-        $this->view('hrm/employees/edit', array_merge($this->formData(), [
+        $data = array_merge($this->formData(), [
             'title' => 'Edit Employee',
             'employee' => $employee,
             'errors' => [],
-        ]));
+        ]);
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/employees/edit', $data);
+            return;
+        }
+        $this->view('hrm/employees/edit', $data);
     }
 
     public function update(int $id): void
@@ -294,6 +357,9 @@ class HrmEmployeeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/employees/' . $id . '/edit');
             return;
@@ -301,6 +367,9 @@ class HrmEmployeeController extends Controller
 
         $employee = $this->employees->find($id);
         if (!$employee) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Employee not found.'], 404);
+            }
             Session::flash('error', 'Employee not found.');
             $this->redirect('/hrm/employees');
             return;
@@ -309,6 +378,9 @@ class HrmEmployeeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/employees/edit', array_merge($this->formData(), [
                 'title' => 'Edit Employee',
                 'employee' => array_merge($employee, $_POST),
@@ -320,6 +392,10 @@ class HrmEmployeeController extends Controller
         $this->employees->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated employee #' . $id . ' - ' . $data['first_name'] . ' ' . $data['last_name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Employee updated.');
+        }
         Session::flash('success', 'Employee updated.');
         $this->redirect('/hrm/employees/' . $id);
     }

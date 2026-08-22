@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Payroll</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/payrolls/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Payroll Run</a>
+        <a href="<?= url('/hrm/payrolls/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/payrolls/create') ?>" data-modal-title="New Payroll Run" data-modal-size="lg"><i class="mdi mdi-plus"></i> New Payroll Run</a>
       <?php endif; ?>
     </div>
 
@@ -56,7 +56,7 @@
             $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' => 'success', 'Cancelled' => 'danger'][$p['status']] ?? 'secondary';
           ?>
             <tr>
-              <td><a href="<?= url('/hrm/payrolls/' . $p['id']) ?>"><?= e($p['title']) ?></a></td>
+              <td><a href="<?= url('/hrm/payrolls/' . $p['id']) ?>" data-modal-url="<?= url('/hrm/payrolls/' . $p['id']) ?>" data-modal-title="<?= e($p['title']) ?>" data-modal-size="xl"><?= e($p['title']) ?></a></td>
               <td><?= e(date('d M Y', strtotime($p['pay_period_start']))) ?> &ndash; <?= e(date('d M Y', strtotime($p['pay_period_end']))) ?></td>
               <td><?= e($p['payroll_frequency']) ?></td>
               <td><?= (int) $p['employee_count'] ?></td>

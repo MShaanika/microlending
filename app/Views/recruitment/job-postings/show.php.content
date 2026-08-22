@@ -13,7 +13,7 @@ $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$p['status']] ?? 'secondary' ?> fs-6"><?= e($p['status']) ?></span>
     <?php if (Auth::can('recruitment.manage')): ?>
-      <a href="<?= url('/recruitment/job-postings/' . $p['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/recruitment/job-postings/' . $p['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/recruitment/job-postings/' . $p['id'] . '/edit') ?>" data-modal-title="Edit Job Posting" data-modal-size="xl"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
   </div>
 </div>
@@ -29,7 +29,7 @@ $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark
         <span class="text-muted">Not published yet.</span>
       <?php endif; ?>
     </div>
-    <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/toggle-publish') ?>">
+    <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/toggle-publish') ?>" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <button type="submit" class="btn btn-sm btn-<?= $p['is_published'] ? 'outline-dark' : 'success' ?>">
         <?= $p['is_published'] ? 'Unpublish' : 'Publish' ?>
@@ -60,7 +60,7 @@ $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark
     <h5 class="card-title">Interview Rounds</h5>
 
     <?php if (Auth::can('recruitment.manage')): ?>
-    <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/rounds') ?>" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/rounds') ?>" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-5">
         <label class="form-label">Round Name</label>
@@ -89,7 +89,7 @@ $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark
               <td><?= e($r['name']) ?></td>
               <td class="text-end">
                 <?php if (Auth::can('recruitment.manage')): ?>
-                <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/rounds/' . $r['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this round?');">
+                <form method="post" action="<?= url('/recruitment/job-postings/' . $p['id'] . '/rounds/' . $r['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this round?');" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>
@@ -103,4 +103,4 @@ $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark
   </div>
 </div>
 
-<a href="<?= url('/recruitment/job-postings') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/recruitment/job-postings') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

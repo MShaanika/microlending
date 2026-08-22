@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Performance Indicators</h4>
       <?php if (Auth::can('performance.manage')): ?>
-        <a href="<?= url('/performance/indicators/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Indicator</a>
+        <a href="<?= url('/performance/indicators/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/performance/indicators/create') ?>" data-modal-title="Add Performance Indicator" data-modal-size="lg"><i class="mdi mdi-plus"></i> Add Indicator</a>
       <?php endif; ?>
     </div>
 
@@ -49,7 +49,7 @@
               <td><span class="badge bg-<?= $i['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($i['status']) ?></span></td>
               <?php if (Auth::can('performance.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/performance/indicators/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/performance/indicators/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/performance/indicators/' . $i['id'] . '/edit') ?>" data-modal-title="Edit Performance Indicator" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/performance/indicators/' . $i['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this indicator?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

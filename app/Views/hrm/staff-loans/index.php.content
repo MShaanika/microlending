@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Staff Loans</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/staff-loans/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Staff Loan</a>
+        <a href="<?= url('/hrm/staff-loans/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/staff-loans/create') ?>" data-modal-title="New Staff Loan" data-modal-size="lg"><i class="mdi mdi-plus"></i> New Staff Loan</a>
       <?php endif; ?>
     </div>
 
@@ -66,7 +66,7 @@
           ?>
             <tr>
               <td><?= e($l['employee_name']) ?></td>
-              <td><a href="<?= url('/hrm/staff-loans/' . $l['id']) ?>"><?= e($l['title']) ?></a></td>
+              <td><a href="<?= url('/hrm/staff-loans/' . $l['id']) ?>" data-modal-url="<?= url('/hrm/staff-loans/' . $l['id']) ?>" data-modal-title="Staff Loan" data-modal-size="lg"><?= e($l['title']) ?></a></td>
               <td><?= e($l['type_name'] ?: '—') ?></td>
               <td><?= format_money($l['principal_amount']) ?></td>
               <td><?= format_money($l['installment_amount']) ?></td>

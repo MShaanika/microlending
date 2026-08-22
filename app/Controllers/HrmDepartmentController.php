@@ -32,7 +32,7 @@ class HrmDepartmentController extends Controller
 
         $result = $this->departments->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/departments/index', [
+        $data = [
             'title' => 'Departments',
             'departments' => $result['rows'],
             'total' => $result['total'],
@@ -42,18 +42,30 @@ class HrmDepartmentController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/departments/index', $data);
+            return;
+        }
+        $this->view('hrm/departments/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/departments/create', [
+        $data = [
             'title' => 'Add Department',
             'branches' => $this->branches->all(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/departments/create', $data);
+            return;
+        }
+        $this->view('hrm/departments/create', $data);
     }
 
     public function store(): void
@@ -61,6 +73,9 @@ class HrmDepartmentController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/departments/create');
             return;
@@ -75,6 +90,9 @@ class HrmDepartmentController extends Controller
         }
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/departments/create', [
                 'title' => 'Add Department',
                 'branches' => $this->branches->all(),
@@ -92,6 +110,10 @@ class HrmDepartmentController extends Controller
         ]);
 
         Audit::log('Create', 'HRM', 'Created department #' . $id . ' - ' . $name);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Department created.');
+        }
         Session::flash('success', 'Department created.');
         $this->redirect('/hrm/departments');
     }
@@ -101,16 +123,25 @@ class HrmDepartmentController extends Controller
         Auth::authorize('hrm.manage');
         $department = $this->departments->find($id);
         if (!$department) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Department not found.'], 404);
+            }
             Session::flash('error', 'Department not found.');
             $this->redirect('/hrm/departments');
             return;
         }
-        $this->view('hrm/departments/edit', [
+        $data = [
             'title' => 'Edit Department',
             'department' => $department,
             'branches' => $this->branches->all(),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/departments/edit', $data);
+            return;
+        }
+        $this->view('hrm/departments/edit', $data);
     }
 
     public function update(int $id): void
@@ -118,6 +149,9 @@ class HrmDepartmentController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/departments/' . $id . '/edit');
             return;
@@ -125,6 +159,9 @@ class HrmDepartmentController extends Controller
 
         $department = $this->departments->find($id);
         if (!$department) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Department not found.'], 404);
+            }
             Session::flash('error', 'Department not found.');
             $this->redirect('/hrm/departments');
             return;
@@ -139,6 +176,9 @@ class HrmDepartmentController extends Controller
         }
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/departments/edit', [
                 'title' => 'Edit Department',
                 'department' => array_merge($department, $_POST),
@@ -154,6 +194,10 @@ class HrmDepartmentController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Updated department #' . $id . ' - ' . $name);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Department updated.');
+        }
         Session::flash('success', 'Department updated.');
         $this->redirect('/hrm/departments');
     }

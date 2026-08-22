@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Review Cycles</h4>
       <?php if (Auth::can('performance.manage')): ?>
-        <a href="<?= url('/performance/review-cycles/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Review Cycle</a>
+        <a href="<?= url('/performance/review-cycles/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/performance/review-cycles/create') ?>" data-modal-title="Add Review Cycle" data-modal-size="md"><i class="mdi mdi-plus"></i> Add Review Cycle</a>
       <?php endif; ?>
     </div>
 
@@ -40,12 +40,12 @@
           <?php endif; ?>
           <?php foreach ($cycles as $c): ?>
             <tr>
-              <td><a href="<?= url('/performance/review-cycles/' . $c['id']) ?>"><?= e($c['name']) ?></a></td>
+              <td><a href="<?= url('/performance/review-cycles/' . $c['id']) ?>" data-modal-url="<?= url('/performance/review-cycles/' . $c['id']) ?>" data-modal-title="<?= e($c['name']) ?>" data-modal-size="lg"><?= e($c['name']) ?></a></td>
               <td><?= e($c['frequency']) ?></td>
               <td><span class="badge bg-<?= $c['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($c['status']) ?></span></td>
               <?php if (Auth::can('performance.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/performance/review-cycles/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/performance/review-cycles/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/performance/review-cycles/' . $c['id'] . '/edit') ?>" data-modal-title="Edit Review Cycle" data-modal-size="md"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/performance/review-cycles/' . $c['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this review cycle?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

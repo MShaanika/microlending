@@ -97,7 +97,7 @@
         <textarea name="description" class="form-control" rows="3"><?= e($training['description'] ?? '') ?></textarea>
       </div>
       <button type="submit" class="btn btn-info">Save</button>
-      <a href="<?= url('/training/trainings/' . $training['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/training/trainings/' . $training['id']) ?>" class="btn btn-outline-secondary" data-modal-url="<?= url('/training/trainings/' . $training['id']) ?>" data-modal-title="<?= e($training['title']) ?>" data-modal-size="xl">Cancel</a>
     </form>
   </div>
 </div>

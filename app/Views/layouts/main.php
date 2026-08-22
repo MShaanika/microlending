@@ -568,7 +568,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
         </div>
 
 
-    <div class="container-fluid">
+    <div class="container-fluid" id="pageContent">
       <?php require $content; ?>
     </div>
 

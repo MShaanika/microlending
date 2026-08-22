@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Warnings</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/warnings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Issue a Warning</a>
+        <a href="<?= url('/hrm/warnings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/warnings/create') ?>" data-modal-title="Issue a Warning" data-modal-size="lg"><i class="mdi mdi-plus"></i> Issue a Warning</a>
       <?php endif; ?>
     </div>
 
@@ -65,7 +65,7 @@
             $sevBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$w['severity']] ?? 'secondary';
           ?>
             <tr>
-              <td><a href="<?= url('/hrm/warnings/' . $w['id']) ?>"><?= e($w['employee_name']) ?></a></td>
+              <td><a href="<?= url('/hrm/warnings/' . $w['id']) ?>" data-modal-url="<?= url('/hrm/warnings/' . $w['id']) ?>" data-modal-title="Warning" data-modal-size="lg"><?= e($w['employee_name']) ?></a></td>
               <td><?= e($w['warning_type_name'] ?: '—') ?></td>
               <td><?= e($w['subject']) ?></td>
               <td><span class="badge bg-<?= $sevBadge ?>"><?= e($w['severity']) ?></span></td>

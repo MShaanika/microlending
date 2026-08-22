@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Goal Types</h4>
       <?php if (Auth::can('performance.manage')): ?>
-        <a href="<?= url('/performance/goal-types/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Goal Type</a>
+        <a href="<?= url('/performance/goal-types/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/performance/goal-types/create') ?>" data-modal-title="Add Goal Type" data-modal-size="md"><i class="mdi mdi-plus"></i> Add Goal Type</a>
       <?php endif; ?>
     </div>
 
@@ -45,7 +45,7 @@
               <td><span class="badge bg-<?= $t['status'] === 'Active' ? 'success' : 'secondary' ?>"><?= e($t['status']) ?></span></td>
               <?php if (Auth::can('performance.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/performance/goal-types/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/performance/goal-types/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/performance/goal-types/' . $t['id'] . '/edit') ?>" data-modal-title="Edit Goal Type" data-modal-size="md"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/performance/goal-types/' . $t['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this goal type?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

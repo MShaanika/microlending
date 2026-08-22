@@ -86,7 +86,7 @@ class HrmAttendanceController extends Controller
 
         $result = $this->attendances->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/attendance/index', [
+        $data = [
             'title' => 'Attendance',
             'records' => $result['rows'],
             'total' => $result['total'],
@@ -97,20 +97,32 @@ class HrmAttendanceController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/attendance/index', $data);
+            return;
+        }
+        $this->view('hrm/attendance/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/attendance/create', [
+        $data = [
             'title' => 'Add Attendance',
             'employees' => $this->employees->allEmployees(),
             'shifts' => $this->shifts->allShifts(true),
             'today' => date('Y-m-d'),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/attendance/create', $data);
+            return;
+        }
+        $this->view('hrm/attendance/create', $data);
     }
 
     public function store(): void
@@ -118,6 +130,9 @@ class HrmAttendanceController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/attendance/create');
             return;
@@ -126,6 +141,9 @@ class HrmAttendanceController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/attendance/create', [
                 'title' => 'Add Attendance',
                 'employees' => $this->employees->allEmployees(),
@@ -141,6 +159,10 @@ class HrmAttendanceController extends Controller
         $id = $this->attendances->create($data);
 
         Audit::log('Create', 'HRM', 'Recorded attendance #' . $id . ' for employee #' . $data['employee_id'] . ' on ' . $data['attendance_date']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Attendance recorded.');
+        }
         Session::flash('success', 'Attendance recorded.');
         $this->redirect('/hrm/attendance');
     }
@@ -150,17 +172,26 @@ class HrmAttendanceController extends Controller
         Auth::authorize('hrm.manage');
         $record = $this->attendances->find($id);
         if (!$record) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Attendance record not found.'], 404);
+            }
             Session::flash('error', 'Attendance record not found.');
             $this->redirect('/hrm/attendance');
             return;
         }
-        $this->view('hrm/attendance/edit', [
+        $data = [
             'title' => 'Edit Attendance',
             'record' => $record,
             'employees' => $this->employees->allEmployees(),
             'shifts' => $this->shifts->allShifts(true),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/attendance/edit', $data);
+            return;
+        }
+        $this->view('hrm/attendance/edit', $data);
     }
 
     public function update(int $id): void
@@ -168,6 +199,9 @@ class HrmAttendanceController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/attendance/' . $id . '/edit');
             return;
@@ -175,6 +209,9 @@ class HrmAttendanceController extends Controller
 
         $record = $this->attendances->find($id);
         if (!$record) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Attendance record not found.'], 404);
+            }
             Session::flash('error', 'Attendance record not found.');
             $this->redirect('/hrm/attendance');
             return;
@@ -183,6 +220,9 @@ class HrmAttendanceController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/attendance/edit', [
                 'title' => 'Edit Attendance',
                 'record' => array_merge($record, $_POST),
@@ -196,6 +236,10 @@ class HrmAttendanceController extends Controller
         $this->attendances->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated attendance #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Attendance updated.');
+        }
         Session::flash('success', 'Attendance updated.');
         $this->redirect('/hrm/attendance');
     }

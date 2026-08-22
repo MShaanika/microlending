@@ -29,7 +29,7 @@ class PerformanceIndicatorCategoryController extends Controller
 
         $result = $this->categories->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('performance/indicator-categories/index', [
+        $data = [
             'title' => 'Indicator Categories',
             'categories' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class PerformanceIndicatorCategoryController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/indicator-categories/index', $data);
+            return;
+        }
+        $this->view('performance/indicator-categories/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('performance.manage');
-        $this->view('performance/indicator-categories/create', [
-            'title' => 'Add Indicator Category',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Indicator Category', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/indicator-categories/create', $data);
+            return;
+        }
+        $this->view('performance/indicator-categories/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class PerformanceIndicatorCategoryController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/indicator-categories/create');
             return;
@@ -65,6 +76,9 @@ class PerformanceIndicatorCategoryController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/indicator-categories/create', [
                 'title' => 'Add Indicator Category',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class PerformanceIndicatorCategoryController extends Controller
         $id = $this->categories->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Performance', 'Created indicator category #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Indicator category created.');
+        }
         Session::flash('success', 'Indicator category created.');
         $this->redirect('/performance/indicator-categories');
     }
@@ -85,15 +103,20 @@ class PerformanceIndicatorCategoryController extends Controller
         Auth::authorize('performance.manage');
         $category = $this->categories->find($id);
         if (!$category) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Indicator category not found.'], 404);
+            }
             Session::flash('error', 'Indicator category not found.');
             $this->redirect('/performance/indicator-categories');
             return;
         }
-        $this->view('performance/indicator-categories/edit', [
-            'title' => 'Edit Indicator Category',
-            'category' => $category,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Indicator Category', 'category' => $category, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/indicator-categories/edit', $data);
+            return;
+        }
+        $this->view('performance/indicator-categories/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class PerformanceIndicatorCategoryController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/indicator-categories/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class PerformanceIndicatorCategoryController extends Controller
 
         $category = $this->categories->find($id);
         if (!$category) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Indicator category not found.'], 404);
+            }
             Session::flash('error', 'Indicator category not found.');
             $this->redirect('/performance/indicator-categories');
             return;
@@ -116,6 +145,9 @@ class PerformanceIndicatorCategoryController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/indicator-categories/edit', [
                 'title' => 'Edit Indicator Category',
                 'category' => array_merge($category, $_POST),
@@ -127,6 +159,10 @@ class PerformanceIndicatorCategoryController extends Controller
         $this->categories->updateRecord($id, $data);
 
         Audit::log('Update', 'Performance', 'Updated indicator category #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Indicator category updated.');
+        }
         Session::flash('success', 'Indicator category updated.');
         $this->redirect('/performance/indicator-categories');
     }

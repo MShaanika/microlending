@@ -35,7 +35,7 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'In Progress' =
       <div class="card-body">
         <h5 class="card-title text-success">Approve</h5>
         <p class="text-muted small">This will update the employee's branch/department/designation.</p>
-        <form method="post" action="<?= url('/hrm/transfers/' . $t['id'] . '/approve') ?>">
+        <form method="post" action="<?= url('/hrm/transfers/' . $t['id'] . '/approve') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Approve</button>
         </form>
@@ -46,7 +46,7 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'In Progress' =
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title text-danger">Reject</h5>
-        <form method="post" action="<?= url('/hrm/transfers/' . $t['id'] . '/reject') ?>">
+        <form method="post" action="<?= url('/hrm/transfers/' . $t['id'] . '/reject') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-close"></i> Reject</button>
         </form>
@@ -62,4 +62,4 @@ $statusBadge = ['Pending' => 'warning', 'Approved' => 'success', 'In Progress' =
   <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
 </form>
 <?php endif; ?>
-<a href="<?= url('/hrm/transfers') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/transfers') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

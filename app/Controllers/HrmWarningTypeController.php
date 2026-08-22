@@ -29,7 +29,7 @@ class HrmWarningTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/warning-types/index', [
+        $data = [
             'title' => 'Warning Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmWarningTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/warning-types/index', $data);
+            return;
+        }
+        $this->view('hrm/warning-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/warning-types/create', [
-            'title' => 'Add Warning Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Warning Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/warning-types/create', $data);
+            return;
+        }
+        $this->view('hrm/warning-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmWarningTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/warning-types/create');
             return;
@@ -65,6 +76,9 @@ class HrmWarningTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/warning-types/create', [
                 'title' => 'Add Warning Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class HrmWarningTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created warning type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Warning type created.');
+        }
         Session::flash('success', 'Warning type created.');
         $this->redirect('/hrm/warning-types');
     }
@@ -85,15 +103,20 @@ class HrmWarningTypeController extends Controller
         Auth::authorize('hrm.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Warning type not found.'], 404);
+            }
             Session::flash('error', 'Warning type not found.');
             $this->redirect('/hrm/warning-types');
             return;
         }
-        $this->view('hrm/warning-types/edit', [
-            'title' => 'Edit Warning Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Warning Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/warning-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/warning-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class HrmWarningTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/warning-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class HrmWarningTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Warning type not found.'], 404);
+            }
             Session::flash('error', 'Warning type not found.');
             $this->redirect('/hrm/warning-types');
             return;
@@ -116,6 +145,9 @@ class HrmWarningTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/warning-types/edit', [
                 'title' => 'Edit Warning Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class HrmWarningTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated warning type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Warning type updated.');
+        }
         Session::flash('success', 'Warning type updated.');
         $this->redirect('/hrm/warning-types');
     }

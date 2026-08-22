@@ -29,7 +29,7 @@ class RecruitmentCandidateSourceController extends Controller
 
         $result = $this->sources->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/candidate-sources/index', [
+        $data = [
             'title' => 'Candidate Sources',
             'sources' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class RecruitmentCandidateSourceController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-sources/index', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-sources/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/candidate-sources/create', [
-            'title' => 'Add Candidate Source',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Candidate Source', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-sources/create', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-sources/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class RecruitmentCandidateSourceController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/candidate-sources/create');
             return;
@@ -65,6 +76,9 @@ class RecruitmentCandidateSourceController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/candidate-sources/create', [
                 'title' => 'Add Candidate Source',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class RecruitmentCandidateSourceController extends Controller
         $id = $this->sources->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created candidate source #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Candidate source created.');
+        }
         Session::flash('success', 'Candidate source created.');
         $this->redirect('/recruitment/candidate-sources');
     }
@@ -85,15 +103,20 @@ class RecruitmentCandidateSourceController extends Controller
         Auth::authorize('recruitment.manage');
         $source = $this->sources->find($id);
         if (!$source) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Candidate source not found.'], 404);
+            }
             Session::flash('error', 'Candidate source not found.');
             $this->redirect('/recruitment/candidate-sources');
             return;
         }
-        $this->view('recruitment/candidate-sources/edit', [
-            'title' => 'Edit Candidate Source',
-            'source' => $source,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Candidate Source', 'source' => $source, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-sources/edit', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-sources/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class RecruitmentCandidateSourceController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/candidate-sources/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class RecruitmentCandidateSourceController extends Controller
 
         $source = $this->sources->find($id);
         if (!$source) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Candidate source not found.'], 404);
+            }
             Session::flash('error', 'Candidate source not found.');
             $this->redirect('/recruitment/candidate-sources');
             return;
@@ -116,6 +145,9 @@ class RecruitmentCandidateSourceController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/candidate-sources/edit', [
                 'title' => 'Edit Candidate Source',
                 'source' => array_merge($source, $_POST),
@@ -127,6 +159,10 @@ class RecruitmentCandidateSourceController extends Controller
         $this->sources->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated candidate source #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Candidate source updated.');
+        }
         Session::flash('success', 'Candidate source updated.');
         $this->redirect('/recruitment/candidate-sources');
     }

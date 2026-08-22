@@ -41,7 +41,7 @@ class HrmLeaveApplicationController extends Controller
 
         $result = $this->applications->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/leave-applications/index', [
+        $data = [
             'title' => 'Leave Applications',
             'applications' => $result['rows'],
             'total' => $result['total'],
@@ -52,19 +52,31 @@ class HrmLeaveApplicationController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/leave-applications/index', $data);
+            return;
+        }
+        $this->view('hrm/leave-applications/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/leave-applications/create', [
+        $data = [
             'title' => 'Apply for Leave',
             'employees' => $this->employees->allEmployees(),
             'leaveTypes' => $this->leaveTypes->allLeaveTypes(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/leave-applications/create', $data);
+            return;
+        }
+        $this->view('hrm/leave-applications/create', $data);
     }
 
     public function store(): void
@@ -72,6 +84,9 @@ class HrmLeaveApplicationController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/leave-applications/create');
             return;
@@ -80,6 +95,9 @@ class HrmLeaveApplicationController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/leave-applications/create', [
                 'title' => 'Apply for Leave',
                 'employees' => $this->employees->allEmployees(),
@@ -95,6 +113,10 @@ class HrmLeaveApplicationController extends Controller
         $id = $this->applications->create($data);
 
         Audit::log('Create', 'HRM', 'Leave application #' . $id . ' submitted for employee #' . $data['employee_id']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Leave application submitted.');
+        }
         Session::flash('success', 'Leave application submitted.');
         $this->redirect('/hrm/leave-applications');
     }
@@ -104,14 +126,20 @@ class HrmLeaveApplicationController extends Controller
         Auth::authorize('hrm.view');
         $application = $this->applications->find($id);
         if (!$application) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Leave application not found.'], 404);
+            }
             Session::flash('error', 'Leave application not found.');
             $this->redirect('/hrm/leave-applications');
             return;
         }
-        $this->view('hrm/leave-applications/show', [
-            'title' => 'Leave Application',
-            'application' => $application,
-        ]);
+        $data = ['title' => 'Leave Application', 'application' => $application];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/leave-applications/show', $data);
+            return;
+        }
+        $this->view('hrm/leave-applications/show', $data);
     }
 
     public function approve(int $id): void
@@ -119,6 +147,9 @@ class HrmLeaveApplicationController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/leave-applications/' . $id);
             return;
@@ -126,6 +157,9 @@ class HrmLeaveApplicationController extends Controller
 
         $application = $this->applications->find($id);
         if (!$application || $application['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending applications can be approved.'], 422);
+            }
             Session::flash('error', 'Only pending applications can be approved.');
             $this->redirect('/hrm/leave-applications');
             return;
@@ -139,6 +173,10 @@ class HrmLeaveApplicationController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Approved leave application #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Leave application approved.', '/hrm/leave-applications/' . $id);
+        }
         Session::flash('success', 'Leave application approved.');
         $this->redirect('/hrm/leave-applications/' . $id);
     }
@@ -148,6 +186,9 @@ class HrmLeaveApplicationController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/leave-applications/' . $id);
             return;
@@ -155,6 +196,9 @@ class HrmLeaveApplicationController extends Controller
 
         $application = $this->applications->find($id);
         if (!$application || $application['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending applications can be rejected.'], 422);
+            }
             Session::flash('error', 'Only pending applications can be rejected.');
             $this->redirect('/hrm/leave-applications');
             return;
@@ -168,6 +212,10 @@ class HrmLeaveApplicationController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Rejected leave application #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Leave application rejected.', '/hrm/leave-applications/' . $id);
+        }
         Session::flash('success', 'Leave application rejected.');
         $this->redirect('/hrm/leave-applications/' . $id);
     }

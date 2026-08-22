@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Interviews</h4>
       <?php if (Auth::can('recruitment.manage')): ?>
-        <a href="<?= url('/recruitment/interviews/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Schedule Interview</a>
+        <a href="<?= url('/recruitment/interviews/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/recruitment/interviews/create') ?>" data-modal-title="Schedule Interview" data-modal-size="lg"><i class="mdi mdi-plus"></i> Schedule Interview</a>
       <?php endif; ?>
     </div>
 
@@ -44,16 +44,16 @@
           <?php $statusBadge = ['Scheduled' => 'info', 'Completed' => 'success', 'Cancelled' => 'dark', 'No-show' => 'danger']; ?>
           <?php foreach ($interviews as $i): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/interviews/' . $i['id']) ?>"><?= e($i['candidate_name']) ?></a></td>
+              <td><a href="<?= url('/recruitment/interviews/' . $i['id']) ?>" data-modal-url="<?= url('/recruitment/interviews/' . $i['id']) ?>" data-modal-title="Interview: <?= e($i['candidate_name']) ?>" data-modal-size="xl"><?= e($i['candidate_name']) ?></a></td>
               <td><?= e($i['job_title'] ?: '—') ?></td>
               <td><?= e($i['round_name'] ?: '—') ?></td>
               <td><?= e($i['interview_type_name'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($i['scheduled_date']))) ?> <?= e($i['scheduled_time'] ?? '') ?></td>
               <td><span class="badge bg-<?= $statusBadge[$i['status']] ?? 'secondary' ?>"><?= e($i['status']) ?></span></td>
               <td class="text-end">
-                <a href="<?= url('/recruitment/interviews/' . $i['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <a href="<?= url('/recruitment/interviews/' . $i['id']) ?>" class="btn btn-sm btn-outline-primary" data-modal-url="<?= url('/recruitment/interviews/' . $i['id']) ?>" data-modal-title="Interview: <?= e($i['candidate_name']) ?>" data-modal-size="xl"><i class="mdi mdi-eye"></i></a>
                 <?php if (Auth::can('recruitment.manage')): ?>
-                <a href="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" data-modal-title="Edit Interview" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                 <?php endif; ?>
               </td>
             </tr>

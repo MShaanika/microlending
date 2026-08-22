@@ -7,7 +7,7 @@
     <span class="text-muted"><?= e($a['employee_no']) ?></span>
   </div>
   <?php if (Auth::can('hrm.manage')): ?>
-    <a href="<?= url('/hrm/awards/' . $a['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+    <a href="<?= url('/hrm/awards/' . $a['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/hrm/awards/' . $a['id'] . '/edit') ?>" data-modal-title="Edit Award" data-modal-size="lg"><i class="mdi mdi-pencil"></i> Edit</a>
   <?php endif; ?>
 </div>
 
@@ -27,4 +27,4 @@
   <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
 </form>
 <?php endif; ?>
-<a href="<?= url('/hrm/awards') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/awards') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

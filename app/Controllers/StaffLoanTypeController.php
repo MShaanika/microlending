@@ -29,7 +29,7 @@ class StaffLoanTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/staff-loan-types/index', [
+        $data = [
             'title' => 'Staff Loan Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class StaffLoanTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/staff-loan-types/index', $data);
+            return;
+        }
+        $this->view('hrm/staff-loan-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/staff-loan-types/create', [
-            'title' => 'Add Staff Loan Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Staff Loan Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/staff-loan-types/create', $data);
+            return;
+        }
+        $this->view('hrm/staff-loan-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class StaffLoanTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loan-types/create');
             return;
@@ -65,6 +76,9 @@ class StaffLoanTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/staff-loan-types/create', [
                 'title' => 'Add Staff Loan Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class StaffLoanTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created staff loan type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan type created.');
+        }
         Session::flash('success', 'Staff loan type created.');
         $this->redirect('/hrm/staff-loan-types');
     }
@@ -85,15 +103,20 @@ class StaffLoanTypeController extends Controller
         Auth::authorize('hrm.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Staff loan type not found.'], 404);
+            }
             Session::flash('error', 'Staff loan type not found.');
             $this->redirect('/hrm/staff-loan-types');
             return;
         }
-        $this->view('hrm/staff-loan-types/edit', [
-            'title' => 'Edit Staff Loan Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Staff Loan Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/staff-loan-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/staff-loan-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class StaffLoanTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loan-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class StaffLoanTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Staff loan type not found.'], 404);
+            }
             Session::flash('error', 'Staff loan type not found.');
             $this->redirect('/hrm/staff-loan-types');
             return;
@@ -116,6 +145,9 @@ class StaffLoanTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/staff-loan-types/edit', [
                 'title' => 'Edit Staff Loan Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class StaffLoanTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated staff loan type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan type updated.');
+        }
         Session::flash('success', 'Staff loan type updated.');
         $this->redirect('/hrm/staff-loan-types');
     }

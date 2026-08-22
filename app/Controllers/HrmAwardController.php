@@ -39,7 +39,7 @@ class HrmAwardController extends Controller
 
         $result = $this->awards->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/awards/index', [
+        $data = [
             'title' => 'Awards',
             'awards' => $result['rows'],
             'total' => $result['total'],
@@ -50,19 +50,31 @@ class HrmAwardController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/awards/index', $data);
+            return;
+        }
+        $this->view('hrm/awards/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/awards/create', [
+        $data = [
             'title' => 'Add Award',
             'employees' => $this->employees->allEmployees(),
             'awardTypes' => $this->awardTypes->allTypes(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/awards/create', $data);
+            return;
+        }
+        $this->view('hrm/awards/create', $data);
     }
 
     public function store(): void
@@ -70,6 +82,9 @@ class HrmAwardController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/awards/create');
             return;
@@ -78,6 +93,9 @@ class HrmAwardController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/awards/create', [
                 'title' => 'Add Award',
                 'employees' => $this->employees->allEmployees(),
@@ -92,6 +110,10 @@ class HrmAwardController extends Controller
         $id = $this->awards->create($data);
 
         Audit::log('Create', 'HRM', 'Recorded award #' . $id . ' for employee #' . $data['employee_id']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Award recorded.');
+        }
         Session::flash('success', 'Award recorded.');
         $this->redirect('/hrm/awards');
     }
@@ -101,14 +123,20 @@ class HrmAwardController extends Controller
         Auth::authorize('hrm.view');
         $award = $this->awards->find($id);
         if (!$award) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Award not found.'], 404);
+            }
             Session::flash('error', 'Award not found.');
             $this->redirect('/hrm/awards');
             return;
         }
-        $this->view('hrm/awards/show', [
-            'title' => 'Award',
-            'award' => $award,
-        ]);
+        $data = ['title' => 'Award', 'award' => $award];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/awards/show', $data);
+            return;
+        }
+        $this->view('hrm/awards/show', $data);
     }
 
     public function edit(int $id): void
@@ -116,17 +144,26 @@ class HrmAwardController extends Controller
         Auth::authorize('hrm.manage');
         $award = $this->awards->find($id);
         if (!$award) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Award not found.'], 404);
+            }
             Session::flash('error', 'Award not found.');
             $this->redirect('/hrm/awards');
             return;
         }
-        $this->view('hrm/awards/edit', [
+        $data = [
             'title' => 'Edit Award',
             'award' => $award,
             'employees' => $this->employees->allEmployees(),
             'awardTypes' => $this->awardTypes->allTypes(),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/awards/edit', $data);
+            return;
+        }
+        $this->view('hrm/awards/edit', $data);
     }
 
     public function update(int $id): void
@@ -134,6 +171,9 @@ class HrmAwardController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/awards/' . $id . '/edit');
             return;
@@ -141,6 +181,9 @@ class HrmAwardController extends Controller
 
         $award = $this->awards->find($id);
         if (!$award) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Award not found.'], 404);
+            }
             Session::flash('error', 'Award not found.');
             $this->redirect('/hrm/awards');
             return;
@@ -149,6 +192,9 @@ class HrmAwardController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/awards/edit', [
                 'title' => 'Edit Award',
                 'award' => array_merge($award, $_POST),
@@ -162,6 +208,10 @@ class HrmAwardController extends Controller
         $this->awards->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated award #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Award updated.');
+        }
         Session::flash('success', 'Award updated.');
         $this->redirect('/hrm/awards/' . $id);
     }
@@ -171,6 +221,9 @@ class HrmAwardController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/awards');
             return;
@@ -178,6 +231,10 @@ class HrmAwardController extends Controller
 
         $this->awards->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted award #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Award deleted.');
+        }
         Session::flash('success', 'Award deleted.');
         $this->redirect('/hrm/awards');
     }

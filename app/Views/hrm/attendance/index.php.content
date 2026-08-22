@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Attendance</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/attendance/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Attendance</a>
+        <a href="<?= url('/hrm/attendance/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/attendance/create') ?>" data-modal-title="Add Attendance" data-modal-size="lg"><i class="mdi mdi-plus"></i> Add Attendance</a>
       <?php endif; ?>
     </div>
 
@@ -79,7 +79,7 @@
               <td><?= number_format((float) $r['overtime_hours'], 2) ?></td>
               <td><span class="badge bg-<?= $statusBadge ?>"><?= e($r['status']) ?></span></td>
               <?php if (Auth::can('hrm.manage')): ?>
-              <td class="text-end"><a href="<?= url('/hrm/attendance/' . $r['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a></td>
+              <td class="text-end"><a href="<?= url('/hrm/attendance/' . $r['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/hrm/attendance/' . $r['id'] . '/edit') ?>" data-modal-title="Edit Attendance" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a></td>
               <?php endif; ?>
             </tr>
           <?php endforeach; ?>

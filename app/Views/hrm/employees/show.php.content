@@ -13,9 +13,9 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
   <div>
     <span class="badge bg-<?= $statusBadge ?> me-2"><?= e($e['status']) ?></span>
     <?php if (Auth::can('hrm.manage')): ?>
-      <a href="<?= url('/hrm/employees/' . $e['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/hrm/employees/' . $e['id'] . '/edit') ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/hrm/employees/' . $e['id'] . '/edit') ?>" data-modal-title="Edit Employee" data-modal-size="xl"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
-    <a href="<?= url('/hrm/employees') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+    <a href="<?= url('/hrm/employees') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>
   </div>
 </div>
 
@@ -101,7 +101,7 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
     <h5 class="card-title">Documents</h5>
 
     <?php if (Auth::can('hrm.manage')): ?>
-    <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/documents') ?>" enctype="multipart/form-data" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/documents') ?>" enctype="multipart/form-data" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Document Type</label>
@@ -136,7 +136,7 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
               <td class="text-muted small"><?= e(date('d M Y', strtotime($d['created_at']))) ?> <?= $d['uploaded_by_name'] ? 'by ' . e($d['uploaded_by_name']) : '' ?></td>
               <td class="text-end">
                 <?php if (Auth::can('hrm.manage')): ?>
-                <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/documents/' . $d['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/documents/' . $d['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this document?');" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>

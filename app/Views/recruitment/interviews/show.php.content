@@ -14,7 +14,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$i['status']] ?? 'secondary' ?> fs-6"><?= e($i['status']) ?></span>
     <?php if (Auth::can('recruitment.manage')): ?>
-      <a href="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/interviews/' . $i['id'] . '/edit') ?>" data-modal-title="Edit Interview" data-modal-size="lg"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
   </div>
 </div>
@@ -33,7 +33,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
 <?php if (Auth::can('recruitment.manage')): ?>
 <div class="card mb-3">
   <div class="card-body">
-    <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/status') ?>" class="row g-2 align-items-end">
+    <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/status') ?>" class="row g-2 align-items-end" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Status</label>
@@ -57,7 +57,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
     <h5 class="card-title">Feedback</h5>
 
     <?php if (Auth::can('recruitment.manage')): ?>
-    <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/feedback') ?>" class="mb-3">
+    <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/feedback') ?>" class="mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="row">
         <div class="col-md-3 mb-3">
@@ -139,7 +139,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
               <td><?= e($f['comments'] ?: '—') ?></td>
               <?php if (Auth::can('recruitment.manage')): ?>
               <td class="text-end">
-                <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/feedback/' . $f['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this feedback?');">
+                <form method="post" action="<?= url('/recruitment/interviews/' . $i['id'] . '/feedback/' . $f['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this feedback?');" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>
@@ -153,4 +153,4 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
   </div>
 </div>
 
-<a href="<?= url('/recruitment/interviews') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/recruitment/interviews') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

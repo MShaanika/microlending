@@ -38,7 +38,7 @@ class HrmDeductionController extends Controller
 
         $result = $this->deductions->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/deductions/index', [
+        $data = [
             'title' => 'Employee Deductions',
             'deductions' => $result['rows'],
             'total' => $result['total'],
@@ -49,19 +49,31 @@ class HrmDeductionController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/deductions/index', $data);
+            return;
+        }
+        $this->view('hrm/deductions/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/deductions/create', [
+        $data = [
             'title' => 'Assign Deduction',
             'employees' => $this->employees->allEmployees(['status' => 'Active']),
             'types' => $this->types->allTypes(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/deductions/create', $data);
+            return;
+        }
+        $this->view('hrm/deductions/create', $data);
     }
 
     public function store(): void
@@ -69,6 +81,9 @@ class HrmDeductionController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/deductions/create');
             return;
@@ -77,6 +92,9 @@ class HrmDeductionController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/deductions/create', [
                 'title' => 'Assign Deduction',
                 'employees' => $this->employees->allEmployees(['status' => 'Active']),
@@ -90,6 +108,10 @@ class HrmDeductionController extends Controller
         $id = $this->deductions->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Assigned deduction #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Deduction assigned.');
+        }
         Session::flash('success', 'Deduction assigned.');
         $this->redirect('/hrm/deductions');
     }
@@ -99,15 +121,20 @@ class HrmDeductionController extends Controller
         Auth::authorize('hrm.manage');
         $deduction = $this->deductions->find($id);
         if (!$deduction) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Deduction not found.'], 404);
+            }
             Session::flash('error', 'Deduction not found.');
             $this->redirect('/hrm/deductions');
             return;
         }
-        $this->view('hrm/deductions/edit', [
-            'title' => 'Edit Deduction',
-            'deduction' => $deduction,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Deduction', 'deduction' => $deduction, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/deductions/edit', $data);
+            return;
+        }
+        $this->view('hrm/deductions/edit', $data);
     }
 
     public function update(int $id): void
@@ -115,6 +142,9 @@ class HrmDeductionController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/deductions/' . $id . '/edit');
             return;
@@ -122,6 +152,9 @@ class HrmDeductionController extends Controller
 
         $deduction = $this->deductions->find($id);
         if (!$deduction) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Deduction not found.'], 404);
+            }
             Session::flash('error', 'Deduction not found.');
             $this->redirect('/hrm/deductions');
             return;
@@ -133,6 +166,10 @@ class HrmDeductionController extends Controller
         $this->deductions->updateRecord($id, ['type' => $type, 'amount' => $amount]);
 
         Audit::log('Update', 'HRM', 'Updated deduction #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Deduction updated.');
+        }
         Session::flash('success', 'Deduction updated.');
         $this->redirect('/hrm/deductions');
     }
@@ -142,6 +179,9 @@ class HrmDeductionController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/deductions');
             return;
@@ -149,6 +189,10 @@ class HrmDeductionController extends Controller
 
         $this->deductions->delete($id);
         Audit::log('Delete', 'HRM', 'Removed deduction #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Deduction removed.');
+        }
         Session::flash('success', 'Deduction removed.');
         $this->redirect('/hrm/deductions');
     }

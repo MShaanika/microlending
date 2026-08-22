@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Employee Deductions</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/deductions/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Assign Deduction</a>
+        <a href="<?= url('/hrm/deductions/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/deductions/create') ?>" data-modal-title="Assign Deduction" data-modal-size="lg"><i class="mdi mdi-plus"></i> Assign Deduction</a>
       <?php endif; ?>
     </div>
 
@@ -59,7 +59,7 @@
               <td class="text-end"><?= $d['type'] === 'Percentage' ? number_format((float) $d['amount'], 2) . '%' : format_money($d['amount']) ?></td>
               <?php if (Auth::can('hrm.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/hrm/deductions/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/hrm/deductions/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/hrm/deductions/' . $d['id'] . '/edit') ?>" data-modal-title="Edit Deduction" data-modal-size="md"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/hrm/deductions/' . $d['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Remove this deduction?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

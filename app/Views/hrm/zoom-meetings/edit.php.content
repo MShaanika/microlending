@@ -82,7 +82,7 @@
         </div>
       </div>
       <button type="submit" class="btn btn-info" <?= !$zoomEnabled ? 'disabled' : '' ?>>Save</button>
-      <a href="<?= url('/hrm/zoom-meetings') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/hrm/zoom-meetings') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

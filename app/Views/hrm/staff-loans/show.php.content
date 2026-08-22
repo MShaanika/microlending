@@ -37,20 +37,20 @@ $progressPct = (float) $l['principal_amount'] > 0 ? min(100, round($repaidSoFar 
   <?php if ($l['status'] === 'Pending'): ?>
     <div class="row">
       <div class="col-md-6 mb-3">
-        <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/approve') ?>">
+        <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/approve') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success"><i class="mdi mdi-check"></i> Approve</button>
         </form>
       </div>
       <div class="col-md-6 mb-3">
-        <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/reject') ?>">
+        <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/reject') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-danger"><i class="mdi mdi-close"></i> Reject</button>
         </form>
       </div>
     </div>
   <?php elseif ($l['status'] === 'Active'): ?>
-    <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this loan? No further payroll deductions will be made.');" class="mb-3">
+    <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/cancel') ?>" onsubmit="return confirm('Cancel this loan? No further payroll deductions will be made.');" class="mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <button type="submit" class="btn btn-outline-dark btn-sm">Cancel Loan</button>
     </form>
@@ -58,11 +58,12 @@ $progressPct = (float) $l['principal_amount'] > 0 ? min(100, round($repaidSoFar 
   <?php if (in_array($l['status'], ['Pending', 'Rejected', 'Cancelled'], true)): ?>
     <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/delete') ?>" onsubmit="return confirm('Delete this staff loan?');" class="d-inline">
       <?= csrf_field() ?>
+
       <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
     </form>
   <?php endif; ?>
 <?php endif; ?>
-<a href="<?= url('/hrm/staff-loans') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/staff-loans') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>
 
 <div class="card mt-3">
   <div class="card-body">
@@ -92,7 +93,7 @@ $progressPct = (float) $l['principal_amount'] > 0 ? min(100, round($repaidSoFar 
     <h5 class="card-title">Documents</h5>
 
     <?php if (Auth::can('hrm.manage')): ?>
-    <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/documents') ?>" enctype="multipart/form-data" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/documents') ?>" enctype="multipart/form-data" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <label class="form-label">Document Type</label>
@@ -127,7 +128,7 @@ $progressPct = (float) $l['principal_amount'] > 0 ? min(100, round($repaidSoFar 
               <td class="text-muted small"><?= e(date('d M Y', strtotime($d['created_at']))) ?> <?= $d['uploaded_by_name'] ? 'by ' . e($d['uploaded_by_name']) : '' ?></td>
               <td class="text-end">
                 <?php if (Auth::can('hrm.manage')): ?>
-                <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/documents/' . $d['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                <form method="post" action="<?= url('/hrm/staff-loans/' . $l['id'] . '/documents/' . $d['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this document?');" data-modal-behavior="reload">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>
                 </form>

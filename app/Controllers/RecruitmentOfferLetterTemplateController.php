@@ -29,7 +29,7 @@ class RecruitmentOfferLetterTemplateController extends Controller
 
         $result = $this->templates->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/offer-letter-templates/index', [
+        $data = [
             'title' => 'Offer Letter Templates',
             'templates' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class RecruitmentOfferLetterTemplateController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offer-letter-templates/index', $data);
+            return;
+        }
+        $this->view('recruitment/offer-letter-templates/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/offer-letter-templates/create', [
-            'title' => 'Add Offer Letter Template',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Offer Letter Template', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offer-letter-templates/create', $data);
+            return;
+        }
+        $this->view('recruitment/offer-letter-templates/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class RecruitmentOfferLetterTemplateController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offer-letter-templates/create');
             return;
@@ -65,6 +76,9 @@ class RecruitmentOfferLetterTemplateController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/offer-letter-templates/create', [
                 'title' => 'Add Offer Letter Template',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class RecruitmentOfferLetterTemplateController extends Controller
         $id = $this->templates->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created offer letter template #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Template created.');
+        }
         Session::flash('success', 'Template created.');
         $this->redirect('/recruitment/offer-letter-templates');
     }
@@ -85,15 +103,20 @@ class RecruitmentOfferLetterTemplateController extends Controller
         Auth::authorize('recruitment.manage');
         $template = $this->templates->find($id);
         if (!$template) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Template not found.'], 404);
+            }
             Session::flash('error', 'Template not found.');
             $this->redirect('/recruitment/offer-letter-templates');
             return;
         }
-        $this->view('recruitment/offer-letter-templates/edit', [
-            'title' => 'Edit Offer Letter Template',
-            'template' => $template,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Offer Letter Template', 'template' => $template, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/offer-letter-templates/edit', $data);
+            return;
+        }
+        $this->view('recruitment/offer-letter-templates/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class RecruitmentOfferLetterTemplateController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/offer-letter-templates/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class RecruitmentOfferLetterTemplateController extends Controller
 
         $template = $this->templates->find($id);
         if (!$template) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Template not found.'], 404);
+            }
             Session::flash('error', 'Template not found.');
             $this->redirect('/recruitment/offer-letter-templates');
             return;
@@ -116,6 +145,9 @@ class RecruitmentOfferLetterTemplateController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/offer-letter-templates/edit', [
                 'title' => 'Edit Offer Letter Template',
                 'template' => array_merge($template, $_POST),
@@ -127,6 +159,10 @@ class RecruitmentOfferLetterTemplateController extends Controller
         $this->templates->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated offer letter template #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Template updated.');
+        }
         Session::flash('success', 'Template updated.');
         $this->redirect('/recruitment/offer-letter-templates');
     }

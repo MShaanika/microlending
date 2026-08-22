@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Offers</h4>
       <?php if (Auth::can('recruitment.manage')): ?>
-        <a href="<?= url('/recruitment/offers/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Create Offer</a>
+        <a href="<?= url('/recruitment/offers/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/recruitment/offers/create') ?>" data-modal-title="Create Offer" data-modal-size="lg"><i class="mdi mdi-plus"></i> Create Offer</a>
       <?php endif; ?>
     </div>
 
@@ -45,16 +45,16 @@
           <?php $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' => 'danger']; ?>
           <?php foreach ($offers as $o): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/offers/' . $o['id']) ?>"><?= e($o['candidate_name']) ?></a></td>
+              <td><a href="<?= url('/recruitment/offers/' . $o['id']) ?>" data-modal-url="<?= url('/recruitment/offers/' . $o['id']) ?>" data-modal-title="Offer: <?= e($o['candidate_name']) ?>" data-modal-size="xl"><?= e($o['candidate_name']) ?></a></td>
               <td><?= e($o['position']) ?></td>
               <td><?= format_money($o['salary']) ?></td>
               <td><span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?>"><?= e($o['status']) ?></span></td>
               <td><span class="badge bg-<?= $approvalBadge[$o['approval_status']] ?? 'secondary' ?>"><?= e($o['approval_status']) ?></span></td>
               <td><?= $o['converted_to_employee'] ? '<i class="mdi mdi-check text-success"></i>' : '—' ?></td>
               <td class="text-end">
-                <a href="<?= url('/recruitment/offers/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <a href="<?= url('/recruitment/offers/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary" data-modal-url="<?= url('/recruitment/offers/' . $o['id']) ?>" data-modal-title="Offer: <?= e($o['candidate_name']) ?>" data-modal-size="xl"><i class="mdi mdi-eye"></i></a>
                 <?php if (Auth::can('recruitment.manage') && !$o['converted_to_employee']): ?>
-                <a href="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" data-modal-title="Edit Offer" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                 <?php endif; ?>
               </td>
             </tr>

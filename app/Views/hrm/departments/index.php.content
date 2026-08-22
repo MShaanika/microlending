@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Departments</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/departments/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Department</a>
+        <a href="<?= url('/hrm/departments/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/departments/create') ?>" data-modal-title="Add Department" data-modal-size="sm"><i class="mdi mdi-plus"></i> Add Department</a>
       <?php endif; ?>
     </div>
 
@@ -45,7 +45,7 @@
               <td><span class="badge bg-<?= $d['is_active'] ? 'success' : 'secondary' ?>"><?= $d['is_active'] ? 'Active' : 'Inactive' ?></span></td>
               <?php if (Auth::can('hrm.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/hrm/departments/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/hrm/departments/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/hrm/departments/' . $d['id'] . '/edit') ?>" data-modal-title="Edit Department" data-modal-size="sm"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/hrm/departments/' . $d['id'] . '/toggle-active') ?>" class="d-inline">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-<?= $d['is_active'] ? 'danger' : 'success' ?>">

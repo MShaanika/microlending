@@ -41,7 +41,7 @@ class HrmEventController extends Controller
 
         $result = $this->events->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/events/index', [
+        $data = [
             'title' => 'Events',
             'events' => $result['rows'],
             'total' => $result['total'],
@@ -52,19 +52,31 @@ class HrmEventController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/events/index', $data);
+            return;
+        }
+        $this->view('hrm/events/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/events/create', [
+        $data = [
             'title' => 'New Event',
             'eventTypes' => $this->eventTypes->allTypes(),
             'departments' => $this->departments->allDepartments(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/events/create', $data);
+            return;
+        }
+        $this->view('hrm/events/create', $data);
     }
 
     public function store(): void
@@ -72,6 +84,9 @@ class HrmEventController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/events/create');
             return;
@@ -80,6 +95,9 @@ class HrmEventController extends Controller
         [$data, $departmentIds, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/events/create', [
                 'title' => 'New Event',
                 'eventTypes' => $this->eventTypes->allTypes(),
@@ -96,6 +114,10 @@ class HrmEventController extends Controller
         $this->events->syncDepartments($id, $departmentIds);
 
         Audit::log('Create', 'HRM', 'Event #' . $id . ' created - ' . $data['title']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Event submitted for approval.');
+        }
         Session::flash('success', 'Event submitted for approval.');
         $this->redirect('/hrm/events');
     }
@@ -105,15 +127,20 @@ class HrmEventController extends Controller
         Auth::authorize('hrm.view');
         $event = $this->events->find($id);
         if (!$event) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Event not found.'], 404);
+            }
             Session::flash('error', 'Event not found.');
             $this->redirect('/hrm/events');
             return;
         }
-        $this->view('hrm/events/show', [
-            'title' => 'Event',
-            'event' => $event,
-            'departmentNames' => $this->events->departmentNamesFor($id),
-        ]);
+        $data = ['title' => 'Event', 'event' => $event, 'departmentNames' => $this->events->departmentNamesFor($id)];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/events/show', $data);
+            return;
+        }
+        $this->view('hrm/events/show', $data);
     }
 
     public function approve(int $id): void
@@ -131,6 +158,9 @@ class HrmEventController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/events/' . $id);
             return;
@@ -138,6 +168,9 @@ class HrmEventController extends Controller
 
         $event = $this->events->find($id);
         if (!$event || $event['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending events can be decided.'], 422);
+            }
             Session::flash('error', 'Only pending events can be decided.');
             $this->redirect('/hrm/events');
             return;
@@ -149,6 +182,10 @@ class HrmEventController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Event #' . $id . ' ' . strtolower($status));
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Event ' . strtolower($status) . '.', '/hrm/events/' . $id);
+        }
         Session::flash('success', 'Event ' . strtolower($status) . '.');
         $this->redirect('/hrm/events/' . $id);
     }
@@ -158,6 +195,9 @@ class HrmEventController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/events');
             return;
@@ -165,6 +205,10 @@ class HrmEventController extends Controller
 
         $this->events->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted event #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Event deleted.');
+        }
         Session::flash('success', 'Event deleted.');
         $this->redirect('/hrm/events');
     }

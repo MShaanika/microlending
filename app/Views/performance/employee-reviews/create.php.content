@@ -58,7 +58,7 @@
       <div class="alert alert-info">Ratings, pros and cons are filled in separately via the <strong>Conduct Review</strong> action once scheduled.</div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Schedule Review</button>
-      <a href="<?= url('/performance/employee-reviews') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/performance/employee-reviews') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

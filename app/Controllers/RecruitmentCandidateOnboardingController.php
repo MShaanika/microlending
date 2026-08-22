@@ -43,7 +43,7 @@ class RecruitmentCandidateOnboardingController extends Controller
 
         $result = $this->onboardings->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/candidate-onboardings/index', [
+        $data = [
             'title' => 'Candidate Onboarding',
             'onboardings' => $result['rows'],
             'total' => $result['total'],
@@ -53,7 +53,13 @@ class RecruitmentCandidateOnboardingController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-onboardings/index', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-onboardings/index', $data);
     }
 
     public function show(int $id): void
@@ -61,16 +67,25 @@ class RecruitmentCandidateOnboardingController extends Controller
         Auth::authorize('recruitment.view');
         $onboarding = $this->onboardings->find($id);
         if (!$onboarding) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Onboarding record not found.'], 404);
+            }
             Session::flash('error', 'Onboarding record not found.');
             $this->redirect('/recruitment/candidate-onboardings');
             return;
         }
-        $this->view('recruitment/candidate-onboardings/show', [
+        $data = [
             'title' => 'Onboarding: ' . $onboarding['candidate_name'],
             'onboarding' => $onboarding,
             'checklistItems' => $onboarding['checklist_id'] ? $this->checklistItems->forChecklist((int) $onboarding['checklist_id']) : [],
             'statuses' => self::STATUSES,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-onboardings/show', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-onboardings/show', $data);
     }
 
     public function edit(int $id): void
@@ -78,18 +93,27 @@ class RecruitmentCandidateOnboardingController extends Controller
         Auth::authorize('recruitment.manage');
         $onboarding = $this->onboardings->find($id);
         if (!$onboarding) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Onboarding record not found.'], 404);
+            }
             Session::flash('error', 'Onboarding record not found.');
             $this->redirect('/recruitment/candidate-onboardings');
             return;
         }
-        $this->view('recruitment/candidate-onboardings/edit', [
+        $data = [
             'title' => 'Edit Onboarding',
             'onboarding' => $onboarding,
             'checklists' => $this->checklists->activeChecklists(),
             'employees' => $this->employees->allEmployees(['status' => 'Active']),
             'old' => $onboarding,
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-onboardings/edit', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-onboardings/edit', $data);
     }
 
     public function update(int $id): void
@@ -97,6 +121,9 @@ class RecruitmentCandidateOnboardingController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/candidate-onboardings/' . $id . '/edit');
             return;
@@ -104,6 +131,9 @@ class RecruitmentCandidateOnboardingController extends Controller
 
         $onboarding = $this->onboardings->find($id);
         if (!$onboarding) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Onboarding record not found.'], 404);
+            }
             Session::flash('error', 'Onboarding record not found.');
             $this->redirect('/recruitment/candidate-onboardings');
             return;
@@ -116,6 +146,9 @@ class RecruitmentCandidateOnboardingController extends Controller
         }
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/candidate-onboardings/edit', [
                 'title' => 'Edit Onboarding',
                 'onboarding' => $onboarding,
@@ -134,6 +167,10 @@ class RecruitmentCandidateOnboardingController extends Controller
         ]);
 
         Audit::log('Update', 'Recruitment', 'Updated onboarding #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Onboarding updated.');
+        }
         Session::flash('success', 'Onboarding updated.');
         $this->redirect('/recruitment/candidate-onboardings/' . $id);
     }
@@ -141,14 +178,20 @@ class RecruitmentCandidateOnboardingController extends Controller
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/candidate-onboardings/create', [
+        $data = [
             'title' => 'Start Onboarding',
             'candidates' => $this->candidates->hiredWithoutOnboarding(),
             'checklists' => $this->checklists->activeChecklists(),
             'employees' => $this->employees->allEmployees(['status' => 'Active']),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/candidate-onboardings/create', $data);
+            return;
+        }
+        $this->view('recruitment/candidate-onboardings/create', $data);
     }
 
     public function store(): void
@@ -156,6 +199,9 @@ class RecruitmentCandidateOnboardingController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/candidate-onboardings/create');
             return;
@@ -164,6 +210,9 @@ class RecruitmentCandidateOnboardingController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/candidate-onboardings/create', [
                 'title' => 'Start Onboarding',
                 'candidates' => $this->candidates->hiredWithoutOnboarding(),
@@ -178,6 +227,10 @@ class RecruitmentCandidateOnboardingController extends Controller
         $id = $this->onboardings->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Started onboarding #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Onboarding started.');
+        }
         Session::flash('success', 'Onboarding started.');
         $this->redirect('/recruitment/candidate-onboardings');
     }
@@ -193,6 +246,9 @@ class RecruitmentCandidateOnboardingController extends Controller
             : '/recruitment/candidate-onboardings';
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect($backTo);
             return;
@@ -200,6 +256,9 @@ class RecruitmentCandidateOnboardingController extends Controller
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['status' => 'Invalid status.']);
+            }
             Session::flash('error', 'Invalid status.');
             $this->redirect($backTo);
             return;
@@ -207,6 +266,10 @@ class RecruitmentCandidateOnboardingController extends Controller
 
         $this->onboardings->updateRecord($id, ['status' => $status]);
         Audit::log('Update', 'Recruitment', 'Updated onboarding #' . $id . ' status to ' . $status);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Onboarding status updated.', $backTo);
+        }
         Session::flash('success', 'Onboarding status updated.');
         $this->redirect($backTo);
     }
@@ -216,6 +279,9 @@ class RecruitmentCandidateOnboardingController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/candidate-onboardings');
             return;
@@ -223,6 +289,10 @@ class RecruitmentCandidateOnboardingController extends Controller
 
         $this->onboardings->delete($id);
         Audit::log('Delete', 'Recruitment', 'Deleted onboarding #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Onboarding deleted.');
+        }
         Session::flash('success', 'Onboarding deleted.');
         $this->redirect('/recruitment/candidate-onboardings');
     }

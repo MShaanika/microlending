@@ -51,7 +51,7 @@ class StaffLoanController extends Controller
 
         $result = $this->loans->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/staff-loans/index', [
+        $data = [
             'title' => 'Staff Loans',
             'loans' => $result['rows'],
             'total' => $result['total'],
@@ -63,19 +63,31 @@ class StaffLoanController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/staff-loans/index', $data);
+            return;
+        }
+        $this->view('hrm/staff-loans/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/staff-loans/create', [
+        $data = [
             'title' => 'New Staff Loan',
             'employees' => $this->employees->allEmployees(),
             'types' => $this->types->allTypes(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/staff-loans/create', $data);
+            return;
+        }
+        $this->view('hrm/staff-loans/create', $data);
     }
 
     public function store(): void
@@ -83,6 +95,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans/create');
             return;
@@ -91,6 +106,9 @@ class StaffLoanController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/staff-loans/create', [
                 'title' => 'New Staff Loan',
                 'employees' => $this->employees->allEmployees(),
@@ -108,6 +126,10 @@ class StaffLoanController extends Controller
         $id = $this->loans->create($data);
 
         Audit::log('Create', 'HRM', 'Staff loan #' . $id . ' created - ' . $data['title']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan submitted for approval.');
+        }
         Session::flash('success', 'Staff loan submitted for approval.');
         $this->redirect('/hrm/staff-loans/' . $id);
     }
@@ -117,17 +139,26 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.view');
         $loan = $this->loans->find($id);
         if (!$loan) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Staff loan not found.'], 404);
+            }
             Session::flash('error', 'Staff loan not found.');
             $this->redirect('/hrm/staff-loans');
             return;
         }
-        $this->view('hrm/staff-loans/show', [
+        $data = [
             'title' => 'Staff Loan',
             'loan' => $loan,
             'repayments' => (new StaffLoanRepayment())->forLoan($id),
             'documents' => $this->documents->forLoan($id),
             'documentTypes' => $this->documentTypes->allTypes(),
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/staff-loans/show', $data);
+            return;
+        }
+        $this->view('hrm/staff-loans/show', $data);
     }
 
     public function approve(int $id): void
@@ -135,6 +166,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -142,6 +176,9 @@ class StaffLoanController extends Controller
 
         $loan = $this->loans->find($id);
         if (!$loan || $loan['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending loans can be approved.'], 422);
+            }
             Session::flash('error', 'Only pending loans can be approved.');
             $this->redirect('/hrm/staff-loans');
             return;
@@ -150,6 +187,10 @@ class StaffLoanController extends Controller
         $this->loans->updateRecord($id, ['status' => 'Active', 'approved_by' => Auth::user()['id'] ?? null]);
 
         Audit::log('Update', 'HRM', 'Staff loan #' . $id . ' approved');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan approved. It will be deducted starting from its start date.', '/hrm/staff-loans/' . $id);
+        }
         Session::flash('success', 'Staff loan approved. It will be deducted starting from its start date.');
         $this->redirect('/hrm/staff-loans/' . $id);
     }
@@ -159,6 +200,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -166,6 +210,9 @@ class StaffLoanController extends Controller
 
         $loan = $this->loans->find($id);
         if (!$loan || $loan['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending loans can be rejected.'], 422);
+            }
             Session::flash('error', 'Only pending loans can be rejected.');
             $this->redirect('/hrm/staff-loans');
             return;
@@ -174,6 +221,10 @@ class StaffLoanController extends Controller
         $this->loans->updateRecord($id, ['status' => 'Rejected', 'approved_by' => Auth::user()['id'] ?? null]);
 
         Audit::log('Update', 'HRM', 'Staff loan #' . $id . ' rejected');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan rejected.', '/hrm/staff-loans/' . $id);
+        }
         Session::flash('success', 'Staff loan rejected.');
         $this->redirect('/hrm/staff-loans/' . $id);
     }
@@ -183,6 +234,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -190,6 +244,9 @@ class StaffLoanController extends Controller
 
         $loan = $this->loans->find($id);
         if (!$loan || !in_array($loan['status'], ['Pending', 'Active'], true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending or active loans can be cancelled.'], 422);
+            }
             Session::flash('error', 'Only pending or active loans can be cancelled.');
             $this->redirect('/hrm/staff-loans');
             return;
@@ -198,6 +255,10 @@ class StaffLoanController extends Controller
         $this->loans->updateRecord($id, ['status' => 'Cancelled']);
 
         Audit::log('Update', 'HRM', 'Staff loan #' . $id . ' cancelled');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan cancelled. No further deductions will be made.', '/hrm/staff-loans/' . $id);
+        }
         Session::flash('success', 'Staff loan cancelled. No further deductions will be made.');
         $this->redirect('/hrm/staff-loans/' . $id);
     }
@@ -207,6 +268,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans');
             return;
@@ -214,6 +278,9 @@ class StaffLoanController extends Controller
 
         $loan = $this->loans->find($id);
         if (!$loan || in_array($loan['status'], ['Active', 'Completed'], true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Active or completed loans (with repayment history) cannot be deleted -- cancel instead.'], 422);
+            }
             Session::flash('error', 'Active or completed loans (with repayment history) cannot be deleted -- cancel instead.');
             $this->redirect('/hrm/staff-loans');
             return;
@@ -221,6 +288,10 @@ class StaffLoanController extends Controller
 
         $this->loans->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted staff loan #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Staff loan deleted.');
+        }
         Session::flash('success', 'Staff loan deleted.');
         $this->redirect('/hrm/staff-loans');
     }
@@ -230,6 +301,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -237,6 +311,9 @@ class StaffLoanController extends Controller
 
         $loan = $this->loans->find($id);
         if (!$loan) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Staff loan not found.'], 404);
+            }
             Session::flash('error', 'Staff loan not found.');
             $this->redirect('/hrm/staff-loans');
             return;
@@ -245,6 +322,9 @@ class StaffLoanController extends Controller
         $file = $_FILES['document'] ?? null;
         $error = $this->validateDocument($file);
         if ($error) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['document' => $error]);
+            }
             Session::flash('error', $error);
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -253,6 +333,10 @@ class StaffLoanController extends Controller
         $this->storeDocument($id, $file, !empty($_POST['document_type_id']) ? (int) $_POST['document_type_id'] : null, Auth::user()['id'] ?? null);
 
         Audit::log('Create', 'HRM', 'Uploaded document for staff loan #' . $id . ' - ' . $file['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Document uploaded.', '/hrm/staff-loans/' . $id);
+        }
         Session::flash('success', 'Document uploaded.');
         $this->redirect('/hrm/staff-loans/' . $id);
     }
@@ -294,6 +378,9 @@ class StaffLoanController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -301,6 +388,9 @@ class StaffLoanController extends Controller
 
         $document = $this->documents->find($documentId);
         if (!$document || (int) $document['staff_loan_id'] !== $id) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Document not found.'], 404);
+            }
             Session::flash('error', 'Document not found.');
             $this->redirect('/hrm/staff-loans/' . $id);
             return;
@@ -313,6 +403,10 @@ class StaffLoanController extends Controller
         $this->documents->delete($documentId);
 
         Audit::log('Delete', 'HRM', 'Deleted document #' . $documentId . ' for staff loan #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Document deleted.', '/hrm/staff-loans/' . $id);
+        }
         Session::flash('success', 'Document deleted.');
         $this->redirect('/hrm/staff-loans/' . $id);
     }

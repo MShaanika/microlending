@@ -40,7 +40,7 @@ class HrmWarningController extends Controller
 
         $result = $this->warnings->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/warnings/index', [
+        $data = [
             'title' => 'Warnings',
             'warnings' => $result['rows'],
             'total' => $result['total'],
@@ -51,19 +51,31 @@ class HrmWarningController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/warnings/index', $data);
+            return;
+        }
+        $this->view('hrm/warnings/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/warnings/create', [
+        $data = [
             'title' => 'Issue a Warning',
             'employees' => $this->employees->allEmployees(),
             'warningTypes' => $this->warningTypes->allTypes(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/warnings/create', $data);
+            return;
+        }
+        $this->view('hrm/warnings/create', $data);
     }
 
     public function store(): void
@@ -71,6 +83,9 @@ class HrmWarningController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/warnings/create');
             return;
@@ -79,6 +94,9 @@ class HrmWarningController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/warnings/create', [
                 'title' => 'Issue a Warning',
                 'employees' => $this->employees->allEmployees(),
@@ -95,6 +113,10 @@ class HrmWarningController extends Controller
         $id = $this->warnings->create($data);
 
         Audit::log('Create', 'HRM', 'Warning #' . $id . ' issued to employee #' . $data['employee_id']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Warning issued.');
+        }
         Session::flash('success', 'Warning issued.');
         $this->redirect('/hrm/warnings');
     }
@@ -104,14 +126,20 @@ class HrmWarningController extends Controller
         Auth::authorize('hrm.view');
         $warning = $this->warnings->find($id);
         if (!$warning) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Warning not found.'], 404);
+            }
             Session::flash('error', 'Warning not found.');
             $this->redirect('/hrm/warnings');
             return;
         }
-        $this->view('hrm/warnings/show', [
-            'title' => 'Warning',
-            'warning' => $warning,
-        ]);
+        $data = ['title' => 'Warning', 'warning' => $warning];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/warnings/show', $data);
+            return;
+        }
+        $this->view('hrm/warnings/show', $data);
     }
 
     public function approve(int $id): void
@@ -129,6 +157,9 @@ class HrmWarningController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/warnings/' . $id);
             return;
@@ -136,6 +167,9 @@ class HrmWarningController extends Controller
 
         $warning = $this->warnings->find($id);
         if (!$warning || $warning['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending warnings can be decided.'], 422);
+            }
             Session::flash('error', 'Only pending warnings can be decided.');
             $this->redirect('/hrm/warnings');
             return;
@@ -144,6 +178,10 @@ class HrmWarningController extends Controller
         $this->warnings->updateRecord($id, ['status' => $status]);
 
         Audit::log('Update', 'HRM', 'Warning #' . $id . ' ' . strtolower($status));
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Warning ' . strtolower($status) . '.', '/hrm/warnings/' . $id);
+        }
         Session::flash('success', 'Warning ' . strtolower($status) . '.');
         $this->redirect('/hrm/warnings/' . $id);
     }
@@ -153,6 +191,9 @@ class HrmWarningController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/warnings/' . $id);
             return;
@@ -160,6 +201,9 @@ class HrmWarningController extends Controller
 
         $warning = $this->warnings->find($id);
         if (!$warning) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Warning not found.'], 404);
+            }
             Session::flash('error', 'Warning not found.');
             $this->redirect('/hrm/warnings');
             return;
@@ -167,6 +211,9 @@ class HrmWarningController extends Controller
 
         $response = trim($_POST['employee_response'] ?? '');
         if ($response === '') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['employee_response' => 'A response is required.']);
+            }
             Session::flash('error', 'A response is required.');
             $this->redirect('/hrm/warnings/' . $id);
             return;
@@ -178,6 +225,10 @@ class HrmWarningController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Employee response recorded for warning #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Response recorded.', '/hrm/warnings/' . $id);
+        }
         Session::flash('success', 'Response recorded.');
         $this->redirect('/hrm/warnings/' . $id);
     }
@@ -187,6 +238,9 @@ class HrmWarningController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/warnings');
             return;
@@ -194,6 +248,10 @@ class HrmWarningController extends Controller
 
         $this->warnings->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted warning #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Warning deleted.');
+        }
         Session::flash('success', 'Warning deleted.');
         $this->redirect('/hrm/warnings');
     }

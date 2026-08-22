@@ -31,7 +31,7 @@ $statusBadge = ['Pending' => 'warning', 'In Review' => 'info', 'Assigned' => 'in
 <div class="card mb-3">
   <div class="card-body">
     <h5 class="card-title">Update Status</h5>
-    <form method="post" action="<?= url('/hrm/complaints/' . $c['id'] . '/status') ?>" class="row g-2 align-items-end">
+    <form method="post" action="<?= url('/hrm/complaints/' . $c['id'] . '/status') ?>" class="row g-2 align-items-end" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <select name="status" class="form-select">
@@ -51,4 +51,4 @@ $statusBadge = ['Pending' => 'warning', 'In Review' => 'info', 'Assigned' => 'in
   <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
 </form>
 <?php endif; ?>
-<a href="<?= url('/hrm/complaints') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/complaints') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

@@ -15,7 +15,7 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
     <span class="badge bg-<?= $statusBadge[$o['status']] ?? 'secondary' ?> fs-6"><?= e($o['status']) ?></span>
     <span class="badge bg-<?= $approvalBadge[$o['approval_status']] ?? 'secondary' ?> fs-6"><?= e($o['approval_status']) ?></span>
     <?php if (Auth::can('recruitment.manage') && !$o['converted_to_employee']): ?>
-      <a href="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i> Edit</a>
+      <a href="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/offers/' . $o['id'] . '/edit') ?>" data-modal-title="Edit Offer" data-modal-size="lg"><i class="mdi mdi-pencil"></i> Edit</a>
     <?php endif; ?>
   </div>
 </div>
@@ -47,7 +47,7 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title">Offer Status</h5>
-        <form method="post" action="<?= url('/recruitment/offers/' . $o['id'] . '/status') ?>">
+        <form method="post" action="<?= url('/recruitment/offers/' . $o['id'] . '/status') ?>" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <select name="status" class="form-select mb-2">
             <?php foreach ($statuses as $s): ?>
@@ -65,7 +65,7 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
       <div class="card-body">
         <h5 class="card-title">Internal Approval</h5>
         <?php if ($o['approval_status'] === 'Pending'): ?>
-        <form method="post" action="<?= url('/recruitment/offers/' . $o['id'] . '/approval') ?>" class="d-flex gap-2">
+        <form method="post" action="<?= url('/recruitment/offers/' . $o['id'] . '/approval') ?>" class="d-flex gap-2" data-modal-behavior="reload">
           <?= csrf_field() ?>
           <button type="submit" name="approval_status" value="Approved" class="btn btn-success">Approve</button>
           <button type="submit" name="approval_status" value="Rejected" class="btn btn-danger">Reject</button>
@@ -82,7 +82,7 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
 <div class="card mb-3 border-success">
   <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>This offer is approved. Once the candidate accepts, convert them into an employee record.</div>
-    <a href="<?= url('/recruitment/offers/' . $o['id'] . '/convert') ?>" class="btn btn-success">Convert to Employee</a>
+    <a href="<?= url('/recruitment/offers/' . $o['id'] . '/convert') ?>" class="btn btn-success" data-modal-url="<?= url('/recruitment/offers/' . $o['id'] . '/convert') ?>" data-modal-title="Convert Offer to Employee" data-modal-size="xl">Convert to Employee</a>
   </div>
 </div>
 <?php elseif ($o['converted_to_employee']): ?>
@@ -93,7 +93,17 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
 <div class="card mb-3">
   <div class="card-body">
     <h5 class="card-title">Offer Letter</h5>
-    <select id="templateSelect" class="form-select mb-3">
+    <?php
+      $previewVars = [
+        'candidate_name' => $o['candidate_name'],
+        'position' => $o['position'],
+        'salary' => format_money($o['salary']),
+        'start_date' => date('d M Y', strtotime($o['start_date'])),
+        'offer_date' => date('d M Y', strtotime($o['offer_date'])),
+        'expiration_date' => $o['expiration_date'] ? date('d M Y', strtotime($o['expiration_date'])) : '',
+      ];
+    ?>
+    <select id="templateSelect" class="form-select mb-3" data-offer-preview-vars="<?= e(json_encode($previewVars)) ?>">
       <option value="">— Choose a template to preview —</option>
       <?php foreach ($templates as $t): ?>
         <option value="<?= htmlspecialchars($t['content'], ENT_QUOTES) ?>"><?= e($t['name']) ?></option>
@@ -103,29 +113,7 @@ $approvalBadge = ['Pending' => 'warning', 'Approved' => 'success', 'Rejected' =>
     <button type="button" id="printLetter" class="btn btn-outline-secondary btn-sm mt-2 d-none" onclick="window.print()">Print</button>
   </div>
 </div>
-<script>
-document.getElementById('templateSelect').addEventListener('change', function () {
-  var preview = document.getElementById('letterPreview');
-  var printBtn = document.getElementById('printLetter');
-  if (!this.value) { preview.classList.add('d-none'); printBtn.classList.add('d-none'); return; }
-  var vars = {
-    candidate_name: <?= json_encode($o['candidate_name']) ?>,
-    position: <?= json_encode($o['position']) ?>,
-    salary: <?= json_encode(format_money($o['salary'])) ?>,
-    start_date: <?= json_encode(date('d M Y', strtotime($o['start_date']))) ?>,
-    offer_date: <?= json_encode(date('d M Y', strtotime($o['offer_date']))) ?>,
-    expiration_date: <?= json_encode($o['expiration_date'] ? date('d M Y', strtotime($o['expiration_date'])) : '') ?>
-  };
-  var text = this.value;
-  Object.keys(vars).forEach(function (k) {
-    text = text.split('{{' + k + '}}').join(vars[k]);
-  });
-  preview.textContent = text;
-  preview.classList.remove('d-none');
-  printBtn.classList.remove('d-none');
-});
-</script>
 <?php endif; ?>
 <?php endif; ?>
 
-<a href="<?= url('/recruitment/offers') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/recruitment/offers') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

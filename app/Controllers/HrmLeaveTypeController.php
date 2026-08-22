@@ -29,7 +29,7 @@ class HrmLeaveTypeController extends Controller
 
         $result = $this->leaveTypes->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/leave-types/index', [
+        $data = [
             'title' => 'Leave Types',
             'leaveTypes' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmLeaveTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/leave-types/index', $data);
+            return;
+        }
+        $this->view('hrm/leave-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/leave-types/create', [
-            'title' => 'Add Leave Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Leave Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/leave-types/create', $data);
+            return;
+        }
+        $this->view('hrm/leave-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmLeaveTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/leave-types/create');
             return;
@@ -65,6 +76,9 @@ class HrmLeaveTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/leave-types/create', [
                 'title' => 'Add Leave Type',
                 'old' => $_POST,
@@ -79,6 +93,10 @@ class HrmLeaveTypeController extends Controller
         ]));
 
         Audit::log('Create', 'HRM', 'Created leave type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Leave type created.');
+        }
         Session::flash('success', 'Leave type created.');
         $this->redirect('/hrm/leave-types');
     }
@@ -88,15 +106,20 @@ class HrmLeaveTypeController extends Controller
         Auth::authorize('hrm.manage');
         $leaveType = $this->leaveTypes->find($id);
         if (!$leaveType) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Leave type not found.'], 404);
+            }
             Session::flash('error', 'Leave type not found.');
             $this->redirect('/hrm/leave-types');
             return;
         }
-        $this->view('hrm/leave-types/edit', [
-            'title' => 'Edit Leave Type',
-            'leaveType' => $leaveType,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Leave Type', 'leaveType' => $leaveType, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/leave-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/leave-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -104,6 +127,9 @@ class HrmLeaveTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/leave-types/' . $id . '/edit');
             return;
@@ -111,6 +137,9 @@ class HrmLeaveTypeController extends Controller
 
         $leaveType = $this->leaveTypes->find($id);
         if (!$leaveType) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Leave type not found.'], 404);
+            }
             Session::flash('error', 'Leave type not found.');
             $this->redirect('/hrm/leave-types');
             return;
@@ -119,6 +148,9 @@ class HrmLeaveTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/leave-types/edit', [
                 'title' => 'Edit Leave Type',
                 'leaveType' => array_merge($leaveType, $_POST),
@@ -130,6 +162,10 @@ class HrmLeaveTypeController extends Controller
         $this->leaveTypes->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated leave type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Leave type updated.');
+        }
         Session::flash('success', 'Leave type updated.');
         $this->redirect('/hrm/leave-types');
     }

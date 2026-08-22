@@ -68,7 +68,7 @@
         <textarea name="benefits" class="form-control" rows="3"><?= e($old['benefits'] ?? '') ?></textarea>
       </div>
       <button type="submit" class="btn btn-info">Save</button>
-      <a href="<?= url('/recruitment/offers') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/recruitment/offers') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

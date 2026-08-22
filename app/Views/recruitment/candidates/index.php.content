@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Candidates</h4>
       <?php if (Auth::can('recruitment.manage')): ?>
-        <a href="<?= url('/recruitment/candidates/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Candidate</a>
+        <a href="<?= url('/recruitment/candidates/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/recruitment/candidates/create') ?>" data-modal-title="Add Candidate" data-modal-size="xl"><i class="mdi mdi-plus"></i> Add Candidate</a>
       <?php endif; ?>
     </div>
 
@@ -68,7 +68,7 @@
           <?php $statusBadge = ['New' => 'info', 'Screening' => 'secondary', 'Interview' => 'warning', 'Offer' => 'primary', 'Hired' => 'success', 'Rejected' => 'danger']; ?>
           <?php foreach ($candidates as $c): ?>
             <tr>
-              <td><a href="<?= url('/recruitment/candidates/' . $c['id']) ?>"><?= e($c['tracking_id']) ?></a></td>
+              <td><a href="<?= url('/recruitment/candidates/' . $c['id']) ?>" data-modal-url="<?= url('/recruitment/candidates/' . $c['id']) ?>" data-modal-title="<?= e($c['first_name'] . ' ' . $c['last_name']) ?>" data-modal-size="xl"><?= e($c['tracking_id']) ?></a></td>
               <td><?= e($c['first_name'] . ' ' . $c['last_name']) ?></td>
               <td><?= e($c['email']) ?></td>
               <td><?= e($c['job_title'] ?: '—') ?></td>
@@ -97,9 +97,9 @@
                 <?php endif; ?>
               </td>
               <td class="text-end">
-                <a href="<?= url('/recruitment/candidates/' . $c['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-eye"></i></a>
+                <a href="<?= url('/recruitment/candidates/' . $c['id']) ?>" class="btn btn-sm btn-outline-primary" data-modal-url="<?= url('/recruitment/candidates/' . $c['id']) ?>" data-modal-title="<?= e($c['first_name'] . ' ' . $c['last_name']) ?>" data-modal-size="xl"><i class="mdi mdi-eye"></i></a>
                 <?php if (Auth::can('recruitment.manage')): ?>
-                <a href="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/candidates/' . $c['id'] . '/edit') ?>" data-modal-title="Edit Candidate" data-modal-size="xl"><i class="mdi mdi-pencil"></i></a>
                 <?php endif; ?>
               </td>
             </tr>

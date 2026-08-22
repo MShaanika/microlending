@@ -29,7 +29,7 @@ class HrmTerminationTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/termination-types/index', [
+        $data = [
             'title' => 'Termination Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmTerminationTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/termination-types/index', $data);
+            return;
+        }
+        $this->view('hrm/termination-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/termination-types/create', [
-            'title' => 'Add Termination Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Termination Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/termination-types/create', $data);
+            return;
+        }
+        $this->view('hrm/termination-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmTerminationTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/termination-types/create');
             return;
@@ -65,6 +76,9 @@ class HrmTerminationTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/termination-types/create', [
                 'title' => 'Add Termination Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class HrmTerminationTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Created termination type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Termination type created.');
+        }
         Session::flash('success', 'Termination type created.');
         $this->redirect('/hrm/termination-types');
     }
@@ -85,15 +103,20 @@ class HrmTerminationTypeController extends Controller
         Auth::authorize('hrm.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Termination type not found.'], 404);
+            }
             Session::flash('error', 'Termination type not found.');
             $this->redirect('/hrm/termination-types');
             return;
         }
-        $this->view('hrm/termination-types/edit', [
-            'title' => 'Edit Termination Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Termination Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/termination-types/edit', $data);
+            return;
+        }
+        $this->view('hrm/termination-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class HrmTerminationTypeController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/termination-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class HrmTerminationTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Termination type not found.'], 404);
+            }
             Session::flash('error', 'Termination type not found.');
             $this->redirect('/hrm/termination-types');
             return;
@@ -116,6 +145,9 @@ class HrmTerminationTypeController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/termination-types/edit', [
                 'title' => 'Edit Termination Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class HrmTerminationTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated termination type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Termination type updated.');
+        }
         Session::flash('success', 'Termination type updated.');
         $this->redirect('/hrm/termination-types');
     }

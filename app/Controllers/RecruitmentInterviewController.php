@@ -47,7 +47,7 @@ class RecruitmentInterviewController extends Controller
 
         $result = $this->interviews->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/interviews/index', [
+        $data = [
             'title' => 'Interviews',
             'interviews' => $result['rows'],
             'total' => $result['total'],
@@ -57,20 +57,32 @@ class RecruitmentInterviewController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interviews/index', $data);
+            return;
+        }
+        $this->view('recruitment/interviews/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/interviews/create', [
+        $data = [
             'title' => 'Schedule Interview',
             'candidates' => $this->candidates->interviewStage(),
             'types' => $this->types->activeTypes(),
             'users' => $this->users->allActive(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interviews/create', $data);
+            return;
+        }
+        $this->view('recruitment/interviews/create', $data);
     }
 
     public function store(): void
@@ -78,6 +90,9 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interviews/create');
             return;
@@ -86,6 +101,9 @@ class RecruitmentInterviewController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/interviews/create', [
                 'title' => 'Schedule Interview',
                 'candidates' => $this->candidates->interviewStage(),
@@ -100,6 +118,10 @@ class RecruitmentInterviewController extends Controller
         $id = $this->interviews->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Scheduled interview #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Interview scheduled.');
+        }
         Session::flash('success', 'Interview scheduled.');
         $this->redirect('/recruitment/interviews/' . $id);
     }
@@ -110,11 +132,14 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
         $interview = $this->interviews->find($id);
         if (!$interview) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Interview not found.'], 404);
+            }
             Session::flash('error', 'Interview not found.');
             $this->redirect('/recruitment/interviews');
             return;
         }
-        $this->view('recruitment/interviews/edit', [
+        $data = [
             'title' => 'Edit Interview',
             'interview' => $interview,
             'rounds' => $interview['job_id'] ? $this->rounds->forJob((int) $interview['job_id']) : [],
@@ -122,7 +147,13 @@ class RecruitmentInterviewController extends Controller
             'users' => $this->users->allActive(),
             'old' => array_merge($interview, ['interviewer_ids' => json_decode((string) $interview['interviewer_ids'], true) ?: []]),
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interviews/edit', $data);
+            return;
+        }
+        $this->view('recruitment/interviews/edit', $data);
     }
 
     public function update(int $id): void
@@ -130,6 +161,9 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interviews/' . $id . '/edit');
             return;
@@ -137,6 +171,9 @@ class RecruitmentInterviewController extends Controller
 
         $interview = $this->interviews->find($id);
         if (!$interview) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Interview not found.'], 404);
+            }
             Session::flash('error', 'Interview not found.');
             $this->redirect('/recruitment/interviews');
             return;
@@ -161,6 +198,9 @@ class RecruitmentInterviewController extends Controller
         ];
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/interviews/edit', [
                 'title' => 'Edit Interview',
                 'interview' => $interview,
@@ -175,6 +215,10 @@ class RecruitmentInterviewController extends Controller
 
         $this->interviews->updateRecord($id, $data);
         Audit::log('Update', 'Recruitment', 'Updated interview #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Interview updated.');
+        }
         Session::flash('success', 'Interview updated.');
         $this->redirect('/recruitment/interviews/' . $id);
     }
@@ -184,18 +228,27 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.view');
         $interview = $this->interviews->find($id);
         if (!$interview) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Interview not found.'], 404);
+            }
             Session::flash('error', 'Interview not found.');
             $this->redirect('/recruitment/interviews');
             return;
         }
-        $this->view('recruitment/interviews/show', [
+        $data = [
             'title' => 'Interview: ' . $interview['candidate_name'],
             'interview' => $interview,
             'feedback' => $this->feedback->forInterview($id),
             'users' => $this->users->allActive(),
             'recommendations' => self::RECOMMENDATIONS,
             'statuses' => self::STATUSES,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interviews/show', $data);
+            return;
+        }
+        $this->view('recruitment/interviews/show', $data);
     }
 
     public function getRoundsForCandidate(int $candidateId): void
@@ -213,6 +266,9 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interviews/' . $id);
             return;
@@ -220,6 +276,9 @@ class RecruitmentInterviewController extends Controller
 
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['status' => 'Invalid status.']);
+            }
             Session::flash('error', 'Invalid status.');
             $this->redirect('/recruitment/interviews/' . $id);
             return;
@@ -237,6 +296,10 @@ class RecruitmentInterviewController extends Controller
         }
 
         Audit::log('Update', 'Recruitment', 'Updated interview #' . $id . ' status to ' . $status);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Interview status updated.', '/recruitment/interviews/' . $id);
+        }
         Session::flash('success', 'Interview status updated.');
         $this->redirect('/recruitment/interviews/' . $id);
     }
@@ -246,6 +309,9 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interviews');
             return;
@@ -253,6 +319,10 @@ class RecruitmentInterviewController extends Controller
 
         $this->interviews->delete($id);
         Audit::log('Delete', 'Recruitment', 'Deleted interview #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Interview deleted.');
+        }
         Session::flash('success', 'Interview deleted.');
         $this->redirect('/recruitment/interviews');
     }
@@ -262,6 +332,9 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interviews/' . $id);
             return;
@@ -287,6 +360,10 @@ class RecruitmentInterviewController extends Controller
         $this->interviews->updateRecord($id, ['feedback_submitted' => 1]);
 
         Audit::log('Create', 'Recruitment', 'Recorded feedback for interview #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Feedback recorded.', '/recruitment/interviews/' . $id);
+        }
         Session::flash('success', 'Feedback recorded.');
         $this->redirect('/recruitment/interviews/' . $id);
     }
@@ -296,12 +373,19 @@ class RecruitmentInterviewController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interviews/' . $id);
             return;
         }
 
         $this->feedback->delete($feedbackId);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Feedback deleted.', '/recruitment/interviews/' . $id);
+        }
         Session::flash('success', 'Feedback deleted.');
         $this->redirect('/recruitment/interviews/' . $id);
     }

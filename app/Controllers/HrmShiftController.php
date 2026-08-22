@@ -29,7 +29,7 @@ class HrmShiftController extends Controller
 
         $result = $this->shifts->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/shifts/index', [
+        $data = [
             'title' => 'Shifts',
             'shifts' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class HrmShiftController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/shifts/index', $data);
+            return;
+        }
+        $this->view('hrm/shifts/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/shifts/create', [
-            'title' => 'Add Shift',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Shift', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/shifts/create', $data);
+            return;
+        }
+        $this->view('hrm/shifts/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class HrmShiftController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/shifts/create');
             return;
@@ -65,6 +76,9 @@ class HrmShiftController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/shifts/create', [
                 'title' => 'Add Shift',
                 'old' => $_POST,
@@ -79,6 +93,10 @@ class HrmShiftController extends Controller
         ]));
 
         Audit::log('Create', 'HRM', 'Created shift #' . $id . ' - ' . $data['shift_name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Shift created.');
+        }
         Session::flash('success', 'Shift created.');
         $this->redirect('/hrm/shifts');
     }
@@ -88,15 +106,20 @@ class HrmShiftController extends Controller
         Auth::authorize('hrm.manage');
         $shift = $this->shifts->find($id);
         if (!$shift) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Shift not found.'], 404);
+            }
             Session::flash('error', 'Shift not found.');
             $this->redirect('/hrm/shifts');
             return;
         }
-        $this->view('hrm/shifts/edit', [
-            'title' => 'Edit Shift',
-            'shift' => $shift,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Shift', 'shift' => $shift, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/shifts/edit', $data);
+            return;
+        }
+        $this->view('hrm/shifts/edit', $data);
     }
 
     public function update(int $id): void
@@ -104,6 +127,9 @@ class HrmShiftController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/shifts/' . $id . '/edit');
             return;
@@ -111,6 +137,9 @@ class HrmShiftController extends Controller
 
         $shift = $this->shifts->find($id);
         if (!$shift) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Shift not found.'], 404);
+            }
             Session::flash('error', 'Shift not found.');
             $this->redirect('/hrm/shifts');
             return;
@@ -119,6 +148,9 @@ class HrmShiftController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/shifts/edit', [
                 'title' => 'Edit Shift',
                 'shift' => array_merge($shift, $_POST),
@@ -130,6 +162,10 @@ class HrmShiftController extends Controller
         $this->shifts->updateRecord($id, $data);
 
         Audit::log('Update', 'HRM', 'Updated shift #' . $id . ' - ' . $data['shift_name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Shift updated.');
+        }
         Session::flash('success', 'Shift updated.');
         $this->redirect('/hrm/shifts');
     }

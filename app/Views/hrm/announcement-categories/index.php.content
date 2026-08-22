@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Announcement Categories</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/announcement-categories/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Category</a>
+        <a href="<?= url('/hrm/announcement-categories/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/announcement-categories/create') ?>" data-modal-title="Add Announcement Category" data-modal-size="md"><i class="mdi mdi-plus"></i> Add Category</a>
       <?php endif; ?>
     </div>
 
@@ -38,7 +38,7 @@
               <td><?= e($c['name']) ?></td>
               <?php if (Auth::can('hrm.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/hrm/announcement-categories/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/hrm/announcement-categories/' . $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/hrm/announcement-categories/' . $c['id'] . '/edit') ?>" data-modal-title="Edit Announcement Category" data-modal-size="md"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/hrm/announcement-categories/' . $c['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this category?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

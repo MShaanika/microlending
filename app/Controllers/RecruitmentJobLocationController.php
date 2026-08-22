@@ -29,7 +29,7 @@ class RecruitmentJobLocationController extends Controller
 
         $result = $this->locations->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/job-locations/index', [
+        $data = [
             'title' => 'Job Locations',
             'locations' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class RecruitmentJobLocationController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/job-locations/index', $data);
+            return;
+        }
+        $this->view('recruitment/job-locations/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/job-locations/create', [
-            'title' => 'Add Job Location',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Job Location', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/job-locations/create', $data);
+            return;
+        }
+        $this->view('recruitment/job-locations/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class RecruitmentJobLocationController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/job-locations/create');
             return;
@@ -65,6 +76,9 @@ class RecruitmentJobLocationController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/job-locations/create', [
                 'title' => 'Add Job Location',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class RecruitmentJobLocationController extends Controller
         $id = $this->locations->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created job location #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Job location created.');
+        }
         Session::flash('success', 'Job location created.');
         $this->redirect('/recruitment/job-locations');
     }
@@ -85,15 +103,20 @@ class RecruitmentJobLocationController extends Controller
         Auth::authorize('recruitment.manage');
         $location = $this->locations->find($id);
         if (!$location) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Job location not found.'], 404);
+            }
             Session::flash('error', 'Job location not found.');
             $this->redirect('/recruitment/job-locations');
             return;
         }
-        $this->view('recruitment/job-locations/edit', [
-            'title' => 'Edit Job Location',
-            'location' => $location,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Job Location', 'location' => $location, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/job-locations/edit', $data);
+            return;
+        }
+        $this->view('recruitment/job-locations/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class RecruitmentJobLocationController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/job-locations/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class RecruitmentJobLocationController extends Controller
 
         $location = $this->locations->find($id);
         if (!$location) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Job location not found.'], 404);
+            }
             Session::flash('error', 'Job location not found.');
             $this->redirect('/recruitment/job-locations');
             return;
@@ -116,6 +145,9 @@ class RecruitmentJobLocationController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/job-locations/edit', [
                 'title' => 'Edit Job Location',
                 'location' => array_merge($location, $_POST),
@@ -127,6 +159,10 @@ class RecruitmentJobLocationController extends Controller
         $this->locations->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated job location #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Job location updated.');
+        }
         Session::flash('success', 'Job location updated.');
         $this->redirect('/recruitment/job-locations');
     }

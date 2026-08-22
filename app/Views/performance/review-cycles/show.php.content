@@ -8,7 +8,7 @@
   </div>
   <div>
     <span class="badge bg-<?= $c['status'] === 'Active' ? 'success' : 'secondary' ?> fs-6 me-2"><?= e($c['status']) ?></span>
-    <a href="<?= url('/performance/review-cycles') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+    <a href="<?= url('/performance/review-cycles') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>
   </div>
 </div>
 
@@ -30,7 +30,7 @@
             $statusBadge = ['Pending' => 'warning', 'In Progress' => 'info', 'Completed' => 'success', 'Cancelled' => 'dark'][$r['status']] ?? 'secondary';
           ?>
             <tr>
-              <td><a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>"><?= e($r['employee_name']) ?></a></td>
+              <td><a href="<?= url('/performance/employee-reviews/' . $r['id']) ?>" data-modal-url="<?= url('/performance/employee-reviews/' . $r['id']) ?>" data-modal-title="Employee Review" data-modal-size="lg"><?= e($r['employee_name']) ?></a></td>
               <td><?= e($r['reviewer_name'] ?: '—') ?></td>
               <td><?= e(date('d M Y', strtotime($r['review_date']))) ?></td>
               <td><span class="badge bg-<?= $statusBadge ?>"><?= e($r['status']) ?></span></td>

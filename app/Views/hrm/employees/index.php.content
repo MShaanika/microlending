@@ -33,7 +33,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h4 class="card-title mb-0">Employees</h4>
       <?php if (Auth::can('hrm.manage')): ?>
-        <a href="<?= url('/hrm/employees/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Employee</a>
+        <a href="<?= url('/hrm/employees/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/employees/create') ?>" data-modal-title="Add Employee" data-modal-size="xl"><i class="mdi mdi-plus"></i> Add Employee</a>
       <?php endif; ?>
     </div>
 
@@ -99,7 +99,7 @@
             $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => 'secondary', 'Terminated' => 'danger'][$emp['status']] ?? 'secondary';
           ?>
             <tr>
-              <td><a href="<?= url('/hrm/employees/' . $emp['id']) ?>"><?= e($emp['employee_no']) ?></a></td>
+              <td><a href="<?= url('/hrm/employees/' . $emp['id']) ?>" data-modal-url="<?= url('/hrm/employees/' . $emp['id']) ?>" data-modal-title="<?= e($emp['first_name'] . ' ' . $emp['last_name']) ?>" data-modal-size="xl"><?= e($emp['employee_no']) ?></a></td>
               <td>
                 <?= e($emp['first_name'] . ' ' . $emp['last_name']) ?>
                 <?php if (!empty($emp['is_commission_agent'])): ?><span class="badge bg-info ms-1">Agent</span><?php endif; ?>

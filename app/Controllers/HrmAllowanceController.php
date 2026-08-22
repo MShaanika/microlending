@@ -38,7 +38,7 @@ class HrmAllowanceController extends Controller
 
         $result = $this->allowances->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/allowances/index', [
+        $data = [
             'title' => 'Employee Allowances',
             'allowances' => $result['rows'],
             'total' => $result['total'],
@@ -49,19 +49,31 @@ class HrmAllowanceController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/allowances/index', $data);
+            return;
+        }
+        $this->view('hrm/allowances/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/allowances/create', [
+        $data = [
             'title' => 'Assign Allowance',
             'employees' => $this->employees->allEmployees(['status' => 'Active']),
             'types' => $this->types->allTypes(),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/allowances/create', $data);
+            return;
+        }
+        $this->view('hrm/allowances/create', $data);
     }
 
     public function store(): void
@@ -69,6 +81,9 @@ class HrmAllowanceController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/allowances/create');
             return;
@@ -77,6 +92,9 @@ class HrmAllowanceController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/allowances/create', [
                 'title' => 'Assign Allowance',
                 'employees' => $this->employees->allEmployees(['status' => 'Active']),
@@ -90,6 +108,10 @@ class HrmAllowanceController extends Controller
         $id = $this->allowances->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'HRM', 'Assigned allowance #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Allowance assigned.');
+        }
         Session::flash('success', 'Allowance assigned.');
         $this->redirect('/hrm/allowances');
     }
@@ -99,15 +121,20 @@ class HrmAllowanceController extends Controller
         Auth::authorize('hrm.manage');
         $allowance = $this->allowances->find($id);
         if (!$allowance) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Allowance not found.'], 404);
+            }
             Session::flash('error', 'Allowance not found.');
             $this->redirect('/hrm/allowances');
             return;
         }
-        $this->view('hrm/allowances/edit', [
-            'title' => 'Edit Allowance',
-            'allowance' => $allowance,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Allowance', 'allowance' => $allowance, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/allowances/edit', $data);
+            return;
+        }
+        $this->view('hrm/allowances/edit', $data);
     }
 
     public function update(int $id): void
@@ -115,6 +142,9 @@ class HrmAllowanceController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/allowances/' . $id . '/edit');
             return;
@@ -122,6 +152,9 @@ class HrmAllowanceController extends Controller
 
         $allowance = $this->allowances->find($id);
         if (!$allowance) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Allowance not found.'], 404);
+            }
             Session::flash('error', 'Allowance not found.');
             $this->redirect('/hrm/allowances');
             return;
@@ -133,6 +166,10 @@ class HrmAllowanceController extends Controller
         $this->allowances->updateRecord($id, ['type' => $type, 'amount' => $amount]);
 
         Audit::log('Update', 'HRM', 'Updated allowance #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Allowance updated.');
+        }
         Session::flash('success', 'Allowance updated.');
         $this->redirect('/hrm/allowances');
     }
@@ -142,6 +179,9 @@ class HrmAllowanceController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/allowances');
             return;
@@ -149,6 +189,10 @@ class HrmAllowanceController extends Controller
 
         $this->allowances->delete($id);
         Audit::log('Delete', 'HRM', 'Removed allowance #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Allowance removed.');
+        }
         Session::flash('success', 'Allowance removed.');
         $this->redirect('/hrm/allowances');
     }

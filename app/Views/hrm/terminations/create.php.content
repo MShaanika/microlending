@@ -51,7 +51,7 @@
       <div class="alert alert-warning">Approving this termination will mark the employee's status as <strong>Terminated</strong>.</div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Record Termination</button>
-      <a href="<?= url('/hrm/terminations') ?>" class="btn btn-outline-secondary">Cancel</a>
+      <a href="<?= url('/hrm/terminations') ?>" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</a>
     </form>
   </div>
 </div>

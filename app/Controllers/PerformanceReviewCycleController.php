@@ -32,7 +32,7 @@ class PerformanceReviewCycleController extends Controller
 
         $result = $this->cycles->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('performance/review-cycles/index', [
+        $data = [
             'title' => 'Review Cycles',
             'cycles' => $result['rows'],
             'total' => $result['total'],
@@ -42,18 +42,25 @@ class PerformanceReviewCycleController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/review-cycles/index', $data);
+            return;
+        }
+        $this->view('performance/review-cycles/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('performance.manage');
-        $this->view('performance/review-cycles/create', [
-            'title' => 'Add Review Cycle',
-            'frequencies' => self::FREQUENCIES,
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Review Cycle', 'frequencies' => self::FREQUENCIES, 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/review-cycles/create', $data);
+            return;
+        }
+        $this->view('performance/review-cycles/create', $data);
     }
 
     public function store(): void
@@ -61,6 +68,9 @@ class PerformanceReviewCycleController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/review-cycles/create');
             return;
@@ -69,6 +79,9 @@ class PerformanceReviewCycleController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/review-cycles/create', [
                 'title' => 'Add Review Cycle',
                 'frequencies' => self::FREQUENCIES,
@@ -81,6 +94,10 @@ class PerformanceReviewCycleController extends Controller
         $id = $this->cycles->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Performance', 'Created review cycle #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Review cycle created.');
+        }
         Session::flash('success', 'Review cycle created.');
         $this->redirect('/performance/review-cycles');
     }
@@ -90,15 +107,24 @@ class PerformanceReviewCycleController extends Controller
         Auth::authorize('performance.view');
         $cycle = $this->cycles->find($id);
         if (!$cycle) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Review cycle not found.'], 404);
+            }
             Session::flash('error', 'Review cycle not found.');
             $this->redirect('/performance/review-cycles');
             return;
         }
-        $this->view('performance/review-cycles/show', [
+        $data = [
             'title' => $cycle['name'],
             'cycle' => $cycle,
             'reviews' => (new PerformanceEmployeeReview())->allReviews(['review_cycle_id' => $id]),
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/review-cycles/show', $data);
+            return;
+        }
+        $this->view('performance/review-cycles/show', $data);
     }
 
     public function edit(int $id): void
@@ -106,16 +132,20 @@ class PerformanceReviewCycleController extends Controller
         Auth::authorize('performance.manage');
         $cycle = $this->cycles->find($id);
         if (!$cycle) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Review cycle not found.'], 404);
+            }
             Session::flash('error', 'Review cycle not found.');
             $this->redirect('/performance/review-cycles');
             return;
         }
-        $this->view('performance/review-cycles/edit', [
-            'title' => 'Edit Review Cycle',
-            'cycle' => $cycle,
-            'frequencies' => self::FREQUENCIES,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Review Cycle', 'cycle' => $cycle, 'frequencies' => self::FREQUENCIES, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('performance/review-cycles/edit', $data);
+            return;
+        }
+        $this->view('performance/review-cycles/edit', $data);
     }
 
     public function update(int $id): void
@@ -123,6 +153,9 @@ class PerformanceReviewCycleController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/review-cycles/' . $id . '/edit');
             return;
@@ -130,6 +163,9 @@ class PerformanceReviewCycleController extends Controller
 
         $cycle = $this->cycles->find($id);
         if (!$cycle) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Review cycle not found.'], 404);
+            }
             Session::flash('error', 'Review cycle not found.');
             $this->redirect('/performance/review-cycles');
             return;
@@ -138,6 +174,9 @@ class PerformanceReviewCycleController extends Controller
         [$data, $errors] = $this->validate($_POST, $id);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('performance/review-cycles/edit', [
                 'title' => 'Edit Review Cycle',
                 'cycle' => array_merge($cycle, $_POST),
@@ -150,6 +189,10 @@ class PerformanceReviewCycleController extends Controller
         $this->cycles->updateRecord($id, $data);
 
         Audit::log('Update', 'Performance', 'Updated review cycle #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Review cycle updated.');
+        }
         Session::flash('success', 'Review cycle updated.');
         $this->redirect('/performance/review-cycles');
     }
@@ -159,12 +202,18 @@ class PerformanceReviewCycleController extends Controller
         Auth::authorize('performance.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/performance/review-cycles');
             return;
         }
 
         if ($this->cycles->inUseCount($id) > 0) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'This review cycle has employee reviews attached and cannot be deleted.'], 422);
+            }
             Session::flash('error', 'This review cycle has employee reviews attached and cannot be deleted.');
             $this->redirect('/performance/review-cycles');
             return;
@@ -172,6 +221,10 @@ class PerformanceReviewCycleController extends Controller
 
         $this->cycles->delete($id);
         Audit::log('Delete', 'Performance', 'Deleted review cycle #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Review cycle deleted.');
+        }
         Session::flash('success', 'Review cycle deleted.');
         $this->redirect('/performance/review-cycles');
     }

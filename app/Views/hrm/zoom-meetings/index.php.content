@@ -7,8 +7,8 @@
       <h4 class="card-title mb-0">Zoom Meetings</h4>
       <div class="d-flex gap-2">
         <?php if (Auth::can('hrm.manage')): ?>
-          <a href="<?= url('/hrm/zoom-settings') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-cog"></i> Zoom Settings</a>
-          <a href="<?= url('/hrm/zoom-meetings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Schedule Meeting</a>
+          <a href="<?= url('/hrm/zoom-settings') ?>" class="btn btn-outline-secondary btn-sm" data-modal-url="<?= url('/hrm/zoom-settings') ?>" data-modal-title="Zoom Settings" data-modal-size="lg"><i class="mdi mdi-cog"></i> Zoom Settings</a>
+          <a href="<?= url('/hrm/zoom-meetings/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/hrm/zoom-meetings/create') ?>" data-modal-title="Schedule Zoom Meeting" data-modal-size="lg"><i class="mdi mdi-plus"></i> Schedule Meeting</a>
         <?php endif; ?>
       </div>
     </div>
@@ -89,7 +89,7 @@
                 <?php endif; ?>
                 <?php if (Auth::can('hrm.manage')): ?>
                   <?php if ($m['status'] === 'Scheduled'): ?>
-                  <a href="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                  <a href="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/edit') ?>" data-modal-title="Edit Zoom Meeting" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                   <?php endif; ?>
                   <form method="post" action="<?= url('/hrm/zoom-meetings/' . $m['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this meeting?');">
                     <?= csrf_field() ?>

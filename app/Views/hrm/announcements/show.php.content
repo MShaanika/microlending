@@ -34,7 +34,7 @@ $prioBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$
 <div class="card mb-3">
   <div class="card-body">
     <h5 class="card-title">Update Status</h5>
-    <form method="post" action="<?= url('/hrm/announcements/' . $a['id'] . '/status') ?>" class="row g-2 align-items-end">
+    <form method="post" action="<?= url('/hrm/announcements/' . $a['id'] . '/status') ?>" class="row g-2 align-items-end" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <div class="col-md-4">
         <select name="status" class="form-select">
@@ -54,4 +54,4 @@ $prioBadge = ['Low' => 'secondary', 'Medium' => 'warning', 'High' => 'danger'][$
   <button type="submit" class="btn btn-outline-danger btn-sm"><i class="mdi mdi-delete"></i> Delete</button>
 </form>
 <?php endif; ?>
-<a href="<?= url('/hrm/announcements') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+<a href="<?= url('/hrm/announcements') ?>" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Back</a>

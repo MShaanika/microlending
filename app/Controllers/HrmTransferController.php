@@ -46,7 +46,7 @@ class HrmTransferController extends Controller
 
         $result = $this->transfers->paginated($filters, $sort, $dir, $page, $perPage);
 
-        $this->view('hrm/transfers/index', [
+        $data = [
             'title' => 'Transfers',
             'transfers' => $result['rows'],
             'total' => $result['total'],
@@ -57,13 +57,19 @@ class HrmTransferController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/transfers/index', $data);
+            return;
+        }
+        $this->view('hrm/transfers/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('hrm.manage');
-        $this->view('hrm/transfers/create', [
+        $data = [
             'title' => 'Record a Transfer',
             'employees' => $this->employees->allEmployees(),
             'branches' => $this->branches->all(),
@@ -71,7 +77,13 @@ class HrmTransferController extends Controller
             'designations' => $this->designations->allDesignations(true),
             'old' => [],
             'errors' => [],
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/transfers/create', $data);
+            return;
+        }
+        $this->view('hrm/transfers/create', $data);
     }
 
     public function store(): void
@@ -79,6 +91,9 @@ class HrmTransferController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/transfers/create');
             return;
@@ -87,6 +102,9 @@ class HrmTransferController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('hrm/transfers/create', [
                 'title' => 'Record a Transfer',
                 'employees' => $this->employees->allEmployees(),
@@ -109,6 +127,10 @@ class HrmTransferController extends Controller
         $id = $this->transfers->create($data);
 
         Audit::log('Create', 'HRM', 'Transfer #' . $id . ' recorded for employee #' . $data['employee_id']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Transfer recorded. Employee will move once approved.');
+        }
         Session::flash('success', 'Transfer recorded. Employee will move once approved.');
         $this->redirect('/hrm/transfers');
     }
@@ -118,14 +140,20 @@ class HrmTransferController extends Controller
         Auth::authorize('hrm.view');
         $transfer = $this->transfers->find($id);
         if (!$transfer) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Transfer not found.'], 404);
+            }
             Session::flash('error', 'Transfer not found.');
             $this->redirect('/hrm/transfers');
             return;
         }
-        $this->view('hrm/transfers/show', [
-            'title' => 'Transfer',
-            'transfer' => $transfer,
-        ]);
+        $data = ['title' => 'Transfer', 'transfer' => $transfer];
+
+        if ($this->isAjax()) {
+            $this->fragment('hrm/transfers/show', $data);
+            return;
+        }
+        $this->view('hrm/transfers/show', $data);
     }
 
     public function approve(int $id): void
@@ -133,6 +161,9 @@ class HrmTransferController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/transfers/' . $id);
             return;
@@ -140,6 +171,9 @@ class HrmTransferController extends Controller
 
         $transfer = $this->transfers->find($id);
         if (!$transfer || $transfer['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending transfers can be approved.'], 422);
+            }
             Session::flash('error', 'Only pending transfers can be approved.');
             $this->redirect('/hrm/transfers');
             return;
@@ -157,6 +191,10 @@ class HrmTransferController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Transfer #' . $id . ' approved; employee #' . $transfer['employee_id'] . ' moved');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Transfer approved. Employee record updated.', '/hrm/transfers/' . $id);
+        }
         Session::flash('success', 'Transfer approved. Employee record updated.');
         $this->redirect('/hrm/transfers/' . $id);
     }
@@ -166,6 +204,9 @@ class HrmTransferController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/transfers/' . $id);
             return;
@@ -173,6 +214,9 @@ class HrmTransferController extends Controller
 
         $transfer = $this->transfers->find($id);
         if (!$transfer || $transfer['status'] !== 'Pending') {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Only pending transfers can be rejected.'], 422);
+            }
             Session::flash('error', 'Only pending transfers can be rejected.');
             $this->redirect('/hrm/transfers');
             return;
@@ -184,6 +228,10 @@ class HrmTransferController extends Controller
         ]);
 
         Audit::log('Update', 'HRM', 'Transfer #' . $id . ' rejected');
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Transfer rejected.', '/hrm/transfers/' . $id);
+        }
         Session::flash('success', 'Transfer rejected.');
         $this->redirect('/hrm/transfers/' . $id);
     }
@@ -193,6 +241,9 @@ class HrmTransferController extends Controller
         Auth::authorize('hrm.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/transfers');
             return;
@@ -200,6 +251,10 @@ class HrmTransferController extends Controller
 
         $this->transfers->delete($id);
         Audit::log('Delete', 'HRM', 'Deleted transfer #' . $id);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Transfer deleted.');
+        }
         Session::flash('success', 'Transfer deleted.');
         $this->redirect('/hrm/transfers');
     }

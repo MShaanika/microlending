@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Offer Letter Templates</h4>
       <?php if (Auth::can('recruitment.manage')): ?>
-        <a href="<?= url('/recruitment/offer-letter-templates/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Add Template</a>
+        <a href="<?= url('/recruitment/offer-letter-templates/create') ?>" class="btn btn-info btn-sm waves-effect waves-light" data-modal-url="<?= url('/recruitment/offer-letter-templates/create') ?>" data-modal-title="Add Offer Letter Template" data-modal-size="lg"><i class="mdi mdi-plus"></i> Add Template</a>
       <?php endif; ?>
     </div>
 
@@ -43,7 +43,7 @@
               <td><span class="badge bg-<?= $t['is_active'] ? 'success' : 'secondary' ?>"><?= $t['is_active'] ? 'Active' : 'Inactive' ?></span></td>
               <?php if (Auth::can('recruitment.manage')): ?>
               <td class="text-end">
-                <a href="<?= url('/recruitment/offer-letter-templates/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-pencil"></i></a>
+                <a href="<?= url('/recruitment/offer-letter-templates/' . $t['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" data-modal-url="<?= url('/recruitment/offer-letter-templates/' . $t['id'] . '/edit') ?>" data-modal-title="Edit Offer Letter Template" data-modal-size="lg"><i class="mdi mdi-pencil"></i></a>
                 <form method="post" action="<?= url('/recruitment/offer-letter-templates/' . $t['id'] . '/delete') ?>" class="d-inline" onsubmit="return confirm('Delete this template?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete"></i></button>

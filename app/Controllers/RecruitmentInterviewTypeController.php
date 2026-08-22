@@ -29,7 +29,7 @@ class RecruitmentInterviewTypeController extends Controller
 
         $result = $this->types->paginated($search, $sort, $dir, $page, $perPage);
 
-        $this->view('recruitment/interview-types/index', [
+        $data = [
             'title' => 'Interview Types',
             'types' => $result['rows'],
             'total' => $result['total'],
@@ -39,17 +39,25 @@ class RecruitmentInterviewTypeController extends Controller
             'dir' => $dir,
             'page' => $page,
             'perPage' => $perPage,
-        ]);
+        ];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interview-types/index', $data);
+            return;
+        }
+        $this->view('recruitment/interview-types/index', $data);
     }
 
     public function create(): void
     {
         Auth::authorize('recruitment.manage');
-        $this->view('recruitment/interview-types/create', [
-            'title' => 'Add Interview Type',
-            'old' => [],
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Add Interview Type', 'old' => [], 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interview-types/create', $data);
+            return;
+        }
+        $this->view('recruitment/interview-types/create', $data);
     }
 
     public function store(): void
@@ -57,6 +65,9 @@ class RecruitmentInterviewTypeController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interview-types/create');
             return;
@@ -65,6 +76,9 @@ class RecruitmentInterviewTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/interview-types/create', [
                 'title' => 'Add Interview Type',
                 'old' => $_POST,
@@ -76,6 +90,10 @@ class RecruitmentInterviewTypeController extends Controller
         $id = $this->types->create(array_merge($data, ['created_by' => Auth::user()['id'] ?? null]));
 
         Audit::log('Create', 'Recruitment', 'Created interview type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Interview type created.');
+        }
         Session::flash('success', 'Interview type created.');
         $this->redirect('/recruitment/interview-types');
     }
@@ -85,15 +103,20 @@ class RecruitmentInterviewTypeController extends Controller
         Auth::authorize('recruitment.manage');
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Interview type not found.'], 404);
+            }
             Session::flash('error', 'Interview type not found.');
             $this->redirect('/recruitment/interview-types');
             return;
         }
-        $this->view('recruitment/interview-types/edit', [
-            'title' => 'Edit Interview Type',
-            'type' => $type,
-            'errors' => [],
-        ]);
+        $data = ['title' => 'Edit Interview Type', 'type' => $type, 'errors' => []];
+
+        if ($this->isAjax()) {
+            $this->fragment('recruitment/interview-types/edit', $data);
+            return;
+        }
+        $this->view('recruitment/interview-types/edit', $data);
     }
 
     public function update(int $id): void
@@ -101,6 +124,9 @@ class RecruitmentInterviewTypeController extends Controller
         Auth::authorize('recruitment.manage');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/recruitment/interview-types/' . $id . '/edit');
             return;
@@ -108,6 +134,9 @@ class RecruitmentInterviewTypeController extends Controller
 
         $type = $this->types->find($id);
         if (!$type) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Interview type not found.'], 404);
+            }
             Session::flash('error', 'Interview type not found.');
             $this->redirect('/recruitment/interview-types');
             return;
@@ -116,6 +145,9 @@ class RecruitmentInterviewTypeController extends Controller
         [$data, $errors] = $this->validate($_POST);
 
         if (!empty($errors)) {
+            if ($this->isAjax()) {
+                $this->jsonErrors($errors);
+            }
             $this->view('recruitment/interview-types/edit', [
                 'title' => 'Edit Interview Type',
                 'type' => array_merge($type, $_POST),
@@ -127,6 +159,10 @@ class RecruitmentInterviewTypeController extends Controller
         $this->types->updateRecord($id, $data);
 
         Audit::log('Update', 'Recruitment', 'Updated interview type #' . $id . ' - ' . $data['name']);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Interview type updated.');
+        }
         Session::flash('success', 'Interview type updated.');
         $this->redirect('/recruitment/interview-types');
     }
