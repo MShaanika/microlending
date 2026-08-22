@@ -21,7 +21,8 @@
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">Less: Receivables &amp; Prepayment</label>
-          <input type="number" step="0.01" name="receivables_prepayment" class="form-control" value="<?= e($tax['receivables_prepayment']['value_number'] ?? '') ?>">
+          <input type="number" step="0.01" name="receivables_prepayment" class="form-control" placeholder="Auto from Balance Sheet" value="<?= e($tax['receivables_prepayment']['value_number'] ?? '') ?>">
+          <div class="form-text">Leave blank to auto-pull from the Balance Sheet's Receivables &amp; Prepayments line. Enter a value to override it.</div>
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">Insurances and warranty</label>
@@ -35,22 +36,13 @@
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Estimated assessable loss/profit, prior year</label>
-          <input type="number" step="0.01" name="prior_year_assessed" class="form-control" value="<?= e($tax['prior_year_assessed']['value_number'] ?? '') ?>">
-          <div class="form-text">Negative for a loss carried forward (e.g. -63841), positive for a profit.</div>
+          <input type="number" step="0.01" name="prior_year_assessed" class="form-control" placeholder="Auto from prior fiscal year" value="<?= e($tax['prior_year_assessed']['value_number'] ?? '') ?>">
+          <div class="form-text">Leave blank to auto-compute from last year's actual profit/(loss). Enter a value to override it (e.g. once the actual assessed/taxable figure is known) &mdash; negative for a loss carried forward (e.g. -63841), positive for a profit.</div>
         </div>
       </div>
-
-      <label class="form-label mt-2">Capital Allowances</label>
-      <?php for ($i = 1; $i <= $capitalAllowanceSlots; $i++): ?>
-        <div class="row mb-2">
-          <div class="col-md-6">
-            <input type="text" name="capital_allowance_label_<?= $i ?>" class="form-control" placeholder="Category, e.g. Motor Vehicles" value="<?= e($tax['capital_allowance_' . $i]['label'] ?? '') ?>">
-          </div>
-          <div class="col-md-4">
-            <input type="number" step="0.01" name="capital_allowance_amount_<?= $i ?>" class="form-control" placeholder="Allowance amount" value="<?= e($tax['capital_allowance_' . $i]['value_number'] ?? '') ?>">
-          </div>
-        </div>
-      <?php endfor; ?>
+      <div class="alert alert-info small mb-3">
+        <strong>Capital Allowances</strong> are no longer entered here &mdash; they're derived automatically from the fixed asset register's depreciation for the period.
+      </div>
 
       <h5 class="mt-4">Notes: Accounting Policies</h5>
       <div class="mb-3">

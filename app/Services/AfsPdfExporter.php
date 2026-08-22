@@ -37,7 +37,10 @@ class AfsPdfExporter
     private static function html(string $companyName, string $startDate, string $endDate, ?int $fiscalYearId): string
     {
         $e = fn ($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES);
-        $money = fn ($v) => number_format((float) $v, 2);
+        // Negatives in accounting-style parentheses, matching the Excel
+        // export's numFmt (which already parens-formats negatives) and
+        // standard AFS presentation.
+        $money = fn ($v) => ((float) $v) < 0 ? '(' . number_format(abs((float) $v), 2) . ')' : number_format((float) $v, 2);
         $period = 'For the year ended ' . date('d F Y', strtotime($endDate));
 
         $tax = $policies = $members = $borrowings = $ownership = [];
@@ -59,7 +62,6 @@ class AfsPdfExporter
         $plMovement = AfsReportService::movementByCode(array_values(array_unique($plCodes)), $startDate, $endDate);
 
         $bsCodes = array_merge(
-            array_column(AfsReportService::balanceSheetNonCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentLiabilityLines(), 'code'),
             ['bs_members_contributions', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
@@ -94,11 +96,10 @@ class AfsPdfExporter
         $opexRows .= self::totalRow('Total Operating Expenses', $opex, $money);
 
         // ---- Balance Sheet ----
-        $ncaRows = '';
-        foreach (AfsReportService::balanceSheetNonCurrentAssetLines() as $l) {
-            $ncaRows .= self::row($l['label'], $bsBalance[$l['code']] ?? 0, $e, $money);
-        }
-        $totalNca = array_sum(array_map(fn ($l) => $bsBalance[$l['code']] ?? 0, AfsReportService::balanceSheetNonCurrentAssetLines()));
+        $nca = AfsReportService::nonCurrentAssetsFromRegister($startDate, $endDate);
+        $ncaRows = self::row('Movable Assets', $nca['movable'], $e, $money)
+            . self::row('Land & Building', $nca['land_building'], $e, $money);
+        $totalNca = $nca['movable'] + $nca['land_building'];
         $caRows = '';
         foreach (AfsReportService::balanceSheetCurrentAssetLines() as $l) {
             $amount = $bsBalance[$l['code']] ?? 0;
@@ -127,22 +128,33 @@ class AfsPdfExporter
         $num = fn (string $key) => (float) ($tax[$key]['value_number'] ?? 0);
         $profitBeforeTax = AfsReportService::netProfitForPeriod($startDate, $endDate, true);
         $depreciation = $plMovement['pl_opex_depreciation'] ?? 0;
+
+        $capAllow = AfsReportService::capitalAllowancesFromAssetRegister($startDate, $endDate);
         $capitalAllowanceRows = '';
-        $capitalAllowanceTotal = 0.0;
-        for ($i = 1; $i <= 5; $i++) {
-            $entry = $tax['capital_allowance_' . $i] ?? null;
-            if (!$entry || empty($entry['label']) || $entry['value_number'] === null) {
-                continue;
-            }
-            $capitalAllowanceRows .= self::row($entry['label'], -abs((float) $entry['value_number']), $e, $money);
-            $capitalAllowanceTotal += abs((float) $entry['value_number']);
+        foreach ($capAllow['rows'] as $r) {
+            $capitalAllowanceRows .= self::row($r['label'], -$r['amount'], $e, $money);
         }
+        $capitalAllowanceTotal = $capAllow['total'];
+
+        // Receivables/Prepayment and prior-year-assessed auto-compute from
+        // the ledger/prior fiscal year; a manual figure, when present,
+        // overrides the auto value (e.g. once the actual assessed prior-year
+        // tax position is known, which can differ from accounting profit).
+        $receivablesAuto = $bsBalance['bs_receivables_prepayments'] ?? 0.0;
+        $receivablesPrepayment = ($tax['receivables_prepayment']['value_number'] ?? null) !== null
+            ? (float) $tax['receivables_prepayment']['value_number'] : $receivablesAuto;
+
+        $priorYearAuto = AfsReportService::priorYearProfit($startDate);
+        $priorYear = ($tax['prior_year_assessed']['value_number'] ?? null) !== null
+            ? (float) $tax['prior_year_assessed']['value_number'] : $priorYearAuto;
+
         $taxableIncome = $profitBeforeTax + $depreciation - $num('section17_investment') - $capitalAllowanceTotal
-            - $num('receivables_prepayment') - $num('insurance_warranty');
-        $priorYear = $num('prior_year_assessed');
+            - $receivablesPrepayment - $num('insurance_warranty');
         $currentAssessed = $taxableIncome + $priorYear;
         $taxRate = $num('tax_rate') ?: 32.0;
-        $taxDue = max($currentAssessed, 0) * $taxRate / 100;
+        // No flooring at zero -- a loss period genuinely produces a
+        // negative "tax at X%" figure (shown in parens), not zero.
+        $taxDue = $currentAssessed * $taxRate / 100;
 
         // ---- Notes: PPE ----
         $fa = AfsReportService::fixedAssetNote($startDate, $endDate);
@@ -280,7 +292,7 @@ class AfsPdfExporter
     <tr class="section"><td colspan="2">Less: Capital Allowances</td></tr>
     {$capitalAllowanceRows}
     {$row2('Total Capital Allowances', -$capitalAllowanceTotal)}
-    {$row2('Less: Receivables & Prepayment', -$num('receivables_prepayment'))}
+    {$row2('Less: Receivables & Prepayment', -$receivablesPrepayment)}
     {$row2('Insurances and warranty', -$num('insurance_warranty'))}
     <tr class="total"><td>Estimated taxable income for the year</td><td class="r">{$money($taxableIncome)}</td></tr>
     {$row2('Estimated assessable loss or profit prior year', $priorYear)}

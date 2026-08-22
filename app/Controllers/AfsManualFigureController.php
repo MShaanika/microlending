@@ -17,10 +17,16 @@ use App\Models\FiscalYear;
  * (a handful of rows per repeatable section) rather than a fully dynamic
  * add/remove UI, trading some flexibility for a much simpler screen; blank
  * rows are just ignored wherever they're used downstream.
+ *
+ * receivables_prepayment and prior_year_assessed are auto-computed by
+ * AfsReportService (from the Balance Sheet and the prior fiscal year's
+ * results respectively) when left blank here -- a value entered on this
+ * screen overrides the auto figure. Capital allowances are no longer a
+ * manual figure at all: they're derived entirely from the fixed asset
+ * register (see AfsReportService::capitalAllowancesFromAssetRegister()).
  */
 class AfsManualFigureController extends Controller
 {
-    private const CAPITAL_ALLOWANCE_SLOTS = 5;
     private const MEMBER_TRANSACTION_SLOTS = 5;
     private const BORROWING_SLOTS = 3;
     private const OWNERSHIP_SLOTS = 3;
@@ -65,7 +71,6 @@ class AfsManualFigureController extends Controller
             'members' => $members,
             'borrowings' => $borrowings,
             'ownership' => $ownership,
-            'capitalAllowanceSlots' => self::CAPITAL_ALLOWANCE_SLOTS,
             'memberSlots' => self::MEMBER_TRANSACTION_SLOTS,
             'borrowingSlots' => self::BORROWING_SLOTS,
             'ownershipSlots' => self::OWNERSHIP_SLOTS,
@@ -94,11 +99,6 @@ class AfsManualFigureController extends Controller
         foreach (['section17_investment', 'receivables_prepayment', 'insurance_warranty', 'prior_year_assessed', 'tax_rate'] as $key) {
             $value = trim((string) ($_POST[$key] ?? ''));
             $this->figures->set($fiscalYearId, 'tax_computation', $key, null, null, $value !== '' ? (float) $value : null, $userId);
-        }
-        for ($i = 1; $i <= self::CAPITAL_ALLOWANCE_SLOTS; $i++) {
-            $label = trim((string) ($_POST['capital_allowance_label_' . $i] ?? ''));
-            $amount = trim((string) ($_POST['capital_allowance_amount_' . $i] ?? ''));
-            $this->figures->set($fiscalYearId, 'tax_computation', 'capital_allowance_' . $i, $label ?: null, null, $amount !== '' ? (float) $amount : null, $userId);
         }
 
         foreach (array_keys(self::DEFAULT_POLICY_TEXT) as $key) {

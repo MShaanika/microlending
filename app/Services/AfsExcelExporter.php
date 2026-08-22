@@ -36,6 +36,8 @@ class AfsExcelExporter
 
     private float $cashClosing;
     private float $cashOpening;
+    /** @var array{movable: float, land_building: float} */
+    private array $nonCurrentAssets;
     private int $netProfitAfterTaxRow = 0;
 
     private ?int $fiscalYearId;
@@ -78,7 +80,6 @@ class AfsExcelExporter
         $this->plMovement = AfsReportService::movementByCode(array_values(array_unique($plCodes)), $startDate, $endDate);
 
         $bsCodes = array_merge(
-            array_column(AfsReportService::balanceSheetNonCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentLiabilityLines(), 'code'),
             ['bs_members_contributions', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
@@ -90,6 +91,7 @@ class AfsExcelExporter
 
         $this->cashClosing = AfsReportService::cashBalance($endDate);
         $this->cashOpening = AfsReportService::cashBalance($openingAsOf);
+        $this->nonCurrentAssets = AfsReportService::nonCurrentAssetsFromRegister($startDate, $endDate);
     }
 
     public function build(): Spreadsheet
@@ -187,9 +189,8 @@ class AfsExcelExporter
         $row = 5;
         $row = $this->sectionHeader($sheet, $row, 'NON-CURRENT ASSETS');
         $ncaStart = $row;
-        foreach (AfsReportService::balanceSheetNonCurrentAssetLines() as $line) {
-            $this->dataRow($sheet, $row++, $line['label'], $this->bsBalance[$line['code']] ?? 0);
-        }
+        $this->dataRow($sheet, $row++, 'Movable Assets', $this->nonCurrentAssets['movable']);
+        $this->dataRow($sheet, $row++, 'Land & Building', $this->nonCurrentAssets['land_building']);
         $ncaEnd = $row - 1;
         $totalNcaRow = $row;
         $this->totalRow($sheet, $row++, 'Total Non-current Assets', "SUM(C{$ncaStart}:C{$ncaEnd})");
@@ -416,14 +417,9 @@ class AfsExcelExporter
 
         $row = $this->sectionHeader($sheet, $row, 'Less: Capital Allowances');
         $caStart = $row;
-        $capitalAllowanceTotal = 0.0;
-        for ($i = 1; $i <= 5; $i++) {
-            $entry = $this->taxFigures['capital_allowance_' . $i] ?? null;
-            if (!$entry || empty($entry['label']) || $entry['value_number'] === null) {
-                continue;
-            }
-            $this->dataRow($sheet, $row++, $entry['label'], -abs((float) $entry['value_number']));
-            $capitalAllowanceTotal += abs((float) $entry['value_number']);
+        $capAllow = AfsReportService::capitalAllowancesFromAssetRegister($this->startDate, $this->endDate);
+        foreach ($capAllow['rows'] as $r) {
+            $this->dataRow($sheet, $row++, $r['label'], -$r['amount']);
         }
         $caEnd = max($caStart, $row - 1);
         $caTotalRow = $row;
@@ -434,8 +430,15 @@ class AfsExcelExporter
         }
         $row++;
 
+        // Receivables/Prepayment and prior-year-assessed auto-compute from
+        // the ledger/prior fiscal year; a manual figure, when present,
+        // overrides the auto value.
+        $receivablesAuto = $this->bsBalance['bs_receivables_prepayments'] ?? 0.0;
+        $receivablesPrepayment = ($this->taxFigures['receivables_prepayment']['value_number'] ?? null) !== null
+            ? (float) $this->taxFigures['receivables_prepayment']['value_number'] : $receivablesAuto;
+
         $recvRow = $row;
-        $this->dataRow($sheet, $row++, 'Less: Receivables & Prepayment', -$num('receivables_prepayment'));
+        $this->dataRow($sheet, $row++, 'Less: Receivables & Prepayment', -$receivablesPrepayment);
         $insRow = $row;
         $this->dataRow($sheet, $row++, 'Insurances and warranty', -$num('insurance_warranty'));
         $row++;
@@ -449,14 +452,20 @@ class AfsExcelExporter
             true
         );
 
+        $priorYearAuto = AfsReportService::priorYearProfit($this->startDate);
+        $priorYear = ($this->taxFigures['prior_year_assessed']['value_number'] ?? null) !== null
+            ? (float) $this->taxFigures['prior_year_assessed']['value_number'] : $priorYearAuto;
+
         $priorYearRow = $row;
-        $this->dataRow($sheet, $row++, 'Estimated assessable loss or profit prior year', $num('prior_year_assessed'));
+        $this->dataRow($sheet, $row++, 'Estimated assessable loss or profit prior year', $priorYear);
         $currentAssessedRow = $row;
         $this->totalRow($sheet, $row++, 'Estimated assessable loss/profit for the year', "C{$taxableIncomeRow}+C{$priorYearRow}", true);
         $row++;
 
+        // No flooring at zero -- a loss period genuinely produces a
+        // negative "tax at X%" figure, not zero.
         $taxRate = $num('tax_rate') ?: 32.0;
-        $this->dataFormulaRow($sheet, $row, "Tax at {$taxRate}%", "MAX(C{$currentAssessedRow},0)*{$taxRate}/100");
+        $this->dataFormulaRow($sheet, $row, "Tax at {$taxRate}%", "C{$currentAssessedRow}*{$taxRate}/100");
     }
 
     // ------------------------------------------------------------------

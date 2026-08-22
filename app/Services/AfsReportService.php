@@ -243,6 +243,85 @@ class AfsReportService
     }
 
     /**
+     * Prior fiscal year's accounting profit/(loss) before tax -- the
+     * default for the Tax Computation's "Estimated assessable loss or
+     * profit prior year" input. This is an accounting-profit proxy, not an
+     * actual carried-forward tax assessment (this system doesn't track
+     * historical tax assessments), so AfsManualFigure's prior_year_assessed
+     * entry, when present, overrides it -- see AfsPdfExporter/AfsExcelExporter.
+     */
+    public static function priorYearProfit(string $currentFiscalYearStart): float
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT start_date, end_date FROM accounting_fiscal_years WHERE end_date < ? ORDER BY end_date DESC LIMIT 1"
+        );
+        $stmt->execute([$currentFiscalYearStart]);
+        $prior = $stmt->fetch();
+        if (!$prior) {
+            return 0.0;
+        }
+
+        return self::netProfitForPeriod($prior['start_date'], $prior['end_date'], true);
+    }
+
+    /**
+     * Capital allowances derived from the fixed asset register: one row per
+     * asset category with a depreciation charge in the period, using the
+     * period's posted accounting depreciation as the wear-and-tear
+     * allowance amount. This system has no separate tax depreciation
+     * schedule/rate table, so accounting depreciation is the closest
+     * available proxy -- for entities where the two genuinely diverge, the
+     * total this returns nets out against "Add: Back Depreciation" only
+     * when they're equal, which is the expected/typical case here.
+     */
+    public static function capitalAllowancesFromAssetRegister(string $startDate, string $endDate): array
+    {
+        $fa = self::fixedAssetNote($startDate, $endDate);
+
+        $rows = [];
+        $total = 0.0;
+        foreach ($fa['rows'] as $r) {
+            if (abs($r['depreciation']) < 0.005) {
+                continue;
+            }
+            $rows[] = ['label' => $r['category'], 'amount' => $r['depreciation']];
+            $total += $r['depreciation'];
+        }
+
+        return ['rows' => $rows, 'total' => round($total, 2)];
+    }
+
+    /**
+     * Non-current assets (Movable Assets, Land & Building), computed from
+     * the fixed asset register's closing net book value rather than from
+     * the bs_movable_assets/bs_land_building GL account tags -- nothing in
+     * the fixed-asset purchase workflow actually posts to those tagged
+     * accounts, so the Balance Sheet never reflected real fixed-asset
+     * activity while the Notes' PPE table (driven by the same register)
+     * did, leaving the two sections out of step with each other. Categories
+     * are split by name: anything containing "land" or "building" goes to
+     * Land & Building, everything else (vehicles, equipment, furniture,
+     * etc.) is Movable Assets.
+     */
+    public static function nonCurrentAssetsFromRegister(string $startDate, string $endDate): array
+    {
+        $fa = self::fixedAssetNote($startDate, $endDate);
+
+        $movable = 0.0;
+        $landBuilding = 0.0;
+        foreach ($fa['rows'] as $r) {
+            if (preg_match('/land|building/i', $r['category'])) {
+                $landBuilding += $r['nbv_closing'];
+            } else {
+                $movable += $r['nbv_closing'];
+            }
+        }
+
+        return ['movable' => round($movable, 2), 'land_building' => round($landBuilding, 2)];
+    }
+
+    /**
      * Property/Plant/Equipment note: opening carrying amount, at-cost and
      * accumulated-depreciation splits, additions, disposals, the period's
      * depreciation charge, and closing carrying amount -- one row per
