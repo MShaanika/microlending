@@ -16,7 +16,7 @@
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
-          <?php foreach (['Draft','Pending Approval','Approved','Active','Current','Completed','Denied','Written Off','Cancelled'] as $s): ?>
+          <?php foreach (['Draft','Pending Approval','Approved','Active','Current','Completed','Denied','Written Off','Cancelled','Arrear','Bad Debt','Bad Debt Recovery'] as $s): ?>
             <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
           <?php endforeach; ?>
         </select>
@@ -71,7 +71,17 @@
               <td><?= format_money($loan['principal_amount']) ?></td>
               <td><?= format_money($loan['installment_amount']) ?></td>
               <td><?= (int) $loan['term_months'] ?> mo</td>
-              <td><span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span></td>
+              <td>
+                <span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span>
+                <?php if (!empty($loan['is_in_arrears'])): ?>
+                  <span class="badge bg-danger" title="Has an overdue, unpaid installment">In Arrears</span>
+                <?php endif; ?>
+                <?php if (!empty($loan['bad_debt_status']) && in_array($loan['bad_debt_status'], ['Open', 'Provisioned'], true)): ?>
+                  <span class="badge bg-dark">Bad Debt</span>
+                <?php elseif (($loan['bad_debt_status'] ?? null) === 'Under Recovery'): ?>
+                  <span class="badge bg-warning">Bad Debt Recovery</span>
+                <?php endif; ?>
+              </td>
               <td class="text-end">
                 <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
               </td>

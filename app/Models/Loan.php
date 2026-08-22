@@ -6,9 +6,33 @@ use App\Core\Model;
 
 class Loan extends Model
 {
+    /**
+     * "Arrear", "Bad Debt", and "Bad Debt Recovery" are pseudo-statuses for
+     * the $status filter -- they are NOT loans.loan_status values (which
+     * stays the canonical lifecycle: Draft -> ... -> Active/Current ->
+     * Completed, or -> Written Off/Cancelled/Denied). A loan can be
+     * "Active" AND in arrears at the same time, so encoding arrears into
+     * that single-value column would be a category error -- it's already
+     * computed live by ArrearsService (see that class's docblock for why:
+     * nothing else in the app maintains a stored arrears flag, deliberately).
+     * Similarly "Bad Debt"/"Bad Debt Recovery" already have their own,
+     * richer status machine on the bad_debts table
+     * (Open/Under Recovery/Provisioned/Written Off/Recovered/Closed) --
+     * this filters by it rather than duplicating it onto loans.loan_status.
+     *
+     * is_in_arrears / bad_debt_status are always included in every row
+     * (not just when filtering by one of these) so the list can show an
+     * "In Arrears" / bad-debt badge alongside the loan's normal status,
+     * regardless of which filter is active.
+     */
     public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null): array
     {
-        $sql = "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, p.product_name
+        $sql = "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, p.product_name,
+                       EXISTS (
+                           SELECT 1 FROM loan_schedules ls
+                           WHERE ls.loan_id = l.id AND ls.due_date <= CURDATE() AND ls.total_due > ls.total_paid
+                       ) AS is_in_arrears,
+                       (SELECT bd.status FROM bad_debts bd WHERE bd.loan_id = l.id ORDER BY bd.id DESC LIMIT 1) AS bad_debt_status
                 FROM loans l
                 JOIN borrowers b ON b.id = l.borrower_id
                 JOIN loan_products p ON p.id = l.product_id
@@ -21,7 +45,18 @@ class Loan extends Model
             array_push($params, $like, $like, $like);
         }
 
-        if ($status !== '') {
+        if ($status === 'Arrear') {
+            // Same criteria as ArrearsService::overdueLoans().
+            $sql .= " AND l.loan_status IN ('Active','Current','Released')
+                      AND EXISTS (
+                          SELECT 1 FROM loan_schedules ls2
+                          WHERE ls2.loan_id = l.id AND ls2.due_date <= CURDATE() AND ls2.total_due > ls2.total_paid
+                      )";
+        } elseif ($status === 'Bad Debt') {
+            $sql .= " AND EXISTS (SELECT 1 FROM bad_debts bd2 WHERE bd2.loan_id = l.id AND bd2.status IN ('Open','Provisioned'))";
+        } elseif ($status === 'Bad Debt Recovery') {
+            $sql .= " AND EXISTS (SELECT 1 FROM bad_debts bd2 WHERE bd2.loan_id = l.id AND bd2.status = 'Under Recovery')";
+        } elseif ($status !== '') {
             $sql .= " AND l.loan_status = ?";
             $params[] = $status;
         }
