@@ -52,6 +52,64 @@ class HrmEmployee extends Model
         return $this->query($sql, $params)->fetchAll();
     }
 
+    /** Whitelist of sortable columns -- $sort comes from the query string, never interpolate it directly. */
+    private const SORTABLE = [
+        'employee_no' => 'e.employee_no',
+        'name' => 'e.first_name',
+        'department' => 'd.department_name',
+        'designation' => 'g.designation_name',
+        'branch' => 'b.branch_name',
+        'status' => 'e.status',
+        'date_of_joining' => 'e.date_of_joining',
+    ];
+
+    /**
+     * @return array{rows: array, total: int, totalPages: int}
+     */
+    public function paginated(array $filters = [], string $sort = 'name', string $dir = 'asc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['branch_id'])) {
+            $where[] = 'e.branch_id = ?';
+            $params[] = $filters['branch_id'];
+        }
+        if (!empty($filters['department_id'])) {
+            $where[] = 'e.department_id = ?';
+            $params[] = $filters['department_id'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 'e.status = ?';
+            $params[] = $filters['status'];
+        }
+        if (!empty($filters['search'])) {
+            $where[] = '(e.employee_no LIKE ? OR e.first_name LIKE ? OR e.last_name LIKE ? OR e.email LIKE ?)';
+            $term = '%' . $filters['search'] . '%';
+            array_push($params, $term, $term, $term, $term);
+        }
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM hrm_employees e " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['name'];
+        $orderDir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $sql = "SELECT e.*, " . self::LOOKUP_COLUMNS . " FROM hrm_employees e " . self::LOOKUP_JOINS
+            . $whereSql . " ORDER BY $orderCol $orderDir, e.last_name $orderDir LIMIT $perPage OFFSET $offset";
+
+        return [
+            'rows' => $this->query($sql, $params)->fetchAll(),
+            'total' => $total,
+            'totalPages' => max(1, (int) ceil($total / $perPage)),
+        ];
+    }
+
     public function find(int $id): ?array
     {
         return $this->one(

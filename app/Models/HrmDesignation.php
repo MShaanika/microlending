@@ -20,6 +20,38 @@ class HrmDesignation extends Model
         return $this->query($sql)->fetchAll();
     }
 
+    private const SORTABLE = ['name' => 'g.designation_name', 'department' => 'd.department_name', 'branch' => 'b.branch_name', 'status' => 'g.is_active'];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(string $search = '', string $sort = 'name', string $dir = 'asc', int $page = 1, int $perPage = 10): array
+    {
+        $where = '';
+        $params = [];
+        if ($search !== '') {
+            $where = ' WHERE g.designation_name LIKE ?';
+            $params[] = '%' . $search . '%';
+        }
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM hrm_designations g" . $where,
+            $params
+        );
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['name'];
+        $orderDir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT g.*, b.branch_name, d.department_name
+             FROM hrm_designations g
+             LEFT JOIN branches b ON b.id = g.branch_id
+             LEFT JOIN hrm_departments d ON d.id = g.department_id"
+            . $where . " ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function find(int $id): ?array
     {
         return $this->one(

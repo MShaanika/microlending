@@ -42,6 +42,51 @@ class HrmEvent extends Model
         return $this->query($sql, $params)->fetchAll();
     }
 
+    private const SORTABLE = ['title' => 'e.title', 'event_type' => 't.name', 'start_date' => 'e.start_date', 'location' => 'e.location', 'status' => 'e.status'];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(array $filters = [], string $sort = 'start_date', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+        if (!empty($filters['status'])) {
+            $where[] = 'e.status = ?';
+            $params[] = $filters['status'];
+        }
+        if (!empty($filters['department_id'])) {
+            $where[] = 'e.id IN (SELECT event_id FROM hrm_event_departments WHERE department_id = ?)';
+            $params[] = $filters['department_id'];
+        }
+        if (!empty($filters['search'])) {
+            $where[] = '(e.title LIKE ? OR e.location LIKE ? OR e.description LIKE ?)';
+            $term = '%' . $filters['search'] . '%';
+            array_push($params, $term, $term, $term);
+        }
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+
+        $total = (int) $this->scalar(
+            "SELECT COUNT(DISTINCT e.id) FROM hrm_events e " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['start_date'];
+        $orderDir = strtolower($dir) === 'asc' ? 'ASC' : 'DESC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT e.*, " . self::LOOKUP_COLUMNS . ",
+                GROUP_CONCAT(d.department_name ORDER BY d.department_name SEPARATOR ', ') AS department_names
+                FROM hrm_events e
+                " . self::LOOKUP_JOINS . "
+                LEFT JOIN hrm_event_departments ed ON ed.event_id = e.id
+                LEFT JOIN hrm_departments d ON d.id = ed.department_id"
+            . $whereSql . " GROUP BY e.id ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function find(int $id): ?array
     {
         return $this->one(

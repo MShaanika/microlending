@@ -31,13 +31,26 @@ class HrmWarningController extends Controller
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'status' => $_GET['status'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
         ];
+        $sort = (string) ($_GET['sort'] ?? 'warning_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->warnings->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/warnings/index', [
             'title' => 'Warnings',
-            'warnings' => $this->warnings->allWarnings($filters),
+            'warnings' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'employees' => $this->employees->allEmployees(),
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

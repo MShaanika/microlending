@@ -23,10 +23,25 @@ class HrmHolidayController extends Controller
     {
         Auth::authorize('hrm.view');
         $year = !empty($_GET['year']) ? (int) $_GET['year'] : null;
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $sort = (string) ($_GET['sort'] ?? 'start_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->holidays->paginated($year, $search, $sort, $dir, $page, $perPage);
+
         $this->view('hrm/holidays/index', [
             'title' => 'Holidays',
-            'holidays' => $this->holidays->allHolidays($year),
+            'holidays' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'year' => $year,
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

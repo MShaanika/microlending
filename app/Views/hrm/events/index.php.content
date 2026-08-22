@@ -11,7 +11,12 @@
     </div>
 
     <form method="get" action="<?= url('/hrm/events') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="col-md-3">
+        <input type="text" name="q" class="form-control" placeholder="Search title or location..." value="<?= e($filters['search']) ?>">
+      </div>
+      <div class="col-md-3">
         <select name="department_id" class="form-select">
           <option value="">All departments</option>
           <?php foreach ($departments as $d): ?>
@@ -19,11 +24,18 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <select name="status" class="form-select">
           <option value="">All statuses</option>
           <?php foreach (['Pending', 'Approved', 'Rejected'] as $s): ?>
             <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="per_page" class="form-select" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -35,7 +47,14 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Title</th><th>Type</th><th>Departments</th><th>Dates</th><th>Location</th><th>Status</th></tr>
+          <tr>
+            <?= sortable_th('Title', 'title', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Type', 'event_type', $_GET, $sort, $dir) ?>
+            <th>Departments</th>
+            <?= sortable_th('Dates', 'start_date', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Location', 'location', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($events)): ?>
@@ -58,6 +77,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($events) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

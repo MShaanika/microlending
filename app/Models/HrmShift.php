@@ -17,6 +17,31 @@ class HrmShift extends Model
         return $this->query($sql)->fetchAll();
     }
 
+    private const SORTABLE = ['name' => 'shift_name', 'start_time' => 'start_time', 'end_time' => 'end_time', 'status' => 'is_active'];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(string $search = '', string $sort = 'name', string $dir = 'asc', int $page = 1, int $perPage = 10): array
+    {
+        $where = '';
+        $params = [];
+        if ($search !== '') {
+            $where = ' WHERE shift_name LIKE ?';
+            $params[] = '%' . $search . '%';
+        }
+        $total = (int) $this->scalar("SELECT COUNT(*) FROM hrm_shifts" . $where, $params);
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['name'];
+        $orderDir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT * FROM hrm_shifts{$where} ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function find(int $id): ?array
     {
         return $this->one("SELECT * FROM hrm_shifts WHERE id = ?", [$id]);

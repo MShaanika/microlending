@@ -32,13 +32,26 @@ class HrmLeaveApplicationController extends Controller
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'status' => $_GET['status'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
         ];
+        $sort = (string) ($_GET['sort'] ?? 'start_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->applications->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/leave-applications/index', [
             'title' => 'Leave Applications',
-            'applications' => $this->applications->allApplications($filters),
+            'applications' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'employees' => $this->employees->allEmployees(),
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

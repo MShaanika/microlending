@@ -42,14 +42,27 @@ class StaffLoanController extends Controller
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'status' => $_GET['status'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
         ];
+        $sort = (string) ($_GET['sort'] ?? 'created_at');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->loans->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/staff-loans/index', [
             'title' => 'Staff Loans',
-            'loans' => $this->loans->allLoans($filters),
+            'loans' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'employees' => $this->employees->allEmployees(),
             'statuses' => self::STATUSES,
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

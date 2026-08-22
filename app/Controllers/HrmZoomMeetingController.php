@@ -37,12 +37,25 @@ class HrmZoomMeetingController extends Controller
             'status' => $_GET['status'] ?? null,
             'search' => $_GET['search'] ?? null,
         ];
+        $sort = (string) ($_GET['sort'] ?? 'start_time');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->meetings->paginated($filters, $sort, $dir, $page, $perPage);
+
         $this->view('hrm/zoom-meetings/index', [
             'title' => 'Zoom Meetings',
-            'meetings' => $this->meetings->allMeetings($filters),
+            'meetings' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'filters' => $filters,
             'statuses' => self::STATUSES,
             'zoomEnabled' => $this->settings->isEnabled(),
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

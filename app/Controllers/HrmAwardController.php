@@ -28,13 +28,28 @@ class HrmAwardController extends Controller
     {
         Auth::authorize('hrm.view');
 
-        $filters = ['employee_id' => $_GET['employee_id'] ?? ''];
+        $filters = [
+            'employee_id' => $_GET['employee_id'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
+        ];
+        $sort = (string) ($_GET['sort'] ?? 'award_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->awards->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/awards/index', [
             'title' => 'Awards',
-            'awards' => $this->awards->allAwards($filters),
+            'awards' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'employees' => $this->employees->allEmployees(),
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

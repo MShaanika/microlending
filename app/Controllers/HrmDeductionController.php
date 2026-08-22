@@ -27,9 +27,28 @@ class HrmDeductionController extends Controller
     public function index(): void
     {
         Auth::authorize('hrm.view');
+        $filters = [
+            'employee_id' => $_GET['employee_id'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
+        ];
+        $sort = (string) ($_GET['sort'] ?? 'employee');
+        $dir = (string) ($_GET['dir'] ?? 'asc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->deductions->paginated($filters, $sort, $dir, $page, $perPage);
+
         $this->view('hrm/deductions/index', [
             'title' => 'Employee Deductions',
-            'deductions' => $this->deductions->allDeductions(),
+            'deductions' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
+            'employees' => $this->employees->allEmployees(),
+            'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

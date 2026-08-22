@@ -79,12 +79,24 @@ class HrmAttendanceController extends Controller
             'date_to' => $_GET['date_to'] ?? '',
             'status' => $_GET['status'] ?? '',
         ];
+        $sort = (string) ($_GET['sort'] ?? 'attendance_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->attendances->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/attendance/index', [
             'title' => 'Attendance',
-            'records' => $this->attendances->allAttendances($filters),
+            'records' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'employees' => $this->employees->allEmployees(),
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

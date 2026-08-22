@@ -39,6 +39,45 @@ class StaffLoan extends Model
         return $this->query($sql, $params)->fetchAll();
     }
 
+    private const SORTABLE = ['employee' => 'e.first_name', 'title' => 'l.title', 'type' => 't.name', 'principal' => 'l.principal_amount', 'outstanding' => 'l.outstanding_balance', 'status' => 'l.status', 'created_at' => 'l.created_at'];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(array $filters = [], string $sort = 'created_at', string $dir = 'desc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+        if (!empty($filters['employee_id'])) {
+            $where[] = 'l.employee_id = ?';
+            $params[] = $filters['employee_id'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 'l.status = ?';
+            $params[] = $filters['status'];
+        }
+        if (!empty($filters['search'])) {
+            $where[] = 'l.title LIKE ?';
+            $params[] = '%' . $filters['search'] . '%';
+        }
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM hrm_staff_loans l " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['created_at'];
+        $orderDir = strtolower($dir) === 'asc' ? 'ASC' : 'DESC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT l.*, " . self::LOOKUP_COLUMNS . " FROM hrm_staff_loans l " . self::LOOKUP_JOINS
+            . $whereSql . " ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function find(int $id): ?array
     {
         return $this->one(

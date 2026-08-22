@@ -10,10 +10,43 @@
       <?php endif; ?>
     </div>
 
+    <form method="get" action="<?= url('/hrm/payrolls') ?>" class="row g-2 mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search title..." value="<?= e($filters['search']) ?>">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach ($statuses as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="per_page" class="form-select" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Title</th><th>Period</th><th>Frequency</th><th>Employees</th><th class="text-end">Net Pay</th><th>Status</th></tr>
+          <tr>
+            <?= sortable_th('Title', 'title', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Period', 'pay_period_start', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Frequency', 'frequency', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Employees', 'employee_count', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Net Pay', 'total_net_pay', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($payrolls)): ?>
@@ -33,6 +66,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($payrolls) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

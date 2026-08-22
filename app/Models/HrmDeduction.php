@@ -25,6 +25,42 @@ class HrmDeduction extends Model
         return $this->query("SELECT d.*, " . self::LOOKUP_COLUMNS . " FROM hrm_deductions d " . self::LOOKUP_JOINS . " ORDER BY e.first_name, t.name")->fetchAll();
     }
 
+    private const SORTABLE = ['employee' => 'e.first_name', 'type_name' => 't.name', 'type' => 'd.type', 'amount' => 'd.amount'];
+
+    /** @return array{rows: array, total: int, totalPages: int} */
+    public function paginated(array $filters = [], string $sort = 'employee', string $dir = 'asc', int $page = 1, int $perPage = 10): array
+    {
+        $where = [];
+        $params = [];
+        if (!empty($filters['employee_id'])) {
+            $where[] = 'd.employee_id = ?';
+            $params[] = $filters['employee_id'];
+        }
+        if (!empty($filters['search'])) {
+            $where[] = '(e.first_name LIKE ? OR e.last_name LIKE ? OR t.name LIKE ?)';
+            $term = '%' . $filters['search'] . '%';
+            array_push($params, $term, $term, $term);
+        }
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+
+        $total = (int) $this->scalar(
+            "SELECT COUNT(*) FROM hrm_deductions d " . self::LOOKUP_JOINS . $whereSql,
+            $params
+        );
+        $orderCol = self::SORTABLE[$sort] ?? self::SORTABLE['employee'];
+        $orderDir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->query(
+            "SELECT d.*, " . self::LOOKUP_COLUMNS . " FROM hrm_deductions d " . self::LOOKUP_JOINS
+            . $whereSql . " ORDER BY {$orderCol} {$orderDir} LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        )->fetchAll();
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
+
     public function find(int $id): ?array
     {
         return $this->one("SELECT d.*, " . self::LOOKUP_COLUMNS . " FROM hrm_deductions d " . self::LOOKUP_JOINS . " WHERE d.id = ?", [$id]);

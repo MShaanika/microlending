@@ -10,10 +10,42 @@
       <?php endif; ?>
     </div>
 
+    <form method="get" action="<?= url('/hrm/deductions') ?>" class="row g-2 mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search employee or type..." value="<?= e($filters['search']) ?>">
+      </div>
+      <div class="col-md-4">
+        <select name="employee_id" class="form-select">
+          <option value="">All employees</option>
+          <?php foreach ($employees as $emp): ?>
+            <option value="<?= (int) $emp['id'] ?>" <?= (string) $filters['employee_id'] === (string) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="per_page" class="form-select" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+      </div>
+    </form>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Employee</th><th>Deduction Type</th><th>Type</th><th class="text-end">Amount</th><?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?></tr>
+          <tr>
+            <?= sortable_th('Employee', 'employee', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Deduction Type', 'type_name', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Type', 'type', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Amount', 'amount', $_GET, $sort, $dir) ?>
+            <?php if (Auth::can('hrm.manage')): ?><th></th><?php endif; ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($deductions)): ?>
@@ -38,6 +70,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($deductions) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

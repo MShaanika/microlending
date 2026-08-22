@@ -38,6 +38,8 @@
     </div>
 
     <form method="get" action="<?= url('/hrm/employees') ?>" class="row g-2 mb-3">
+      <input type="hidden" name="sort" value="<?= e($sort) ?>">
+      <input type="hidden" name="dir" value="<?= e($dir) ?>">
       <div class="col-md-3">
         <input type="text" name="search" class="form-control" placeholder="Search name, no., email" value="<?= e($filters['search']) ?>">
       </div>
@@ -49,7 +51,7 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <select name="department_id" class="form-select">
           <option value="">All departments</option>
           <?php foreach ($departments as $d): ?>
@@ -66,6 +68,13 @@
         </select>
       </div>
       <div class="col-md-1">
+        <select name="per_page" class="form-select" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-1">
         <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
       </div>
     </form>
@@ -73,7 +82,14 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Employee No.</th><th>Name</th><th>Department</th><th>Designation</th><th>Branch</th><th>Status</th></tr>
+          <tr>
+            <?= sortable_th('Employee No.', 'employee_no', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Name', 'name', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Department', 'department', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Designation', 'designation', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Branch', 'branch', $_GET, $sort, $dir) ?>
+            <?= sortable_th('Status', 'status', $_GET, $sort, $dir) ?>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($employees)): ?>
@@ -96,6 +112,11 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($employees) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
     </div>
   </div>
 </div>

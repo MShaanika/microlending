@@ -52,14 +52,26 @@ class HrmEmployeeController extends Controller
             'status' => $_GET['status'] ?? '',
             'search' => trim($_GET['search'] ?? ''),
         ];
+        $sort = (string) ($_GET['sort'] ?? 'name');
+        $dir = (string) ($_GET['dir'] ?? 'asc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->employees->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/employees/index', [
             'title' => 'Employees',
-            'employees' => $this->employees->allEmployees($filters),
+            'employees' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'counts' => $this->employees->counts(),
             'branches' => $this->branches->all(),
             'departments' => $this->departments->allDepartments(true),
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

@@ -32,13 +32,26 @@ class HrmEventController extends Controller
         $filters = [
             'status' => $_GET['status'] ?? '',
             'department_id' => $_GET['department_id'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
         ];
+        $sort = (string) ($_GET['sort'] ?? 'start_date');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->events->paginated($filters, $sort, $dir, $page, $perPage);
 
         $this->view('hrm/events/index', [
             'title' => 'Events',
-            'events' => $this->events->allEvents($filters),
+            'events' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
             'departments' => $this->departments->allDepartments(true),
             'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 

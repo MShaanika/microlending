@@ -5,7 +5,10 @@
     <h4 class="card-title mb-3">Leave Balance</h4>
 
     <form method="get" action="<?= url('/hrm/leave-balance') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
+      <div class="col-md-3">
+        <input type="text" name="q" class="form-control" placeholder="Search employee..." value="<?= e($search) ?>">
+      </div>
+      <div class="col-md-3">
         <select name="employee_id" class="form-select">
           <option value="">All active employees</option>
           <?php foreach ($employees as $emp): ?>
@@ -18,6 +21,13 @@
           <?php for ($y = (int) date('Y') + 1; $y >= (int) date('Y') - 3; $y--): ?>
             <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
           <?php endfor; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="per_page" class="form-select" onchange="this.form.submit()">
+          <?php foreach ([10, 25, 50, 100] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
+          <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-1">
@@ -51,5 +61,12 @@
         </div>
       </div>
     <?php endforeach; ?>
+
+    <?php if ($totalPages > 1): ?>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+        <p class="text-muted small mb-0">Showing <?= count($balances) ?> of <?= $total ?> employee<?= $total === 1 ? '' : 's' ?></p>
+        <?= pagination_nav($page, $totalPages, $_GET) ?>
+      </div>
+    <?php endif; ?>
   </div>
 </div>

@@ -27,10 +27,20 @@ class HrmLeaveBalanceController extends Controller
 
         $year = (int) ($_GET['year'] ?? date('Y'));
         $employeeId = !empty($_GET['employee_id']) ? (int) $_GET['employee_id'] : null;
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
 
-        $employees = $employeeId
-            ? array_filter([$this->employees->find($employeeId)])
-            : $this->employees->allEmployees(['status' => 'Active']);
+        if ($employeeId) {
+            $employees = array_filter([$this->employees->find($employeeId)]);
+            $total = count($employees);
+            $totalPages = 1;
+        } else {
+            $result = $this->employees->paginated(['status' => 'Active', 'search' => $search], 'name', 'asc', $page, $perPage);
+            $employees = $result['rows'];
+            $total = $result['total'];
+            $totalPages = $result['totalPages'];
+        }
 
         $leaveTypes = $this->leaveTypes->allLeaveTypes(true);
 
@@ -61,6 +71,11 @@ class HrmLeaveBalanceController extends Controller
             'employees' => $this->employees->allEmployees(),
             'year' => $year,
             'selectedEmployeeId' => $employeeId,
+            'search' => $search,
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'totalPages' => $totalPages,
         ]);
     }
 }

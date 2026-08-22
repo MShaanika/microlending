@@ -15,6 +15,8 @@ use DateTime;
 
 class HrmPayrollController extends Controller
 {
+    private const STATUSES = ['Draft', 'Processing', 'Completed', 'Cancelled'];
+
     private HrmPayroll $payrolls;
     private HrmPayrollEntry $entries;
     private BankAccount $bankAccounts;
@@ -29,9 +31,28 @@ class HrmPayrollController extends Controller
     public function index(): void
     {
         Auth::authorize('hrm.view');
+        $filters = [
+            'status' => $_GET['status'] ?? '',
+            'search' => trim((string) ($_GET['q'] ?? '')),
+        ];
+        $sort = (string) ($_GET['sort'] ?? 'pay_period_start');
+        $dir = (string) ($_GET['dir'] ?? 'desc');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
+
+        $result = $this->payrolls->paginated($filters, $sort, $dir, $page, $perPage);
+
         $this->view('hrm/payrolls/index', [
             'title' => 'Payroll',
-            'payrolls' => $this->payrolls->allPayrolls(),
+            'payrolls' => $result['rows'],
+            'total' => $result['total'],
+            'totalPages' => $result['totalPages'],
+            'statuses' => self::STATUSES,
+            'filters' => $filters,
+            'sort' => $sort,
+            'dir' => $dir,
+            'page' => $page,
+            'perPage' => $perPage,
         ]);
     }
 
