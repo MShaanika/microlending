@@ -41,7 +41,7 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-cash-refund"></i> Record Recovery</button>
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-receipt"></i> Record Recovery</button>
       <a href="<?= url('/accounting/loan-write-offs/' . $writeOff['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>

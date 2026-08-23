@@ -44,10 +44,10 @@
         $navItems = [
           ['url' => '/portal/dashboard', 'icon' => 'mdi-view-dashboard', 'label' => 'Dashboard'],
           ['url' => '/portal/loans', 'icon' => 'mdi-cash-multiple', 'label' => 'My Loans'],
-          ['url' => '/portal/loan-requests', 'icon' => 'mdi-file-document-edit', 'label' => 'Loan Requests'],
-          ['url' => '/portal/payments', 'icon' => 'mdi-bank-outline', 'label' => 'My Payments'],
+          ['url' => '/portal/loan-requests', 'icon' => 'mdi-clipboard-text', 'label' => 'Loan Requests'],
+          ['url' => '/portal/payments', 'icon' => 'mdi-credit-card', 'label' => 'My Payments'],
           ['url' => '/portal/letters', 'icon' => 'mdi-email-outline', 'label' => 'Letters'],
-          ['url' => '/portal/refund-claims', 'icon' => 'mdi-cash-refund', 'label' => 'Refund Claims'],
+          ['url' => '/portal/refund-claims', 'icon' => 'mdi-receipt', 'label' => 'Refund Claims'],
         ];
         $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
       ?>

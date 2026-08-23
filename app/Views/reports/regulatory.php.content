@@ -149,7 +149,7 @@ function mlsToggleReportPeriod(type) {
     <div class="card h-100">
       <div class="card-header"><strong>Recoveries</strong></div>
       <div class="card-body text-center d-flex flex-column justify-content-center h-100">
-        <i class="mdi mdi-cash-refund display-4 text-success"></i>
+        <i class="mdi mdi-receipt display-4 text-success"></i>
         <h3 class="mt-2 mb-0"><?= format_money($recoverySummary['total_recovered']) ?></h3>
         <span class="text-muted">recovered across <?= (int) $recoverySummary['recovery_count'] ?> payment(s)</span>
       </div>

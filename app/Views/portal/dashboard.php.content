@@ -28,7 +28,7 @@
   <div class="col-md-4">
     <div class="card">
       <div class="card-body">
-        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-bank-outline display-6 text-warning"></i></div>
+        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash-multiple display-6 text-warning"></i></div>
         <div><h3 class="mb-0"><?= format_money($outstanding) ?></h3><span>Outstanding (Active Loans)</span></div></div>
       </div>
     </div>

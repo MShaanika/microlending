@@ -24,7 +24,7 @@
         <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($borrower['email']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($borrower['id_number']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($borrower['physical_address']) ?: '&mdash;' ?></p>
-        <p class="mb-1"><i class="mdi mdi-bank-outline me-1"></i> Branch: <?= e($borrower['branch_name']) ?></p>
+        <p class="mb-1"><i class="mdi mdi-bank me-1"></i> Branch: <?= e($borrower['branch_name']) ?></p>
         <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Registered: <?= e(date('d M Y', strtotime($borrower['created_at']))) ?></p>
 
         <div class="mt-3">

@@ -44,7 +44,7 @@
 
       <form method="post" action="<?= url('/accounting/disbursement-restatement/run') ?>" onsubmit="return confirm('Post <?= (int) $summary['loan_count'] ?> restatement journal(s) now? This cannot be undone from this screen.');">
         <?= csrf_field() ?>
-        <button type="submit" class="btn btn-warning"><i class="mdi mdi-file-document-edit"></i> Post Restatement for <?= (int) $summary['loan_count'] ?> Loan(s)</button>
+        <button type="submit" class="btn btn-warning"><i class="mdi mdi-clipboard-text"></i> Post Restatement for <?= (int) $summary['loan_count'] ?> Loan(s)</button>
       </form>
     <?php endif; ?>
   </div>

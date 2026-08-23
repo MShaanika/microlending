@@ -52,7 +52,7 @@
         </form>
       <?php elseif ($writeOff['status'] === 'Posted'): ?>
         <a href="<?= url('/accounting/journals/' . $writeOff['journal_id']) ?>" class="btn btn-outline-primary"><i class="mdi mdi-book-open-variant"></i> View Journal</a>
-        <a href="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/recoveries/create') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-cash-refund"></i> Record Recovery</a>
+        <a href="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/recoveries/create') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-receipt"></i> Record Recovery</a>
       <?php endif; ?>
       <a href="<?= url('/accounting/loan-write-offs') ?>" class="btn btn-outline-secondary">Back to List</a>
     </div>
