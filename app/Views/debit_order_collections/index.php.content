@@ -3,10 +3,10 @@
 <div class="card">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-      <h4 class="card-title mb-0">Collexia Collection Reports</h4>
+      <h4 class="card-title mb-0">Collection Reports</h4>
       <a href="<?= url('/debit-order-collections/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Report</a>
     </div>
-    <p class="text-muted small">Upload any of Collexia's Successful Transactions, Unsuccessful Transactions, or Scheduled Installments exports here -- the report type is detected automatically. Matched Successful Transactions rows are posted as real payments automatically.</p>
+    <p class="text-muted small">Upload any Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export here -- the report type is detected automatically. Matched Successful Transactions rows are posted as real payments automatically.</p>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">

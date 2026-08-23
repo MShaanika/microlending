@@ -20,7 +20,7 @@
     </div>
 
     <p class="mb-1 mt-2">
-      <strong>Collexia:</strong>
+      <strong>Batch Registration:</strong>
       <span class="badge bg-<?= $debitOrder['collexia_status'] === 'Registered' ? 'success' : 'secondary' ?>"><?= e($debitOrder['collexia_status']) ?></span>
       <?php if ($debitOrder['merchant_system_contract_no']): ?>
         <span class="text-muted small">Contract No: <?= e($debitOrder['merchant_system_contract_no']) ?></span>
@@ -52,12 +52,12 @@
         <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/edit') ?>" class="btn btn-outline-primary"><i class="mdi mdi-pencil"></i> Edit</a>
       <?php endif; ?>
       <?php if ($debitOrder['status'] === 'Active' && !$pendingCancellation): ?>
-        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/cancel') ?>" class="btn btn-outline-danger"><i class="mdi mdi-cancel"></i> Request Cancellation</a>
+        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/cancel') ?>" class="btn btn-outline-danger"><i class="mdi mdi-block-helper"></i> Request Cancellation</a>
       <?php endif; ?>
       <a href="<?= url('/debit-orders') ?>" class="btn btn-outline-secondary">Back to List</a>
     </div>
     <?php if (!$editable && $debitOrder['status'] === 'Active'): ?>
-      <p class="text-muted small mt-2 mb-0">This mandate has already been placed with Collexia, so it can no longer be edited here. Use <strong>Reschedule Installment</strong> below for amount/date changes, or cancel and re-register for bank/account changes.</p>
+      <p class="text-muted small mt-2 mb-0">This mandate has already been placed, so it can no longer be edited here. Use <strong>Reschedule Installment</strong> below for amount/date changes, or cancel and re-register for bank/account changes.</p>
     <?php endif; ?>
   </div>
 </div>
@@ -65,7 +65,7 @@
 <div class="card mt-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
-      <h5 class="card-title mb-0">Collexia API (EnDO V3)</h5>
+      <h5 class="card-title mb-0">API Registration</h5>
       <?php
         $apiBadge = match ($debitOrder['collexia_api_status'] ?? 'Not Placed') {
           'Registered' => 'success',
@@ -80,7 +80,7 @@
 
     <?php if (!$collexiaConfigured): ?>
       <p class="text-muted small mb-2">
-        Not configured yet. <a href="<?= url('/collexia/settings') ?>">Set up Collexia API credentials</a> before placing a mandate here.
+        Not configured yet. <a href="<?= url('/collexia/settings') ?>">Set up API credentials</a> before placing a mandate here.
         The Excel-based batch registration above is unaffected either way.
       </p>
     <?php elseif (!$collexiaEnabled): ?>
@@ -100,7 +100,7 @@
       <?php if (($debitOrder['collexia_api_status'] ?? 'Not Placed') === 'Not Placed'): ?>
         <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/place') ?>" class="d-inline">
           <?= csrf_field() ?>
-          <button type="submit" class="btn btn-info btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-upload"></i> Place Mandate via Collexia API</button>
+          <button type="submit" class="btn btn-info btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-upload"></i> Place Mandate</button>
         </form>
       <?php endif; ?>
 
@@ -117,9 +117,9 @@
           <button type="submit" class="btn btn-outline-secondary btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-refresh"></i> Sync Status</button>
         </form>
         <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/installments') ?>" class="btn btn-outline-secondary btn-sm <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>"><i class="mdi mdi-calendar-edit"></i> Reschedule Installment</a>
-        <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this mandate with Collexia? This cancels the whole mandate and every installment under it.');">
+        <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this mandate? This cancels the whole mandate and every installment under it.');">
           <?= csrf_field() ?>
-          <button type="submit" class="btn btn-outline-danger btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cancel"></i> Cancel Mandate</button>
+          <button type="submit" class="btn btn-outline-danger btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-block-helper"></i> Cancel Mandate</button>
         </form>
       <?php endif; ?>
     </div>

@@ -118,7 +118,7 @@ class DebitOrderRunController extends Controller
         $matches = $this->debitOrders->unregistered($branchId);
 
         if (empty($matches)) {
-            Session::flash('error', 'No active mandates are waiting to be registered with Collexia for that branch.');
+            Session::flash('error', 'No active mandates are waiting to be registered for that branch.');
             $this->redirect('/debit-order-runs/create');
             return;
         }
@@ -256,7 +256,7 @@ class DebitOrderRunController extends Controller
 
         $this->runs->updateRecord($id, ['status' => 'Submitted']);
         Audit::log('Submit', 'Debit Order Runs', 'Marked run #' . $id . ' as submitted to Collexia and registered its mandates');
-        Session::flash('success', 'Run marked as submitted -- these mandates are now registered with Collexia and will collect automatically.');
+        Session::flash('success', 'Run marked as submitted -- these mandates are now registered and will collect automatically.');
         $this->redirect('/debit-order-runs/' . $id);
     }
 

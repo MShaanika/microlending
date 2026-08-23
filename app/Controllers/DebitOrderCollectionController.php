@@ -60,7 +60,7 @@ class DebitOrderCollectionController extends Controller
     {
         Auth::authorize('collections.debit_orders');
         $this->view('debit_order_collections/index', [
-            'title' => 'Collexia Collection Reports',
+            'title' => 'Collection Reports',
             'imports' => $this->imports->paginated(),
         ]);
     }
@@ -87,7 +87,7 @@ class DebitOrderCollectionController extends Controller
 
         $file = $_FILES['report_file'] ?? null;
         if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
-            Session::flash('error', 'Choose a Collexia report .xlsx file to import.');
+            Session::flash('error', 'Choose a report .xlsx file to import.');
             $this->redirect('/debit-order-collections/create');
             return;
         }
@@ -105,7 +105,7 @@ class DebitOrderCollectionController extends Controller
 
         $reportType = CollexiaReportReader::detectReportType($file['tmp_name']);
         if ($reportType === null) {
-            Session::flash('error', 'Could not recognize this file as a Collexia Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export.');
+            Session::flash('error', 'Could not recognize this file as a Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export.');
             $this->redirect('/debit-order-collections/create');
             return;
         }

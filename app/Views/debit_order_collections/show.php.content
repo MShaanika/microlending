@@ -37,7 +37,7 @@
     <div class="table-responsive">
       <table class="table table-sm table-hover">
         <thead>
-          <tr><th>Contract No</th><th>Loan</th><th>Installment #</th><th>Scheduled</th><th>Amount</th><th>Collexia Status</th><th>Payment Date</th><th>Payment Amount</th><th>Result</th></tr>
+          <tr><th>Contract No</th><th>Loan</th><th>Installment #</th><th>Scheduled</th><th>Amount</th><th>Status</th><th>Payment Date</th><th>Payment Amount</th><th>Result</th></tr>
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>

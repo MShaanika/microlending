@@ -27,7 +27,7 @@ class BlandVoiceCallService
             return [
                 'success' => false,
                 'callId' => null,
-                'error' => 'AI voice calling is not configured. Please add a Bland API key under Notification Settings.',
+                'error' => 'AI voice calling is not configured. Please add a voice calling API key under Notification Settings.',
             ];
         }
 
@@ -75,7 +75,7 @@ class BlandVoiceCallService
             return [
                 'success' => false,
                 'callId' => null,
-                'error' => 'Could not reach Bland AI: ' . $curlError,
+                'error' => 'Could not reach the voice calling provider: ' . $curlError,
             ];
         }
 

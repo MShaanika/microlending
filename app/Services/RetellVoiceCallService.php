@@ -32,7 +32,7 @@ class RetellVoiceCallService
             return [
                 'success' => false,
                 'callId' => null,
-                'error' => 'AI voice calling (Retell) is not configured. Please add a Retell API key, Agent ID and From Number under Notification Settings.',
+                'error' => 'AI voice calling is not configured. Please add a voice calling API key, Agent ID and From Number under Notification Settings.',
             ];
         }
 
@@ -67,7 +67,7 @@ class RetellVoiceCallService
             return [
                 'success' => false,
                 'callId' => null,
-                'error' => 'Could not reach Retell AI: ' . $curlError,
+                'error' => 'Could not reach the voice calling provider: ' . $curlError,
             ];
         }
 

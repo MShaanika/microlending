@@ -3,7 +3,7 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">New Debit Order Run</h4>
-    <p class="text-muted small">Batches every Active mandate on this branch's loans that hasn't yet been registered with Collexia into an EnDo Batch file. Registration is one-time per mandate -- Collexia collects every period on its own afterwards, so already-registered mandates won't appear here again.</p>
+    <p class="text-muted small">Batches every Active mandate on this branch's loans that hasn't yet been registered into a Batch file. Registration is one-time per mandate -- collection happens automatically every period afterwards, so already-registered mandates won't appear here again.</p>
 
     <form method="post" action="<?= url('/debit-order-runs') ?>">
       <?= csrf_field() ?>

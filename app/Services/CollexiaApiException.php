@@ -18,7 +18,7 @@ class CollexiaApiException extends \RuntimeException
         private readonly ?string $summary,
     ) {
         $first = $errors[0] ?? [];
-        $text = trim(($first['code'] ?? '') . ' ' . ($first['message'] ?? $summary ?? 'Collexia API error'));
+        $text = trim(($first['code'] ?? '') . ' ' . ($first['message'] ?? $summary ?? 'Mandate placement API error'));
         parent::__construct($text, (int) ($first['rcoId'] ?? 0));
     }
 

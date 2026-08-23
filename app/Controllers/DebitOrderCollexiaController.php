@@ -51,7 +51,7 @@ class DebitOrderCollexiaController extends Controller
 
         $banId = $debitOrder['bank_code'] ? CollexiaV3Codes::fromLegacyBankCode($debitOrder['bank_code']) : null;
         if (!$banId) {
-            Session::flash('error', 'This debit order\'s bank has no known Collexia V3 bank ID -- cannot place the mandate.');
+            Session::flash('error', 'This debit order\'s bank has no known bank ID for this integration -- cannot place the mandate.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
@@ -92,14 +92,14 @@ class DebitOrderCollexiaController extends Controller
             ]);
 
             Audit::log('Update', 'Debit Orders', 'Placed Collexia API mandate for debit order #' . $id . ' (' . $contractReference . ')');
-            Session::flash('success', 'Mandate submitted to Collexia (' . $contractReference . '). Use "Check Final Fate" to confirm it registered.');
+            Session::flash('success', 'Mandate submitted (' . $contractReference . '). Use "Check Final Fate" to confirm it registered.');
         } catch (CollexiaApiException $e) {
             $this->debitOrders->updateCollexiaApiState((int) $id, [
                 'collexia_api_status' => 'Load Failed',
                 'collexia_api_last_response' => $e->getMessage(),
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
             ]);
-            Session::flash('error', 'Collexia rejected the mandate: ' . $e->getMessage());
+            Session::flash('error', 'The mandate was rejected: ' . $e->getMessage());
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
@@ -118,7 +118,7 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
         if (!$debitOrder['collexia_api_contract_reference']) {
-            Session::flash('error', 'This mandate has not been placed with Collexia yet.');
+            Session::flash('error', 'This mandate has not been placed yet.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
@@ -136,8 +136,8 @@ class DebitOrderCollexiaController extends Controller
 
             Audit::log('Update', 'Debit Orders', 'Checked Collexia final fate for debit order #' . $id . ' -> ' . ($loaded ? 'Registered' : 'Load Failed'));
             Session::flash($loaded ? 'success' : 'error', $loaded
-                ? 'Mandate confirmed registered by Collexia.'
-                : 'Collexia reports the mandate did not register (code ' . ($result['mandateLoadedResponseCode'] ?? '?') . ').');
+                ? 'Mandate confirmed registered.'
+                : 'The mandate did not register (code ' . ($result['mandateLoadedResponseCode'] ?? '?') . ').');
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
@@ -156,7 +156,7 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
         if (!$debitOrder['collexia_api_contract_reference']) {
-            Session::flash('error', 'This mandate has not been placed with Collexia yet.');
+            Session::flash('error', 'This mandate has not been placed yet.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
@@ -170,7 +170,7 @@ class DebitOrderCollexiaController extends Controller
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
             ]);
 
-            Session::flash('success', 'Synced the latest mandate status from Collexia.');
+            Session::flash('success', 'Synced the latest mandate status.');
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
@@ -189,7 +189,7 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
         if (!$debitOrder['collexia_api_contract_reference']) {
-            Session::flash('error', 'This mandate has not been placed with Collexia yet.');
+            Session::flash('error', 'This mandate has not been placed yet.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
@@ -205,7 +205,7 @@ class DebitOrderCollexiaController extends Controller
             ]);
 
             Audit::log('Update', 'Debit Orders', 'Cancelled Collexia API mandate for debit order #' . $id);
-            Session::flash('success', 'Mandate cancelled with Collexia.');
+            Session::flash('success', 'Mandate cancelled.');
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
@@ -222,7 +222,7 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
         if (!$debitOrder['collexia_api_contract_reference']) {
-            Session::flash('error', 'This mandate has not been placed with Collexia yet.');
+            Session::flash('error', 'This mandate has not been placed yet.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
@@ -278,7 +278,7 @@ class DebitOrderCollexiaController extends Controller
 
             $this->debitOrders->updateCollexiaApiState((int) $id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
             Audit::log('Update', 'Debit Orders', 'Rescheduled Collexia installment ' . $intId . ' for debit order #' . $id);
-            Session::flash('success', 'Installment reschedule submitted to Collexia.');
+            Session::flash('success', 'Installment reschedule submitted.');
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }

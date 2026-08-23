@@ -19,7 +19,7 @@
     </div>
 
     <?php if ($run['status'] === 'Submitted'): ?>
-      <div class="alert alert-success mt-3 mb-0">These mandates are registered with Collexia and will now collect automatically every period. Use <a href="<?= url('/debit-order-collections') ?>">Collection Reports</a> to reconcile what's actually been paid.</div>
+      <div class="alert alert-success mt-3 mb-0">These mandates are registered and will now collect automatically every period. Use <a href="<?= url('/debit-order-collections') ?>">Collection Reports</a> to reconcile what's actually been paid.</div>
     <?php endif; ?>
 
     <div class="row text-center my-3">
@@ -39,11 +39,11 @@
 
     <div class="d-flex gap-2 flex-wrap">
       <?php if (in_array($run['status'], ['Draft', 'Generated'], true)): ?>
-        <a href="<?= url('/debit-order-runs/' . $run['id'] . '/export') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-download"></i> <?= $run['status'] === 'Draft' ? 'Export EnDo Batch File' : 'Re-download EnDo Batch File' ?></a>
+        <a href="<?= url('/debit-order-runs/' . $run['id'] . '/export') ?>" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-download"></i> <?= $run['status'] === 'Draft' ? 'Export Batch File' : 'Re-download Batch File' ?></a>
       <?php endif; ?>
 
       <?php if ($run['status'] === 'Generated'): ?>
-        <form method="post" action="<?= url('/debit-order-runs/' . $run['id'] . '/submit') ?>" onsubmit="return confirmSubmit(this, 'Mark this run as submitted to Collexia? This registers every mandate below and they will not be included in a future run.');">
+        <form method="post" action="<?= url('/debit-order-runs/' . $run['id'] . '/submit') ?>" onsubmit="return confirmSubmit(this, 'Mark this run as submitted? This registers every mandate below and they will not be included in a future run.');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-primary waves-effect waves-light"><i class="mdi mdi-send"></i> Mark as Submitted</button>
         </form>
@@ -52,7 +52,7 @@
       <?php if (in_array($run['status'], ['Draft', 'Generated'], true)): ?>
         <form method="post" action="<?= url('/debit-order-runs/' . $run['id'] . '/cancel') ?>" onsubmit="return confirmSubmit(this, 'Cancel this run?');">
           <?= csrf_field() ?>
-          <button type="submit" class="btn btn-outline-danger waves-effect waves-light"><i class="mdi mdi-cancel"></i> Cancel Run</button>
+          <button type="submit" class="btn btn-outline-danger waves-effect waves-light"><i class="mdi mdi-block-helper"></i> Cancel Run</button>
         </form>
       <?php endif; ?>
 

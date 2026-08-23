@@ -69,7 +69,7 @@
     <div class="card h-100">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
-          <h4 class="card-title mb-0">SMS (Twilio)</h4>
+          <h4 class="card-title mb-0">SMS</h4>
           <span class="badge bg-<?= $smsConfigured ? 'success' : 'secondary' ?>"><?= $smsConfigured ? 'Configured' : 'Not Configured' ?></span>
         </div>
         <p class="text-muted small">Get your Account SID, Auth Token and Messaging Service SID from your Twilio console -- leave the token blank to keep the current one. The Messaging Service SID lets Twilio send from your registered short code / Sender ID instead of a plain phone number.</p>

@@ -279,7 +279,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Debit Order Runs', 'url' => url('/debit-order-runs'), 'perm' => 'collections.debit_orders'],
               ['label' => 'Collection Reports', 'url' => url('/debit-order-collections'), 'perm' => 'collections.debit_orders'],
               ['label' => 'Debit Order Cancellations', 'url' => url('/debit-order-cancellations'), 'perm' => 'collections.debit_orders'],
-              ['label' => 'Collexia API Settings', 'url' => url('/collexia/settings'), 'perm' => 'collections.debit_orders'],
+              ['label' => 'Debit Order API Settings', 'url' => url('/collexia/settings'), 'perm' => 'collections.debit_orders'],
             ]],
             'Fixed Assets' => ['icon' => 'mdi-trending-up', 'items' => [
               ['label' => 'Asset Register', 'url' => url('/fixed-assets'), 'perm' => 'assets.view'],

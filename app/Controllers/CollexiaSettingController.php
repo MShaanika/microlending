@@ -30,7 +30,7 @@ class CollexiaSettingController extends Controller
     {
         Auth::authorize('collections.debit_orders');
         $this->view('collexia/settings/edit', [
-            'title' => 'Collexia API Settings',
+            'title' => 'Debit Order API Settings',
             'settings' => $this->settings->allSettings(),
             'enabled' => $this->settings->isEnabled(),
             'configured' => $this->settings->isConfigured(),
@@ -55,7 +55,7 @@ class CollexiaSettingController extends Controller
         $this->settings->set('collexia_enabled', !empty($_POST['collexia_enabled']) ? 'on' : 'off', $userId);
 
         Audit::log('Update', 'Debit Orders', 'Updated Collexia API settings');
-        Session::flash('success', 'Collexia API settings saved.');
+        Session::flash('success', 'API settings saved.');
         $this->redirect('/collexia/settings');
     }
 }

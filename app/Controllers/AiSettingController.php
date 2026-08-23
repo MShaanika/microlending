@@ -87,12 +87,12 @@ class AiSettingController extends Controller
         curl_close($ch);
 
         if ($response === false) {
-            Session::flash('error', 'Could not reach OpenAI: ' . $curlError);
+            Session::flash('error', 'Could not reach the AI provider: ' . $curlError);
         } elseif ($httpCode >= 200 && $httpCode < 300) {
             Session::flash('success', 'Connection successful -- the API key is valid.');
         } else {
             $data = json_decode($response, true);
-            Session::flash('error', 'OpenAI rejected the request: ' . ($data['error']['message'] ?? ('HTTP ' . $httpCode)));
+            Session::flash('error', 'The AI provider rejected the request: ' . ($data['error']['message'] ?? ('HTTP ' . $httpCode)));
         }
 
         $this->redirect('/settings/ai');

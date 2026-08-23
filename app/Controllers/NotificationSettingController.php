@@ -94,7 +94,7 @@ class NotificationSettingController extends Controller
         }
 
         Audit::log('Update', 'Notifications', 'Updated Twilio SMS settings');
-        Session::flash('success', 'SMS (Twilio) settings saved.');
+        Session::flash('success', 'SMS settings saved.');
         $this->redirect('/notifications/settings');
     }
 
@@ -197,7 +197,7 @@ class NotificationSettingController extends Controller
             ]);
         } else {
             $script = trim((string) $this->settings->get('AI_VOICE_SCRIPT'))
-                ?: 'This is a short test call from DesertLedger to confirm your Bland AI voice settings are working. Say hello, then end the call politely.';
+                ?: 'This is a short test call from DesertLedger to confirm your voice call settings are working. Say hello, then end the call politely.';
             $result = BlandVoiceCallService::dispatch($recipient, $script, full_url('/api/voice-calls/webhook/' . CollectionsAiCallService::webhookToken()));
         }
 
@@ -227,7 +227,7 @@ class NotificationSettingController extends Controller
             return;
         }
 
-        $result = SmsSenderService::send($recipient, 'This is a test message from DesertLedger to confirm your Twilio settings are working.');
+        $result = SmsSenderService::send($recipient, 'This is a test message from DesertLedger to confirm your SMS settings are working.');
 
         if ($result['success']) {
             Session::flash('success', 'Test SMS sent to ' . $recipient . '.');

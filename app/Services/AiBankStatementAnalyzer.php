@@ -104,7 +104,7 @@ class AiBankStatementAnalyzer
         $model = $settings->get('OPENAI_MODEL', 'gpt-4o-mini');
 
         if ($apiKey === '') {
-            return ['success' => false, 'error' => 'AI analysis is not configured yet -- add an OpenAI API key under Settings > AI Settings.'];
+            return ['success' => false, 'error' => 'AI analysis is not configured yet -- add an API key under Settings > AI Settings.'];
         }
 
         $statements = array_values(array_filter($documents, fn ($d) => in_array($d['document_type'], self::ALLOWED_DOCUMENT_TYPES, true)));
@@ -207,24 +207,24 @@ class AiBankStatementAnalyzer
         curl_close($ch);
 
         if ($response === false) {
-            return ['success' => false, 'error' => 'Could not reach OpenAI: ' . $curlError];
+            return ['success' => false, 'error' => 'Could not reach the AI provider: ' . $curlError];
         }
 
         $body = json_decode($response, true);
 
         if ($httpCode < 200 || $httpCode >= 300) {
-            $error = $body['error']['message'] ?? ('OpenAI returned HTTP ' . $httpCode);
+            $error = $body['error']['message'] ?? ('AI provider returned HTTP ' . $httpCode);
             return ['success' => false, 'error' => $error];
         }
 
         $jsonText = self::extractOutputText($body);
         if ($jsonText === null) {
-            return ['success' => false, 'error' => 'OpenAI response did not contain the expected analysis output.'];
+            return ['success' => false, 'error' => 'The AI response did not contain the expected analysis output.'];
         }
 
         $data = json_decode($jsonText, true);
         if (!is_array($data)) {
-            return ['success' => false, 'error' => 'OpenAI returned analysis that could not be parsed.'];
+            return ['success' => false, 'error' => 'The AI returned analysis that could not be parsed.'];
         }
 
         return [

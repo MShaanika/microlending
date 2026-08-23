@@ -9,7 +9,7 @@
       <?= csrf_field() ?>
       <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
 
-      <p class="text-muted small">Fields below match Collexia's EnDo Batch registration format -- this mandate will be included in the next "Debit Order Run" you submit to Collexia.</p>
+      <p class="text-muted small">This mandate will be included in the next "Debit Order Run" you submit.</p>
 
       <div class="row">
         <div class="col-md-4 mb-3">
@@ -47,7 +47,7 @@
           <label class="form-label">Debit Day (1-31) <span class="text-danger">*</span></label>
           <input type="number" min="1" max="31" name="debit_day" class="form-control <?= isset($errors['debit_day']) ? 'is-invalid' : '' ?>" value="<?= old('debit_day', $old, (string) $loan['payment_day']) ?>">
           <?php if (isset($errors['debit_day'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_day']) ?></div><?php endif; ?>
-          <div class="form-text">Day 31 maps to Collexia's "Last Day" code.</div>
+          <div class="form-text">Day 31 maps to the "Last Day" code.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Debit Amount <span class="text-danger">*</span></label>
@@ -62,7 +62,7 @@
         <div class="col-md-4 mb-3">
           <label class="form-label">Tracking Days (1-14)</label>
           <input type="number" min="1" max="14" name="no_of_days_tracking" class="form-control" value="<?= old('no_of_days_tracking', $old, '3') ?>">
-          <div class="form-text">How many days Collexia retries collection before giving up.</div>
+          <div class="form-text">How many days collection is retried before giving up.</div>
         </div>
       </div>
 

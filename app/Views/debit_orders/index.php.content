@@ -51,7 +51,7 @@
                   <a href="<?= url('/debit-orders/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="mdi mdi-pencil"></i></a>
                 <?php endif; ?>
                 <?php if ($d['status'] === 'Active'): ?>
-                  <a href="<?= url('/debit-orders/' . $d['id'] . '/cancel') ?>" class="btn btn-sm btn-outline-danger" title="Request Cancellation"><i class="mdi mdi-cancel"></i></a>
+                  <a href="<?= url('/debit-orders/' . $d['id'] . '/cancel') ?>" class="btn btn-sm btn-outline-danger" title="Request Cancellation"><i class="mdi mdi-block-helper"></i></a>
                 <?php endif; ?>
               </td>
             </tr>

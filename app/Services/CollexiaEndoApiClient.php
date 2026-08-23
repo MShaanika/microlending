@@ -166,12 +166,12 @@ class CollexiaEndoApiClient
     private function post(string $path, array $body): array
     {
         if (!$this->enabled) {
-            throw new \RuntimeException('The Collexia API integration is disabled (System Setup > Collexia Settings).');
+            throw new \RuntimeException('The mandate placement API integration is disabled (Collections > Debit Order API Settings).');
         }
 
         $baseUrl = rtrim((string) ($this->config['base_url'] ?? ''), '/');
         if ($baseUrl === '') {
-            throw new \RuntimeException('Collexia API is not configured yet -- fill in the host and credentials under System Setup > Collexia Settings.');
+            throw new \RuntimeException('The mandate placement API is not configured yet -- fill in the host and credentials under Collections > Debit Order API Settings.');
         }
 
         $ch = curl_init($baseUrl . self::BASE_PATH . $path);
@@ -191,7 +191,7 @@ class CollexiaEndoApiClient
         curl_close($ch);
 
         if ($response === false) {
-            throw new \RuntimeException('Failed to reach Collexia: ' . $error);
+            throw new \RuntimeException('Failed to reach the mandate placement API: ' . $error);
         }
 
         $data = json_decode((string) $response, true);

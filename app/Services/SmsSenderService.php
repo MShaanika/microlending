@@ -31,7 +31,7 @@ class SmsSenderService
             return [
                 'success' => false,
                 'providerReference' => null,
-                'error' => 'SMS is not configured correctly. Please configure your Twilio Account SID, Auth Token and Messaging Service SID.'
+                'error' => 'SMS is not configured correctly. Please configure your SMS provider credentials under Notification Settings.'
             ];
         }
 
@@ -66,7 +66,7 @@ class SmsSenderService
             return [
                 'success' => false,
                 'providerReference' => null,
-                'error' => 'Could not reach Twilio: ' . $curlError
+                'error' => 'Could not reach the SMS provider: ' . $curlError
             ];
         }
 

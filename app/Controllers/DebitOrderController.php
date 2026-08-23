@@ -100,7 +100,7 @@ class DebitOrderController extends Controller
 
         $existing = $this->debitOrders->liveForLoan((int) $loanId);
         if ($existing) {
-            Session::flash('error', 'This loan already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one -- Collexia collects every active mandate independently, so a second one means the client gets deducted twice.');
+            Session::flash('error', 'This loan already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one -- every active mandate collects independently, so a second one means the client gets deducted twice.');
             $this->redirect('/debit-orders/' . $existing['id']);
             return;
         }
@@ -276,7 +276,7 @@ class DebitOrderController extends Controller
         $this->assertBranchAccess($debitOrder);
 
         if (!DebitOrder::isEditable($debitOrder)) {
-            Session::flash('error', 'This mandate has already been placed with Collexia and can no longer be edited here -- use Reschedule Installment for amount/date changes, or cancel and re-register for bank/account changes.');
+            Session::flash('error', 'This mandate has already been placed and can no longer be edited here -- use Reschedule Installment for amount/date changes, or cancel and re-register for bank/account changes.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
@@ -310,7 +310,7 @@ class DebitOrderController extends Controller
         $this->assertBranchAccess($debitOrder);
 
         if (!DebitOrder::isEditable($debitOrder)) {
-            Session::flash('error', 'This mandate has already been placed with Collexia and can no longer be edited here.');
+            Session::flash('error', 'This mandate has already been placed and can no longer be edited here.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }

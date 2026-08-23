@@ -18,7 +18,7 @@
         </thead>
         <tbody>
           <?php if (empty($installments)): ?>
-            <tr><td colspan="4" class="text-center text-muted py-4">No installments returned by Collexia for this mandate.</td></tr>
+            <tr><td colspan="4" class="text-center text-muted py-4">No installments returned for this mandate.</td></tr>
           <?php endif; ?>
           <?php foreach ($installments as $i): ?>
             <tr>

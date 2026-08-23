@@ -3,7 +3,7 @@
 <div class="card">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
-      <h4 class="card-title mb-0">Collexia API Settings</h4>
+      <h4 class="card-title mb-0">Debit Order API Settings</h4>
       <?php if (!$configured): ?>
         <span class="badge bg-secondary">Not configured</span>
       <?php elseif (!$enabled): ?>
@@ -13,7 +13,7 @@
       <?php endif; ?>
     </div>
     <p class="text-muted small mb-3">
-      Credentials for Collexia's EnDO V3 JSON REST API (mandate placement, status, and cancellation from a debit order's detail page).
+      Credentials for the mandate placement API (mandate placement, status, and cancellation from a debit order's detail page).
       This is separate from the existing Excel-based batch export -- while disabled or unconfigured, that older process is unaffected and keeps working exactly as it does today.
     </p>
 
@@ -22,8 +22,8 @@
 
       <div class="form-check form-switch mb-3">
         <input type="checkbox" class="form-check-input" id="collexia_enabled" name="collexia_enabled" <?= $enabled ? 'checked' : '' ?>>
-        <label class="form-check-label" for="collexia_enabled">Enable the Collexia API integration</label>
-        <div class="form-text">When off, every action that would call Collexia is blocked with a clear message -- nothing falls through to a partial or guessed call.</div>
+        <label class="form-check-label" for="collexia_enabled">Enable the API integration</label>
+        <div class="form-text">When off, every action that would place or update a mandate is blocked with a clear message -- nothing falls through to a partial or guessed call.</div>
       </div>
 
       <div class="row">
@@ -54,7 +54,7 @@
       </div>
 
       <div class="alert alert-warning small">
-        <strong>Still missing from Collexia:</strong> the Digital Signature algorithm (v3.0 added this requirement but the signing method itself was withheld pending a separate confidential document). Requests sent from here carry no signature until that's supplied -- confirm with Collexia whether that blocks going live before relying on this for real mandates.
+        <strong>Still missing:</strong> the Digital Signature algorithm (a recent spec update added this requirement but the signing method itself was withheld pending a separate confidential document). Requests sent from here carry no signature until that's supplied -- confirm with your provider whether that blocks going live before relying on this for real mandates.
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
