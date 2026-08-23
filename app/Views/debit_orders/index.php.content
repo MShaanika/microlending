@@ -1,3 +1,4 @@
+<?php use App\Models\DebitOrder; ?>
 <?= flash_messages() ?>
 
 <div class="card">
@@ -45,7 +46,13 @@
               <td><?= format_money($d['debit_amount']) ?></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
               <td class="text-end">
-                <a href="<?= url('/debit-orders/' . $d['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+                <a href="<?= url('/debit-orders/' . $d['id']) ?>" class="btn btn-sm btn-outline-info" title="View"><i class="mdi mdi-eye"></i></a>
+                <?php if (DebitOrder::isEditable($d)): ?>
+                  <a href="<?= url('/debit-orders/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="mdi mdi-pencil"></i></a>
+                <?php endif; ?>
+                <?php if ($d['status'] === 'Active'): ?>
+                  <a href="<?= url('/debit-orders/' . $d['id'] . '/cancel') ?>" class="btn btn-sm btn-outline-danger" title="Request Cancellation"><i class="mdi mdi-cancel"></i></a>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>

@@ -157,6 +157,43 @@
   </div>
 </div>
 
+<?php if (Auth::can('collections.debit_orders')): ?>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <a href="<?= url('/debit-orders?status=Active') ?>" class="text-decoration-none">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="text-muted small">Debit Orders Registered</span>
+              <h3 class="mb-0"><?= (int) $stats['debit_orders_registered'] ?></h3>
+              <span class="text-muted small">Borrowers with an active mandate &mdash; view list</span>
+            </div>
+            <i class="mdi mdi-bank-check display-6 text-success"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-6 mb-3">
+    <a href="<?= url('/debit-orders/missing') ?>" class="text-decoration-none">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="text-muted small">Debit Orders Not Yet Placed</span>
+              <h3 class="mb-0"><?= (int) $stats['debit_orders_missing'] ?></h3>
+              <span class="text-muted small">Active loans with no mandate on file &mdash; view list</span>
+            </div>
+            <i class="mdi mdi-bank-remove display-6 text-<?= $stats['debit_orders_missing'] > 0 ? 'warning' : 'success' ?>"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="row">
   <div class="col-lg-7 mb-3">
     <div class="card h-100">

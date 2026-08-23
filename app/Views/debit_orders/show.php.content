@@ -48,11 +48,17 @@
     <?php endif; ?>
 
     <div class="d-flex gap-2 flex-wrap mt-3">
+      <?php if ($editable): ?>
+        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/edit') ?>" class="btn btn-outline-primary"><i class="mdi mdi-pencil"></i> Edit</a>
+      <?php endif; ?>
       <?php if ($debitOrder['status'] === 'Active' && !$pendingCancellation): ?>
         <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/cancel') ?>" class="btn btn-outline-danger"><i class="mdi mdi-cancel"></i> Request Cancellation</a>
       <?php endif; ?>
       <a href="<?= url('/debit-orders') ?>" class="btn btn-outline-secondary">Back to List</a>
     </div>
+    <?php if (!$editable && $debitOrder['status'] === 'Active'): ?>
+      <p class="text-muted small mt-2 mb-0">This mandate has already been placed with Collexia, so it can no longer be edited here. Use <strong>Reschedule Installment</strong> below for amount/date changes, or cancel and re-register for bank/account changes.</p>
+    <?php endif; ?>
   </div>
 </div>
 

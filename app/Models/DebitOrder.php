@@ -138,4 +138,69 @@ class DebitOrder extends Model
     {
         return $this->update('debit_orders', $data, 'id', $id);
     }
+
+    /**
+     * A mandate can only be edited locally while nothing has actually been
+     * placed with Collexia yet -- once it's live (batch-registered via
+     * collexia_status, or API-registered/pending via collexia_api_status),
+     * changing bank/amount/day here would silently desync this record from
+     * what Collexia is really collecting. Amount/date changes on an
+     * already-placed API mandate go through the real reschedule flow
+     * (DebitOrderCollexiaController::installments/updateInstallment)
+     * instead; bank/account changes on an already-placed mandate require
+     * cancelling and re-registering.
+     */
+    public static function isEditable(array $debitOrder): bool
+    {
+        if ($debitOrder['collexia_status'] !== 'Not Registered') {
+            return false;
+        }
+        return in_array($debitOrder['collexia_api_status'] ?? 'Not Placed', ['Not Placed', 'Load Failed'], true);
+    }
+
+    /** Active loans (this branch, or all if null) that have never had a debit order registered at all. */
+    public function activeLoansMissingDebitOrder(?int $branchId = null): array
+    {
+        $sql = "SELECT l.id, l.loan_no, l.branch_id, l.payment_day, l.installment_amount, l.loan_status,
+                       CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.phone
+                FROM loans l
+                JOIN borrowers b ON b.id = l.borrower_id
+                LEFT JOIN debit_orders d ON d.loan_id = l.id
+                WHERE l.loan_status IN ('Active', 'Current')
+                  AND d.id IS NULL";
+        $params = [];
+        if ($branchId !== null) {
+            $sql .= " AND l.branch_id = ?";
+            $params[] = $branchId;
+        }
+        $sql .= " ORDER BY l.id DESC";
+        return $this->all($sql, $params);
+    }
+
+    public function countActiveLoansMissingDebitOrder(?int $branchId = null): int
+    {
+        $sql = "SELECT COUNT(*) FROM loans l
+                LEFT JOIN debit_orders d ON d.loan_id = l.id
+                WHERE l.loan_status IN ('Active', 'Current') AND d.id IS NULL";
+        $params = [];
+        if ($branchId !== null) {
+            $sql .= " AND l.branch_id = ?";
+            $params[] = $branchId;
+        }
+        return (int) $this->scalar($sql, $params);
+    }
+
+    /** Distinct borrowers currently holding at least one Active debit order mandate. */
+    public function countBorrowersWithActiveDebitOrder(?int $branchId = null): int
+    {
+        $sql = "SELECT COUNT(DISTINCT d.borrower_id) FROM debit_orders d
+                JOIN loans l ON l.id = d.loan_id
+                WHERE d.status = 'Active'";
+        $params = [];
+        if ($branchId !== null) {
+            $sql .= " AND l.branch_id = ?";
+            $params[] = $branchId;
+        }
+        return (int) $this->scalar($sql, $params);
+    }
 }

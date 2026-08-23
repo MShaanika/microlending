@@ -1,0 +1,39 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-1">Loans Without a Debit Order</h4>
+        <p class="text-muted small mb-0">Active loans that have never had a debit order mandate registered.</p>
+      </div>
+      <a href="<?= url('/debit-orders') ?>" class="btn btn-outline-secondary btn-sm">Back to Debit Orders</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Borrower</th><th>Phone</th><th>Payment Day</th><th>Installment</th><th>Status</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($loans)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">Every active loan already has a debit order registered.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($loans as $l): ?>
+            <tr>
+              <td><a href="<?= url('/loans/' . $l['id']) ?>"><?= e($l['loan_no']) ?></a></td>
+              <td><?= e($l['borrower_name']) ?></td>
+              <td><?= e($l['phone'] ?: '—') ?></td>
+              <td><?= $l['payment_day'] !== null ? (int) $l['payment_day'] : '—' ?></td>
+              <td><?= format_money($l['installment_amount']) ?></td>
+              <td><span class="badge bg-success"><?= e($l['loan_status']) ?></span></td>
+              <td class="text-end">
+                <a href="<?= url('/loans/' . $l['id'] . '/debit-orders/create') ?>" class="btn btn-sm btn-info"><i class="mdi mdi-plus"></i> Register Debit Order</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

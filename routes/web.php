@@ -188,9 +188,12 @@ $router->get('/reschedules/{id}/generate-letter', [RescheduleController::class, 
 
 // Debit Orders & Cancellations
 $router->get('/debit-orders', [DebitOrderController::class, 'index']);
+$router->get('/debit-orders/missing', [DebitOrderController::class, 'missing']);
 $router->get('/loans/{id}/debit-orders/create', [DebitOrderController::class, 'create']);
 $router->post('/debit-orders', [DebitOrderController::class, 'store']);
 $router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
+$router->get('/debit-orders/{id}/edit', [DebitOrderController::class, 'edit']);
+$router->post('/debit-orders/{id}', [DebitOrderController::class, 'update']);
 
 $router->get('/collexia/settings', [CollexiaSettingController::class, 'edit']);
 $router->post('/collexia/settings', [CollexiaSettingController::class, 'update']);

@@ -1,0 +1,70 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Edit Debit Order</h4>
+    <p class="text-muted small">Loan <?= e($debitOrder['loan_no']) ?> &bull; <?= e($debitOrder['borrower_name']) ?></p>
+
+    <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id']) ?>">
+      <?= csrf_field() ?>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank <span class="text-danger">*</span></label>
+          <select name="bank_code" class="form-select <?= isset($errors['bank_code']) ? 'is-invalid' : '' ?>">
+            <option value="">Select bank</option>
+            <?php foreach ($banks as $code => $name): ?>
+              <option value="<?= e($code) ?>" <?= (string) ($debitOrder['bank_code'] ?? '') === (string) $code ? 'selected' : '' ?>><?= e($name) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($errors['bank_code'])): ?><div class="invalid-feedback d-block"><?= e($errors['bank_code']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Name</label>
+          <input type="text" name="account_name" class="form-control" value="<?= e($debitOrder['account_name'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Number <span class="text-danger">*</span></label>
+          <input type="text" name="account_number" class="form-control <?= isset($errors['account_number']) ? 'is-invalid' : '' ?>" value="<?= e($debitOrder['account_number'] ?? '') ?>">
+          <?php if (isset($errors['account_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['account_number']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Type <span class="text-danger">*</span></label>
+          <select name="account_type" class="form-select">
+            <?php foreach ($accountTypes as $val => $label): ?>
+              <option value="<?= (int) $val ?>" <?= (int) ($debitOrder['account_type'] ?? 1) === $val ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Branch Code</label>
+          <input type="text" name="branch_code" class="form-control" value="<?= e($debitOrder['branch_code'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Debit Day (1-31) <span class="text-danger">*</span></label>
+          <input type="number" min="1" max="31" name="debit_day" class="form-control <?= isset($errors['debit_day']) ? 'is-invalid' : '' ?>" value="<?= e($debitOrder['debit_day'] ?? '') ?>">
+          <?php if (isset($errors['debit_day'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_day']) ?></div><?php endif; ?>
+          <div class="form-text">Day 31 maps to Collexia's "Last Day" code.</div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Debit Amount <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" name="debit_amount" class="form-control <?= isset($errors['debit_amount']) ? 'is-invalid' : '' ?>" value="<?= e($debitOrder['debit_amount'] ?? '') ?>">
+          <?php if (isset($errors['debit_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_amount']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Start Date <span class="text-danger">*</span></label>
+          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= e(substr((string) ($debitOrder['start_date'] ?? ''), 0, 10)) ?>">
+          <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Tracking Days (1-14)</label>
+          <input type="number" min="1" max="14" name="no_of_days_tracking" class="form-control" value="<?= e($debitOrder['no_of_days_tracking'] ?? '3') ?>">
+          <div class="form-text">How many days Collexia retries collection before giving up.</div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Changes</button>
+      <a href="<?= url('/debit-orders/' . $debitOrder['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

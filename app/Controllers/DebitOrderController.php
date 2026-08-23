@@ -76,6 +76,16 @@ class DebitOrderController extends Controller
         ]);
     }
 
+    /** Active loans that have never had a debit order registered -- linked from the dashboard's "Missing" quick link. */
+    public function missing(): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $this->view('debit_orders/missing', [
+            'title' => 'Loans Without a Debit Order',
+            'loans' => $this->debitOrders->activeLoansMissingDebitOrder($this->indexBranchId()),
+        ]);
+    }
+
     public function create(string $loanId): void
     {
         Auth::authorize('collections.debit_orders');
@@ -249,6 +259,101 @@ class DebitOrderController extends Controller
             'pendingCancellation' => $this->cancellations->findPendingForDebitOrder((int) $id),
             'collexiaEnabled' => $this->collexiaSettings->isEnabled(),
             'collexiaConfigured' => $this->collexiaSettings->isConfigured(),
+            'editable' => DebitOrder::isEditable($debitOrder),
         ]);
+    }
+
+    public function edit(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->debitOrders->find((int) $id);
+
+        if (!$debitOrder) {
+            Session::flash('error', 'Debit order not found.');
+            $this->redirect('/debit-orders');
+            return;
+        }
+        $this->assertBranchAccess($debitOrder);
+
+        if (!DebitOrder::isEditable($debitOrder)) {
+            Session::flash('error', 'This mandate has already been placed with Collexia and can no longer be edited here -- use Reschedule Installment for amount/date changes, or cancel and re-register for bank/account changes.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        $this->view('debit_orders/edit', [
+            'title' => 'Edit Debit Order ' . $debitOrder['debit_order_no'],
+            'debitOrder' => $debitOrder,
+            'old' => [],
+            'errors' => [],
+            'banks' => CollexiaCodes::BANKS,
+            'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
+        ]);
+    }
+
+    public function update(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/debit-orders/' . $id . '/edit');
+            return;
+        }
+
+        $debitOrder = $this->debitOrders->find((int) $id);
+        if (!$debitOrder) {
+            Session::flash('error', 'Debit order not found.');
+            $this->redirect('/debit-orders');
+            return;
+        }
+        $this->assertBranchAccess($debitOrder);
+
+        if (!DebitOrder::isEditable($debitOrder)) {
+            Session::flash('error', 'This mandate has already been placed with Collexia and can no longer be edited here.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        $errors = [];
+        foreach (['bank_code', 'account_number', 'debit_day', 'debit_amount', 'start_date'] as $field) {
+            if (trim((string) ($_POST[$field] ?? '')) === '') {
+                $errors[$field] = 'This field is required.';
+            }
+        }
+        if (!empty($_POST['bank_code']) && !isset(CollexiaCodes::BANKS[$_POST['bank_code']])) {
+            $errors['bank_code'] = 'Select a valid bank.';
+        }
+
+        if (!empty($errors)) {
+            $this->view('debit_orders/edit', [
+                'title' => 'Edit Debit Order ' . $debitOrder['debit_order_no'],
+                'debitOrder' => array_merge($debitOrder, $_POST),
+                'old' => $_POST,
+                'errors' => $errors,
+                'banks' => CollexiaCodes::BANKS,
+                'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
+            ]);
+            return;
+        }
+
+        $trackingDays = max(1, min(14, (int) ($_POST['no_of_days_tracking'] ?? 3)));
+
+        $this->debitOrders->updateRecord((int) $id, [
+            'bank_name' => CollexiaCodes::BANKS[$_POST['bank_code']],
+            'account_name' => trim($_POST['account_name'] ?? '') ?: null,
+            'account_number' => trim($_POST['account_number']),
+            'branch_code' => trim($_POST['branch_code'] ?? '') ?: null,
+            'debit_day' => (int) $_POST['debit_day'],
+            'debit_amount' => (float) $_POST['debit_amount'],
+            'start_date' => $_POST['start_date'],
+            'account_type' => (int) ($_POST['account_type'] ?? 1),
+            'bank_code' => $_POST['bank_code'],
+            'no_of_days_tracking' => $trackingDays,
+        ]);
+
+        Audit::log('Update', 'Debit Orders', 'Updated debit order #' . $id . ' for loan ' . $debitOrder['loan_no']);
+        Session::flash('success', 'Debit order updated.');
+        $this->redirect('/debit-orders/' . $id);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Auth;
 use App\Models\Borrower;
+use App\Models\DebitOrder;
 use App\Models\HrmAttendance;
 use App\Models\HrmEmployee;
 use App\Models\Loan;
@@ -42,6 +43,7 @@ class DashboardController extends Controller
         $payments = new Payment();
         $assets = new FixedAsset();
         $branches = new \App\Models\Branch();
+        $debitOrders = new DebitOrder();
 
         $branchId = $this->indexBranchId();
         $loanCounts = $loans->counts($branchId);
@@ -62,6 +64,8 @@ class DashboardController extends Controller
                 'loans_in_arrears' => $loans->arrearsCount($branchId),
                 'total_assets' => $assets->totals($branchId)['count'],
                 'assets_nbv' => $assets->totals($branchId)['net_book_value'],
+                'debit_orders_registered' => Auth::can('collections.debit_orders') ? $debitOrders->countBorrowersWithActiveDebitOrder($branchId) : 0,
+                'debit_orders_missing' => Auth::can('collections.debit_orders') ? $debitOrders->countActiveLoansMissingDebitOrder($branchId) : 0,
             ],
             'kpis' => DashboardService::kpis($branchId),
             'loanStatusDistribution' => DashboardService::loanStatusDistribution($branchId),
