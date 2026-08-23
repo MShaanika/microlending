@@ -285,6 +285,42 @@ class UserController extends Controller
         $this->redirect('/settings/users');
     }
 
+    public function loginAs(string $id): void
+    {
+        Auth::requireLogin();
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/settings/users');
+            return;
+        }
+
+        if (!Auth::startImpersonation($id)) {
+            Session::flash('error', 'You are not authorized to log in as this user.');
+            $this->redirect('/settings/users');
+            return;
+        }
+
+        Session::flash('success', 'You are now logged in as ' . (Auth::user()['name'] ?? 'this user') . '.');
+        $this->redirect(Auth::homePath());
+    }
+
+    public function stopImpersonation(): void
+    {
+        Auth::requireLogin();
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/dashboard');
+            return;
+        }
+
+        Auth::stopImpersonation();
+        Session::flash('success', 'You are back in your own account.');
+        $this->redirect('/settings/users');
+    }
+
     private function validate(array $data, ?int $excludeId): array
     {
         $errors = [];

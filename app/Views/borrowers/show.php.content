@@ -45,10 +45,16 @@
         <?php else: ?>
           <p class="text-muted mb-3">This borrower doesn't have portal access yet.</p>
         <?php endif; ?>
-        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" onsubmit="return confirmSubmit(this, '<?= $portalUser ? 'Reset this borrower\'s portal password?' : 'Create portal access for this borrower?' ?>');">
+        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $portalUser ? 'Reset this borrower\'s portal password?' : 'Create portal access for this borrower?' ?>');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-key"></i> <?= $portalUser ? 'Reset Password' : 'Create Portal Access' ?></button>
         </form>
+        <?php if ($portalUser && $portalUser['is_active'] && \App\Core\Auth::can('borrowers.login_as_portal')): ?>
+          <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/login-as-portal') ?>" class="d-inline" target="_blank">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-login"></i> Log In to Portal</button>
+          </form>
+        <?php endif; ?>
       </div>
     </div>
   </div>

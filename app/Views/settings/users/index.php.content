@@ -43,6 +43,12 @@
               <td class="text-end">
                 <a href="<?= url('/settings/users/' . $u['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
                 <a href="<?= url('/settings/users/' . $u['id'] . '/reset-password') ?>" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-key"></i></a>
+                <?php if (\App\Core\Auth::canLoginAsUser($u)): ?>
+                  <form method="post" action="<?= url('/settings/users/' . $u['id'] . '/login-as') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Log in as this user? You will be switched into their account until you return to yours.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-dark" title="Login As"><i class="mdi mdi-account-switch"></i></button>
+                  </form>
+                <?php endif; ?>
                 <form method="post" action="<?= url('/settings/users/' . $u['id'] . '/toggle-active') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $u['is_active'] ? 'Deactivate' : 'Activate' ?> this user?');">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-sm btn-outline-<?= $u['is_active'] ? 'danger' : 'success' ?>">

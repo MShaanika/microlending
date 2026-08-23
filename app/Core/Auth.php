@@ -104,6 +104,82 @@ class Auth
         }
     }
 
+    /**
+     * Governs the "Login As" feature (Settings > Users list): who may swap
+     * into which target identity. users.login_as_any (bootstrap-granted to
+     * Super Admin, see database/user_impersonation.sql) is unrestricted --
+     * a real Developer role gets this via Settings > Roles. Everyone else,
+     * including Super Admin/Admin without that permission, may only step
+     * into a Marketing Agent ("Sales Agent") account, never another staff
+     * member's.
+     */
+    public static function canLoginAsUser(array $target): bool
+    {
+        $actor = self::user();
+        if (!$actor || (int) ($target['id'] ?? 0) === (int) $actor['id']) {
+            return false;
+        }
+        if (self::can('users.login_as_any')) {
+            return true;
+        }
+        if (self::isSuperAdmin() || ($actor['user_type'] ?? '') === 'Admin') {
+            return ($target['user_type'] ?? '') === 'Marketing Agent';
+        }
+        return false;
+    }
+
+    /**
+     * Swaps the active session's identity to $targetUserId, stashing the
+     * real user under 'impersonator' so stopImpersonation() can restore it.
+     * Nested impersonation is refused -- an impersonated session can't
+     * itself start impersonating a third user.
+     */
+    public static function startImpersonation(int $targetUserId): bool
+    {
+        $actor = self::user();
+        if (!$actor || self::isImpersonating()) {
+            return false;
+        }
+
+        $db = Database::connection();
+        $stmt = $db->prepare("SELECT * FROM users WHERE id = ? AND is_active = 1 LIMIT 1");
+        $stmt->execute([$targetUserId]);
+        $target = $stmt->fetch();
+        if (!$target || !self::canLoginAsUser($target)) {
+            return false;
+        }
+
+        Audit::log('Impersonate', 'Security', "Logged in as {$target['name']} (#{$target['id']})");
+        Session::put('impersonator', $actor);
+        self::loginSession($target);
+        return true;
+    }
+
+    /** Restores the real user saved by startImpersonation(). No-op (returns false) if not currently impersonating. */
+    public static function stopImpersonation(): bool
+    {
+        $original = Session::get('impersonator');
+        if (!$original) {
+            return false;
+        }
+
+        $current = self::user();
+        Audit::log('Impersonate', 'Security', 'Returned to own account, ending login-as of ' . ($current['name'] ?? ''));
+        Session::forget('impersonator');
+        Session::put('user', $original);
+        return true;
+    }
+
+    public static function isImpersonating(): bool
+    {
+        return (bool) Session::get('impersonator');
+    }
+
+    public static function impersonator(): ?array
+    {
+        return Session::get('impersonator');
+    }
+
     public static function attempt(string $login, string $password): bool
     {
         $db = Database::connection();

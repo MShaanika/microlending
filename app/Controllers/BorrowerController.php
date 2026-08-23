@@ -613,6 +613,41 @@ class BorrowerController extends Controller
         $this->redirect('/borrowers/' . $id);
     }
 
+    /** Logs staff straight into a borrower's own portal (no password) so they can see/reproduce an issue the borrower is reporting. */
+    public function loginAsPortal(string $id): void
+    {
+        Auth::authorize('borrowers.login_as_portal');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/borrowers/' . $id);
+            return;
+        }
+
+        $borrower = $this->borrowers->find($id);
+        if (!$borrower) {
+            Session::flash('error', 'Borrower not found.');
+            $this->redirect('/borrowers');
+            return;
+        }
+        $this->assertBranchAccess($borrower);
+
+        $portalUser = $this->portalUsers->findByBorrower($id);
+        if (!$portalUser || !$portalUser['is_active']) {
+            Session::flash('error', 'This borrower does not have active portal access yet. Create portal access first.');
+            $this->redirect('/borrowers/' . $id);
+            return;
+        }
+
+        \App\Core\PortalAuth::loginForSupport((int) $portalUser['id']);
+
+        $borrowerName = trim($borrower['first_name'] . ' ' . $borrower['last_name']);
+        Audit::log('Impersonate', 'Borrower Portal', 'Logged in to borrower portal for ' . $borrowerName . ' (#' . $id . ') for support');
+
+        $this->redirect('/portal/dashboard');
+    }
+
     public function edit(string $id): void
     {
         Auth::authorize('borrowers.edit');

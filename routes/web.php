@@ -152,6 +152,7 @@ $router->get('/borrowers/{id}/edit', [BorrowerController::class, 'edit']);
 $router->post('/borrowers/{id}', [BorrowerController::class, 'update']);
 $router->post('/borrowers/{id}/delete', [BorrowerController::class, 'destroy']);
 $router->post('/borrowers/{id}/portal-access', [BorrowerController::class, 'createPortalAccess']);
+$router->post('/borrowers/{id}/login-as-portal', [BorrowerController::class, 'loginAsPortal']);
 
 // Loan Products & Plans
 $router->get('/loan-products', [LoanProductController::class, 'index']);
@@ -475,6 +476,8 @@ $router->post('/settings/users/{id}', [UserController::class, 'update']);
 $router->post('/settings/users/{id}/toggle-active', [UserController::class, 'toggleActive']);
 $router->get('/settings/users/{id}/reset-password', [UserController::class, 'resetPasswordForm']);
 $router->post('/settings/users/{id}/reset-password', [UserController::class, 'resetPassword']);
+$router->post('/settings/users/{id}/login-as', [UserController::class, 'loginAs']);
+$router->post('/settings/users/stop-impersonation', [UserController::class, 'stopImpersonation']);
 
 $router->get('/settings/roles', [RoleController::class, 'index']);
 $router->get('/settings/roles/create', [RoleController::class, 'create']);

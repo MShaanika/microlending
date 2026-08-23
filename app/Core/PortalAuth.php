@@ -95,6 +95,40 @@ class PortalAuth
         return true;
     }
 
+    /**
+     * Creates a portal session without a password check -- used only by
+     * staff clicking "Log In to Portal" from the Borrowers screen (see
+     * BorrowerController::loginAsPortal(), gated by
+     * borrowers.login_as_portal). Mirrors attempt()'s session-issuing tail
+     * exactly, just skipping password_verify().
+     */
+    public static function loginForSupport(int $portalUserId): void
+    {
+        $db = Database::connection();
+        $token = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::TTL_DAYS . ' days'));
+
+        $db->prepare(
+            "INSERT INTO borrower_portal_sessions (portal_user_id, session_token, ip_address, user_agent, expires_at) VALUES (?, ?, ?, ?, ?)"
+        )->execute([
+            $portalUserId,
+            $token,
+            $_SERVER['REMOTE_ADDR'] ?? null,
+            $_SERVER['HTTP_USER_AGENT'] ?? null,
+            $expiresAt,
+        ]);
+
+        setcookie(self::COOKIE_NAME, $token, [
+            'expires' => time() + self::TTL_DAYS * 86400,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        self::$resolved = false;
+        self::$cachedUser = null;
+    }
+
     public static function logout(): void
     {
         $token = $_COOKIE[self::COOKIE_NAME] ?? null;

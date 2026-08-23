@@ -544,6 +544,21 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     </div>
   <?php endif; ?>
 
+  <?php if (\App\Core\Auth::isImpersonating()): ?>
+    <?php $impersonator = \App\Core\Auth::impersonator(); ?>
+    <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0 rounded-0" style="border-left: 5px solid #dc3545;">
+      <div>
+        <i class="mdi mdi-account-switch"></i>
+        <strong><?= e($impersonator['name'] ?? '') ?></strong>, you are currently logged in as
+        <strong><?= e(\App\Core\Auth::user()['name'] ?? '') ?></strong>.
+      </div>
+      <form method="post" action="<?= url('/settings/users/stop-impersonation') ?>" class="mb-0">
+        <?= csrf_field() ?>
+        <button class="btn btn-sm btn-outline-dark" type="submit">Return to My Account</button>
+      </form>
+    </div>
+  <?php endif; ?>
+
   <div class="row page-titles">
           <div class="col-md-5 col-12 align-self-center">
             <ol class="breadcrumb mb-0">
