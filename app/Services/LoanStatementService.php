@@ -33,14 +33,15 @@ class LoanStatementService
     {
         $db = Database::connection();
 
-        $loanStmt = $db->prepare("SELECT interest_amount FROM loans WHERE id = ?");
+        $loanStmt = $db->prepare("SELECT principal_amount, interest_amount FROM loans WHERE id = ?");
         $loanStmt->execute([$loanId]);
         $loan = $loanStmt->fetch();
         $interestTotal = round((float) ($loan['interest_amount'] ?? 0), 2);
-
-        $principalStmt = $db->prepare("SELECT COALESCE(SUM(principal_due), 0) FROM loan_schedules WHERE loan_id = ?");
-        $principalStmt->execute([$loanId]);
-        $principalTotal = round((float) $principalStmt->fetchColumn(), 2);
+        // The actual cash disbursed to the borrower -- NOT SUM(loan_schedules.principal_due),
+        // which rolls the NAMFISA levy/duty stamp into what's owed per installment. Using that
+        // sum here double-counted the levy/stamp, since they're also posted as their own Fee
+        // lines below.
+        $principalTotal = round((float) ($loan['principal_amount'] ?? 0), 2);
 
         $disbursement = $db->prepare(
             "SELECT disbursement_date, amount, disbursement_method, reference_no
