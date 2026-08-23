@@ -7,6 +7,9 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\AccountingAccount;
+use App\Models\AccountingJournal;
+use App\Models\BankAccount;
 use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
 use App\Models\RefundClaim;
@@ -18,12 +21,18 @@ class RefundClaimController extends Controller
     private RefundClaim $refundClaims;
     private GeneratedDocument $documents;
     private DocumentTemplate $templates;
+    private BankAccount $bankAccounts;
+    private AccountingAccount $accounts;
+    private AccountingJournal $journal;
 
     public function __construct()
     {
         $this->refundClaims = new RefundClaim();
         $this->documents = new GeneratedDocument();
         $this->templates = new DocumentTemplate();
+        $this->bankAccounts = new BankAccount();
+        $this->accounts = new AccountingAccount();
+        $this->journal = new AccountingJournal();
     }
 
     public function index(): void
@@ -35,6 +44,7 @@ class RefundClaimController extends Controller
             'title' => 'Refund Claims',
             'claims' => $this->refundClaims->paginated($status),
             'status' => $status,
+            'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
         ]);
     }
 
@@ -89,6 +99,13 @@ class RefundClaimController extends Controller
         $this->redirect('/refund-claims');
     }
 
+    /**
+     * Marking a claim paid posts its payout journal automatically (Dr
+     * Refunds Payable / Cr the selected bank account) instead of staff
+     * doing a separate manual journal entry -- same pattern as
+     * LoanRecoveryController::store(). The claim only flips to Paid once
+     * the journal posts successfully.
+     */
     public function markPaid(string $id): void
     {
         Auth::authorize('refunds.pay');
@@ -97,18 +114,48 @@ class RefundClaimController extends Controller
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/refund-claims');
+            return;
         }
 
         $claim = $this->refundClaims->find($id);
         if (!$claim || $claim['status'] !== 'Approved') {
             Session::flash('error', 'Only approved claims can be marked as paid.');
             $this->redirect('/refund-claims');
+            return;
         }
 
-        $this->refundClaims->updateStatus($id, 'Paid', Auth::user()['id'] ?? null);
+        $userId = Auth::user()['id'] ?? null;
+        $amount = (float) ($claim['approved_amount'] ?: $claim['claim_amount']);
 
-        Audit::log('Pay', 'Refund Claims', 'Marked refund claim #' . $id . ' as paid');
-        Session::flash('success', 'Refund claim marked as paid.');
+        $bankAccountId = ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null;
+        $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
+        $bankGlAccountId = $bankAccount ? (int) $bankAccount['account_id'] : $this->accounts->idByCode('1010');
+        $refundsPayableId = $this->accounts->idByCode('2020');
+
+        try {
+            $journalId = $this->journal->post(
+                'REFUND_CLAIM_PAID',
+                'refund_claims',
+                $id,
+                $claim['claim_no'],
+                'Refund claim payout for ' . $claim['borrower_name'] . ' (' . $claim['claim_no'] . ')',
+                [
+                    ['account_id' => $refundsPayableId, 'debit' => $amount, 'credit' => 0],
+                    ['account_id' => $bankGlAccountId, 'debit' => 0, 'credit' => $amount],
+                ],
+                $userId
+            );
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/refund-claims');
+            return;
+        }
+
+        $this->refundClaims->updateStatus($id, 'Paid', $userId);
+        $this->refundClaims->attachJournal($id, $journalId);
+
+        Audit::log('Pay', 'Refund Claims', 'Marked refund claim #' . $id . ' as paid and posted journal for ' . format_money($amount));
+        Session::flash('success', 'Refund claim marked as paid and journal posted.');
         $this->redirect('/refund-claims');
     }
 

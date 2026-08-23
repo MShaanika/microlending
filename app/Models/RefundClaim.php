@@ -66,6 +66,11 @@ class RefundClaim extends Model
         return $this->all("SELECT * FROM refund_claim_documents WHERE refund_claim_id = ? ORDER BY id", [$claimId]);
     }
 
+    public function attachJournal(int $id, int $journalId): bool
+    {
+        return $this->update('refund_claims', ['journal_id' => $journalId], 'id', $id);
+    }
+
     public function updateStatus(int $id, string $status, ?int $staffId, ?string $rejectionReason = null, ?float $approvedAmount = null): bool
     {
         $data = ['status' => $status, 'reviewed_by' => $staffId, 'reviewed_at' => date('Y-m-d H:i:s')];

@@ -57,10 +57,18 @@
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-close"></i></button>
                   </form>
                 <?php elseif ($c['status'] === 'Approved'): ?>
-                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/mark-paid') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Mark this claim as paid?');">
+                  <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/mark-paid') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Mark this claim as paid and post the payout journal?');">
                     <?= csrf_field() ?>
+                    <select name="bank_account_id" class="form-select form-select-sm d-inline-block" style="width:160px;">
+                      <option value="">Default cash/bank account</option>
+                      <?php foreach ($bankAccounts as $ba): ?>
+                        <option value="<?= (int) $ba['id'] ?>"><?= e($ba['account_name']) ?> - <?= e($ba['bank_name']) ?></option>
+                      <?php endforeach; ?>
+                    </select>
                     <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-cash-check"></i> Mark Paid</button>
                   </form>
+                <?php elseif ($c['status'] === 'Paid' && !empty($c['journal_id'])): ?>
+                  <a href="<?= url('/accounting/journals/' . $c['journal_id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-book-open-variant"></i> View Journal</a>
                 <?php endif; ?>
                 <div class="btn-group mt-1">
                   <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
