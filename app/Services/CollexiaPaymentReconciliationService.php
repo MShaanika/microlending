@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderCollectionImport;
+use App\Models\DebitOrderInstallmentTarget;
+use App\Models\DebitOrderSplitLeg;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Support\CollexiaV3Codes;
@@ -37,10 +39,24 @@ use App\Support\CollexiaV3Codes;
  * Download Payments response does not include the installment's original
  * scheduled date or scheduled amount -- only what was actually paid. Those
  * two columns are left null for API-sourced rows rather than guessed.
+ *
+ * Split debit orders (DebitOrderSplitLeg): a leg's contractReference never
+ * matches debit_orders itself (that column is only ever populated for a
+ * non-split mandate), so it's looked up in debit_order_split_legs instead.
+ * A split leg's successful collection posts through
+ * Payment::recordAndAllocateToScheduleId() rather than recordAndAllocate(),
+ * targeting the exact loan_schedules row DebitOrderInstallmentTarget
+ * snapshotted at placement time -- this guarantees both legs of the same
+ * cycle land on the same row (so "both succeed = Paid, one succeeds =
+ * Partial" holds) instead of relying on FIFO, which could split them
+ * across rows whenever the loan has arrears ahead of the current
+ * installment. Non-split rows are entirely unaffected.
  */
 class CollexiaPaymentReconciliationService
 {
     private DebitOrder $debitOrders;
+    private DebitOrderSplitLeg $splitLegs;
+    private DebitOrderInstallmentTarget $installmentTargets;
     private DebitOrderCollection $collections;
     private DebitOrderCollectionImport $imports;
     private Loan $loans;
@@ -49,6 +65,8 @@ class CollexiaPaymentReconciliationService
     public function __construct()
     {
         $this->debitOrders = new DebitOrder();
+        $this->splitLegs = new DebitOrderSplitLeg();
+        $this->installmentTargets = new DebitOrderInstallmentTarget();
         $this->collections = new DebitOrderCollection();
         $this->imports = new DebitOrderCollectionImport();
         $this->loans = new Loan();
@@ -80,6 +98,14 @@ class CollexiaPaymentReconciliationService
             $isSuccessful = $responseCode === '0';
 
             $mandate = $contractReference !== '' ? $this->debitOrders->findByContractNo($contractReference) : null;
+            $leg = null;
+            if (!$mandate && $contractReference !== '') {
+                $legRow = $this->splitLegs->findByContractNo($contractReference);
+                if ($legRow) {
+                    $mandate = ['id' => $legRow['debit_order_id'], 'loan_id' => $legRow['loan_id']];
+                    $leg = $legRow['leg'];
+                }
+            }
             $debitOrderId = $mandate['id'] ?? null;
             $loanId = $mandate['loan_id'] ?? null;
             $paymentId = null;
@@ -92,21 +118,34 @@ class CollexiaPaymentReconciliationService
             $paymentAmount = isset($row['paymentAmount']) ? (float) $row['paymentAmount'] : null;
 
             if ($isSuccessful && $mandate) {
-                $alreadyPosted = $this->collections->alreadyPosted((int) $debitOrderId, $installmentNo);
+                $alreadyPosted = $this->collections->alreadyPosted((int) $debitOrderId, $installmentNo, $leg);
 
                 if (!$alreadyPosted && $paymentAmount !== null && $paymentDate !== null) {
                     $loan = $this->loans->find((int) $loanId);
                     if ($loan) {
-                        $paymentId = $this->payments->recordAndAllocate($loan, $paymentAmount, [
+                        $meta = [
                             'payment_date' => $paymentDate,
                             'payment_source' => 'Debit Order',
                             'bank_account_id' => $bankAccountId,
-                            'reference_no' => $contractReference . '-' . $installmentNo,
+                            'reference_no' => $contractReference . '-' . $installmentNo . ($leg !== null ? '-' . $leg : ''),
                             'payer_name' => $loan['borrower_name'] ?? ($row['clientSurname'] ?? null),
                             'notes' => 'Collexia EnDO API download: ' . ($row['statementRef'] ?? $contractReference),
                             'user_id' => $userId,
-                        ]);
-                        $posted++;
+                        ];
+
+                        if ($leg !== null) {
+                            $scheduleId = $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
+                            if ($scheduleId) {
+                                $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, $paymentAmount, $meta);
+                                $posted++;
+                            }
+                            // No snapshot for this installment number -- leave unposted
+                            // for visibility rather than guessing which row it belongs to;
+                            // recorded below with payment_id null so it's still reviewable.
+                        } else {
+                            $paymentId = $this->payments->recordAndAllocate($loan, $paymentAmount, $meta);
+                            $posted++;
+                        }
                     }
                 }
             }
@@ -117,6 +156,7 @@ class CollexiaPaymentReconciliationService
                 'loan_id' => $loanId,
                 'merchant_system_contract_no' => $contractReference,
                 'installment_no' => $installmentNo ?: null,
+                'leg' => $leg,
                 'scheduled_date' => null,
                 'installment_amount' => 0,
                 'payment_date' => $isSuccessful ? $paymentDate : null,

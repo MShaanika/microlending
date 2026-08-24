@@ -113,6 +113,57 @@ class Payment extends Model
     }
 
     /**
+     * Targeted counterpart to recordAndAllocate(): applies the payment to
+     * exactly one loan_schedules row instead of FIFO-walking every unpaid
+     * row. Used for a split debit order leg's collection result, where two
+     * independent collection events must always combine onto the SAME
+     * schedule row for the "both succeed = Paid, one succeeds = Partial"
+     * rule to hold regardless of arrears elsewhere on the loan -- FIFO
+     * alone can't guarantee that (see Payment::allocateToSpecificSchedule()).
+     * A no-op (payment still recorded, nothing allocated) if the row is
+     * already Paid or doesn't belong to this loan.
+     */
+    public function recordAndAllocateToScheduleId(array $loan, int $scheduleId, float $amount, array $meta): int
+    {
+        $this->db->beginTransaction();
+
+        try {
+            $paymentId = $this->insert('payments', [
+                'loan_id' => $loan['id'],
+                'borrower_id' => $loan['borrower_id'],
+                'branch_id' => $loan['branch_id'],
+                'payment_no' => generate_reference('PMT'),
+                'payment_date' => $meta['payment_date'],
+                'payment_source' => $meta['payment_source'],
+                'bank_account_id' => $meta['bank_account_id'] ?? null,
+                'amount_received' => $amount,
+                'principal_amount' => 0,
+                'interest_amount' => 0,
+                'fees_amount' => 0,
+                'namfisa_levy_amount' => 0,
+                'duty_stamp_amount' => 0,
+                'penalty_amount' => 0,
+                'overpayment_amount' => 0,
+                'reference_no' => $meta['reference_no'] ?: null,
+                'payer_name' => $meta['payer_name'] ?: null,
+                'notes' => $meta['notes'] ?: null,
+                'status' => 'Posted',
+                'collected_by' => $meta['user_id'],
+                'posted_by' => $meta['user_id'],
+                'posted_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            $this->allocateToSpecificSchedule($loan, $scheduleId, $paymentId, $amount, $meta['user_id'], $meta['bank_account_id'] ?? null, $meta['payment_date']);
+
+            $this->db->commit();
+            return $paymentId;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Log a payment reference reported by a borrower through the portal.
      * Nothing is allocated to the schedule yet — it just sits as 'Pending'
      * until a staff member reviews and confirms it via confirmPending().
@@ -219,76 +270,123 @@ class Payment extends Model
             if ($remaining <= 0.009) {
                 break;
             }
-
-            $outstanding = [
-                'penalty' => round((float) $row['penalty_due'] - (float) $row['penalty_paid'], 2),
-                'interest' => round((float) $row['interest_due'] - (float) $row['interest_paid'], 2),
-                'fees' => round((float) $row['fees_due'] - (float) $row['fees_paid'], 2),
-                'namfisa_levy' => round((float) $row['namfisa_levy_due'] - (float) $row['namfisa_levy_paid'], 2),
-                'duty_stamp' => round((float) $row['duty_stamp_due'] - (float) $row['duty_stamp_paid'], 2),
-                'principal' => round((float) $row['principal_due'] - (float) $row['principal_paid'], 2),
-            ];
-
-            $allocated = ['penalty' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'principal' => 0.0];
-
-            // Installment components are paid off first; only amounts paid
-            // beyond the full installment flow into the penalty leg -- a
-            // payment equal to the installment must fully clear it and
-            // leave any outstanding penalty untouched (still Penalty
-            // Receivable, not recognized as Penalty Income).
-            foreach (['interest', 'fees', 'namfisa_levy', 'duty_stamp', 'principal', 'penalty'] as $component) {
-                if ($remaining <= 0.009 || $outstanding[$component] <= 0.009) {
-                    continue;
-                }
-                $take = min($remaining, $outstanding[$component]);
-                $allocated[$component] = round($take, 2);
-                $remaining = round($remaining - $take, 2);
-            }
-
-            $totalAllocated = round(array_sum($allocated), 2);
-            if ($totalAllocated <= 0.009) {
-                continue;
-            }
-
-            foreach ($allocated as $component => $value) {
-                $totals[$component] += $value;
-            }
-
-            $newPrincipalPaid = round((float) $row['principal_paid'] + $allocated['principal'], 2);
-            $newInterestPaid = round((float) $row['interest_paid'] + $allocated['interest'], 2);
-            $newFeesPaid = round((float) $row['fees_paid'] + $allocated['fees'], 2);
-            $newLevyPaid = round((float) $row['namfisa_levy_paid'] + $allocated['namfisa_levy'], 2);
-            $newStampPaid = round((float) $row['duty_stamp_paid'] + $allocated['duty_stamp'], 2);
-            $newPenaltyPaid = round((float) $row['penalty_paid'] + $allocated['penalty'], 2);
-            $newTotalPaid = round($newPrincipalPaid + $newInterestPaid + $newFeesPaid + $newLevyPaid + $newStampPaid + $newPenaltyPaid, 2);
-            $isPaid = $newTotalPaid >= round((float) $row['total_due'], 2) - 0.01;
-
-            $this->update('loan_schedules', [
-                'principal_paid' => $newPrincipalPaid,
-                'interest_paid' => $newInterestPaid,
-                'fees_paid' => $newFeesPaid,
-                'namfisa_levy_paid' => $newLevyPaid,
-                'duty_stamp_paid' => $newStampPaid,
-                'penalty_paid' => $newPenaltyPaid,
-                'total_paid' => $newTotalPaid,
-                'status' => $isPaid ? 'Paid' : 'Partial',
-                'paid_at' => $isPaid ? date('Y-m-d H:i:s') : null,
-            ], 'id', $row['id']);
-
-            $this->insert('payment_allocations', [
-                'payment_id' => $paymentId,
-                'loan_id' => $loan['id'],
-                'schedule_id' => $row['id'],
-                'principal_allocated' => $allocated['principal'],
-                'interest_allocated' => $allocated['interest'],
-                'fees_allocated' => $allocated['fees'],
-                'namfisa_levy_allocated' => $allocated['namfisa_levy'],
-                'duty_stamp_allocated' => $allocated['duty_stamp'],
-                'penalty_allocated' => $allocated['penalty'],
-                'total_allocated' => $totalAllocated,
-            ]);
+            $remaining = $this->allocateRowAndAccumulate($row, $paymentId, (int) $loan['id'], $remaining, $totals);
         }
 
+        $this->finalizeAllocation($loan, $paymentId, $amount, $totals, $remaining, $userId, $bankAccountId, $paymentDate);
+    }
+
+    /**
+     * Targeted counterpart to allocateToSchedule() -- applies the waterfall
+     * to exactly one loan_schedules row (looked up here, scoped to this
+     * loan) instead of FIFO-walking every unpaid row. See
+     * recordAndAllocateToScheduleId()'s docblock for why this exists.
+     */
+    private function allocateToSpecificSchedule(array $loan, int $scheduleId, int $paymentId, float $amount, ?int $userId, ?int $bankAccountId = null, ?string $paymentDate = null): void
+    {
+        \App\Services\PenaltyAccrualService::accrue($paymentDate ?? date('Y-m-d'), $userId, (int) $loan['id']);
+
+        $remaining = $amount;
+        $totals = ['principal' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'penalty' => 0.0];
+
+        $row = $this->one("SELECT * FROM loan_schedules WHERE id = ? AND loan_id = ?", [$scheduleId, $loan['id']]);
+        if ($row && $row['status'] !== 'Paid') {
+            $remaining = $this->allocateRowAndAccumulate($row, $paymentId, (int) $loan['id'], $remaining, $totals);
+        }
+
+        $this->finalizeAllocation($loan, $paymentId, $amount, $totals, $remaining, $userId, $bankAccountId, $paymentDate);
+    }
+
+    /**
+     * Applies the interest -> fees -> NAMFISA levy -> duty stamp ->
+     * principal -> penalty waterfall to one loan_schedules row, persists
+     * its updated *_paid/status columns and matching payment_allocations
+     * line, accumulates onto $totals by reference, and returns whatever of
+     * $remaining is left unallocated. Shared by the FIFO (allocateToSchedule)
+     * and targeted (allocateToSpecificSchedule) allocation paths so both
+     * apply identical per-row logic.
+     */
+    private function allocateRowAndAccumulate(array $row, int $paymentId, int $loanId, float $remaining, array &$totals): float
+    {
+        $outstanding = [
+            'penalty' => round((float) $row['penalty_due'] - (float) $row['penalty_paid'], 2),
+            'interest' => round((float) $row['interest_due'] - (float) $row['interest_paid'], 2),
+            'fees' => round((float) $row['fees_due'] - (float) $row['fees_paid'], 2),
+            'namfisa_levy' => round((float) $row['namfisa_levy_due'] - (float) $row['namfisa_levy_paid'], 2),
+            'duty_stamp' => round((float) $row['duty_stamp_due'] - (float) $row['duty_stamp_paid'], 2),
+            'principal' => round((float) $row['principal_due'] - (float) $row['principal_paid'], 2),
+        ];
+
+        $allocated = ['penalty' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'principal' => 0.0];
+
+        // Installment components are paid off first; only amounts paid
+        // beyond the full installment flow into the penalty leg -- a
+        // payment equal to the installment must fully clear it and
+        // leave any outstanding penalty untouched (still Penalty
+        // Receivable, not recognized as Penalty Income).
+        foreach (['interest', 'fees', 'namfisa_levy', 'duty_stamp', 'principal', 'penalty'] as $component) {
+            if ($remaining <= 0.009 || $outstanding[$component] <= 0.009) {
+                continue;
+            }
+            $take = min($remaining, $outstanding[$component]);
+            $allocated[$component] = round($take, 2);
+            $remaining = round($remaining - $take, 2);
+        }
+
+        $totalAllocated = round(array_sum($allocated), 2);
+        if ($totalAllocated <= 0.009) {
+            return $remaining;
+        }
+
+        foreach ($allocated as $component => $value) {
+            $totals[$component] += $value;
+        }
+
+        $newPrincipalPaid = round((float) $row['principal_paid'] + $allocated['principal'], 2);
+        $newInterestPaid = round((float) $row['interest_paid'] + $allocated['interest'], 2);
+        $newFeesPaid = round((float) $row['fees_paid'] + $allocated['fees'], 2);
+        $newLevyPaid = round((float) $row['namfisa_levy_paid'] + $allocated['namfisa_levy'], 2);
+        $newStampPaid = round((float) $row['duty_stamp_paid'] + $allocated['duty_stamp'], 2);
+        $newPenaltyPaid = round((float) $row['penalty_paid'] + $allocated['penalty'], 2);
+        $newTotalPaid = round($newPrincipalPaid + $newInterestPaid + $newFeesPaid + $newLevyPaid + $newStampPaid + $newPenaltyPaid, 2);
+        $isPaid = $newTotalPaid >= round((float) $row['total_due'], 2) - 0.01;
+
+        $this->update('loan_schedules', [
+            'principal_paid' => $newPrincipalPaid,
+            'interest_paid' => $newInterestPaid,
+            'fees_paid' => $newFeesPaid,
+            'namfisa_levy_paid' => $newLevyPaid,
+            'duty_stamp_paid' => $newStampPaid,
+            'penalty_paid' => $newPenaltyPaid,
+            'total_paid' => $newTotalPaid,
+            'status' => $isPaid ? 'Paid' : 'Partial',
+            'paid_at' => $isPaid ? date('Y-m-d H:i:s') : null,
+        ], 'id', $row['id']);
+
+        $this->insert('payment_allocations', [
+            'payment_id' => $paymentId,
+            'loan_id' => $loanId,
+            'schedule_id' => $row['id'],
+            'principal_allocated' => $allocated['principal'],
+            'interest_allocated' => $allocated['interest'],
+            'fees_allocated' => $allocated['fees'],
+            'namfisa_levy_allocated' => $allocated['namfisa_levy'],
+            'duty_stamp_allocated' => $allocated['duty_stamp'],
+            'penalty_allocated' => $allocated['penalty'],
+            'total_allocated' => $totalAllocated,
+        ]);
+
+        return $remaining;
+    }
+
+    /**
+     * Shared tail of both allocation paths: stamps the payment's own
+     * component totals, posts commission and the accounting journal,
+     * settles any now-fully-paid penalty, and rolls the loan's own status
+     * (Completed/Current) up from the schedule's remaining state.
+     */
+    private function finalizeAllocation(array $loan, int $paymentId, float $amount, array $totals, float $remaining, ?int $userId, ?int $bankAccountId, ?string $paymentDate): void
+    {
         $this->update('payments', [
             'principal_amount' => round($totals['principal'], 2),
             'interest_amount' => round($totals['interest'], 2),

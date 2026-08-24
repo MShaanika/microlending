@@ -103,6 +103,21 @@ class DebitOrder extends Model
         return (int) $this->scalar("SELECT COUNT(*) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);
     }
 
+    /**
+     * Ordered ids of this loan's not-yet-paid schedule rows, oldest first --
+     * the same set/order remainingInstallments() counts. Used to snapshot
+     * DebitOrderInstallmentTarget when placing a split mandate, so each of
+     * Collexia's 1..N installment sequence numbers maps to a specific
+     * loan_schedules row rather than being guessed later from FIFO.
+     */
+    public function orderedUnpaidScheduleIds(int $loanId): array
+    {
+        return array_column(
+            $this->all("SELECT id FROM loan_schedules WHERE loan_id = ? AND status != 'Paid' ORDER BY installment_no", [$loanId]),
+            'id'
+        );
+    }
+
     public function nextCollectionDate(int $loanId): ?string
     {
         $date = $this->scalar("SELECT MIN(due_date) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);

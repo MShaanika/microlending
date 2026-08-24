@@ -19,12 +19,22 @@ class DebitOrderCollection extends Model
     /**
      * Guards against double-posting the same installment if the same
      * Collexia report (or an overlapping later one) is imported again.
+     * $leg distinguishes a split debit order's two independent legs, which
+     * otherwise share the same (debit_order_id, installment_no) and would
+     * look like duplicates of each other -- null for every non-split
+     * collection, matching today's behaviour exactly.
      */
-    public function alreadyPosted(int $debitOrderId, int $installmentNo): bool
+    public function alreadyPosted(int $debitOrderId, int $installmentNo, ?string $leg = null): bool
     {
+        if ($leg === null) {
+            return (bool) $this->scalar(
+                "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND leg IS NULL AND payment_id IS NOT NULL LIMIT 1",
+                [$debitOrderId, $installmentNo]
+            );
+        }
         return (bool) $this->scalar(
-            "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND payment_id IS NOT NULL LIMIT 1",
-            [$debitOrderId, $installmentNo]
+            "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND leg = ? AND payment_id IS NOT NULL LIMIT 1",
+            [$debitOrderId, $installmentNo, $leg]
         );
     }
 

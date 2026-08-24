@@ -11,6 +11,7 @@ use App\Models\Borrower;
 use App\Models\CollexiaSetting;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCancellation;
+use App\Models\DebitOrderSplitLeg;
 use App\Models\Loan;
 use App\Support\CollexiaCodes;
 
@@ -24,6 +25,7 @@ class DebitOrderController extends Controller
 {
     private DebitOrder $debitOrders;
     private DebitOrderCancellation $cancellations;
+    private DebitOrderSplitLeg $splitLegs;
     private Loan $loans;
     private Borrower $borrowers;
     private CollexiaSetting $collexiaSettings;
@@ -32,6 +34,7 @@ class DebitOrderController extends Controller
     {
         $this->debitOrders = new DebitOrder();
         $this->cancellations = new DebitOrderCancellation();
+        $this->splitLegs = new DebitOrderSplitLeg();
         $this->loans = new Loan();
         $this->borrowers = new Borrower();
         $this->collexiaSettings = new CollexiaSetting();
@@ -226,6 +229,7 @@ class DebitOrderController extends Controller
             'account_type' => (int) ($_POST['account_type'] ?? 1),
             'bank_code' => $_POST['bank_code'],
             'no_of_days_tracking' => $trackingDays,
+            'split_enabled' => !empty($_POST['split_enabled']) ? 1 : 0,
             'created_by' => Auth::user()['id'] ?? null,
         ]);
 
@@ -260,6 +264,7 @@ class DebitOrderController extends Controller
             'collexiaEnabled' => $this->collexiaSettings->isEnabled(),
             'collexiaConfigured' => $this->collexiaSettings->isConfigured(),
             'editable' => DebitOrder::isEditable($debitOrder),
+            'splitLegs' => $debitOrder['split_enabled'] ? $this->splitLegs->forDebitOrder((int) $id) : [],
         ]);
     }
 

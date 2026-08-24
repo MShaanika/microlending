@@ -66,6 +66,12 @@
         </div>
       </div>
 
+      <div class="form-check mb-3">
+        <input type="checkbox" name="split_enabled" value="1" id="split_enabled" class="form-check-input" <?= old('split_enabled', $old) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="split_enabled">Split into two equal debit orders</label>
+        <div class="form-text">Submits two Collexia mandates of half the amount each instead of one, both tied to the same monthly installment. Both collect &rarr; installment marked Paid; only one collects &rarr; Partial; neither &rarr; unpaid. Set once here and cannot be changed after registering.</div>
+      </div>
+
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Register Debit Order</button>
       <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
