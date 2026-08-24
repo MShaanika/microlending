@@ -4,9 +4,26 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h4 class="card-title mb-0">Collection Reports</h4>
-      <a href="<?= url('/debit-order-collections/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Report</a>
+      <div class="d-flex gap-2 flex-wrap">
+        <form method="post" action="<?= url('/debit-order-collections/download-payments') ?>" class="d-flex gap-2">
+          <?= csrf_field() ?>
+          <select name="bank_account_id" class="form-select form-select-sm" style="width:200px;">
+            <option value="">No specific bank account</option>
+            <?php foreach ($bankAccounts as $ba): ?>
+              <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <button type="submit" class="btn btn-outline-info btn-sm waves-effect waves-light" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-download"></i> Download Payments from Collexia</button>
+        </form>
+        <a href="<?= url('/debit-order-collections/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Report</a>
+      </div>
     </div>
     <p class="text-muted small">Upload any Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export here -- the report type is detected automatically. Matched Successful Transactions rows are posted as real payments automatically.</p>
+    <?php if (!$collexiaConfigured): ?>
+      <p class="text-muted small">"Download Payments from Collexia" needs API credentials first -- <a href="<?= url('/collexia/settings') ?>">set them up here</a>.</p>
+    <?php elseif (!$collexiaEnabled): ?>
+      <p class="text-muted small">"Download Payments from Collexia" is configured but disabled -- <a href="<?= url('/collexia/settings') ?>">enable the integration</a> to use it.</p>
+    <?php endif; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -18,7 +35,7 @@
             <tr><td colspan="8" class="text-center text-muted py-4">No collection reports imported yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($imports as $i): ?>
-            <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary'][$i['report_type']] ?? 'secondary'; ?>
+            <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary', 'CollexiaAPI' => 'info'][$i['report_type']] ?? 'secondary'; ?>
             <tr>
               <td><?= e($i['filename']) ?></td>
               <td><span class="badge bg-<?= $typeBadge ?>"><?= e($i['report_type']) ?></span></td>

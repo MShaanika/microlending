@@ -8,11 +8,14 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\BankAccount;
+use App\Models\CollexiaSetting;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderCollectionImport;
 use App\Models\Loan;
 use App\Models\Payment;
+use App\Services\CollexiaEndoApiClient;
+use App\Services\CollexiaPaymentReconciliationService;
 use App\Services\CollexiaReportReader;
 use App\Services\CollexiaScheduledInstallmentsParser;
 use App\Services\CollexiaSuccessfulTransactionsParser;
@@ -33,6 +36,15 @@ use App\Services\CollexiaUnsuccessfulTransactionsParser;
  *  - Scheduled Installments: a broad status snapshot across every
  *    installment, due or not -- carries no collection date/amount at all,
  *    so it's informational only.
+ *
+ * downloadPayments() is the REST-API equivalent of the same reconciliation,
+ * pulling Collexia's own Download Payments response (spec 7.4) directly
+ * instead of a manually-uploaded Successful Transactions file -- both paths
+ * end up in the exact same debit_order_collection_imports/
+ * debit_order_collections tables and this same review screen, distinguished
+ * only by report_type = 'CollexiaAPI'. See CollexiaPaymentReconciliationService
+ * for the actual matching/posting logic, and bin/download_collexia_payments.php
+ * for the cron entry point that calls this on a schedule.
  */
 class DebitOrderCollectionController extends Controller
 {
@@ -42,6 +54,7 @@ class DebitOrderCollectionController extends Controller
     private Loan $loans;
     private Payment $payments;
     private BankAccount $bankAccounts;
+    private CollexiaSetting $collexiaSettings;
 
     private const ALLOWED_EXTENSIONS = ['xlsx', 'xls'];
     private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -54,6 +67,7 @@ class DebitOrderCollectionController extends Controller
         $this->loans = new Loan();
         $this->payments = new Payment();
         $this->bankAccounts = new BankAccount();
+        $this->collexiaSettings = new CollexiaSetting();
     }
 
     public function index(): void
@@ -62,7 +76,46 @@ class DebitOrderCollectionController extends Controller
         $this->view('debit_order_collections/index', [
             'title' => 'Collection Reports',
             'imports' => $this->imports->paginated(),
+            'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
+            'collexiaEnabled' => $this->collexiaSettings->isEnabled(),
+            'collexiaConfigured' => $this->collexiaSettings->isConfigured(),
         ]);
+    }
+
+    /**
+     * Pulls Collexia's Download Payments response right now (rather than
+     * waiting for the next cron run) and reconciles it -- same posting
+     * rules as the Successful Transactions upload, just sourced live from
+     * the API. Manual trigger for an ad-hoc check; bin/download_collexia_payments.php
+     * is the scheduled equivalent.
+     */
+    public function downloadPayments(): void
+    {
+        Auth::authorize('collections.debit_orders');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/debit-order-collections');
+            return;
+        }
+
+        $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0) ?: null;
+        $userId = Auth::user()['id'] ?? null;
+
+        try {
+            $client = new CollexiaEndoApiClient();
+            $response = $client->downloadPayments();
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/debit-order-collections');
+            return;
+        }
+
+        $result = (new CollexiaPaymentReconciliationService())->reconcile($response, $userId, $bankAccountId);
+
+        Audit::log('Import', 'Debit Order Collections', 'Downloaded Collexia payment results: ' . $result['total'] . ' row(s), ' . $result['matched'] . ' matched, ' . $result['posted'] . ' payment(s) posted');
+        Session::flash('success', $result['total'] . ' row(s) downloaded from Collexia: ' . $result['matched'] . ' matched to a mandate, ' . $result['posted'] . ' new payment(s) posted.');
+        $this->redirect('/debit-order-collections/' . $result['import_id']);
     }
 
     public function create(): void

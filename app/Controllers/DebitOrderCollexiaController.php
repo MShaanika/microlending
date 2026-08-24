@@ -567,6 +567,54 @@ class DebitOrderCollexiaController extends Controller
         $this->redirect('/debit-orders/' . $id);
     }
 
+    /**
+     * Cancels a single future installment within an otherwise-live mandate
+     * (spec 7.3) -- distinct from Cancel Mandate, which cancels the whole
+     * contract. Reached from the same Reschedule Installments screen, not
+     * supported for a split order (same reasoning as installments()).
+     */
+    public function cancelInstallment(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        if (!$this->verifyCsrfOrRedirect($id, '/debit-orders/' . $id . '/collexia/installments')) {
+            return;
+        }
+        if ((int) ($debitOrder['split_enabled'] ?? 0) === 1) {
+            Session::flash('error', 'Cancelling a single installment isn\'t supported for a split debit order.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+        if (!$debitOrder['collexia_api_contract_reference']) {
+            Session::flash('error', 'This mandate has not been placed yet.');
+            $this->redirect('/debit-orders/' . $id . '/collexia/installments');
+            return;
+        }
+
+        $installmentNo = (int) ($_POST['installment_no'] ?? 0);
+        if ($installmentNo < 1) {
+            Session::flash('error', 'Select a valid installment to cancel.');
+            $this->redirect('/debit-orders/' . $id . '/collexia/installments');
+            return;
+        }
+
+        try {
+            $client = new CollexiaEndoApiClient();
+            $client->cancelInstallment((string) $debitOrder['collexia_api_contract_reference'], $installmentNo);
+
+            $this->debitOrders->updateCollexiaApiState((int) $id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
+            Audit::log('Update', 'Debit Orders', 'Cancelled Collexia installment #' . $installmentNo . ' for debit order #' . $id);
+            Session::flash('success', 'Installment #' . $installmentNo . ' cancelled.');
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+        }
+
+        $this->redirect('/debit-orders/' . $id . '/collexia/installments');
+    }
+
     private function loadOr404(string $id): ?array
     {
         $debitOrder = $this->debitOrders->find((int) $id);

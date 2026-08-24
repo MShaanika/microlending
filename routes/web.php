@@ -205,6 +205,7 @@ $router->post('/debit-orders/{id}/collexia/sync', [DebitOrderCollexiaController:
 $router->post('/debit-orders/{id}/collexia/cancel', [DebitOrderCollexiaController::class, 'cancelMandate']);
 $router->get('/debit-orders/{id}/collexia/installments', [DebitOrderCollexiaController::class, 'installments']);
 $router->post('/debit-orders/{id}/collexia/installments/update', [DebitOrderCollexiaController::class, 'updateInstallment']);
+$router->post('/debit-orders/{id}/collexia/installments/cancel', [DebitOrderCollexiaController::class, 'cancelInstallment']);
 
 $router->get('/debit-orders/{id}/cancel', [DebitOrderCancellationController::class, 'create']);
 $router->get('/debit-order-cancellations', [DebitOrderCancellationController::class, 'index']);
@@ -226,6 +227,7 @@ $router->post('/debit-order-runs/{id}/cancel', [DebitOrderRunController::class, 
 $router->get('/debit-order-collections', [DebitOrderCollectionController::class, 'index']);
 $router->get('/debit-order-collections/create', [DebitOrderCollectionController::class, 'create']);
 $router->post('/debit-order-collections', [DebitOrderCollectionController::class, 'store']);
+$router->post('/debit-order-collections/download-payments', [DebitOrderCollectionController::class, 'downloadPayments']);
 $router->get('/debit-order-collections/{id}', [DebitOrderCollectionController::class, 'show']);
 
 // Expenses
