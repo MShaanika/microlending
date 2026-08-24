@@ -41,7 +41,16 @@
         </div>
       </div>
       <div class="alert alert-info small mb-3">
-        <strong>Capital Allowances</strong> are no longer entered here &mdash; they're derived automatically from the fixed asset register's depreciation for the period.
+        <strong>Capital Allowances</strong> are not entered here &mdash; they're derived automatically from the fixed asset register, as each category's qualifying cost &divide; 3 (a 3-year straight-line wear-and-tear write-off).
+      </div>
+
+      <h5 class="mt-4">Balance Sheet: Land &amp; Building</h5>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Land &amp; Building</label>
+          <input type="number" step="0.01" name="land_building" class="form-control" value="<?= e($land['land_building']['value_number'] ?? '') ?>">
+          <div class="form-text">Only include land/buildings the business genuinely owns, confirmed by title/ownership documents &mdash; never auto-pulled from the fixed asset register, since land is often held personally by a member instead.</div>
+        </div>
       </div>
 
       <h5 class="mt-4">Notes: Accounting Policies</h5>

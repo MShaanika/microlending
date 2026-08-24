@@ -21,9 +21,13 @@ use App\Models\FiscalYear;
  * receivables_prepayment and prior_year_assessed are auto-computed by
  * AfsReportService (from the Balance Sheet and the prior fiscal year's
  * results respectively) when left blank here -- a value entered on this
- * screen overrides the auto figure. Capital allowances are no longer a
- * manual figure at all: they're derived entirely from the fixed asset
- * register (see AfsReportService::capitalAllowancesFromAssetRegister()).
+ * screen overrides the auto figure. Capital allowances are not a manual
+ * figure at all: they're derived entirely from the fixed asset register
+ * (see AfsReportService::capitalAllowancesFromAssetRegister()). Land &
+ * Building is the opposite case -- it's ALWAYS manual (notes_land),
+ * deliberately never pulled from the asset register, since land is
+ * typically member-owned rather than company-owned and needs a human to
+ * confirm actual ownership before it belongs on the Balance Sheet.
  */
 class AfsManualFigureController extends Controller
 {
@@ -61,6 +65,7 @@ class AfsManualFigureController extends Controller
         $members = $this->figures->forSection((int) $fiscalYearId, 'notes_members_transactions');
         $borrowings = $this->figures->forSection((int) $fiscalYearId, 'notes_borrowings');
         $ownership = $this->figures->forSection((int) $fiscalYearId, 'notes_ownership');
+        $land = $this->figures->forSection((int) $fiscalYearId, 'notes_land');
 
         $this->view('accounting/afs_manual_figures/edit', [
             'title' => 'AFS Manual Figures - ' . $fy['financial_year'],
@@ -71,6 +76,7 @@ class AfsManualFigureController extends Controller
             'members' => $members,
             'borrowings' => $borrowings,
             'ownership' => $ownership,
+            'land' => $land,
             'memberSlots' => self::MEMBER_TRANSACTION_SLOTS,
             'borrowingSlots' => self::BORROWING_SLOTS,
             'ownershipSlots' => self::OWNERSHIP_SLOTS,
@@ -124,6 +130,9 @@ class AfsManualFigureController extends Controller
             $pct = trim((string) ($_POST['owner_pct_' . $i] ?? ''));
             $this->figures->set($fiscalYearId, 'notes_ownership', 'owner_' . $i, $label ?: null, null, $pct !== '' ? (float) $pct : null, $userId);
         }
+
+        $landBuilding = trim((string) ($_POST['land_building'] ?? ''));
+        $this->figures->set($fiscalYearId, 'notes_land', 'land_building', null, null, $landBuilding !== '' ? (float) $landBuilding : null, $userId);
 
         Audit::log('Update', 'Accounting', 'Updated AFS manual figures for ' . $fy['financial_year']);
         Session::flash('success', 'Manual figures saved.');

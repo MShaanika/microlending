@@ -38,7 +38,8 @@ class AfsExcelExporter
     private float $cashOpening;
     /** @var array{movable: float, land_building: float} */
     private array $nonCurrentAssets;
-    private int $netProfitAfterTaxRow = 0;
+    /** Row on the ProfitLoss sheet holding "Net profit before taxation" -- the P&L's final line; the Balance Sheet's "Retained profit" links to it. */
+    private int $netProfitRow = 0;
 
     private ?int $fiscalYearId;
     /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
@@ -51,6 +52,8 @@ class AfsExcelExporter
     private array $borrowingFigures = [];
     /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
     private array $ownershipFigures = [];
+    /** @var array<string, array{label: ?string, value_text: ?string, value_number: ?float}> */
+    private array $landFigures = [];
 
     public function __construct(string $companyName, string $startDate, string $endDate, ?int $fiscalYearId = null)
     {
@@ -66,6 +69,7 @@ class AfsExcelExporter
             $this->memberFigures = $figures->forSection($fiscalYearId, 'notes_members_transactions');
             $this->borrowingFigures = $figures->forSection($fiscalYearId, 'notes_borrowings');
             $this->ownershipFigures = $figures->forSection($fiscalYearId, 'notes_ownership');
+            $this->landFigures = $figures->forSection($fiscalYearId, 'notes_land');
         }
 
         $plCodes = array_merge(
@@ -92,6 +96,7 @@ class AfsExcelExporter
         $this->cashClosing = AfsReportService::cashBalance($endDate);
         $this->cashOpening = AfsReportService::cashBalance($openingAsOf);
         $this->nonCurrentAssets = AfsReportService::nonCurrentAssetsFromRegister($startDate, $endDate);
+        $this->nonCurrentAssets['land_building'] = (float) ($this->landFigures['land_building']['value_number'] ?? 0.0);
     }
 
     public function build(): Spreadsheet
@@ -165,14 +170,13 @@ class AfsExcelExporter
         $this->totalRow($sheet, $row++, 'Profit before interest and taxation', "C{$grossProfitRow}-C{$totalOpexRow}");
         $financeCostRow = $row;
         $this->dataRow($sheet, $row++, 'Finance Cost', $this->plMovement['pl_finance_cost'] ?? 0);
+        // Ends here -- tax is not calculated/deducted on the P&L (per
+        // client instruction). It only ever appears as its own figure on
+        // the separate Tax Computation note.
         $netBeforeTaxRow = $row;
-        $this->totalRow($sheet, $row++, 'Net profit before taxation', "C{$pbitRow}-C{$financeCostRow}");
-        $taxRow = $row;
-        $this->dataRow($sheet, $row++, 'Taxation', $this->plMovement['pl_taxation'] ?? 0);
-        $netAfterTaxRow = $row;
-        $this->totalRow($sheet, $row++, 'Net profit after taxation', "C{$netBeforeTaxRow}-C{$taxRow}", true);
+        $this->totalRow($sheet, $row++, 'Net profit before taxation', "C{$pbitRow}-C{$financeCostRow}", true);
 
-        $this->netProfitAfterTaxRow = $netAfterTaxRow;
+        $this->netProfitRow = $netBeforeTaxRow;
     }
 
     // ------------------------------------------------------------------
@@ -222,7 +226,7 @@ class AfsExcelExporter
         $capStart = $row;
         $this->dataRow($sheet, $row++, 'Members contributions', $this->bsBalance['bs_members_contributions'] ?? 0);
         $retainedProfitRow = $row;
-        $this->dataFormulaRow($sheet, $row++, 'Retained profit', "ProfitLoss!C{$this->netProfitAfterTaxRow}");
+        $this->dataFormulaRow($sheet, $row++, 'Retained profit', "ProfitLoss!C{$this->netProfitRow}");
         $capEnd = $row - 1;
         $totalCapRow = $row;
         $this->totalRow($sheet, $row++, 'Total Capital and Reserves', "SUM(C{$capStart}:C{$capEnd})");

@@ -43,7 +43,7 @@ class AfsPdfExporter
         $money = fn ($v) => ((float) $v) < 0 ? '(' . number_format(abs((float) $v), 2) . ')' : number_format((float) $v, 2);
         $period = 'For the year ended ' . date('d F Y', strtotime($endDate));
 
-        $tax = $policies = $members = $borrowings = $ownership = [];
+        $tax = $policies = $members = $borrowings = $ownership = $land = [];
         if ($fiscalYearId) {
             $figures = new AfsManualFigure();
             $tax = $figures->forSection($fiscalYearId, 'tax_computation');
@@ -51,6 +51,7 @@ class AfsPdfExporter
             $members = $figures->forSection($fiscalYearId, 'notes_members_transactions');
             $borrowings = $figures->forSection($fiscalYearId, 'notes_borrowings');
             $ownership = $figures->forSection($fiscalYearId, 'notes_ownership');
+            $land = $figures->forSection($fiscalYearId, 'notes_land');
         }
 
         $plCodes = array_merge(
@@ -74,8 +75,10 @@ class AfsPdfExporter
         $opex = array_sum(array_map(fn ($l) => $plMovement[$l['code']] ?? 0, AfsReportService::operatingExpenseLines()));
         $grossProfit = $income - $cos;
         $pbit = $grossProfit - $opex;
+        // The P&L ends here -- tax is not calculated/deducted on it (per
+        // client instruction). It only ever appears as its own figure on
+        // the separate Tax Computation page.
         $netBeforeTax = $pbit - ($plMovement['pl_finance_cost'] ?? 0);
-        $netAfterTax = $netBeforeTax - ($plMovement['pl_taxation'] ?? 0);
 
         // ---- Profit & Loss ----
         $plRows = '';
@@ -96,10 +99,13 @@ class AfsPdfExporter
         $opexRows .= self::totalRow('Total Operating Expenses', $opex, $money);
 
         // ---- Balance Sheet ----
+        // Land & Building is always manual (never pulled from the asset
+        // register) -- see notes_land in AfsManualFigure.
         $nca = AfsReportService::nonCurrentAssetsFromRegister($startDate, $endDate);
+        $landBuilding = (float) ($land['land_building']['value_number'] ?? 0.0);
         $ncaRows = self::row('Movable Assets', $nca['movable'], $e, $money)
-            . self::row('Land & Building', $nca['land_building'], $e, $money);
-        $totalNca = $nca['movable'] + $nca['land_building'];
+            . self::row('Land & Building', $landBuilding, $e, $money);
+        $totalNca = $nca['movable'] + $landBuilding;
         $caRows = '';
         foreach (AfsReportService::balanceSheetCurrentAssetLines() as $l) {
             $amount = $bsBalance[$l['code']] ?? 0;
@@ -119,7 +125,7 @@ class AfsPdfExporter
         }
         $totalCl = array_sum(array_map(fn ($l) => $bsBalance[$l['code']] ?? 0, AfsReportService::balanceSheetCurrentLiabilityLines()));
         $totalNcl = $bsBalance['bs_interest_bearing_borrowings'] ?? 0;
-        $totalCap = ($bsBalance['bs_members_contributions'] ?? 0) + $netAfterTax;
+        $totalCap = ($bsBalance['bs_members_contributions'] ?? 0) + $netBeforeTax;
 
         // ---- Statement of Changes in Equity ----
         $eq = AfsReportService::equityRollForward($startDate, $endDate);
@@ -239,9 +245,7 @@ class AfsPdfExporter
     {$opexRows}
     {$row2('Profit before interest and taxation', $pbit)}
     {$row2('Finance Cost', $plMovement['pl_finance_cost'] ?? 0)}
-    {$row2('Net profit before taxation', $netBeforeTax)}
-    {$row2('Taxation', $plMovement['pl_taxation'] ?? 0)}
-    <tr class="total"><td>Net profit after taxation</td><td class="r">{$money($netAfterTax)}</td></tr>
+    <tr class="total"><td>Net profit before taxation</td><td class="r">{$money($netBeforeTax)}</td></tr>
   </table>
 </div>
 
@@ -259,7 +263,7 @@ class AfsPdfExporter
     <tr class="total"><td>TOTAL ASSETS</td><td class="r">{$money($totalAssets)}</td></tr>
     <tr class="section"><td colspan="2">CAPITAL AND RESERVES</td></tr>
     {$row2('Members contributions', $bsBalance['bs_members_contributions'] ?? 0)}
-    {$row2('Retained profit', $netAfterTax)}
+    {$row2('Retained profit', $netBeforeTax)}
     <tr class="total"><td>Total Capital and Reserves</td><td class="r">{$money($totalCap)}</td></tr>
     <tr class="section"><td colspan="2">LIABILITIES</td></tr>
     {$row2('Interest Bearing Borrowings', $totalNcl)}

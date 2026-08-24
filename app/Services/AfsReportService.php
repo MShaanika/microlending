@@ -221,6 +221,10 @@ class AfsReportService
      * balance maintained via a year-end closing entry in this system --
      * see AfsExcelExporter::buildBalanceSheet()'s "Retained profit" line,
      * which is likewise computed from the P&L rather than a GL balance).
+     *
+     * Uses the *before-tax* profit -- tax is no longer deducted anywhere on
+     * the P&L or rolled into equity; it only ever appears as its own figure
+     * on the separate Tax Computation note (per client instruction).
      */
     public static function equityRollForward(string $startDate, string $endDate): array
     {
@@ -229,8 +233,8 @@ class AfsReportService
         $contribOpening = self::balanceByCode(['bs_members_contributions'], $openingAsOf)['bs_members_contributions'] ?? 0.0;
         $contribMovement = self::movementByCode(['bs_members_contributions'], $startDate, $endDate)['bs_members_contributions'] ?? 0.0;
 
-        $profitOpening = self::netProfitForPeriod('1970-01-01', $openingAsOf);
-        $profitMovement = self::netProfitForPeriod($startDate, $endDate);
+        $profitOpening = self::netProfitForPeriod('1970-01-01', $openingAsOf, true);
+        $profitMovement = self::netProfitForPeriod($startDate, $endDate, true);
 
         return [
             'contributions_opening' => round($contribOpening, 2),
@@ -266,14 +270,11 @@ class AfsReportService
     }
 
     /**
-     * Capital allowances derived from the fixed asset register: one row per
-     * asset category with a depreciation charge in the period, using the
-     * period's posted accounting depreciation as the wear-and-tear
-     * allowance amount. This system has no separate tax depreciation
-     * schedule/rate table, so accounting depreciation is the closest
-     * available proxy -- for entities where the two genuinely diverge, the
-     * total this returns nets out against "Add: Back Depreciation" only
-     * when they're equal, which is the expected/typical case here.
+     * Capital allowances derived from the fixed asset register: a
+     * wear-and-tear allowance per category, written off over 3 years
+     * straight-line on the category's qualifying cost (cost_closing / 3) --
+     * not the accounting depreciation charge, which follows the asset's own
+     * useful life and can differ from the tax write-off period.
      */
     public static function capitalAllowancesFromAssetRegister(string $startDate, string $endDate): array
     {
@@ -282,43 +283,42 @@ class AfsReportService
         $rows = [];
         $total = 0.0;
         foreach ($fa['rows'] as $r) {
-            if (abs($r['depreciation']) < 0.005) {
+            if (abs($r['cost_closing']) < 0.005) {
                 continue;
             }
-            $rows[] = ['label' => $r['category'], 'amount' => $r['depreciation']];
-            $total += $r['depreciation'];
+            $amount = round($r['cost_closing'] / 3, 2);
+            $rows[] = ['label' => $r['category'], 'amount' => $amount];
+            $total += $amount;
         }
 
         return ['rows' => $rows, 'total' => round($total, 2)];
     }
 
     /**
-     * Non-current assets (Movable Assets, Land & Building), computed from
-     * the fixed asset register's closing net book value rather than from
-     * the bs_movable_assets/bs_land_building GL account tags -- nothing in
-     * the fixed-asset purchase workflow actually posts to those tagged
-     * accounts, so the Balance Sheet never reflected real fixed-asset
-     * activity while the Notes' PPE table (driven by the same register)
-     * did, leaving the two sections out of step with each other. Categories
-     * are split by name: anything containing "land" or "building" goes to
-     * Land & Building, everything else (vehicles, equipment, furniture,
-     * etc.) is Movable Assets.
+     * Movable (non-land) assets, computed from the fixed asset register's
+     * closing net book value rather than from the bs_movable_assets GL
+     * account tag -- nothing in the fixed-asset purchase workflow actually
+     * posts to that tagged account, so the Balance Sheet never reflected
+     * real fixed-asset activity while the Notes' PPE table (driven by the
+     * same register) did, leaving the two sections out of step with each
+     * other.
+     *
+     * Land & Building is deliberately NOT derived here: it is recorded
+     * manually (AfsManualFigure, section notes_land) and must never be
+     * pulled from the register, since land is typically held personally by
+     * a member rather than by the company/cc, and including it requires a
+     * human to confirm actual ownership from title/supporting documents.
      */
     public static function nonCurrentAssetsFromRegister(string $startDate, string $endDate): array
     {
         $fa = self::fixedAssetNote($startDate, $endDate);
 
         $movable = 0.0;
-        $landBuilding = 0.0;
         foreach ($fa['rows'] as $r) {
-            if (preg_match('/land|building/i', $r['category'])) {
-                $landBuilding += $r['nbv_closing'];
-            } else {
-                $movable += $r['nbv_closing'];
-            }
+            $movable += $r['nbv_closing'];
         }
 
-        return ['movable' => round($movable, 2), 'land_building' => round($landBuilding, 2)];
+        return ['movable' => round($movable, 2)];
     }
 
     /**
