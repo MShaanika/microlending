@@ -4,7 +4,7 @@
   <div class="card-body">
     <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary', 'CollexiaAPI' => 'info'][$import['report_type']] ?? 'secondary'; ?>
     <h4 class="card-title mb-1">Collection Report <?= e($import['filename']) ?> <span class="badge bg-<?= $typeBadge ?>"><?= e($import['report_type']) ?></span></h4>
-    <p class="text-muted small mb-3">Imported by <?= e($import['imported_by_name'] ?: '&mdash;') ?> on <?= e(date('d M Y H:i', strtotime($import['imported_at']))) ?></p>
+    <p class="text-muted small mb-3">Imported by <?= $import['imported_by_name'] ? e($import['imported_by_name']) : '&mdash;' ?> on <?= e(date('d M Y H:i', strtotime($import['imported_at']))) ?></p>
 
     <div class="row text-center">
       <div class="col-md-4">
@@ -37,7 +37,7 @@
     <div class="table-responsive">
       <table class="table table-sm table-hover">
         <thead>
-          <tr><th>Contract No</th><th>Leg</th><th>Loan</th><th>Installment #</th><th>Scheduled</th><th>Amount</th><th>Status</th><th>Payment Date</th><th>Payment Amount</th><th>Result</th></tr>
+          <tr><th>Contract No</th><th>Split #</th><th>Loan</th><th>Installment #</th><th>Scheduled</th><th>Amount</th><th>Status</th><th>Payment Date</th><th>Payment Amount</th><th>Result</th></tr>
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
@@ -46,13 +46,13 @@
           <?php foreach ($rows as $r): ?>
             <tr>
               <td><?= e($r['merchant_system_contract_no']) ?></td>
-              <td><?= e($r['leg'] ?: '&mdash;') ?></td>
-              <td><?= e($r['loan_no'] ?: '&mdash;') ?></td>
+              <td><?= $r['split_no'] !== null ? (int) $r['split_no'] : '&mdash;' ?></td>
+              <td><?= $r['loan_no'] ? e($r['loan_no']) : '&mdash;' ?></td>
               <td><?= (int) $r['installment_no'] ?></td>
-              <td><?= e($r['scheduled_date'] ?: '&mdash;') ?></td>
+              <td><?= $r['scheduled_date'] ? e($r['scheduled_date']) : '&mdash;' ?></td>
               <td><?= $r['installment_amount'] ? format_money($r['installment_amount']) : '&mdash;' ?></td>
               <td><?= e($r['installment_status']) ?></td>
-              <td><?= e($r['payment_date'] ?: '&mdash;') ?></td>
+              <td><?= $r['payment_date'] ? e($r['payment_date']) : '&mdash;' ?></td>
               <td><?= $r['payment_amount'] !== null ? format_money($r['payment_amount']) : '&mdash;' ?></td>
               <td>
                 <?php if ($r['payment_id']): ?>

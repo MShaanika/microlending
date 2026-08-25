@@ -9,6 +9,7 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\CollexiaSetting;
 use App\Models\DebitOrder;
+use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderInstallmentTarget;
 use App\Models\DebitOrderSplitLeg;
 use App\Services\CollexiaApiException;
@@ -29,27 +30,39 @@ use App\Support\CollexiaV3Codes;
  * Collexia's backend actually expects -- verify before relying on it for
  * a real mandate.
  *
- * Split debit orders (debit_orders.split_enabled): when on, every action
- * below places/confirms/syncs/cancels TWO independent Collexia mandates
- * (leg A / leg B, half the amount each -- see DebitOrderSplitLeg) instead
- * of one, and rolls their combined state back onto debit_orders' own
- * collexia_api_status so the existing button-visibility logic in
- * debit_orders/show.php.content needs no changes. Reschedule Installment
- * is not supported for split orders (there are two mandates to pick from,
- * and the reschedule flow assumes exactly one) -- it stays hidden.
+ * Split debit orders (debit_orders.split_enabled): the installment is
+ * divided into 1-10 independent split transactions (DebitOrderSplitLeg,
+ * amounts entered individually at registration, not necessarily equal),
+ * each its own Collexia mandate. Place/Check Final Fate/Sync/Cancel
+ * Mandate act on whichever splits are actually in the relevant state
+ * (placement can happen incrementally -- e.g. only a newly-merged split
+ * still needs placing while the others are already Registered), and roll
+ * their combined state back onto debit_orders.collexia_api_status purely
+ * for the existing single-badge summary. splitTransactions()/mergeSplits()
+ * are the drill-down/merge screen -- see their docblocks. Reschedule
+ * Installment and single-installment Cancel stay unsupported for split
+ * orders (multiple mandates to pick from; use merge/cancel-mandate
+ * instead).
  */
 class DebitOrderCollexiaController extends Controller
 {
     private DebitOrder $debitOrders;
     private DebitOrderSplitLeg $splitLegs;
     private DebitOrderInstallmentTarget $installmentTargets;
+    private DebitOrderCollection $collections;
     private CollexiaSetting $settings;
+
+    /** Statuses a split can still be pushed to Collexia from, or merged away from without needing an API cancel first. */
+    private const SPLIT_UNSENT_STATUSES = ['Not Placed', 'Load Failed'];
+    /** Statuses meaning Collexia actually has this mandate live -- must be cancelled there before it can be merged away. */
+    private const SPLIT_LIVE_STATUSES = ['Load Pending', 'Registered'];
 
     public function __construct()
     {
         $this->debitOrders = new DebitOrder();
         $this->splitLegs = new DebitOrderSplitLeg();
         $this->installmentTargets = new DebitOrderInstallmentTarget();
+        $this->collections = new DebitOrderCollection();
         $this->settings = new CollexiaSetting();
     }
 
@@ -133,33 +146,51 @@ class DebitOrderCollexiaController extends Controller
     }
 
     /**
-     * Places two mandates (leg A / leg B, half the debit amount each --
-     * any odd cent goes to leg A) instead of one, and snapshots which
-     * loan_schedules row each of Collexia's 1..N installment sequence
-     * numbers corresponds to for THIS mandate (DebitOrderInstallmentTarget),
-     * so a later collection result can be posted to the exact intended
-     * row rather than relying on FIFO. Re-snapshots fresh on every call,
-     * so retrying after a failed leg re-reads the loan's current unpaid
-     * schedule state rather than a stale one.
+     * Places a mandate for every split transaction still waiting to be sent
+     * (status Not Placed or Load Failed, and not folded away by a merge) --
+     * NOT necessarily all of them, since placement can now happen
+     * incrementally (a merge creates one new split while its siblings stay
+     * however they already were). Amounts come from the split rows created
+     * at registration (or by a merge), never recomputed here.
+     *
+     * Snapshots which loan_schedules row each of Collexia's 1..N
+     * installment sequence numbers corresponds to (DebitOrderInstallmentTarget)
+     * on the FIRST placement only -- re-snapshotting later could remap
+     * already-live splits to a different installment than Collexia already
+     * knows them by, since the loan's unpaid-schedule state can have moved
+     * on by the time a later split (e.g. a merge result) gets placed.
      */
     private function placeSplitMandate(array $debitOrder, int $banId): void
     {
         $id = (int) $debitOrder['id'];
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
-        $this->installmentTargets->snapshot($id, $this->debitOrders->orderedUnpaidScheduleIds((int) $debitOrder['loan_id']));
 
-        $half = round((float) $debitOrder['debit_amount'] / 2, 2);
-        $legAmounts = ['A' => $half, 'B' => round((float) $debitOrder['debit_amount'] - $half, 2)];
+        $pending = array_values(array_filter(
+            $this->splitLegs->activeForDebitOrder($id),
+            fn ($s) => in_array($s['collexia_api_status'], self::SPLIT_UNSENT_STATUSES, true)
+        ));
+
+        if (empty($pending)) {
+            Session::flash('error', 'No split transaction is waiting to be placed.');
+            return;
+        }
+
+        if (!$this->installmentTargets->hasSnapshot($id)) {
+            $this->installmentTargets->snapshot($id, $this->debitOrders->orderedUnpaidScheduleIds((int) $debitOrder['loan_id']));
+        }
 
         $anyFailed = false;
+        $placedSummary = [];
 
-        foreach ($legAmounts as $leg => $amount) {
-            $this->splitLegs->upsert($id, $leg, $amount);
-            $contractReference = $this->buildContractReference($id, $leg);
+        foreach ($pending as $split) {
+            $splitNo = (int) $split['split_no'];
+            $amount = (float) $split['leg_amount'];
+            $contractReference = $this->buildContractReference($id, $splitNo);
+            $suffix = self::splitSuffix($splitNo);
 
             $mandate = [
-                'clientNo' => substr((string) $debitOrder['debit_order_no'], 0, 14) . $leg,
-                'userReference' => substr((string) $debitOrder['debit_order_no'], 0, 9) . $leg,
+                'clientNo' => substr((string) $debitOrder['debit_order_no'], 0, 14) . $suffix,
+                'userReference' => substr((string) $debitOrder['debit_order_no'], 0, 9) . $suffix,
                 'frequencyCode' => 4,
                 'installmentAmount' => $amount,
                 'noOfInstallments' => $noOfInstallments,
@@ -182,21 +213,22 @@ class DebitOrderCollexiaController extends Controller
                 $client = new CollexiaEndoApiClient();
                 $client->loadMandate($mandate);
 
-                $this->splitLegs->updateState($id, $leg, [
+                $this->splitLegs->updateState($id, $splitNo, [
                     'collexia_api_contract_reference' => $contractReference,
                     'collexia_api_status' => 'Load Pending',
                     'collexia_api_last_response' => 'Mandate submitted. Call "Check Final Fate" to confirm registration.',
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
                 ]);
+                $placedSummary[] = 'split #' . $splitNo . ' ' . format_money($amount);
             } catch (CollexiaApiException $e) {
-                $this->splitLegs->updateState($id, $leg, [
+                $this->splitLegs->updateState($id, $splitNo, [
                     'collexia_api_status' => 'Load Failed',
                     'collexia_api_last_response' => $e->getMessage(),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
                 ]);
                 $anyFailed = true;
             } catch (\RuntimeException $e) {
-                $this->splitLegs->updateState($id, $leg, [
+                $this->splitLegs->updateState($id, $splitNo, [
                     'collexia_api_status' => 'Load Failed',
                     'collexia_api_last_response' => $e->getMessage(),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -207,13 +239,12 @@ class DebitOrderCollexiaController extends Controller
 
         $this->rollupSplitStatus($id);
 
-        Audit::log('Update', 'Debit Orders', 'Placed split Collexia API mandate for debit order #' . $id
-            . ' (leg A ' . format_money($legAmounts['A']) . ' / leg B ' . format_money($legAmounts['B']) . ')');
+        Audit::log('Update', 'Debit Orders', 'Placed split Collexia API mandate(s) for debit order #' . $id . ': ' . implode(', ', $placedSummary));
 
         if ($anyFailed) {
-            Session::flash('error', 'At least one split mandate leg was rejected. See Split Legs below for details.');
+            Session::flash('error', 'At least one split transaction was rejected. See Split Transactions for details.');
         } else {
-            Session::flash('success', 'Both split mandate legs submitted. Use "Check Final Fate" to confirm registration.');
+            Session::flash('success', count($pending) . ' split transaction(s) submitted. Use "Check Final Fate" to confirm registration.');
         }
     }
 
@@ -265,22 +296,22 @@ class DebitOrderCollexiaController extends Controller
     private function checkSplitFinalFate(array $debitOrder): void
     {
         $id = (int) $debitOrder['id'];
-        $legs = $this->splitLegs->forDebitOrder($id);
+        $splits = $this->splitLegs->activeForDebitOrder($id);
         $attempted = false;
         $allLoaded = true;
 
-        foreach ($legs as $leg) {
-            if ($leg['collexia_api_status'] !== 'Load Pending' || !$leg['collexia_api_contract_reference']) {
+        foreach ($splits as $split) {
+            if ($split['collexia_api_status'] !== 'Load Pending' || !$split['collexia_api_contract_reference']) {
                 continue;
             }
             $attempted = true;
 
             try {
                 $client = new CollexiaEndoApiClient();
-                $result = $client->requestFinalFate((string) $leg['collexia_api_contract_reference']);
+                $result = $client->requestFinalFate((string) $split['collexia_api_contract_reference']);
                 $loaded = !empty($result['mandateLoaded']);
 
-                $this->splitLegs->updateState($id, $leg['leg'], [
+                $this->splitLegs->updateState($id, (int) $split['split_no'], [
                     'collexia_api_status' => $loaded ? 'Registered' : 'Load Failed',
                     'collexia_api_last_response' => json_encode($result),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -293,7 +324,7 @@ class DebitOrderCollexiaController extends Controller
         }
 
         if (!$attempted) {
-            Session::flash('error', 'No split leg is awaiting confirmation.');
+            Session::flash('error', 'No split transaction is awaiting confirmation.');
             return;
         }
 
@@ -301,8 +332,8 @@ class DebitOrderCollexiaController extends Controller
 
         Audit::log('Update', 'Debit Orders', 'Checked Collexia final fate for split debit order #' . $id);
         Session::flash($allLoaded ? 'success' : 'error', $allLoaded
-            ? 'Both split legs confirmed registered.'
-            : 'At least one split leg did not register. See Split Legs below for details.');
+            ? 'All submitted split transactions confirmed registered.'
+            : 'At least one split transaction did not register. See Split Transactions for details.');
     }
 
     public function syncStatus(string $id): void
@@ -348,20 +379,20 @@ class DebitOrderCollexiaController extends Controller
     private function syncSplitStatus(array $debitOrder): void
     {
         $id = (int) $debitOrder['id'];
-        $legs = $this->splitLegs->forDebitOrder($id);
+        $splits = $this->splitLegs->activeForDebitOrder($id);
         $attempted = false;
 
-        foreach ($legs as $leg) {
-            if (!in_array($leg['collexia_api_status'], ['Registered', 'Load Pending'], true) || !$leg['collexia_api_contract_reference']) {
+        foreach ($splits as $split) {
+            if (!in_array($split['collexia_api_status'], self::SPLIT_LIVE_STATUSES, true) || !$split['collexia_api_contract_reference']) {
                 continue;
             }
             $attempted = true;
 
             try {
                 $client = new CollexiaEndoApiClient();
-                $result = $client->mandateEnquiry(['contractReference' => $leg['collexia_api_contract_reference']]);
+                $result = $client->mandateEnquiry(['contractReference' => $split['collexia_api_contract_reference']]);
 
-                $this->splitLegs->updateState($id, $leg['leg'], [
+                $this->splitLegs->updateState($id, (int) $split['split_no'], [
                     'collexia_api_last_response' => json_encode($result),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
                 ]);
@@ -372,12 +403,12 @@ class DebitOrderCollexiaController extends Controller
         }
 
         if (!$attempted) {
-            Session::flash('error', 'Neither split leg has been placed yet.');
+            Session::flash('error', 'No split transaction has been placed yet.');
             return;
         }
 
         $this->debitOrders->updateCollexiaApiState($id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
-        Session::flash('success', 'Synced the latest status for both split legs.');
+        Session::flash('success', 'Synced the latest status for every placed split transaction.');
     }
 
     public function cancelMandate(string $id): void
@@ -425,20 +456,20 @@ class DebitOrderCollexiaController extends Controller
     private function cancelSplitMandate(array $debitOrder): void
     {
         $id = (int) $debitOrder['id'];
-        $legs = $this->splitLegs->forDebitOrder($id);
+        $splits = $this->splitLegs->activeForDebitOrder($id);
         $attempted = false;
 
-        foreach ($legs as $leg) {
-            if ($leg['collexia_api_status'] === 'Cancelled' || !$leg['collexia_api_contract_reference']) {
+        foreach ($splits as $split) {
+            if ($split['collexia_api_status'] === 'Cancelled' || !$split['collexia_api_contract_reference']) {
                 continue;
             }
             $attempted = true;
 
             try {
                 $client = new CollexiaEndoApiClient();
-                $result = $client->cancelMandate((string) $leg['collexia_api_contract_reference']);
+                $result = $client->cancelMandate((string) $split['collexia_api_contract_reference']);
 
-                $this->splitLegs->updateState($id, $leg['leg'], [
+                $this->splitLegs->updateState($id, (int) $split['split_no'], [
                     'collexia_api_status' => 'Cancelled',
                     'collexia_api_last_response' => json_encode($result),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -457,21 +488,26 @@ class DebitOrderCollexiaController extends Controller
         $this->rollupSplitStatus($id);
 
         Audit::log('Update', 'Debit Orders', 'Cancelled split Collexia API mandate for debit order #' . $id);
-        Session::flash('success', 'Both split legs cancelled.');
+        Session::flash('success', 'Every live split transaction cancelled.');
     }
 
     /**
-     * Rolls both legs' own status up onto debit_orders.collexia_api_status
-     * so the existing single-badge/button-visibility UI in
-     * debit_orders/show.php.content works unchanged for split orders too
-     * -- worst-first: any Load Failed wins, else any Load Pending, else
-     * the legs' shared status if they agree, else Registered (the more
-     * actionable state) if they've drifted apart. The Split Legs detail
-     * table always shows each leg's real status regardless of this rollup.
+     * Rolls every live split's own status up onto
+     * debit_orders.collexia_api_status so the existing single-badge summary
+     * on debit_orders/show.php.content stays meaningful for split orders
+     * too -- worst-first: any Load Failed wins, else any Load Pending, else
+     * the splits' shared status if they agree, else Registered (the more
+     * actionable state) if they've drifted apart. Button visibility for
+     * split orders no longer depends on this rollup (see splitActionFlags()
+     * / DebitOrderController::show()) precisely because placement can now
+     * be incremental and this single value can't represent that -- it's
+     * purely a glanceable summary badge now. Splits already folded away by
+     * a merge are excluded; they're permanently Cancelled and irrelevant
+     * to the live rollup.
      */
     private function rollupSplitStatus(int $debitOrderId): void
     {
-        $statuses = array_column($this->splitLegs->forDebitOrder($debitOrderId), 'collexia_api_status');
+        $statuses = array_column($this->splitLegs->activeForDebitOrder($debitOrderId), 'collexia_api_status');
 
         if (in_array('Load Failed', $statuses, true)) {
             $status = 'Load Failed';
@@ -641,24 +677,203 @@ class DebitOrderCollexiaController extends Controller
      * class docblock. 4 chars merchant GID in hex, 4 chars date, 6 chars
      * zero-padded debit order id, for exactly 14 characters and guaranteed
      * local uniqueness (but not necessarily the format Collexia expects).
+     *
+     * $splitNo (1-10) is for a split order's Nth mandate, which needs its
+     * own distinct reference from the same debit order id -- shortens the
+     * zero-padded id segment from 6 to 5 digits to make room for a
+     * 1-character split suffix (splitSuffix()) while staying within the
+     * 14-character total. Omitting $splitNo (the non-split case) is
+     * byte-for-byte the original 6-digit encoding.
      */
-    /**
-     * $leg ('A'/'B') is for a split order's second mandate, which needs
-     * its own distinct reference from the same debit order id -- shortens
-     * the zero-padded id segment from 6 to 5 digits to make room for a
-     * 1-character leg suffix while staying within the 14-character total.
-     * Omitting $leg (the non-split case) is byte-for-byte the original
-     * 6-digit encoding.
-     */
-    private function buildContractReference(int $debitOrderId, ?string $leg = null): string
+    private function buildContractReference(int $debitOrderId, ?int $splitNo = null): string
     {
         $merchantGid = (int) $this->settings->get('collexia_merchant_gid');
         $gidHex = strtoupper(str_pad(dechex($merchantGid), 4, '0', STR_PAD_LEFT));
         $gidHex = substr($gidHex, -4);
         $dateSeg = date('md');
-        $tellerSeg = $leg !== null
-            ? str_pad((string) $debitOrderId, 5, '0', STR_PAD_LEFT) . $leg
+        $tellerSeg = $splitNo !== null
+            ? str_pad((string) $debitOrderId, 5, '0', STR_PAD_LEFT) . self::splitSuffix($splitNo)
             : str_pad((string) $debitOrderId, 6, '0', STR_PAD_LEFT);
         return $gidHex . $dateSeg . $tellerSeg;
+    }
+
+    /** Single-character encoding of a split number (1-10) for the 14-char contract reference and the 15/10-char clientNo/userReference fields: '1'-'9' for splits 1-9, 'X' for split 10. */
+    private static function splitSuffix(int $splitNo): string
+    {
+        return $splitNo <= 9 ? (string) $splitNo : 'X';
+    }
+
+    /**
+     * The drill-down/history screen for a split debit order -- every split
+     * transaction ever created for it, including ones folded away by a
+     * merge, with which loan_schedules row's collection date (if any) each
+     * corresponds to, and which currently-live splits are eligible to be
+     * selected for a merge.
+     */
+    public function splitTransactions(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        if (empty($debitOrder['split_enabled'])) {
+            Session::flash('error', 'This debit order was not registered as a split.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        $splits = $this->splitLegs->forDebitOrder((int) $id);
+
+        $collectedBySplitNo = [];
+        foreach ($this->collections->forDebitOrder((int) $id) as $c) {
+            if ($c['payment_id'] && $c['split_no'] !== null) {
+                $collectedBySplitNo[(int) $c['split_no']] = $c['payment_date'];
+            }
+        }
+
+        // Rows that resulted FROM a merge: map the merged-into id back to
+        // the split_no(s) that were folded into it, for the "Merged (from
+        // #.. #..)" label.
+        $mergeSources = [];
+        $idToSplitNo = [];
+        foreach ($splits as $s) {
+            $idToSplitNo[(int) $s['id']] = (int) $s['split_no'];
+            if ($s['merged_into_id']) {
+                $mergeSources[(int) $s['merged_into_id']][] = (int) $s['split_no'];
+            }
+        }
+
+        $this->view('debit_orders/split_transactions', [
+            'title' => 'Split Transactions - ' . $debitOrder['debit_order_no'],
+            'debitOrder' => $debitOrder,
+            'splits' => $splits,
+            'collectedBySplitNo' => $collectedBySplitNo,
+            'mergeSources' => $mergeSources,
+            'idToSplitNo' => $idToSplitNo,
+            'mergeableIds' => $this->mergeableSplitIds((int) $id, $splits),
+        ]);
+    }
+
+    /**
+     * A split is mergeable only while it's still live (never itself
+     * already merged away) AND has never actually collected a payment --
+     * undoing a real collection isn't something a merge should attempt,
+     * that needs an actual refund process. Not-yet-sent, rejected, pending,
+     * and registered-but-not-yet-collected splits are all fair game; only
+     * Cancelled (nothing left to merge) and already-collected splits are
+     * excluded.
+     */
+    private function mergeableSplitIds(int $debitOrderId, array $splits): array
+    {
+        $ids = [];
+        foreach ($splits as $s) {
+            if ($s['merged_into_id'] !== null) {
+                continue;
+            }
+            if (!in_array($s['collexia_api_status'], array_merge(self::SPLIT_UNSENT_STATUSES, self::SPLIT_LIVE_STATUSES), true)) {
+                continue;
+            }
+            if ($this->splitLegs->hasPostedCollection($debitOrderId, (int) $s['split_no'])) {
+                continue;
+            }
+            $ids[] = (int) $s['id'];
+        }
+        return $ids;
+    }
+
+    /**
+     * Combines two or more selected split transactions into one. Any
+     * selected split that's actually live at Collexia (Load Pending /
+     * Registered) is cancelled there FIRST via the existing cancelMandate
+     * call -- if any of those cancels fails, the whole merge is aborted
+     * with no local changes at all, so a merge is never half-applied
+     * against Collexia. Splits that were never sent (Not Placed / Load
+     * Failed) need no API call. The selected rows are then marked
+     * Cancelled and linked via merged_into_id to a single new split row
+     * (status Not Placed) for the combined amount -- that new row is NOT
+     * automatically placed; use the existing Place Mandate action for it
+     * afterward, same as any other unplaced split.
+     */
+    public function mergeSplits(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        if (!$this->verifyCsrfOrRedirect($id, '/debit-orders/' . $id . '/split-transactions')) {
+            return;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $_POST['split_ids'] ?? []))));
+        if (count($ids) < 2) {
+            Session::flash('error', 'Select at least two split transactions to merge.');
+            $this->redirect('/debit-orders/' . $id . '/split-transactions');
+            return;
+        }
+
+        $selected = $this->splitLegs->findManyForDebitOrder((int) $id, $ids);
+        if (count($selected) !== count($ids)) {
+            Session::flash('error', 'One or more selected transactions could not be found on this debit order.');
+            $this->redirect('/debit-orders/' . $id . '/split-transactions');
+            return;
+        }
+
+        $mergeable = $this->mergeableSplitIds((int) $id, $selected);
+        foreach ($selected as $s) {
+            if (!in_array((int) $s['id'], $mergeable, true)) {
+                Session::flash('error', 'Split #' . $s['split_no'] . ' can no longer be merged (already merged, cancelled, or already collected a payment).');
+                $this->redirect('/debit-orders/' . $id . '/split-transactions');
+                return;
+            }
+        }
+
+        $toCancelAtCollexia = array_values(array_filter(
+            $selected,
+            fn ($s) => in_array($s['collexia_api_status'], self::SPLIT_LIVE_STATUSES, true) && $s['collexia_api_contract_reference']
+        ));
+
+        $cancelResponses = [];
+        if (!empty($toCancelAtCollexia)) {
+            try {
+                $client = new CollexiaEndoApiClient();
+                foreach ($toCancelAtCollexia as $s) {
+                    $cancelResponses[$s['id']] = $client->cancelMandate((string) $s['collexia_api_contract_reference']);
+                }
+            } catch (\RuntimeException $e) {
+                Session::flash('error', 'Could not cancel one of the selected transactions at Collexia, so the merge was not applied: ' . $e->getMessage());
+                $this->redirect('/debit-orders/' . $id . '/split-transactions');
+                return;
+            }
+        }
+
+        $combinedAmount = round((float) array_sum(array_column($selected, 'leg_amount')), 2);
+        $totalSplits = (int) $selected[0]['total_splits'];
+        $newSplitNo = $this->splitLegs->nextSplitNo((int) $id);
+        $newId = $this->splitLegs->upsert((int) $id, $newSplitNo, $combinedAmount, $totalSplits);
+
+        $refs = [];
+        foreach ($selected as $s) {
+            $this->splitLegs->updateById((int) $s['id'], [
+                'collexia_api_status' => 'Cancelled',
+                'merged_into_id' => $newId,
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+                'collexia_api_last_response' => isset($cancelResponses[$s['id']]) ? json_encode($cancelResponses[$s['id']]) : $s['collexia_api_last_response'],
+            ]);
+            $refs[] = 'split #' . $s['split_no'] . ' (' . format_money($s['leg_amount'])
+                . ($s['collexia_api_contract_reference'] ? ', was ' . $s['collexia_api_contract_reference'] . ' ' . $s['collexia_api_status'] : ', ' . $s['collexia_api_status'])
+                . ')';
+        }
+
+        Audit::log(
+            'Update',
+            'Debit Orders',
+            'Merged ' . count($selected) . ' split transaction(s) on debit order #' . $id . ' (' . $debitOrder['debit_order_no'] . ') into new split #' . $newSplitNo
+                . ' totalling ' . format_money($combinedAmount) . '. Merged: ' . implode('; ', $refs)
+        );
+
+        Session::flash('success', count($selected) . ' split transaction(s) merged into one ' . format_money($combinedAmount) . ' transaction (split #' . $newSplitNo . '). Place its mandate when ready.');
+        $this->redirect('/debit-orders/' . $id . '/split-transactions');
     }
 }

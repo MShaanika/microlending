@@ -97,32 +97,54 @@
     <?php endif; ?>
 
     <div class="d-flex gap-2 flex-wrap">
-      <?php if (($debitOrder['collexia_api_status'] ?? 'Not Placed') === 'Not Placed'): ?>
-        <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/place') ?>" class="d-inline">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-info btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-upload"></i> Place Mandate</button>
-        </form>
-      <?php endif; ?>
-
-      <?php if (($debitOrder['collexia_api_status'] ?? '') === 'Load Pending'): ?>
-        <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/final-fate') ?>" class="d-inline">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-warning btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-check-circle-outline"></i> Check Final Fate</button>
-        </form>
-      <?php endif; ?>
-
-      <?php if (in_array($debitOrder['collexia_api_status'] ?? '', ['Registered', 'Load Pending'], true)): ?>
-        <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/sync') ?>" class="d-inline">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-outline-secondary btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-refresh"></i> Sync Status</button>
-        </form>
-        <?php if (empty($debitOrder['split_enabled'])): ?>
-          <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/installments') ?>" class="btn btn-outline-secondary btn-sm <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>"><i class="mdi mdi-calendar-edit"></i> Reschedule Installment</a>
+      <?php if (empty($debitOrder['split_enabled'])): ?>
+        <?php if (($debitOrder['collexia_api_status'] ?? 'Not Placed') === 'Not Placed'): ?>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/place') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-info btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-upload"></i> Place Mandate</button>
+          </form>
         <?php endif; ?>
-        <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this mandate? This cancels the whole mandate and every installment under it.');">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-outline-danger btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-block-helper"></i> Cancel Mandate</button>
-        </form>
+        <?php if (($debitOrder['collexia_api_status'] ?? '') === 'Load Pending'): ?>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/final-fate') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-warning btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-check-circle-outline"></i> Check Final Fate</button>
+          </form>
+        <?php endif; ?>
+        <?php if (in_array($debitOrder['collexia_api_status'] ?? '', ['Registered', 'Load Pending'], true)): ?>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/sync') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-outline-secondary btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-refresh"></i> Sync Status</button>
+          </form>
+          <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/installments') ?>" class="btn btn-outline-secondary btn-sm <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>"><i class="mdi mdi-calendar-edit"></i> Reschedule Installment</a>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this mandate? This cancels the whole mandate and every installment under it.');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-outline-danger btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-block-helper"></i> Cancel Mandate</button>
+          </form>
+        <?php endif; ?>
+      <?php else: ?>
+        <?php if ($splitFlags['anyUnsent']): ?>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/place') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-info btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-upload"></i> Place Mandate</button>
+          </form>
+        <?php endif; ?>
+        <?php if ($splitFlags['anyLoadPending']): ?>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/final-fate') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-warning btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-check-circle-outline"></i> Check Final Fate</button>
+          </form>
+        <?php endif; ?>
+        <?php if ($splitFlags['anyLive']): ?>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/sync') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-outline-secondary btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-refresh"></i> Sync Status</button>
+          </form>
+          <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/cancel') ?>" class="d-inline" onsubmit="return confirm('Cancel this mandate? This cancels every live split transaction under it.');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-outline-danger btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-block-helper"></i> Cancel Mandate</button>
+          </form>
+        <?php endif; ?>
+        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions') ?>" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-call-split"></i> View Split Transactions</a>
       <?php endif; ?>
     </div>
 
@@ -135,43 +157,9 @@
 
     <?php if (!empty($debitOrder['split_enabled']) && !empty($splitLegs)): ?>
       <hr>
-      <h6 class="mb-2">Split Legs</h6>
-      <p class="text-muted small">This mandate is split into two -- each leg collects independently and is tracked separately, but both always apply to the same monthly installment.</p>
-      <div class="table-responsive">
-        <table class="table table-sm">
-          <thead><tr><th>Leg</th><th>Amount</th><th>Status</th><th>Contract Reference</th><th>Last Synced</th></tr></thead>
-          <tbody>
-            <?php foreach ($splitLegs as $leg): ?>
-              <?php
-                $legBadge = match ($leg['collexia_api_status']) {
-                  'Registered' => 'success',
-                  'Load Pending' => 'warning',
-                  'Load Failed' => 'danger',
-                  'Cancelled' => 'dark',
-                  default => 'secondary',
-                };
-              ?>
-              <tr>
-                <td><?= e($leg['leg']) ?></td>
-                <td><?= format_money($leg['leg_amount']) ?></td>
-                <td><span class="badge bg-<?= $legBadge ?>"><?= e($leg['collexia_api_status']) ?></span></td>
-                <td class="small"><?= e($leg['collexia_api_contract_reference'] ?: '&mdash;') ?></td>
-                <td class="small text-muted"><?= $leg['collexia_api_synced_at'] ? e(date('d M Y H:i', strtotime($leg['collexia_api_synced_at']))) : '&mdash;' ?></td>
-              </tr>
-              <?php if (!empty($leg['collexia_api_last_response'])): ?>
-                <tr>
-                  <td colspan="5" class="py-1">
-                    <details>
-                      <summary class="small text-muted" style="cursor:pointer">Leg <?= e($leg['leg']) ?> last raw response</summary>
-                      <pre class="small bg-light p-2 mt-1" style="white-space:pre-wrap"><?= e($leg['collexia_api_last_response']) ?></pre>
-                    </details>
-                  </td>
-                </tr>
-              <?php endif; ?>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
+      <h6 class="mb-2">Split Transactions <span class="text-muted small fw-normal">(<?= count($splitLegs) ?> live)</span></h6>
+      <p class="text-muted small mb-2">This installment is split into <?= (int) ($splitLegs[0]['total_splits'] ?? count($splitLegs)) ?> transaction(s) -- each collects independently and is tracked separately, but all apply to the same monthly installment.</p>
+      <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-call-split"></i> View All Split Transactions</a>
     <?php endif; ?>
   </div>
 </div>

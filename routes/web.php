@@ -206,6 +206,8 @@ $router->post('/debit-orders/{id}/collexia/cancel', [DebitOrderCollexiaControlle
 $router->get('/debit-orders/{id}/collexia/installments', [DebitOrderCollexiaController::class, 'installments']);
 $router->post('/debit-orders/{id}/collexia/installments/update', [DebitOrderCollexiaController::class, 'updateInstallment']);
 $router->post('/debit-orders/{id}/collexia/installments/cancel', [DebitOrderCollexiaController::class, 'cancelInstallment']);
+$router->get('/debit-orders/{id}/split-transactions', [DebitOrderCollexiaController::class, 'splitTransactions']);
+$router->post('/debit-orders/{id}/split-transactions/merge', [DebitOrderCollexiaController::class, 'mergeSplits']);
 
 $router->get('/debit-orders/{id}/cancel', [DebitOrderCancellationController::class, 'create']);
 $router->get('/debit-order-cancellations', [DebitOrderCancellationController::class, 'index']);

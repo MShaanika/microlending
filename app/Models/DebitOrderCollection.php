@@ -16,25 +16,32 @@ class DebitOrderCollection extends Model
         );
     }
 
+    /** Every collection attempt recorded for a debit order (any split_no, or none) -- used to look up each split's actual collection date on the split-transactions drill-down. */
+    public function forDebitOrder(int $debitOrderId): array
+    {
+        return $this->all("SELECT * FROM debit_order_collections WHERE debit_order_id = ? ORDER BY id", [$debitOrderId]);
+    }
+
     /**
      * Guards against double-posting the same installment if the same
      * Collexia report (or an overlapping later one) is imported again.
-     * $leg distinguishes a split debit order's two independent legs, which
-     * otherwise share the same (debit_order_id, installment_no) and would
-     * look like duplicates of each other -- null for every non-split
-     * collection, matching today's behaviour exactly.
+     * $splitNo distinguishes a split debit order's independent split
+     * transactions, which otherwise share the same (debit_order_id,
+     * installment_no) and would look like duplicates of each other --
+     * null for every non-split collection, matching today's behaviour
+     * exactly.
      */
-    public function alreadyPosted(int $debitOrderId, int $installmentNo, ?string $leg = null): bool
+    public function alreadyPosted(int $debitOrderId, int $installmentNo, ?int $splitNo = null): bool
     {
-        if ($leg === null) {
+        if ($splitNo === null) {
             return (bool) $this->scalar(
-                "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND leg IS NULL AND payment_id IS NOT NULL LIMIT 1",
+                "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND split_no IS NULL AND payment_id IS NOT NULL LIMIT 1",
                 [$debitOrderId, $installmentNo]
             );
         }
         return (bool) $this->scalar(
-            "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND leg = ? AND payment_id IS NOT NULL LIMIT 1",
-            [$debitOrderId, $installmentNo, $leg]
+            "SELECT 1 FROM debit_order_collections WHERE debit_order_id = ? AND installment_no = ? AND split_no = ? AND payment_id IS NOT NULL LIMIT 1",
+            [$debitOrderId, $installmentNo, $splitNo]
         );
     }
 

@@ -51,7 +51,7 @@
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Debit Amount <span class="text-danger">*</span></label>
-          <input type="number" step="0.01" name="debit_amount" class="form-control <?= isset($errors['debit_amount']) ? 'is-invalid' : '' ?>" value="<?= old('debit_amount', $old, (string) $loan['installment_amount']) ?>">
+          <input type="number" step="0.01" id="debit_amount" name="debit_amount" class="form-control <?= isset($errors['debit_amount']) ? 'is-invalid' : '' ?>" value="<?= old('debit_amount', $old, (string) $loan['installment_amount']) ?>">
           <?php if (isset($errors['debit_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_amount']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-4 mb-3">
@@ -66,10 +66,25 @@
         </div>
       </div>
 
-      <div class="form-check mb-3">
+      <div class="form-check mb-2">
         <input type="checkbox" name="split_enabled" value="1" id="split_enabled" class="form-check-input" <?= old('split_enabled', $old) ? 'checked' : '' ?>>
-        <label class="form-check-label" for="split_enabled">Split into two equal debit orders</label>
-        <div class="form-text">Submits two Collexia mandates of half the amount each instead of one, both tied to the same monthly installment. Both collect &rarr; installment marked Paid; only one collects &rarr; Partial; neither &rarr; unpaid. Set once here and cannot be changed after registering.</div>
+        <label class="form-check-label" for="split_enabled">Split this installment into multiple transactions</label>
+        <div class="form-text">Submits a separate Collexia mandate per split instead of one, all tied to the same monthly installment. All collect &rarr; installment marked Paid; some collect &rarr; Partial; none &rarr; unpaid. Set once here and cannot be changed after registering.</div>
+      </div>
+
+      <div id="split_panel" class="border rounded p-3 mb-3 d-none">
+        <div class="row align-items-end">
+          <div class="col-md-4 mb-2">
+            <label class="form-label">Number of Splits (1-10) <span class="text-danger">*</span></label>
+            <input type="number" min="1" max="10" id="split_count" name="split_count" class="form-control <?= isset($errors['split_count']) ? 'is-invalid' : '' ?>" value="<?= (int) old('split_count', $old, '2') ?>">
+            <?php if (isset($errors['split_count'])): ?><div class="invalid-feedback d-block"><?= e($errors['split_count']) ?></div><?php endif; ?>
+          </div>
+          <div class="col-md-8 mb-2">
+            <span class="fw-semibold">Remaining to allocate: <span id="split_remaining">&mdash;</span></span>
+          </div>
+        </div>
+        <?php if (isset($errors['split_amounts'])): ?><div class="text-danger small mb-2"><?= e($errors['split_amounts']) ?></div><?php endif; ?>
+        <div id="split_rows"></div>
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Register Debit Order</button>
@@ -77,3 +92,71 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  var enabledCheckbox = document.getElementById('split_enabled');
+  var panel = document.getElementById('split_panel');
+  var countInput = document.getElementById('split_count');
+  var rowsContainer = document.getElementById('split_rows');
+  var remainingEl = document.getElementById('split_remaining');
+  var amountInput = document.getElementById('debit_amount');
+  var oldSplitAmounts = <?= json_encode(array_map('strval', array_values((array) ($old['split_amounts'] ?? [])))) ?>;
+
+  function money(n) {
+    return 'N$' + (Math.round(n * 100) / 100).toFixed(2);
+  }
+
+  function renderRows() {
+    var count = Math.max(1, Math.min(10, parseInt(countInput.value, 10) || 1));
+    countInput.value = count;
+    rowsContainer.innerHTML = '';
+    for (var i = 0; i < count; i++) {
+      var row = document.createElement('div');
+      row.className = 'row mb-2 align-items-center';
+      var value = oldSplitAmounts[i] !== undefined ? oldSplitAmounts[i] : '';
+      row.innerHTML =
+        '<div class="col-md-3 small text-muted">Split ' + (i + 1) + ' of ' + count + '</div>' +
+        '<div class="col-md-4"><input type="number" step="0.01" min="0.01" class="form-control form-control-sm split-amount" name="split_amounts[]" value="' + value + '" required></div>';
+      rowsContainer.appendChild(row);
+    }
+    oldSplitAmounts = [];
+    recalcRemaining();
+  }
+
+  function recalcRemaining() {
+    var total = parseFloat(amountInput.value) || 0;
+    var sum = 0;
+    rowsContainer.querySelectorAll('.split-amount').forEach(function (el) {
+      sum += parseFloat(el.value) || 0;
+    });
+    var remaining = Math.round((total - sum) * 100) / 100;
+    remainingEl.textContent = money(remaining);
+    remainingEl.className = Math.abs(remaining) < 0.01 ? 'text-success fw-bold' : 'text-danger fw-bold';
+  }
+
+  function togglePanel() {
+    if (enabledCheckbox.checked) {
+      panel.classList.remove('d-none');
+      if (!rowsContainer.children.length) {
+        renderRows();
+      }
+    } else {
+      panel.classList.add('d-none');
+    }
+  }
+
+  enabledCheckbox.addEventListener('change', togglePanel);
+  countInput.addEventListener('input', renderRows);
+  amountInput.addEventListener('input', recalcRemaining);
+  rowsContainer.addEventListener('input', function (e) {
+    if (e.target.classList.contains('split-amount')) {
+      recalcRemaining();
+    }
+  });
+
+  if (enabledCheckbox.checked) {
+    togglePanel();
+  }
+})();
+</script>

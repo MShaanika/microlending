@@ -47,6 +47,9 @@
               <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
               <td class="text-end">
                 <a href="<?= url('/debit-orders/' . $d['id']) ?>" class="btn btn-sm btn-outline-info" title="View"><i class="mdi mdi-eye"></i></a>
+                <?php if (!empty($d['split_enabled'])): ?>
+                  <a href="<?= url('/debit-orders/' . $d['id'] . '/split-transactions') ?>" class="btn btn-sm btn-outline-primary" title="View Split Transactions"><i class="mdi mdi-call-split"></i></a>
+                <?php endif; ?>
                 <?php if (DebitOrder::isEditable($d)): ?>
                   <a href="<?= url('/debit-orders/' . $d['id'] . '/edit') ?>" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="mdi mdi-pencil"></i></a>
                 <?php endif; ?>

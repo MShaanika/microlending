@@ -45,4 +45,20 @@ class DebitOrderInstallmentTarget extends Model
         );
         return $id ? (int) $id : null;
     }
+
+    /**
+     * True once this debit order's mapping has been snapshotted at least
+     * once. A split can now be placed incrementally (e.g. one new split
+     * created by a merge, placed on its own after the others are already
+     * Registered), so snapshot() must only ever run on the FIRST placement
+     * -- re-snapshotting later could remap already-live splits to a
+     * different installment than the one Collexia already knows them by.
+     */
+    public function hasSnapshot(int $debitOrderId): bool
+    {
+        return (bool) $this->scalar(
+            "SELECT 1 FROM debit_order_installment_targets WHERE debit_order_id = ? LIMIT 1",
+            [$debitOrderId]
+        );
+    }
 }

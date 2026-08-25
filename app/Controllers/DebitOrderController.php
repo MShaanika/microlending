@@ -198,6 +198,24 @@ class DebitOrderController extends Controller
             $errors['bank_code'] = 'Select a valid bank.';
         }
 
+        $splitEnabled = !empty($_POST['split_enabled']);
+        $splitCount = 0;
+        $splitAmounts = [];
+        if ($splitEnabled && empty($errors['debit_amount'])) {
+            $splitCount = (int) ($_POST['split_count'] ?? 0);
+            $splitAmounts = array_map(fn ($a) => round((float) $a, 2), array_values($_POST['split_amounts'] ?? []));
+            $totalAmount = round((float) $_POST['debit_amount'], 2);
+            $splitSum = round(array_sum($splitAmounts), 2);
+
+            if ($splitCount < 1 || $splitCount > 10) {
+                $errors['split_count'] = 'Enter a number of splits between 1 and 10.';
+            } elseif (count($splitAmounts) !== $splitCount || in_array(true, array_map(fn ($a) => $a <= 0, $splitAmounts), true)) {
+                $errors['split_amounts'] = 'Enter a positive amount for every split.';
+            } elseif (abs($splitSum - $totalAmount) > 0.01) {
+                $errors['split_amounts'] = 'The split amounts (' . format_money($splitSum) . ') must add up to the debit amount (' . format_money($totalAmount) . ') exactly.';
+            }
+        }
+
         if (!empty($errors)) {
             $this->view('debit_orders/create', [
                 'title' => 'Register Debit Order - ' . $loan['loan_no'],
@@ -229,7 +247,7 @@ class DebitOrderController extends Controller
             'account_type' => (int) ($_POST['account_type'] ?? 1),
             'bank_code' => $_POST['bank_code'],
             'no_of_days_tracking' => $trackingDays,
-            'split_enabled' => !empty($_POST['split_enabled']) ? 1 : 0,
+            'split_enabled' => $splitEnabled ? 1 : 0,
             'created_by' => Auth::user()['id'] ?? null,
         ]);
 
@@ -240,7 +258,16 @@ class DebitOrderController extends Controller
             'merchant_system_contract_no' => sprintf('SD%08d', $debitOrderId),
         ]);
 
-        Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']);
+        if ($splitEnabled) {
+            foreach ($splitAmounts as $i => $amount) {
+                $this->splitLegs->upsert($debitOrderId, $i + 1, $amount, $splitCount);
+            }
+            Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']
+                . ' split into ' . $splitCount . ' transaction(s): ' . implode(', ', array_map(fn ($a) => format_money($a), $splitAmounts)));
+        } else {
+            Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']);
+        }
+
         Session::flash('success', 'Debit order registered.');
         $this->redirect('/debit-orders/' . $debitOrderId);
     }
@@ -257,6 +284,19 @@ class DebitOrderController extends Controller
         }
         $this->assertBranchAccess($debitOrder);
 
+        $splitLegs = $debitOrder['split_enabled'] ? $this->splitLegs->activeForDebitOrder((int) $id) : [];
+
+        // Split orders can now be placed incrementally (e.g. only a
+        // newly-merged split still needs placing while its siblings are
+        // already Registered), so button visibility can't rely on the
+        // single rolled-up collexia_api_status the way a non-split order
+        // does -- it's computed directly from the real split rows instead.
+        $splitFlags = [
+            'anyUnsent' => (bool) array_filter($splitLegs, fn ($s) => in_array($s['collexia_api_status'], ['Not Placed', 'Load Failed'], true)),
+            'anyLoadPending' => (bool) array_filter($splitLegs, fn ($s) => $s['collexia_api_status'] === 'Load Pending'),
+            'anyLive' => (bool) array_filter($splitLegs, fn ($s) => in_array($s['collexia_api_status'], ['Registered', 'Load Pending'], true)),
+        ];
+
         $this->view('debit_orders/show', [
             'title' => 'Debit Order ' . $debitOrder['debit_order_no'],
             'debitOrder' => $debitOrder,
@@ -264,7 +304,8 @@ class DebitOrderController extends Controller
             'collexiaEnabled' => $this->collexiaSettings->isEnabled(),
             'collexiaConfigured' => $this->collexiaSettings->isConfigured(),
             'editable' => DebitOrder::isEditable($debitOrder),
-            'splitLegs' => $debitOrder['split_enabled'] ? $this->splitLegs->forDebitOrder((int) $id) : [],
+            'splitLegs' => $splitLegs,
+            'splitFlags' => $splitFlags,
         ]);
     }
 
