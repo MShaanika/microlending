@@ -1,5 +1,8 @@
 <?= flash_messages() ?>
 
+<link href="<?= asset('assets/libs/select2/dist/css/select2.min.css') ?>" rel="stylesheet" />
+<script defer src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>
+
 <?php if (!empty($application_id)): ?>
   <div class="alert alert-info">
     <i class="mdi mdi-information-outline"></i> Converting online application #<?= (int) $application_id ?> &mdash; pick the loan product and plan below to finish.
@@ -208,5 +211,18 @@
 
   updateModeUI();
   if (borrowerSelect.value) renderExistingLoans();
+
+  document.addEventListener('DOMContentLoaded', function () {
+    jQuery('#borrower_id').select2({
+      width: '100%',
+      placeholder: 'Select borrower',
+      allowClear: true,
+    });
+    // select2 changes the value via jQuery's synthetic trigger('change'), which
+    // a native addEventListener('change', ...) on the underlying <select> does
+    // not observe -- so the top-up existing-loan cascade above needs its own
+    // jQuery-bound listener to keep working once select2 is in place.
+    jQuery('#borrower_id').on('change', renderExistingLoans);
+  });
 })();
 </script>
