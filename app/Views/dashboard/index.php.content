@@ -300,7 +300,7 @@
             <tr>
               <td><?= e($row['borrower_name']) ?></td>
               <td><a href="<?= url('/collections/worklist/' . $row['loan_id']) ?>"><?= e($row['loan_no']) ?></a></td>
-              <td><?= e($row['borrower_phone'] ?: '&mdash;') ?></td>
+              <td><?= $row['borrower_phone'] ? e($row['borrower_phone']) : '&mdash;' ?></td>
               <td class="text-end"><?= format_money($row['expected_amount']) ?></td>
             </tr>
           <?php endforeach; ?>

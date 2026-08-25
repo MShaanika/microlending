@@ -71,7 +71,7 @@
               ?>
               <tr>
                 <td><?= e(date('d/m/Y', strtotime($line['journal_date']))) ?></td>
-                <td><?= e($line['reference_no'] ?: '&mdash;') ?></td>
+                <td><?= $line['reference_no'] ? e($line['reference_no']) : '&mdash;' ?></td>
                 <td>
                   <?= e($line['description']) ?>
                   <?php if ($line['reconciliation_id']): ?><i class="mdi mdi-check-decagram text-success" title="Matched in bank reconciliation"></i><?php endif; ?>

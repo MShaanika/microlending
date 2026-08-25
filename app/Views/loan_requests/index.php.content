@@ -50,7 +50,7 @@
               </td>
               <td><?= format_money($r['requested_amount']) ?></td>
               <td><?= (int) $r['requested_term_months'] ?> mo</td>
-              <td><?= e($r['purpose'] ?: '&mdash;') ?></td>
+              <td><?= $r['purpose'] ? e($r['purpose']) : '&mdash;' ?></td>
               <td>
                 <?php if ((int) $r['document_count'] > 0): ?>
                   <a href="<?= url('/loan-requests/' . $r['id'] . '/documents') ?>"><?= (int) $r['document_count'] ?> file(s)</a>

@@ -23,8 +23,8 @@
 
     <div class="row mb-3">
       <div class="col-md-3"><strong>Date:</strong> <?= e($journal['journal_date']) ?></div>
-      <div class="col-md-3"><strong>Source:</strong> <?= e($journal['source_module'] ?: '&mdash;') ?></div>
-      <div class="col-md-3"><strong>Reference:</strong> <?= e($journal['reference_no'] ?: '&mdash;') ?></div>
+      <div class="col-md-3"><strong>Source:</strong> <?= $journal['source_module'] ? e($journal['source_module']) : '&mdash;' ?></div>
+      <div class="col-md-3"><strong>Reference:</strong> <?= $journal['reference_no'] ? e($journal['reference_no']) : '&mdash;' ?></div>
       <div class="col-md-3"><strong>Type:</strong> <?= e($journal['journal_type']) ?></div>
     </div>
 

@@ -106,11 +106,11 @@
               <p class="text-muted mb-0">No employment details on file.</p>
             <?php else: ?>
               <p class="mb-1"><strong><?= e($employment['employer_name']) ?></strong></p>
-              <p class="mb-1 text-muted"><?= e($employment['job_title'] ?: '&mdash;') ?> &middot; <?= e($employment['employment_type'] ?: '&mdash;') ?></p>
+              <p class="mb-1 text-muted"><?= $employment['job_title'] ? e($employment['job_title']) : '&mdash;' ?> &middot; <?= $employment['employment_type'] ? e($employment['employment_type']) : '&mdash;' ?></p>
               <p class="mb-1">Gross: <?= format_money($employment['gross_salary']) ?> &middot; Net: <?= format_money($employment['net_salary']) ?></p>
-              <p class="mb-1">Employee No: <?= e($employment['employee_no'] ?: '&mdash;') ?></p>
-              <p class="mb-1">Started: <?= e($employment['employment_start_date'] ?: '&mdash;') ?></p>
-              <p class="mb-0">Employer Contact: <?= e($employment['employer_phone'] ?: '&mdash;') ?> <?= $employment['employer_email'] ? '/ ' . e($employment['employer_email']) : '' ?></p>
+              <p class="mb-1">Employee No: <?= $employment['employee_no'] ? e($employment['employee_no']) : '&mdash;' ?></p>
+              <p class="mb-1">Started: <?= $employment['employment_start_date'] ? e($employment['employment_start_date']) : '&mdash;' ?></p>
+              <p class="mb-0">Employer Contact: <?= $employment['employer_phone'] ? e($employment['employer_phone']) : '&mdash;' ?> <?= $employment['employer_email'] ? '/ ' . e($employment['employer_email']) : '' ?></p>
             <?php endif; ?>
           </div>
         </div>
@@ -124,10 +124,10 @@
               <p class="text-muted mb-0">No banking details on file.</p>
             <?php else: ?>
               <p class="mb-1"><strong><?= e($bank['bank_name']) ?></strong></p>
-              <p class="mb-1">Account Name: <?= e($bank['account_name'] ?: '&mdash;') ?></p>
-              <p class="mb-1">Account No: <?= e($bank['account_number'] ?: '&mdash;') ?></p>
-              <p class="mb-1">Type: <?= e($bank['account_type'] ?: '&mdash;') ?></p>
-              <p class="mb-0">Branch: <?= e($bank['branch_name'] ?: '&mdash;') ?> <?= $bank['branch_code'] ? '(' . e($bank['branch_code']) . ')' : '' ?></p>
+              <p class="mb-1">Account Name: <?= $bank['account_name'] ? e($bank['account_name']) : '&mdash;' ?></p>
+              <p class="mb-1">Account No: <?= $bank['account_number'] ? e($bank['account_number']) : '&mdash;' ?></p>
+              <p class="mb-1">Type: <?= $bank['account_type'] ? e($bank['account_type']) : '&mdash;' ?></p>
+              <p class="mb-0">Branch: <?= $bank['branch_name'] ? e($bank['branch_name']) : '&mdash;' ?> <?= $bank['branch_code'] ? '(' . e($bank['branch_code']) . ')' : '' ?></p>
             <?php endif; ?>
           </div>
         </div>
@@ -150,9 +150,9 @@
                 <tr>
                   <td><span class="badge bg-secondary"><?= e($c['contact_type']) ?></span></td>
                   <td><?= e($c['full_name']) ?></td>
-                  <td><?= e($c['relationship'] ?: '&mdash;') ?></td>
-                  <td><?= e($c['phone'] ?: '&mdash;') ?></td>
-                  <td><?= e($c['email'] ?: '&mdash;') ?></td>
+                  <td><?= $c['relationship'] ? e($c['relationship']) : '&mdash;' ?></td>
+                  <td><?= $c['phone'] ? e($c['phone']) : '&mdash;' ?></td>
+                  <td><?= $c['email'] ? e($c['email']) : '&mdash;' ?></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>

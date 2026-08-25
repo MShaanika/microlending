@@ -264,7 +264,7 @@
             <?php foreach ($completionHistory as $h): ?>
               <tr>
                 <td><?= e(date('d/m/Y', strtotime($h['statement_date']))) ?></td>
-                <td><?= e($h['completed_by_name'] ?? '&mdash;') ?></td>
+                <td><?= $h['completed_by_name'] ? e($h['completed_by_name']) : '&mdash;' ?></td>
                 <td><?= e(date('d/m/Y H:i', strtotime($h['completed_at']))) ?></td>
                 <td><?= $h['reopened_at'] ? '<span class="badge bg-secondary">Reopened by ' . e($h['reopened_by_name'] ?? '?') . '</span>' : '<span class="badge bg-success">Active</span>' ?></td>
               </tr>
