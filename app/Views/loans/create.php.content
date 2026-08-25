@@ -42,6 +42,13 @@
           <?php if (isset($errors['borrower_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['borrower_id']) ?></div><?php endif; ?>
         </div>
 
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Loan Ref No</label>
+          <input type="text" name="loan_ref_no" id="loan_ref_no" placeholder="Select a borrower first" class="form-control <?= isset($errors['loan_ref_no']) ? 'is-invalid' : '' ?>" value="<?= old('loan_ref_no', $old) ?>">
+          <div id="loan_ref_no_hint" class="form-text"></div>
+          <?php if (isset($errors['loan_ref_no'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_ref_no']) ?></div><?php endif; ?>
+        </div>
+
         <div class="col-md-6 mb-3 topup-only" style="display:none;">
           <label class="form-label">Existing Active Loan <span class="text-danger">*</span></label>
           <select name="existing_loan_id" id="existing_loan_id" class="form-select <?= isset($errors['existing_loan_id']) ? 'is-invalid' : '' ?>">
@@ -212,6 +219,40 @@
   updateModeUI();
   if (borrowerSelect.value) renderExistingLoans();
 
+  // Loan Ref No (SDLOAN000...): lives on the borrower record and is reused
+  // across every loan, so once a borrower already has one this field just
+  // displays it read-only -- staff can only type a new one in for a
+  // borrower who doesn't have one on file yet (their very first loan).
+  var loanRefNoByBorrower = <?= json_encode(array_reduce($borrowers, function ($carry, $b) {
+      $carry[$b['id']] = $b['loan_ref_no'] ?: null;
+      return $carry;
+  }, [])) ?>;
+  var loanRefNoInput = document.getElementById('loan_ref_no');
+  var loanRefNoHint = document.getElementById('loan_ref_no_hint');
+  var selectedLoanRefNo = "<?= e($old['loan_ref_no'] ?? '') ?>";
+
+  function renderLoanRefNo() {
+    var existing = loanRefNoByBorrower[borrowerSelect.value];
+    if (!borrowerSelect.value) {
+      loanRefNoInput.value = '';
+      loanRefNoInput.readOnly = false;
+      loanRefNoInput.placeholder = 'Select a borrower first';
+      loanRefNoHint.textContent = '';
+    } else if (existing) {
+      loanRefNoInput.value = existing;
+      loanRefNoInput.readOnly = true;
+      loanRefNoHint.textContent = 'Already on file for this borrower -- reused automatically.';
+    } else {
+      loanRefNoInput.value = selectedLoanRefNo;
+      loanRefNoInput.readOnly = false;
+      loanRefNoInput.placeholder = 'SDLOAN000...';
+      loanRefNoHint.textContent = "This borrower doesn't have one on file yet -- enter it if the client has one.";
+    }
+  }
+
+  borrowerSelect.addEventListener('change', renderLoanRefNo);
+  if (borrowerSelect.value) renderLoanRefNo();
+
   document.addEventListener('DOMContentLoaded', function () {
     jQuery('#borrower_id').select2({
       width: '100%',
@@ -220,9 +261,13 @@
     });
     // select2 changes the value via jQuery's synthetic trigger('change'), which
     // a native addEventListener('change', ...) on the underlying <select> does
-    // not observe -- so the top-up existing-loan cascade above needs its own
-    // jQuery-bound listener to keep working once select2 is in place.
-    jQuery('#borrower_id').on('change', renderExistingLoans);
+    // not observe -- so the top-up existing-loan and loan-ref-no cascades
+    // above need their own jQuery-bound listener to keep working once
+    // select2 is in place.
+    jQuery('#borrower_id').on('change', function () {
+      renderExistingLoans();
+      renderLoanRefNo();
+    });
   });
 })();
 </script>

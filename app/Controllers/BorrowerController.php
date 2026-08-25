@@ -127,10 +127,6 @@ class BorrowerController extends Controller
             $errors['id_number'] = 'A borrower with this ID number already exists.';
         }
 
-        if (!empty($_POST['loan_ref_no']) && $this->borrowers->loanRefNoExists(trim($_POST['loan_ref_no']))) {
-            $errors['loan_ref_no'] = 'A borrower with this loan ref no. already exists.';
-        }
-
         $documentErrors = $this->validateDocumentUploads($_FILES['documents'] ?? []);
         $errors = array_merge($errors, $documentErrors, $this->validateBankStatementUpload($_POST, $_FILES));
 
@@ -152,7 +148,6 @@ class BorrowerController extends Controller
         $borrowerData = [
             'branch_id' => (int) $_POST['branch_id'],
             'borrower_no' => $borrowerNo,
-            'loan_ref_no' => trim($_POST['loan_ref_no'] ?? '') ?: null,
             'first_name' => trim($_POST['first_name']),
             'middle_name' => trim($_POST['middle_name'] ?? '') ?: null,
             'last_name' => trim($_POST['last_name']),

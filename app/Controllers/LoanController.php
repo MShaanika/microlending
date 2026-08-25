@@ -196,6 +196,17 @@ class LoanController extends Controller
             $errors['plan_id'] = 'Select a valid plan.';
         }
 
+        // The borrower's Collexia client reference (SDLOAN000...) is captured
+        // here at loan creation rather than at borrower registration, since
+        // that's when staff actually have it to hand -- but it still lives on
+        // the borrower record so every later loan for the same person reuses
+        // it. Once a borrower has one, this field is read-only in the UI, so
+        // it's only ever validated/saved for a borrower who doesn't have one yet.
+        $loanRefNo = trim((string) ($_POST['loan_ref_no'] ?? ''));
+        if ($borrower && empty($borrower['loan_ref_no']) && $loanRefNo !== '' && $this->borrowers->loanRefNoExists($loanRefNo)) {
+            $errors['loan_ref_no'] = 'A borrower with this loan ref no. already exists.';
+        }
+
         $principal = (float) ($_POST['principal_amount'] ?? 0);
         if ($product && ($principal < (float) $product['min_amount'] || $principal > (float) $product['max_amount'])) {
             $errors['principal_amount'] = sprintf(
@@ -255,6 +266,10 @@ class LoanController extends Controller
                     Session::flash('error', $e->getMessage());
                     $this->redirect('/loans/create');
                     return;
+                }
+
+                if (empty($borrower['loan_ref_no']) && $loanRefNo !== '') {
+                    $this->borrowers->updateRecord((int) $borrower['id'], ['loan_ref_no' => $loanRefNo]);
                 }
 
                 Audit::log('Top-up', 'Loans', 'Topped up loan #' . $loanId . ' by ' . format_money($principal) . ' (consolidated).');
@@ -324,6 +339,10 @@ class LoanController extends Controller
             'maturity_date' => end($schedule['rows'])['due_date'] ?? null,
             'created_by' => $userId,
         ]);
+
+        if (empty($borrower['loan_ref_no']) && $loanRefNo !== '') {
+            $this->borrowers->updateRecord((int) $borrower['id'], ['loan_ref_no' => $loanRefNo]);
+        }
 
         $this->loans->insertScheduleRows($loanId, $schedule['rows']);
         $this->loans->logStatus(
