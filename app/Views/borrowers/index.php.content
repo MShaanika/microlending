@@ -11,7 +11,7 @@
 
     <form method="get" action="<?= url('/borrowers') ?>" class="row g-2 mb-3">
       <div class="col-md-4">
-        <input type="text" name="q" class="form-control" placeholder="Search name, phone, ID number..." value="<?= e($search ?? '') ?>">
+        <input type="text" name="q" class="form-control" placeholder="Search name, phone, ID number, loan ref no..." value="<?= e($search ?? '') ?>">
       </div>
       <div class="col-md-3">
         <select name="status" class="form-select">
@@ -41,6 +41,7 @@
         <thead>
           <tr>
             <th>Borrower No</th>
+            <th>Loan Ref No</th>
             <th>Name</th>
             <th>Phone</th>
             <th>ID Number</th>
@@ -52,7 +53,7 @@
         </thead>
         <tbody>
           <?php if (empty($borrowers)): ?>
-            <tr><td colspan="8" class="text-center text-muted py-4">No borrowers found.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4">No borrowers found.</td></tr>
           <?php endif; ?>
           <?php foreach ($borrowers as $b): ?>
             <?php
@@ -66,6 +67,7 @@
             ?>
             <tr>
               <td><?= e($b['borrower_no']) ?></td>
+              <td><?= $b['loan_ref_no'] ? e($b['loan_ref_no']) : '&mdash;' ?></td>
               <td><?= e(trim($b['first_name'] . ' ' . $b['last_name'])) ?></td>
               <td><?= e($b['phone']) ?></td>
               <td><?= e($b['id_number']) ?></td>

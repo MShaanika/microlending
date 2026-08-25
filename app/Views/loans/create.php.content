@@ -35,7 +35,7 @@
             <option value="">Select borrower</option>
             <?php foreach ($borrowers as $b): ?>
               <option value="<?= $b['id'] ?>" <?= ((int) ($old['borrower_id'] ?? $preselected_borrower_id)) === (int) $b['id'] ? 'selected' : '' ?>>
-                <?= e($b['borrower_no'] . ' - ' . $b['first_name'] . ' ' . $b['last_name']) ?>
+                <?= e($b['borrower_no'] . (!empty($b['loan_ref_no']) ? ' / ' . $b['loan_ref_no'] : '') . ' - ' . $b['first_name'] . ' ' . $b['last_name']) ?>
               </option>
             <?php endforeach; ?>
           </select>

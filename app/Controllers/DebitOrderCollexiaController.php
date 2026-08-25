@@ -98,9 +98,10 @@ class DebitOrderCollexiaController extends Controller
         $id = (int) $debitOrder['id'];
         $contractReference = $this->buildContractReference($id);
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
+        $clientNoBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
 
         $mandate = [
-            'clientNo' => substr((string) $debitOrder['debit_order_no'], 0, 15),
+            'clientNo' => substr((string) $clientNoBase, 0, 15),
             'userReference' => substr((string) $debitOrder['debit_order_no'], 0, 10),
             'frequencyCode' => 4, // Monthly -- this app's debit orders are always monthly (debit_day is a day-of-month)
             'installmentAmount' => (float) $debitOrder['debit_amount'],
@@ -164,6 +165,7 @@ class DebitOrderCollexiaController extends Controller
     {
         $id = (int) $debitOrder['id'];
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
+        $clientNoBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
 
         $pending = array_values(array_filter(
             $this->splitLegs->activeForDebitOrder($id),
@@ -189,7 +191,7 @@ class DebitOrderCollexiaController extends Controller
             $suffix = self::splitSuffix($splitNo);
 
             $mandate = [
-                'clientNo' => substr((string) $debitOrder['debit_order_no'], 0, 14) . $suffix,
+                'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
                 'userReference' => substr((string) $debitOrder['debit_order_no'], 0, 9) . $suffix,
                 'frequencyCode' => 4,
                 'installmentAmount' => $amount,

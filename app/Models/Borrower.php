@@ -17,9 +17,9 @@ class Borrower extends Model
         $params = [];
 
         if ($search !== '') {
-            $sql .= " AND (b.first_name LIKE ? OR b.last_name LIKE ? OR b.borrower_no LIKE ? OR b.id_number LIKE ? OR b.phone LIKE ?)";
+            $sql .= " AND (b.first_name LIKE ? OR b.last_name LIKE ? OR b.borrower_no LIKE ? OR b.loan_ref_no LIKE ? OR b.id_number LIKE ? OR b.phone LIKE ?)";
             $like = '%' . $search . '%';
-            array_push($params, $like, $like, $like, $like, $like);
+            array_push($params, $like, $like, $like, $like, $like, $like);
         }
 
         if ($status !== '') {
@@ -87,6 +87,14 @@ class Borrower extends Model
             return (bool) $this->scalar("SELECT 1 FROM borrowers WHERE id_number = ? AND id != ?", [$idNumber, $excludeId]);
         }
         return (bool) $this->scalar("SELECT 1 FROM borrowers WHERE id_number = ?", [$idNumber]);
+    }
+
+    public function loanRefNoExists(string $loanRefNo, ?int $excludeId = null): bool
+    {
+        if ($excludeId) {
+            return (bool) $this->scalar("SELECT 1 FROM borrowers WHERE loan_ref_no = ? AND id != ?", [$loanRefNo, $excludeId]);
+        }
+        return (bool) $this->scalar("SELECT 1 FROM borrowers WHERE loan_ref_no = ?", [$loanRefNo]);
     }
 
     /**

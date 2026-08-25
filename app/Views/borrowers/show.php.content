@@ -19,6 +19,7 @@
           <span class="badge bg-<?= $badge ?>"><?= e($borrower['status']) ?></span>
         </div>
         <p class="text-muted mb-1"><?= e($borrower['borrower_no']) ?></p>
+        <p class="mb-1"><i class="mdi mdi-pound me-1"></i> Loan Ref No: <?= $borrower['loan_ref_no'] ? e($borrower['loan_ref_no']) : '&mdash;' ?></p>
         <hr>
         <p class="mb-1"><i class="mdi mdi-phone me-1"></i> <?= e($borrower['phone']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($borrower['email']) ?: '&mdash;' ?></p>

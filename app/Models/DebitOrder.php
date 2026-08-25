@@ -29,7 +29,7 @@ class DebitOrder extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT d.*, l.loan_no, l.branch_id AS loan_branch_id, b.id_number, b.phone, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT d.*, l.loan_no, l.branch_id AS loan_branch_id, b.id_number, b.phone, b.loan_ref_no AS borrower_loan_ref_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
              FROM debit_orders d
              JOIN loans l ON l.id = d.loan_id
              JOIN borrowers b ON b.id = d.borrower_id
