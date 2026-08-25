@@ -42,7 +42,7 @@
               <td><?= (int) $i['total_rows'] ?></td>
               <td><?= (int) $i['matched_rows'] ?></td>
               <td><span class="badge bg-success"><?= (int) $i['posted_payments'] ?></span></td>
-              <td><?= e($i['imported_by_name'] ?: '&mdash;') ?></td>
+              <td><?= $i['imported_by_name'] ? e($i['imported_by_name']) : '&mdash;' ?></td>
               <td><?= e(date('d M Y H:i', strtotime($i['imported_at']))) ?></td>
               <td class="text-end">
                 <a href="<?= url('/debit-order-collections/' . $i['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>

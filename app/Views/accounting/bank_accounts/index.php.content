@@ -26,7 +26,7 @@
               <td><?= e($b['account_name']) ?></td>
               <td><?= e($b['bank_name']) ?></td>
               <td><?= e($b['account_number']) ?></td>
-              <td><?= e($b['branch'] ?: '&mdash;') ?></td>
+              <td><?= $b['branch'] ? e($b['branch']) : '&mdash;' ?></td>
               <td><code><?= e($b['gl_account_code']) ?></code> <?= e($b['gl_account_name']) ?></td>
               <td><span class="badge bg-<?= $b['is_active'] ? 'success' : 'secondary' ?>"><?= $b['is_active'] ? 'Active' : 'Inactive' ?></span></td>
               <td class="text-end">

@@ -39,7 +39,7 @@
             <tr>
               <td><?= e($c['claim_no']) ?></td>
               <td><a href="<?= url('/borrowers/' . $c['borrower_id']) ?>"><?= e($c['borrower_name']) ?></a></td>
-              <td><?= e($c['loan_no'] ?: '&mdash;') ?></td>
+              <td><?= $c['loan_no'] ? e($c['loan_no']) : '&mdash;' ?></td>
               <td><?= e($c['claim_type']) ?></td>
               <td><?= format_money($c['claim_amount']) ?></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($c['status']) ?></span></td>

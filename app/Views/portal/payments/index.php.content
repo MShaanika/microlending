@@ -26,7 +26,7 @@
               <td><?= e($p['loan_no']) ?></td>
               <td><?= format_money($p['amount_received']) ?></td>
               <td><?= e($p['payment_source']) ?></td>
-              <td><?= e($p['reference_no'] ?: '&mdash;') ?></td>
+              <td><?= $p['reference_no'] ? e($p['reference_no']) : '&mdash;' ?></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($p['status']) ?></span></td>
               <td><?= e(date('d M Y', strtotime($p['payment_date']))) ?></td>
             </tr>

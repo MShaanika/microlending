@@ -19,7 +19,7 @@
           <h5 class="mb-0"><?= e($s['source_name']) ?></h5>
           <span class="badge bg-<?= $s['is_active'] ? 'success' : 'secondary' ?>"><?= $s['is_active'] ? 'Active' : 'Inactive' ?></span>
         </div>
-        <p class="text-muted small mb-2">Source Code: <code><?= e($s['source_code']) ?></code> &bull; Allowed Origin: <?= e($s['allowed_origin'] ?: '&mdash;') ?></p>
+        <p class="text-muted small mb-2">Source Code: <code><?= e($s['source_code']) ?></code> &bull; Allowed Origin: <?= $s['allowed_origin'] ? e($s['allowed_origin']) : '&mdash;' ?></p>
 
         <div class="mb-2">
           <label class="form-label small mb-0">Endpoint URL (POST here from the external form)</label>

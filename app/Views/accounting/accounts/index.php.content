@@ -26,7 +26,7 @@
               <td><?= e($a['account_name']) ?> <?= $a['is_control_account'] ? '<span class="badge bg-light text-dark border">Control</span>' : '' ?> <?= $a['is_cash_bank_account'] ? '<span class="badge bg-info">Cash/Bank</span>' : '' ?></td>
               <td><?= e($a['account_type']) ?></td>
               <td><?= e($a['normal_balance']) ?></td>
-              <td><?= e($a['parent_account_name'] ?: '&mdash;') ?></td>
+              <td><?= $a['parent_account_name'] ? e($a['parent_account_name']) : '&mdash;' ?></td>
               <td class="text-end"><?= format_money($a['balance']) ?></td>
               <td><span class="badge bg-<?= $a['is_active'] ? 'success' : 'secondary' ?>"><?= $a['is_active'] ? 'Active' : 'Inactive' ?></span></td>
               <td class="text-end">
