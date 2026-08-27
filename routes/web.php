@@ -27,6 +27,8 @@ use App\Controllers\AfsManualFigureController;
 use App\Controllers\BadDebtProvisionController;
 use App\Controllers\LoanWriteOffController;
 use App\Controllers\LoanRecoveryController;
+use App\Controllers\InterestAccrualController;
+use App\Controllers\InterestAccrualRestatementController;
 use App\Controllers\PenaltyAccrualController;
 use App\Controllers\BankReconciliationController;
 use App\Controllers\UserController;
@@ -459,6 +461,14 @@ $router->get('/accounting/penalty-accruals', [PenaltyAccrualController::class, '
 $router->get('/accounting/penalty-accruals/preview', [PenaltyAccrualController::class, 'preview']);
 $router->post('/accounting/penalty-accruals', [PenaltyAccrualController::class, 'post']);
 $router->get('/accounting/penalty-accruals/runs/{date}', [PenaltyAccrualController::class, 'show']);
+
+$router->get('/accounting/interest-accruals', [InterestAccrualController::class, 'index']);
+$router->get('/accounting/interest-accruals/preview', [InterestAccrualController::class, 'preview']);
+$router->post('/accounting/interest-accruals', [InterestAccrualController::class, 'post']);
+$router->get('/accounting/interest-accruals/runs/{date}', [InterestAccrualController::class, 'show']);
+
+$router->get('/accounting/interest-restatement', [InterestAccrualRestatementController::class, 'preview']);
+$router->post('/accounting/interest-restatement/run', [InterestAccrualRestatementController::class, 'run']);
 
 $router->get('/accounting/bank-reconciliation', [BankReconciliationController::class, 'index']);
 $router->get('/accounting/bank-reconciliation/history', [BankReconciliationController::class, 'history']);

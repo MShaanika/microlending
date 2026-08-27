@@ -731,38 +731,38 @@ class LoanController extends Controller
     }
 
     /**
-     * Full accrual at disbursement -- the entire loan is booked as owed the
-     * moment it's disbursed, not recognized piece by piece as collected:
+     * Principal and statutory charges are booked as owed the moment the
+     * loan is disbursed, not recognized piece by piece as collected:
      *
      *   Dr Loans Receivable (principal)
-     *   Dr Interest Receivable (interest)
      *   Dr NAMFISA Levy Receivable (levy)
      *   Dr Stamp Duty Receivable (stamp)
      *     Cr Bank Account (principal -- what actually leaves the bank)
-     *     Cr Deferred Interest Income (interest -- recognized only once
-     *       actually collected, see Payment::postCollectionAccounting())
      *     Cr NAMFISA Levy Payable / Cr Stamp Duty Payable (statutory
      *       amounts owed to government, collected from the borrower via
      *       the loan; these don't move on collection -- they're already
      *       fully booked here, both as what's owed FROM the borrower and
      *       what's owed TO the authority)
+     *
+     * Interest is NOT booked here -- unlike principal/levy/stamp, interest
+     * is only earned period by period over the loan's term, so it's
+     * recognized separately, installment by installment, as each one's due
+     * date arrives (or immediately, for an early payment) -- see
+     * InterestAccrualService.
      */
     private function postDisbursementAccounting(int $loanId, array $loan, ?int $userId, ?array $bankAccount = null): void
     {
         $principal = (float) $loan['principal_amount'];
-        $interest = (float) $loan['interest_amount'];
         $levyTxn = $this->statutoryCharges->findNamfisaLevyByLoan($loanId);
         $stampTxn = $this->statutoryCharges->findDutyStampByLoan($loanId);
         $levy = $levyTxn ? (float) $levyTxn['levy_amount'] : 0.0;
         $stamp = $stampTxn ? (float) $stampTxn['stamp_amount'] : 0.0;
 
         $loanReceivable = $this->accounts->idByCode('1020');
-        $interestReceivable = $this->accounts->idByCode('1030');
         $levyReceivable = $this->accounts->idByCode('1051');
         $stampReceivable = $this->accounts->idByCode('1060');
         $bankGlAccount = $bankAccount ? (int) $bankAccount['account_id'] : $this->accounts->idByCode('1010');
         $bankLabel = $bankAccount ? $bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'] : 'Bank Account';
-        $deferredInterestIncome = $this->accounts->idByCode('2011');
         $levyPayable = $this->accounts->idByCode('2030');
         $stampPayable = $this->accounts->idByCode('2040');
 
@@ -781,20 +781,6 @@ class LoanController extends Controller
             ],
         ];
 
-        if ($interest > 0) {
-            $lines[] = [
-                'account_id' => $interestReceivable,
-                'debit' => round($interest, 2),
-                'credit' => 0,
-                'description' => 'Interest receivable for ' . $loan['loan_no'],
-            ];
-            $lines[] = [
-                'account_id' => $deferredInterestIncome,
-                'debit' => 0,
-                'credit' => round($interest, 2),
-                'description' => 'Deferred interest income for ' . $loan['loan_no'],
-            ];
-        }
         if ($levy > 0) {
             $lines[] = [
                 'account_id' => $levyReceivable,

@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\AccountingAccount;
+use App\Models\AccountingJournal;
+use App\Models\InterestAccrual;
 use App\Models\Loan;
 use App\Models\LoanRescheduleSchedule;
 
@@ -153,6 +156,9 @@ class RescheduleService
             $existing->execute([$loanId]);
             $rows = $existing->fetchAll();
 
+            $interestAccruals = new InterestAccrual();
+            $forgivenAccruedInterest = 0.0;
+
             foreach ($rows as $row) {
                 if ($row['status'] === 'Pending') {
                     $del = $db->prepare("DELETE FROM loan_schedules WHERE id = ?");
@@ -162,6 +168,19 @@ class RescheduleService
                     // is closed out in place rather than deleted -- setting
                     // total_due = total_paid removes it from every existing
                     // "outstanding" query without touching those queries.
+                    //
+                    // If this row's interest was already accrued (recognized
+                    // as Interest Income), the portion being forgiven here
+                    // must be reversed out of income too -- captured before
+                    // the UPDATE below overwrites interest_due, and posted
+                    // as one combined journal for the whole reschedule once
+                    // the loop finishes. A never-accrued row needs no entry;
+                    // nothing was recognized for it in the first place.
+                    $forgiven = round((float) $row['interest_due'] - (float) $row['interest_paid'], 2);
+                    if ($forgiven > 0 && $interestAccruals->findByScheduleId((int) $row['id'])) {
+                        $forgivenAccruedInterest += $forgiven;
+                    }
+
                     $upd = $db->prepare(
                         "UPDATE loan_schedules SET principal_due = principal_paid, interest_due = interest_paid,
                          fees_due = fees_paid, namfisa_levy_due = namfisa_levy_paid, duty_stamp_due = duty_stamp_paid,
@@ -169,6 +188,23 @@ class RescheduleService
                     );
                     $upd->execute([date('Y-m-d H:i:s'), $row['id']]);
                 }
+            }
+
+            $forgivenAccruedInterest = round($forgivenAccruedInterest, 2);
+            if ($forgivenAccruedInterest > 0) {
+                $accounts = new AccountingAccount();
+                (new AccountingJournal())->post(
+                    'LOAN_RESCHEDULE',
+                    'loan_reschedules',
+                    (int) $reschedule['id'],
+                    (string) ($reschedule['reschedule_no'] ?? $loanId),
+                    'Already-accrued interest forgiven on reschedule of loan #' . $loanId,
+                    [
+                        ['account_id' => $accounts->idByCode('4010'), 'debit' => $forgivenAccruedInterest, 'credit' => 0],
+                        ['account_id' => $accounts->idByCode('1030'), 'debit' => 0, 'credit' => $forgivenAccruedInterest],
+                    ],
+                    $userId
+                );
             }
 
             $loanModel->insertScheduleRows($loanId, $newRows);

@@ -11,6 +11,7 @@ use App\Models\AccountingAccount;
 use App\Models\AccountingJournal;
 use App\Models\BadDebt;
 use App\Models\BadDebtProvision;
+use App\Models\InterestAccrual;
 use App\Models\Loan;
 use App\Models\LoanWriteOff;
 use App\Models\Penalty;
@@ -210,15 +211,25 @@ class LoanWriteOffController extends Controller
         }
         $lines[] = ['account_id' => $loansReceivableId, 'debit' => 0, 'credit' => $outstanding];
 
-        // Any penalty charged via the accrual run but never collected is
-        // still sitting as a Penalty Receivable against Deferred Penalty
-        // Income -- neither side was ever recognized as P&L income, so
-        // writing it off just clears both balance-sheet legs, with no
-        // additional expense.
+        // Any penalty charged via the accrual run but never collected was
+        // already recognized as Penalty Income the moment it was charged --
+        // writing it off reverses that income (it will now never be
+        // collected) and clears the receivable.
         $penaltyOutstanding = round((new Penalty())->outstandingForLoan((int) $writeOff['loan_id']), 2);
         if ($penaltyOutstanding > 0) {
-            $lines[] = ['account_id' => $this->accounts->idByCode('2050'), 'debit' => $penaltyOutstanding, 'credit' => 0];
+            $lines[] = ['account_id' => $this->accounts->idByCode('4020'), 'debit' => $penaltyOutstanding, 'credit' => 0];
             $lines[] = ['account_id' => $this->accounts->idByCode('1040'), 'debit' => 0, 'credit' => $penaltyOutstanding];
+        }
+
+        // Same idea for interest already recognized via the accrual run
+        // (InterestAccrualService) but never collected -- not-yet-due,
+        // not-yet-accrued interest was never booked to 1030 in the first
+        // place, so only the actually-accrued outstanding amount needs
+        // reversing here.
+        $interestOutstanding = round((new InterestAccrual())->outstandingForLoan((int) $writeOff['loan_id']), 2);
+        if ($interestOutstanding > 0) {
+            $lines[] = ['account_id' => $this->accounts->idByCode('4010'), 'debit' => $interestOutstanding, 'credit' => 0];
+            $lines[] = ['account_id' => $this->accounts->idByCode('1030'), 'debit' => 0, 'credit' => $interestOutstanding];
         }
 
         try {

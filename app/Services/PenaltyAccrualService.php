@@ -39,11 +39,10 @@ use App\Models\Penalty;
  * still owed including any rolled-forward penalty". Rolling a penalty
  * forward only changes the target row's penalty_due/total_due.
  *
- * This is the accrual half of the deferred-income pattern: charging a
- * penalty here only raises a Penalty Receivable against Deferred Penalty
- * Income. It is not recognized as P&L income until actually collected
- * (Payment::postCollectionAccounting() moves it from Deferred Penalty
- * Income into Penalty Income at that point).
+ * A penalty is recognized as P&L income (Penalty Income, 4020) the moment
+ * it's charged here -- not when it's later collected. Payment::
+ * postCollectionAccounting() only relieves Penalty Receivable against Bank
+ * at that point; it never recognizes income a second time.
  *
  * accrue() is called from two places: automatically from
  * Payment::allocateToSchedule() right before a payment is applied (scoped
@@ -144,9 +143,9 @@ class PenaltyAccrualService
      * the amount onto the target installment's penalty_due/total_due
      * (the next installment, or the same row if there is none), rolls
      * forward opening/closing balances downstream of that row, and posts
-     * one combined accrual journal (Dr Penalty Receivable / Cr Deferred
-     * Penalty Income) for the total. Returns the installments charged --
-     * empty if there was nothing to charge.
+     * one combined accrual journal (Dr Penalty Receivable / Cr Penalty
+     * Income) for the total. Returns the installments charged -- empty if
+     * there was nothing to charge.
      */
     public static function accrue(string $asOfDate, ?int $userId, ?int $loanId = null): array
     {
@@ -170,7 +169,7 @@ class PenaltyAccrualService
             'Penalty charges raised as at ' . $asOfDate,
             [
                 ['account_id' => $accounts->idByCode('1040'), 'debit' => $total, 'credit' => 0],
-                ['account_id' => $accounts->idByCode('2050'), 'debit' => 0, 'credit' => $total],
+                ['account_id' => $accounts->idByCode('4020'), 'debit' => 0, 'credit' => $total],
             ],
             $userId,
             $asOfDate,

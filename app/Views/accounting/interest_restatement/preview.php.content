@@ -1,0 +1,52 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Interest &amp; Penalty Accrual Restatement</h4>
+    <p class="text-muted small mb-3">
+      One-time catch-up for the move from cash-basis to accrual-basis income recognition. For interest, posts a
+      single adjusting journal per affected loan: whatever's already earned (installments due by today, or any
+      interest already collected early) moves from Deferred Interest Income into Interest Income now; whatever
+      isn't earned yet moves back out of Interest Receivable so the ordinary accrual run books it fresh when its
+      real due date arrives. For penalty, moves the full outstanding Deferred Penalty Income into Penalty Income
+      for every loan with an uncollected charged penalty. Written Off loans are automatically skipped. Safe to run
+      more than once: already-restated loans are skipped on a re-run.
+    </p>
+
+    <?php if ($summary['loan_count'] === 0 && $summary['penalty_loan_count'] === 0): ?>
+      <div class="alert alert-success mb-0">Nothing to restate -- every Active/Current loan is already on the new accrual method, or has no outstanding interest/penalty.</div>
+    <?php else: ?>
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Loans Affected (Interest)</div>
+            <div class="fs-4 fw-bold"><?= (int) $summary['loan_count'] ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Interest to Recognize Now</div>
+            <div class="fs-5"><?= format_money($summary['total_recognized']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Interest Reversed (Not Yet Earned)</div>
+            <div class="fs-5"><?= format_money($summary['total_reversed']) ?></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 text-center">
+            <div class="text-muted small">Penalty to Recognize (<?= (int) $summary['penalty_loan_count'] ?> loan(s))</div>
+            <div class="fs-5"><?= format_money($summary['total_penalty_recognized']) ?></div>
+          </div>
+        </div>
+      </div>
+
+      <form method="post" action="<?= url('/accounting/interest-restatement/run') ?>" onsubmit="return confirm('Post the restatement now? This cannot be undone from this screen.');">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-warning"><i class="mdi mdi-clipboard-text"></i> Post Restatement</button>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>

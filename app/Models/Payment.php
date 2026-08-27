@@ -250,13 +250,22 @@ class Payment extends Model
      */
     private function allocateToSchedule(array $loan, int $paymentId, float $amount, ?int $userId, ?int $bankAccountId = null, ?string $paymentDate = null): void
     {
+        $asOfDate = $paymentDate ?? date('Y-m-d');
+
         // Auto-accrue any installment that's gone past its grace period as
         // of this payment's date, scoped to this loan, before allocating --
         // this is what makes penalty charging automatic instead of relying
         // on staff to run the manual Penalty Accruals screen first. A no-op
         // if nothing is newly chargeable (already-charged installments are
         // skipped by the NOT EXISTS guard in PenaltyAccrualService).
-        \App\Services\PenaltyAccrualService::accrue($paymentDate ?? date('Y-m-d'), $userId, (int) $loan['id']);
+        \App\Services\PenaltyAccrualService::accrue($asOfDate, $userId, (int) $loan['id']);
+
+        // Same idea for interest: recognizes income for any due installment
+        // this payment doesn't happen to reach. The installment(s) this
+        // payment DOES reach are covered per-row in allocateRowAndAccumulate()
+        // via ensureAccrued(), which also handles early/advance payments
+        // that arrive before an installment's due date.
+        \App\Services\InterestAccrualService::accrue($asOfDate, $userId, (int) $loan['id']);
 
         $remaining = $amount;
         $totals = ['principal' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'penalty' => 0.0];
@@ -270,7 +279,7 @@ class Payment extends Model
             if ($remaining <= 0.009) {
                 break;
             }
-            $remaining = $this->allocateRowAndAccumulate($row, $paymentId, (int) $loan['id'], $remaining, $totals);
+            $remaining = $this->allocateRowAndAccumulate($row, $paymentId, (int) $loan['id'], $remaining, $totals, $asOfDate, $userId);
         }
 
         $this->finalizeAllocation($loan, $paymentId, $amount, $totals, $remaining, $userId, $bankAccountId, $paymentDate);
@@ -284,14 +293,17 @@ class Payment extends Model
      */
     private function allocateToSpecificSchedule(array $loan, int $scheduleId, int $paymentId, float $amount, ?int $userId, ?int $bankAccountId = null, ?string $paymentDate = null): void
     {
-        \App\Services\PenaltyAccrualService::accrue($paymentDate ?? date('Y-m-d'), $userId, (int) $loan['id']);
+        $asOfDate = $paymentDate ?? date('Y-m-d');
+
+        \App\Services\PenaltyAccrualService::accrue($asOfDate, $userId, (int) $loan['id']);
+        \App\Services\InterestAccrualService::accrue($asOfDate, $userId, (int) $loan['id']);
 
         $remaining = $amount;
         $totals = ['principal' => 0.0, 'interest' => 0.0, 'fees' => 0.0, 'namfisa_levy' => 0.0, 'duty_stamp' => 0.0, 'penalty' => 0.0];
 
         $row = $this->one("SELECT * FROM loan_schedules WHERE id = ? AND loan_id = ?", [$scheduleId, $loan['id']]);
         if ($row && $row['status'] !== 'Paid') {
-            $remaining = $this->allocateRowAndAccumulate($row, $paymentId, (int) $loan['id'], $remaining, $totals);
+            $remaining = $this->allocateRowAndAccumulate($row, $paymentId, (int) $loan['id'], $remaining, $totals, $asOfDate, $userId);
         }
 
         $this->finalizeAllocation($loan, $paymentId, $amount, $totals, $remaining, $userId, $bankAccountId, $paymentDate);
@@ -305,9 +317,19 @@ class Payment extends Model
      * $remaining is left unallocated. Shared by the FIFO (allocateToSchedule)
      * and targeted (allocateToSpecificSchedule) allocation paths so both
      * apply identical per-row logic.
+     *
+     * Before touching this row's interest, ensures it's been recognized as
+     * income (InterestAccrualService::ensureAccrued()) -- covers the case
+     * where this payment collects a row's interest before its due date has
+     * naturally accrued it (an early/advance payment), so income is always
+     * recognized no later than the moment it's collected, never only then.
      */
-    private function allocateRowAndAccumulate(array $row, int $paymentId, int $loanId, float $remaining, array &$totals): float
+    private function allocateRowAndAccumulate(array $row, int $paymentId, int $loanId, float $remaining, array &$totals, ?string $asOfDate = null, ?int $userId = null): float
     {
+        if ((float) $row['interest_due'] > 0) {
+            \App\Services\InterestAccrualService::ensureAccrued((int) $row['id'], $asOfDate ?? date('Y-m-d'), $userId);
+        }
+
         $outstanding = [
             'penalty' => round((float) $row['penalty_due'] - (float) $row['penalty_paid'], 2),
             'interest' => round((float) $row['interest_due'] - (float) $row['interest_paid'], 2),
@@ -427,23 +449,19 @@ class Payment extends Model
     /**
      * Dr Bank Account (full amount received)
      *   Cr Loans Receivable       (principal collected -- relieves the receivable booked at disbursement)
-     *   Cr Interest Receivable    (interest collected -- relieves the receivable booked at disbursement)
+     *   Cr Interest Receivable    (interest collected -- relieves the receivable raised by the interest
+     *                              accrual run; interest income was already recognized when it was
+     *                              accrued, so collecting it never recognizes income a second time)
      *   Cr NAMFISA Levy Receivable / Cr Stamp Duty Receivable (levy/stamp collected -- same relief;
      *                              the matching Payable side doesn't move here, it was already fully
      *                              booked at disbursement and settles separately when actually remitted)
      *   Cr Admin Fee Income       (fees collected)
      *   Cr Penalty Receivable     (penalty collected -- relieves the receivable raised by the
-     *                              penalty accrual run; penalty_due is only ever non-zero because
-     *                              of that accrual, so it is always backed by one)
+     *                              penalty accrual run; penalty income was already recognized when
+     *                              the penalty was charged, so collecting it never recognizes income
+     *                              a second time)
      *   Cr Refunds Payable        (any amount left over after clearing the whole schedule --
      *                              an overpayment owed back to the borrower)
-     *
-     * Plus, for the interest and penalty portions, a self-contained
-     * reclassification that recognizes the deferred income now that cash
-     * has actually been collected (this system does not recognize any
-     * income before it's in hand):
-     *   Dr Deferred Interest Income / Dr Deferred Penalty Income
-     *     Cr Interest Income / Cr Penalty Income
      */
     private function postCollectionAccounting(array $loan, int $paymentId, float $amount, array $totals, float $overpayment, ?int $userId, ?int $bankAccountId = null, ?string $paymentDate = null): void
     {
@@ -500,18 +518,6 @@ class Payment extends Model
                 'credit' => $totals['interest'],
                 'description' => 'Interest receivable settled for ' . $loan['loan_no'],
             ];
-            $lines[] = [
-                'account_id' => $accounts->idByCode('2011'),
-                'debit' => $totals['interest'],
-                'credit' => 0,
-                'description' => 'Deferred interest income recognized for ' . $loan['loan_no'],
-            ];
-            $lines[] = [
-                'account_id' => $accounts->idByCode('4010'),
-                'debit' => 0,
-                'credit' => $totals['interest'],
-                'description' => 'Interest income for ' . $loan['loan_no'],
-            ];
         }
         if ($totals['fees'] > 0) {
             $lines[] = [
@@ -527,18 +533,6 @@ class Payment extends Model
                 'debit' => 0,
                 'credit' => $totals['penalty'],
                 'description' => 'Penalty receivable settled for ' . $loan['loan_no'],
-            ];
-            $lines[] = [
-                'account_id' => $accounts->idByCode('2050'),
-                'debit' => $totals['penalty'],
-                'credit' => 0,
-                'description' => 'Deferred penalty income recognized for ' . $loan['loan_no'],
-            ];
-            $lines[] = [
-                'account_id' => $accounts->idByCode('4020'),
-                'debit' => 0,
-                'credit' => $totals['penalty'],
-                'description' => 'Penalty income for ' . $loan['loan_no'],
             ];
         }
         if ($overpayment > 0) {

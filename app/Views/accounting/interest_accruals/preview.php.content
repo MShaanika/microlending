@@ -1,0 +1,50 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Preview: Interest Accrual as at <?= e($asOfDate) ?></h4>
+    <p class="text-muted small">Nothing is posted yet. Each installment below is due on or before this date and has never had its interest accrued before &mdash; running this again later will not double-accrue them.</p>
+
+    <div class="p-3 border rounded d-inline-block">
+      <div class="text-muted small">Total to Accrue</div>
+      <div class="fs-4 fw-bold"><?= e(format_money($total)) ?></div>
+    </div>
+
+    <?php if ($total > 0): ?>
+      <form method="post" action="<?= url('/accounting/interest-accruals') ?>" class="mt-3" onsubmit="return confirmSubmit(this, 'Post this interest accrual? This will create a journal entry recognizing this income now.');">
+        <?= csrf_field() ?>
+        <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+        <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Post Accrual</button>
+        <a href="<?= url('/accounting/interest-accruals') ?>" class="btn btn-outline-secondary">Cancel</a>
+      </form>
+    <?php else: ?>
+      <div class="alert alert-info mt-3">No newly-due, unaccrued installments as at this date.</div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Accruable Installments</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Loan</th><th>Borrower</th><th>Due Date</th><th class="text-end">Interest</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($installments)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-4">Nothing to accrue.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($installments as $inst): ?>
+            <tr>
+              <td><?= e($inst['loan_no']) ?></td>
+              <td><?= e($inst['borrower_name'] ?? '') ?></td>
+              <td><?= e($inst['due_date']) ?></td>
+              <td class="text-end"><?= e(format_money($inst['interest_amount'])) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
