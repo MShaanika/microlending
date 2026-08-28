@@ -1,0 +1,45 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Loan Status Dimensions Backfill</h4>
+    <p class="text-muted small mb-3">
+      One-time catch-up for the move to stored payment_status/aging_bucket/collection_status/credit_status columns
+      on every loan (see the Status Flow and Accounting Integration Guide). Recomputes each loan's current arrears
+      state from its schedule and writes it to these columns, and normalizes any remaining loan_status = "Current"
+      rows back to "Active" (that lifecycle value is retired -- payment condition is now tracked separately). Run
+      this before relying on the new columns anywhere; it's safe to run more than once, since already-correct loans
+      are skipped on a re-run.
+    </p>
+
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <div class="border rounded p-3 text-center">
+          <div class="text-muted small">Total Loans</div>
+          <div class="fs-4 fw-bold"><?= (int) $summary['loan_count'] ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded p-3 text-center">
+          <div class="text-muted small">Loans Needing Update</div>
+          <div class="fs-4 fw-bold"><?= (int) $summary['changed_count'] ?></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded p-3 text-center">
+          <div class="text-muted small">loan_status = "Current" to Normalize</div>
+          <div class="fs-4 fw-bold"><?= (int) $summary['current_status_count'] ?></div>
+        </div>
+      </div>
+    </div>
+
+    <?php if ($summary['changed_count'] === 0 && $summary['current_status_count'] === 0): ?>
+      <div class="alert alert-success mb-0">Nothing to backfill -- every loan's status dimensions already match its real arrears state.</div>
+    <?php else: ?>
+      <form method="post" action="<?= url('/accounting/loan-status-backfill/run') ?>" onsubmit="return confirm('Run the backfill now? This updates loan status columns directly.');">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-warning"><i class="mdi mdi-database-refresh"></i> Run Backfill</button>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>

@@ -11,12 +11,14 @@ use App\Models\AccountingAccount;
 use App\Models\AccountingJournal;
 use App\Models\BadDebt;
 use App\Models\BadDebtProvision;
+use App\Models\Loan;
 use App\Services\ArrearsService;
 
 class BadDebtProvisionController extends Controller
 {
     private BadDebtProvision $provisions;
     private BadDebt $badDebts;
+    private Loan $loans;
     private AccountingAccount $accounts;
     private AccountingJournal $journal;
 
@@ -24,6 +26,7 @@ class BadDebtProvisionController extends Controller
     {
         $this->provisions = new BadDebtProvision();
         $this->badDebts = new BadDebt();
+        $this->loans = new Loan();
         $this->accounts = new AccountingAccount();
         $this->journal = new AccountingJournal();
     }
@@ -56,6 +59,9 @@ class BadDebtProvisionController extends Controller
 
         [$loans, $totalRequired] = $this->computeRun($asOfDate);
         $currentBalance = $this->provisions->currentProvisionBalance();
+        // $released (cured loans needing a zero snapshot) isn't shown here --
+        // they carry no GL impact, so there's nothing for staff to preview
+        // or approve; see post() for why they still need a row written.
 
         $this->view('accounting/bad_debt_provisions/preview', [
             'title' => 'Preview Bad Debt Provisioning',
@@ -79,21 +85,31 @@ class BadDebtProvisionController extends Controller
         $asOfDate = $_POST['as_of_date'] ?? date('Y-m-d');
         $userId = Auth::user()['id'] ?? null;
 
-        [$loans, $totalRequired] = $this->computeRun($asOfDate);
+        [$loans, $totalRequired, $released] = $this->computeRun($asOfDate);
         $currentBalance = $this->provisions->currentProvisionBalance();
         $delta = round($totalRequired - $currentBalance, 2);
 
-        if (abs($delta) < 0.01) {
+        if (abs($delta) < 0.01 && empty($loans) && empty($released)) {
             Session::flash('success', 'No change needed -- the provision already matches the required level (' . format_money($totalRequired) . ').');
             $this->redirect('/accounting/bad-debt-provisions');
             return;
         }
 
+        // A loan that cures still needs its own zero-provision row written
+        // even when the PORTFOLIO-level delta nets to ~0 (e.g. one loan
+        // cures while another enters arrears for a similar amount) --
+        // otherwise provisionForLoan() keeps returning that loan's stale
+        // last-nonzero snapshot forever. $journalId stays null when no
+        // net GL adjustment is required this run; the zero rows below carry
+        // no independent GL impact of their own.
+        $journalId = null;
         $badDebtExpenseId = $this->accounts->idByCode('5010');
         $provisionAccountId = $this->accounts->idByCode('1050');
 
         try {
-            if ($delta > 0) {
+            if (abs($delta) < 0.01) {
+                // fall through with $journalId = null
+            } elseif ($delta > 0) {
                 $journalId = $this->journal->post(
                     'BAD_DEBT_PROVISION',
                     'bad_debt_provisions',
@@ -173,10 +189,44 @@ class BadDebtProvisionController extends Controller
                 'posted_by' => $userId,
                 'posted_at' => date('Y-m-d H:i:s'),
             ]);
+
+            ArrearsService::refreshLoanStatus((int) $loan['loan_id'], $asOfDate, $userId, 'Sweep', 'PROVISION_RUN:' . $asOfDate);
+        }
+
+        // Cured loans: no GL impact of their own (provision_amount = 0), but
+        // still need an explicit snapshot row so provisionForLoan() stops
+        // returning their stale last-nonzero value and credit_status can
+        // revert. bad_debts.aging_bucket is left untouched here -- its ENUM
+        // only accepts the overdue buckets (30-59/60-89/90+), so a cured
+        // loan (back to Current/1-29) has no valid value to write into it.
+        foreach ($released as $loan) {
+            $badDebt = $this->badDebts->findByLoan((int) $loan['loan_id']);
+            if ($badDebt) {
+                $this->badDebts->updateRecord((int) $badDebt['id'], ['status' => 'Open']);
+            }
+
+            $this->provisions->create([
+                'loan_id' => $loan['loan_id'],
+                'borrower_id' => $loan['borrower_id'],
+                'branch_id' => $loan['branch_id'],
+                'bad_debt_id' => $badDebt ? (int) $badDebt['id'] : null,
+                'provision_no' => generate_reference('PRVL'),
+                'provision_date' => $asOfDate,
+                'outstanding_balance' => 0,
+                'aging_days' => 0,
+                'provision_rate' => 0,
+                'provision_amount' => 0,
+                'status' => 'Posted',
+                'journal_id' => $journalId,
+                'posted_by' => $userId,
+                'posted_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            ArrearsService::refreshLoanStatus((int) $loan['loan_id'], $asOfDate, $userId, 'Sweep', 'PROVISION_RUN:' . $asOfDate);
         }
 
         Audit::log('Create', 'Accounting', 'Posted bad debt provisioning run as at ' . $asOfDate . ' (' . format_money($delta) . ' adjustment)');
-        Session::flash('success', 'Provisioning posted: ' . format_money($delta) . ' adjustment across ' . count($loans) . ' loan(s) in arrears.');
+        Session::flash('success', 'Provisioning posted: ' . format_money($delta) . ' adjustment across ' . count($loans) . ' loan(s) in arrears' . (count($released) > 0 ? ', ' . count($released) . ' loan(s) released.' : '.'));
         $this->redirect('/accounting/bad-debt-provisions');
     }
 
@@ -191,16 +241,39 @@ class BadDebtProvisionController extends Controller
     }
 
     /**
-     * @return array{0: array, 1: float}
+     * @return array{0: array, 1: float, 2: array}
      */
     private function computeRun(string $asOfDate): array
     {
         $loans = array_filter(
             ArrearsService::overdueLoans($asOfDate),
-            fn ($l) => $l['aging_bucket'] !== 'Current' && $l['aging_bucket'] !== '1-30' && $l['provision_amount'] > 0
+            fn ($l) => $l['aging_bucket'] !== 'Current' && $l['aging_bucket'] !== '1-29' && $l['provision_amount'] > 0
         );
         $loans = array_values($loans);
         $totalRequired = round(array_sum(array_column($loans, 'provision_amount')), 2);
-        return [$loans, $totalRequired];
+
+        // Loans that cure (return to Current/1-29, or pay off entirely)
+        // simply drop out of overdueLoans() -- find every loan whose most
+        // recent Posted provision snapshot is still nonzero but is no
+        // longer in the set above, so post() can write an explicit release
+        // row for it (see the loop over $released there).
+        $stillProvisioned = array_map('intval', array_column($loans, 'loan_id'));
+        $released = [];
+        foreach ($this->provisions->loanIdsWithNonzeroPostedProvision() as $loanId) {
+            if (in_array($loanId, $stillProvisioned, true)) {
+                continue;
+            }
+            $loanRow = $this->loans->find($loanId);
+            if (!$loanRow) {
+                continue;
+            }
+            $released[] = [
+                'loan_id' => $loanId,
+                'borrower_id' => (int) $loanRow['borrower_id'],
+                'branch_id' => (int) $loanRow['branch_id'],
+            ];
+        }
+
+        return [$loans, $totalRequired, $released];
     }
 }

@@ -441,9 +441,20 @@ class Payment extends Model
                 'notes' => 'All installments paid in full.',
                 'changed_by' => $userId,
             ]);
-        } elseif ($loan['loan_status'] === 'Active') {
-            $this->update('loans', ['loan_status' => 'Current'], 'id', $loan['id']);
         }
+
+        // Loan stays 'Active' for its whole disbursed life -- lifecycle
+        // ('Active') and payment condition ('Current'/'In Arrears') are
+        // separate dimensions now (see ArrearsService::refreshLoanStatus());
+        // the old one-way flip to loan_status='Current' on first payment is
+        // retired.
+        \App\Services\ArrearsService::refreshLoanStatus(
+            (int) $loan['id'],
+            $paymentDate ?: date('Y-m-d'),
+            $userId,
+            'Payment',
+            'PAYMENT:' . $paymentId
+        );
     }
 
     /**

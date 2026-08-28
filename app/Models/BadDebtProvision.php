@@ -61,4 +61,28 @@ class BadDebtProvision extends Model
             [$loanId]
         ) ?: 0);
     }
+
+    /**
+     * Loans whose most recent Posted provision snapshot is still nonzero --
+     * used by BadDebtProvisionController::computeRun() to find loans that
+     * have cured (dropped out of the current overdue set) but still need an
+     * explicit provision_amount=0 row written, otherwise provisionForLoan()
+     * would keep returning their stale last-nonzero snapshot forever and
+     * credit_status could never revert from 'Impaired'.
+     */
+    public function loanIdsWithNonzeroPostedProvision(): array
+    {
+        $rows = $this->all(
+            "SELECT bp.loan_id
+             FROM bad_debt_provisions bp
+             INNER JOIN (
+                 SELECT loan_id, MAX(id) AS max_id
+                 FROM bad_debt_provisions
+                 WHERE status = 'Posted'
+                 GROUP BY loan_id
+             ) latest ON latest.max_id = bp.id
+             WHERE bp.provision_amount > 0.009"
+        );
+        return array_map('intval', array_column($rows, 'loan_id'));
+    }
 }

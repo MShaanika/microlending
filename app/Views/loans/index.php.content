@@ -16,7 +16,7 @@
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
-          <?php foreach (['Draft','Pending Approval','Approved','Active','Current','Completed','Denied','Written Off','Cancelled','Arrear','Bad Debt','Bad Debt Recovery'] as $s): ?>
+          <?php foreach (['Draft','Pending Approval','Approved','Active','Completed','Denied','Written Off','Cancelled','Recovered - Closed','Arrear','Bad Debt','Bad Debt Recovery'] as $s): ?>
             <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
           <?php endforeach; ?>
         </select>
@@ -58,7 +58,7 @@
             <?php
               $badge = match ($loan['loan_status']) {
                 'Active', 'Current', 'Released' => 'success',
-                'Completed' => 'primary',
+                'Completed', 'Recovered - Closed' => 'primary',
                 'Denied', 'Written Off', 'Cancelled' => 'danger',
                 'Approved' => 'info',
                 default => 'warning',

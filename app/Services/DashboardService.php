@@ -116,7 +116,7 @@ class DashboardService
     public static function arrearsAging(?int $branchId = null): array
     {
         $buckets = [];
-        foreach (['1-30', '31-60', '61-90', '91-180', '180+'] as $b) {
+        foreach (['1-29', '30-59', '60-89', '90+'] as $b) {
             $buckets[$b] = ['bucket' => $b, 'count' => 0, 'value' => 0.0];
         }
 

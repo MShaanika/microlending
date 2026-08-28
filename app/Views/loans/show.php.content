@@ -3,10 +3,22 @@
 <?php
   $badge = match ($loan['loan_status']) {
     'Active', 'Current', 'Released' => 'success',
-    'Completed' => 'primary',
+    'Completed', 'Recovered - Closed' => 'primary',
     'Denied', 'Written Off', 'Cancelled' => 'danger',
     'Approved' => 'info',
     default => 'warning',
+  };
+  $paymentStatusBadge = $loan['payment_status'] === 'In Arrears' ? 'danger' : 'success';
+  $collectionStatusBadge = match ($loan['collection_status']) {
+    'Arrears Recovery' => 'warning',
+    'Recovery Arrangement' => 'info',
+    default => 'secondary',
+  };
+  $creditStatusBadge = match ($loan['credit_status']) {
+    'Watchlist' => 'warning',
+    'Non-Performing' => 'danger',
+    'Impaired' => 'dark',
+    default => 'success',
   };
   $totalPaid = array_sum(array_column($schedule, 'total_paid'));
   $totalDue = array_sum(array_column($schedule, 'total_due'));
@@ -19,6 +31,14 @@
         <div class="d-flex justify-content-between align-items-start">
           <h4 class="card-title mb-0"><?= e($loan['loan_no']) ?></h4>
           <span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span>
+        </div>
+        <div class="mb-2">
+          <span class="badge bg-<?= $paymentStatusBadge ?>" title="Payment Status"><?= e($loan['payment_status']) ?></span>
+          <?php if ($loan['payment_status'] === 'In Arrears'): ?>
+            <span class="badge bg-secondary" title="Aging Bucket"><?= e($loan['aging_bucket']) ?></span>
+          <?php endif; ?>
+          <span class="badge bg-<?= $collectionStatusBadge ?>" title="Collection Status"><?= e($loan['collection_status']) ?></span>
+          <span class="badge bg-<?= $creditStatusBadge ?>" title="Credit Status"><?= e($loan['credit_status']) ?></span>
         </div>
         <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
 

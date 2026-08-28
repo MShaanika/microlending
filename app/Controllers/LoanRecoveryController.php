@@ -11,6 +11,7 @@ use App\Models\AccountingAccount;
 use App\Models\AccountingJournal;
 use App\Models\BadDebt;
 use App\Models\BankAccount;
+use App\Models\Loan;
 use App\Models\LoanRecovery;
 use App\Models\LoanWriteOff;
 
@@ -19,6 +20,7 @@ class LoanRecoveryController extends Controller
     private LoanRecovery $recoveries;
     private LoanWriteOff $writeOffs;
     private BadDebt $badDebts;
+    private Loan $loans;
     private BankAccount $bankAccounts;
     private AccountingAccount $accounts;
     private AccountingJournal $journal;
@@ -28,6 +30,7 @@ class LoanRecoveryController extends Controller
         $this->recoveries = new LoanRecovery();
         $this->writeOffs = new LoanWriteOff();
         $this->badDebts = new BadDebt();
+        $this->loans = new Loan();
         $this->bankAccounts = new BankAccount();
         $this->accounts = new AccountingAccount();
         $this->journal = new AccountingJournal();
@@ -137,6 +140,17 @@ class LoanRecoveryController extends Controller
         if (!empty($writeOff['bad_debt_id'])) {
             $newStatus = $totalRecovered >= (float) $writeOff['outstanding_balance'] ? 'Recovered' : 'Under Recovery';
             $this->badDebts->updateRecord((int) $writeOff['bad_debt_id'], ['status' => $newStatus]);
+
+            if ($newStatus === 'Recovered') {
+                $this->loans->updateFields((int) $writeOff['loan_id'], ['loan_status' => 'Recovered - Closed']);
+                $this->loans->logStatus(
+                    (int) $writeOff['loan_id'],
+                    $writeOff['loan_status'],
+                    'Recovered - Closed',
+                    $userId,
+                    'Fully recovered after write-off ' . $writeOff['write_off_no'] . '.'
+                );
+            }
         }
 
         Audit::log('Create', 'Accounting', 'Recorded recovery #' . $recoveryId . ' of ' . format_money($amount) . ' for write-off ' . $writeOff['write_off_no']);

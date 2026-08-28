@@ -29,6 +29,7 @@ use App\Controllers\LoanWriteOffController;
 use App\Controllers\LoanRecoveryController;
 use App\Controllers\InterestAccrualController;
 use App\Controllers\InterestAccrualRestatementController;
+use App\Controllers\LoanStatusBackfillController;
 use App\Controllers\PenaltyAccrualController;
 use App\Controllers\BankReconciliationController;
 use App\Controllers\UserController;
@@ -469,6 +470,9 @@ $router->get('/accounting/interest-accruals/runs/{date}', [InterestAccrualContro
 
 $router->get('/accounting/interest-restatement', [InterestAccrualRestatementController::class, 'preview']);
 $router->post('/accounting/interest-restatement/run', [InterestAccrualRestatementController::class, 'run']);
+
+$router->get('/accounting/loan-status-backfill', [LoanStatusBackfillController::class, 'preview']);
+$router->post('/accounting/loan-status-backfill/run', [LoanStatusBackfillController::class, 'run']);
 
 $router->get('/accounting/bank-reconciliation', [BankReconciliationController::class, 'index']);
 $router->get('/accounting/bank-reconciliation/history', [BankReconciliationController::class, 'history']);

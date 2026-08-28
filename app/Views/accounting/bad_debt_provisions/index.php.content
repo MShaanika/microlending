@@ -15,7 +15,7 @@
         <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-calculator"></i> Run Provisioning</button>
       </form>
     </div>
-    <p class="text-muted small mt-2 mb-0">Default provisioning rates by days overdue: 31-60 days = 25%, 61-90 = 50%, 91-180 = 75%, 180+ = 100% of the loan's outstanding principal + NAMFISA levy + duty stamp. Adjust in <code>ArrearsService::PROVISION_RATES</code> if the client specifies different bands.</p>
+    <p class="text-muted small mt-2 mb-0">Placeholder provisioning rates by days overdue (pending Finance sign-off): 30-59 days = 25%, 60-89 = 60%, 90+ = 100% of the loan's outstanding principal + NAMFISA levy + duty stamp. Adjust in <code>ArrearsService::PROVISION_RATES</code> once Finance confirms final bands.</p>
   </div>
 </div>
 
