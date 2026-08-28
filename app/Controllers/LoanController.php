@@ -126,7 +126,7 @@ class LoanController extends Controller
         $scopeBranchId = $this->scopeBranchId();
         $this->view('loans/create', [
             'title' => 'New Loan',
-            'borrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
+            'borrowers' => $this->borrowers->paginated('', 'Approved', 500, $scopeBranchId),
             'products' => $this->products->activeWithPlans(),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'activeLoansByBorrower' => $this->buildActiveLoansByBorrower($scopeBranchId),
@@ -186,8 +186,12 @@ class LoanController extends Controller
             $borrower = null;
         }
 
+        if ($borrower && $borrower['status'] !== 'Approved') {
+            $borrower = null;
+        }
+
         if (!$borrower) {
-            $errors['borrower_id'] = 'Select a valid borrower.';
+            $errors['borrower_id'] = 'Select a valid, approved borrower.';
         }
         if (!$product) {
             $errors['product_id'] = 'Select a valid loan product.';
@@ -235,7 +239,7 @@ class LoanController extends Controller
         if (!empty($errors)) {
             $this->view('loans/create', [
                 'title' => 'New Loan',
-                'borrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
+                'borrowers' => $this->borrowers->paginated('', 'Approved', 500, $scopeBranchId),
                 'products' => $this->products->activeWithPlans(),
                 'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
                 'activeLoansByBorrower' => $this->buildActiveLoansByBorrower($scopeBranchId),
