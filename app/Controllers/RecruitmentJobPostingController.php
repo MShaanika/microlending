@@ -146,7 +146,7 @@ class RecruitmentJobPostingController extends Controller
             'posting' => $posting,
             'questions' => $this->questions->findMany($questionIds),
             'rounds' => $this->rounds->forJob($id),
-            'publicUrl' => url('/careers/' . $posting['posting_code']),
+            'publicUrl' => full_url('/careers/' . $posting['posting_code']),
         ];
 
         if ($this->isAjax()) {
