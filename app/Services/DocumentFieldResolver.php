@@ -6,6 +6,7 @@ use App\Core\Database;
 use App\Models\Borrower;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationScreening;
 use App\Models\LoanReschedule;
 use App\Models\DebitOrderCancellation;
 
@@ -58,6 +59,7 @@ class DocumentFieldResolver
         $reschedule = !empty($document['reschedule_id']) ? (new LoanReschedule())->find((int) $document['reschedule_id']) : null;
         $debitOrderCancellation = !empty($document['debit_order_cancellation_id']) ? (new DebitOrderCancellation())->find((int) $document['debit_order_cancellation_id']) : null;
         $bankAnalysis = $application ? self::latestBankAnalysis((int) $application['id']) : null;
+        $screening = $application ? (new LoanApplicationScreening())->forApplication((int) $application['id']) : null;
 
         // "All loans" consolidation: no single loan_id, aggregate every
         // currently-active loan for this borrower instead. Deliberately
@@ -82,6 +84,7 @@ class DocumentFieldResolver
             'refund_claim' => $refundClaim,
             'application' => $application,
             'bank_analysis' => $bankAnalysis,
+            'screening' => $screening,
             'reschedule' => $reschedule,
             'debit_order_cancellation' => $debitOrderCancellation,
         ];
@@ -192,6 +195,31 @@ class DocumentFieldResolver
             case 'requested_amount_formatted':
                 $application = $context['application'];
                 return $application ? format_money($application['requested_amount']) : null;
+
+            case 'screening_dti':
+                $screening = $context['screening'];
+                return $screening ? number_format((float) $screening['debt_to_income_ratio'], 2) . '%' : null;
+
+            case 'screening_risk_level':
+                return $context['screening']['risk_level'] ?? null;
+
+            case 'screening_recommendation':
+                return $context['screening']['recommendation'] ?? null;
+
+            case 'screening_disposable_income':
+                $screening = $context['screening'];
+                return $screening ? format_money($screening['disposable_income']) : null;
+
+            case 'screening_gross_salary':
+                $screening = $context['screening'];
+                return $screening ? format_money($screening['gross_salary']) : null;
+
+            case 'screening_net_salary':
+                $screening = $context['screening'];
+                return $screening ? format_money($screening['net_salary']) : null;
+
+            case 'screening_notes':
+                return $context['screening']['screening_notes'] ?? null;
 
             default:
                 return null;

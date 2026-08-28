@@ -571,6 +571,17 @@ class ApplicationController extends Controller
             }
 
             $userId = Auth::user()['id'] ?? null;
+
+            // Fields with no dedicated loan_applications column (job title,
+            // employment type/start date, employer contact details, bank
+            // account type/branch name, dob/passport/marital status/postal
+            // address, next-of-kin) live in extra_data JSON -- see
+            // AgentSelfServiceController::validateReferral() and
+            // BorrowerController::store() (Back Office intake), both of
+            // which write this same shape. Decoded defensively since older
+            // rows or a plain online submission may have none of these keys.
+            $extra = $application['extra_data'] ? (json_decode($application['extra_data'], true) ?: []) : [];
+
             $borrowerData = [
                 'branch_id' => (int) $_POST['branch_id'],
                 'borrower_no' => generate_reference('BRW'),
@@ -578,10 +589,14 @@ class ApplicationController extends Controller
                 'middle_name' => $application['applicant_middle_name'] ?: null,
                 'last_name' => $application['applicant_last_name'] ?? '',
                 'gender' => $application['applicant_gender'] ?: null,
+                'date_of_birth' => $extra['dob'] ?? null,
                 'id_number' => $application['applicant_id_number'] ?: null,
+                'passport_no' => $extra['passport_no'] ?? null,
                 'phone' => $application['applicant_phone'] ?: null,
                 'email' => $application['applicant_email'] ?: null,
                 'physical_address' => $application['applicant_address'] ?: null,
+                'postal_address' => $extra['postal_address'] ?? null,
+                'marital_status' => $extra['marital_status'] ?? null,
                 'status' => 'Pending',
                 'created_by' => $userId,
             ];
@@ -590,6 +605,8 @@ class ApplicationController extends Controller
                 'bank_name' => $application['bank_name'] ?: null,
                 'account_name' => $application['bank_account_name'] ?: null,
                 'account_number' => $application['bank_account_number'] ?: null,
+                'account_type' => $extra['bank_account_type'] ?? null,
+                'branch_name' => $extra['bank_branch_name'] ?? null,
                 'branch_code' => $application['bank_branch_code'] ?: null,
                 'is_primary' => 1,
             ] : null;
@@ -597,13 +614,42 @@ class ApplicationController extends Controller
             $employment = $application['employer_name'] ? [
                 'employer_name' => $application['employer_name'],
                 'employee_no' => $application['employee_no'] ?: null,
+                'job_title' => $extra['job_title'] ?? null,
+                'employment_type' => $extra['employment_type'] ?? null,
+                'employment_start_date' => $extra['employment_start_date'] ?? null,
                 'gross_salary' => (float) $application['gross_salary'],
                 'net_salary' => (float) $application['net_salary'],
                 'payment_day' => $application['payment_day'] ?: null,
+                'employer_phone' => $extra['employer_phone'] ?? null,
+                'employer_email' => $extra['employer_email'] ?? null,
+                'employer_address' => $extra['employer_address'] ?? null,
                 'is_current' => 1,
             ] : null;
 
-            $borrowerId = $this->borrowers->createFull($borrowerData, $bank, $employment, []);
+            try {
+                $borrowerId = $this->borrowers->createFull($borrowerData, $bank, $employment, []);
+            } catch (\PDOException $e) {
+                Session::flash('error', 'Could not create the borrower -- ' . ($application['applicant_id_number'] ? 'a borrower with ID number ' . $application['applicant_id_number'] . ' may already exist.' : 'please check the applicant\'s details.'));
+                $this->redirect('/applications/' . $id);
+                return;
+            }
+
+            // Next-of-kin has no loan_applications column/sub-table -- pulled
+            // from extra_data.next_of_kin the same way bank/employment are.
+            foreach ($extra['next_of_kin'] ?? [] as $contact) {
+                if (empty($contact['full_name'])) {
+                    continue;
+                }
+                $this->borrowers->addContact([
+                    'borrower_id' => $borrowerId,
+                    'contact_type' => $contact['contact_type'] ?: 'Next of Kin',
+                    'full_name' => $contact['full_name'],
+                    'relationship' => $contact['relationship'] ?: null,
+                    'phone' => $contact['phone'] ?: null,
+                    'email' => $contact['email'] ?: null,
+                    'address' => $contact['address'] ?: null,
+                ]);
+            }
 
             // Carry the applicant's uploaded KYC documents (payslip, ID copy,
             // bank statements) across so staff don't have to re-collect them.

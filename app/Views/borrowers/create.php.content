@@ -35,7 +35,7 @@
 
       <div id="existing-client-wrap" class="mb-3" style="display:none;">
         <label class="form-label">Select Borrower <span class="text-danger">*</span></label>
-        <select name="existing_borrower_id" class="form-select <?= isset($errors['existing_borrower_id']) ? 'is-invalid' : '' ?>">
+        <select name="existing_borrower_id" class="form-select <?= isset($errors['existing_borrower_id']) ? 'is-invalid' : '' ?>" required>
           <option value="">Select borrower</option>
           <?php foreach ($existingBorrowers as $b): ?>
             <option value="<?= (int) $b['id'] ?>" <?= (($old['existing_borrower_id'] ?? '') == $b['id']) ? 'selected' : '' ?>>
@@ -92,7 +92,7 @@
           <div class="row">
             <div class="col-md-4 mb-3">
               <label class="form-label">Branch <span class="text-danger">*</span></label>
-              <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>">
+              <select name="branch_id" class="form-select <?= isset($errors['branch_id']) ? 'is-invalid' : '' ?>" required>
                 <option value="">Select branch</option>
                 <?php foreach ($branches as $branch): ?>
                   <option value="<?= $branch['id'] ?>" <?= (($old['branch_id'] ?? '') == $branch['id']) ? 'selected' : '' ?>><?= e($branch['branch_name']) ?></option>
@@ -103,7 +103,7 @@
 
             <div class="col-md-4 mb-3">
               <label class="form-label">First Name <span class="text-danger">*</span></label>
-              <input type="text" name="first_name" class="form-control <?= isset($errors['first_name']) ? 'is-invalid' : '' ?>" value="<?= old('first_name', $old) ?>">
+              <input type="text" name="first_name" class="form-control <?= isset($errors['first_name']) ? 'is-invalid' : '' ?>" value="<?= old('first_name', $old) ?>" required>
               <?php if (isset($errors['first_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['first_name']) ?></div><?php endif; ?>
             </div>
 
@@ -114,7 +114,7 @@
 
             <div class="col-md-4 mb-3">
               <label class="form-label">Last Name <span class="text-danger">*</span></label>
-              <input type="text" name="last_name" class="form-control <?= isset($errors['last_name']) ? 'is-invalid' : '' ?>" value="<?= old('last_name', $old) ?>">
+              <input type="text" name="last_name" class="form-control <?= isset($errors['last_name']) ? 'is-invalid' : '' ?>" value="<?= old('last_name', $old) ?>" required>
               <?php if (isset($errors['last_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['last_name']) ?></div><?php endif; ?>
             </div>
 
@@ -542,5 +542,43 @@
   mergedRadio.addEventListener('change', syncBankStatement);
   separateRadio.addEventListener('change', syncBankStatement);
   syncBankStatement();
+})();
+
+(function () {
+  // Keeps Save disabled until every currently-relevant required field has a
+  // value -- checked directly by value rather than relying on native
+  // constraint validation, since Bootstrap's tab panes are display:none
+  // when inactive, which exempts a required field from HTML5 validation
+  // entirely while its tab isn't the one showing.
+  var form = document.getElementById('borrower-form');
+  var submitBtn = form.querySelector('button[type="submit"]');
+  if (!submitBtn) return;
+
+  function currentMode() {
+    var checked = document.querySelector('input[name="client_mode_toggle"]:checked');
+    return checked ? checked.value : 'new';
+  }
+
+  function relevantRequiredFields() {
+    var mode = currentMode();
+    return Array.from(form.querySelectorAll('[required]')).filter(function (el) {
+      var inNewClientTab = !!el.closest('.new-client-only');
+      return mode === 'existing' ? !inNewClientTab : inNewClientTab;
+    });
+  }
+
+  function updateSubmitState() {
+    var fields = relevantRequiredFields();
+    submitBtn.disabled = !fields.every(function (el) { return el.value.trim() !== ''; });
+  }
+
+  form.addEventListener('input', updateSubmitState);
+  form.addEventListener('change', updateSubmitState);
+  // client_mode_toggle radios live outside <form> (they switch which fields
+  // even render inside it), so they need their own listener.
+  document.querySelectorAll('input[name="client_mode_toggle"]').forEach(function (r) {
+    r.addEventListener('change', updateSubmitState);
+  });
+  updateSubmitState();
 })();
 </script>

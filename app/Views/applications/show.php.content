@@ -110,7 +110,7 @@
               </div>
             <?php else: ?>
               <label class="form-label small">Existing Monthly Deductions</label>
-              <input type="number" step="0.01" name="existing_deductions" class="form-control form-control-sm mb-2" value="<?= $screening['existing_deductions'] ?? '' ?>">
+              <input type="number" step="0.01" name="existing_deductions" class="form-control form-control-sm mb-2" value="<?= $screening['existing_deductions'] ?? ($extra['affordability']['total_installments'] ?? '') ?>">
             <?php endif; ?>
             <label class="form-label small">Proposed Installment</label>
             <input type="number" step="0.01" name="proposed_installment" class="form-control form-control-sm mb-2" value="<?= $screening['proposed_installment'] ?? '' ?>">
@@ -197,7 +197,13 @@
           <a href="<?= url('/applications/' . $application['id'] . '/generate/APPLICATION_CONSENT') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Consent Form</a>
           <a href="<?= url('/applications/' . $application['id'] . '/generate/APPLICATION_AFFORDABILITY') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Affordability Assessment</a>
           <a href="<?= url('/applications/' . $application['id'] . '/generate/APPLICATION_LOAN_AGREEMENT') ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-file-document"></i> Loan Agreement</a>
+          <?php if ($screening): ?>
+            <a href="<?= url('/applications/' . $application['id'] . '/generate/LOAN_ASSESSMENT') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-file-chart"></i> Loan Assessment</a>
+          <?php endif; ?>
         </div>
+        <?php if ($screening): ?>
+          <p class="text-muted small mt-2 mb-0">Screening is recorded &mdash; worth generating the Loan Assessment and Affordability Assessment now while the figures are fresh.</p>
+        <?php endif; ?>
       </div>
     </div>
   </div>

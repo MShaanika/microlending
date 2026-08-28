@@ -158,6 +158,11 @@ class Borrower extends Model
         return $this->insert('borrower_documents', $data);
     }
 
+    public function addContact(array $data): int
+    {
+        return $this->insert('borrower_contacts', $data);
+    }
+
     public function findDocument(int $borrowerId, int $documentId): ?array
     {
         return $this->one("SELECT * FROM borrower_documents WHERE id = ? AND borrower_id = ?", [$documentId, $borrowerId]);

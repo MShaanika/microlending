@@ -11,6 +11,7 @@ use App\Models\Borrower;
 use App\Models\BorrowerAffordability;
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\LoanApplication;
 use App\Models\PortalUser;
 use App\Models\UploadRequirement;
 use App\Services\EmailSenderService;
@@ -23,6 +24,7 @@ class BorrowerController extends Controller
     private UploadRequirement $uploadRequirements;
     private PortalUser $portalUsers;
     private BorrowerAffordability $affordability;
+    private LoanApplication $applications;
 
     private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
     private const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024; // 5MB
@@ -34,6 +36,7 @@ class BorrowerController extends Controller
         $this->branches = new Branch();
         $this->uploadRequirements = new UploadRequirement();
         $this->affordability = new BorrowerAffordability();
+        $this->applications = new LoanApplication();
     }
 
     public function index(): void
@@ -99,6 +102,21 @@ class BorrowerController extends Controller
         }
     }
 
+    /**
+     * New Client mode creates a loan_applications row, not a borrowers row
+     * directly -- staff-added borrowers go through the exact same
+     * Screen -> Approve -> Convert pipeline as website/portal applicants
+     * (ApplicationController::screen()/approve()/convert()) rather than
+     * skipping straight to an unscreened borrower record. Field mapping
+     * mirrors AgentSelfServiceController::validateReferral() (the agent
+     * self-service referral flow already does this exact thing): every
+     * field with a real loan_applications column lands there, everything
+     * else (job title, employment type/start date, employer contact
+     * details, bank account type/branch name, the affordability worksheet,
+     * next-of-kin) goes into extra_data JSON, which ApplicationController::
+     * convert() reads back out onto the real borrower record it eventually
+     * creates.
+     */
     public function store(): void
     {
         Auth::authorize('borrowers.create');
@@ -116,15 +134,18 @@ class BorrowerController extends Controller
         $scopeBranchId = $this->scopeBranchId();
         // A non-Super-Admin's branch is fixed server-side -- never trust a
         // posted branch_id for them, so a tampered form field can't create
-        // a borrower under a branch they don't belong to.
+        // an application under a branch they don't belong to.
         if ($scopeBranchId !== null) {
             $_POST['branch_id'] = $scopeBranchId;
         }
 
         $errors = $this->validate($_POST);
 
-        if (!empty($_POST['id_number']) && $this->borrowers->idNumberExists(trim($_POST['id_number']))) {
-            $errors['id_number'] = 'A borrower with this ID number already exists.';
+        $idNumber = trim($_POST['id_number'] ?? '');
+        if ($idNumber !== '' && $this->borrowers->idNumberExists($idNumber)) {
+            $errors['id_number'] = 'A borrower with this ID number already exists. Use "Existing Client" to add documents for them instead.';
+        } elseif ($idNumber !== '' && $this->applications->hasOpenApplicationForIdNumber($idNumber)) {
+            $errors['id_number'] = 'An application for this ID number is already in progress.';
         }
 
         $documentErrors = $this->validateDocumentUploads($_FILES['documents'] ?? []);
@@ -143,47 +164,73 @@ class BorrowerController extends Controller
         }
 
         $userId = Auth::user()['id'] ?? null;
-        $borrowerNo = generate_reference('BRW');
+        $applicationNo = generate_reference('APP');
 
-        $borrowerData = [
-            'branch_id' => (int) $_POST['branch_id'],
-            'borrower_no' => $borrowerNo,
-            'first_name' => trim($_POST['first_name']),
-            'middle_name' => trim($_POST['middle_name'] ?? '') ?: null,
-            'last_name' => trim($_POST['last_name']),
-            'gender' => $_POST['gender'] ?: null,
-            'date_of_birth' => $_POST['date_of_birth'] ?: null,
-            'id_number' => trim($_POST['id_number'] ?? '') ?: null,
-            'passport_no' => trim($_POST['passport_no'] ?? '') ?: null,
-            'phone' => trim($_POST['phone'] ?? '') ?: null,
-            'email' => trim($_POST['email'] ?? '') ?: null,
-            'physical_address' => trim($_POST['physical_address'] ?? '') ?: null,
-            'postal_address' => trim($_POST['postal_address'] ?? '') ?: null,
-            'marital_status' => $_POST['marital_status'] ?: null,
-            'nationality' => trim($_POST['nationality'] ?? '') ?: 'Namibian',
-            'status' => 'Pending',
-            'created_by' => $userId,
-        ];
-
-        $bankData = $this->collectBankDetails($_POST);
-        $employmentData = $this->collectEmployment($_POST);
-        $contactsData = $this->collectContacts($_POST);
-
-        $id = $this->borrowers->createFull($borrowerData, $bankData, $employmentData, $contactsData);
-
-        $this->storeDocumentUploads($id, $borrowerNo, $_FILES['documents'] ?? [], $userId);
-        $this->storeBankStatementUploads($id, $borrowerNo, $_POST, $_FILES, $userId);
+        // Fields loan_applications has no dedicated column for -- kept
+        // alongside the canonical ones so staff screening/converting this
+        // application see the full intake, and convert() carries them onto
+        // the real borrower record. Same shape AgentSelfServiceController
+        // already uses for agent-referred applications.
+        $extra = array_filter([
+            'dob' => trim($_POST['date_of_birth'] ?? ''),
+            'passport_no' => trim($_POST['passport_no'] ?? ''),
+            'marital_status' => $_POST['marital_status'] ?? '',
+            'postal_address' => trim($_POST['postal_address'] ?? ''),
+            'job_title' => trim($_POST['job_title'] ?? ''),
+            'employment_type' => $_POST['employment_type'] ?? '',
+            'employment_start_date' => trim($_POST['employment_start_date'] ?? ''),
+            'employer_phone' => trim($_POST['employer_phone'] ?? ''),
+            'employer_email' => trim($_POST['employer_email'] ?? ''),
+            'employer_address' => trim($_POST['employer_address'] ?? ''),
+            'bank_account_type' => $_POST['account_type'] ?? '',
+            'bank_branch_name' => trim($_POST['bank_branch_name'] ?? ''),
+        ], fn ($v) => $v !== '');
 
         $affordabilityData = $this->collectAffordability($_POST);
         if ($affordabilityData) {
-            $affordabilityData['borrower_id'] = $id;
-            $affordabilityData['recorded_by'] = $userId;
-            $this->affordability->create($affordabilityData);
+            $extra['affordability'] = $affordabilityData;
         }
 
-        Audit::log('Create', 'Borrowers', 'Created borrower #' . $id . ' with full profile (bank/employment/contacts/documents).');
-        Session::flash('success', 'Borrower registered successfully.');
-        $this->redirect('/borrowers/' . $id);
+        $nextOfKin = $this->collectContacts($_POST);
+        if ($nextOfKin) {
+            $extra['next_of_kin'] = $nextOfKin;
+        }
+
+        $applicationData = [
+            'branch_id' => (int) $_POST['branch_id'],
+            'application_no' => $applicationNo,
+            'application_source' => 'Back Office',
+            'application_type' => 'New Loan',
+            'applicant_first_name' => trim($_POST['first_name']),
+            'applicant_middle_name' => trim($_POST['middle_name'] ?? '') ?: null,
+            'applicant_last_name' => trim($_POST['last_name']),
+            'applicant_gender' => $_POST['gender'] ?: null,
+            'applicant_id_number' => $idNumber ?: null,
+            'applicant_phone' => trim($_POST['phone'] ?? '') ?: null,
+            'applicant_email' => trim($_POST['email'] ?? '') ?: null,
+            'applicant_address' => trim($_POST['physical_address'] ?? '') ?: null,
+            'employer_name' => trim($_POST['employer_name'] ?? '') ?: null,
+            'employee_no' => trim($_POST['employee_no'] ?? '') ?: null,
+            'gross_salary' => $_POST['gross_salary'] !== '' ? (float) $_POST['gross_salary'] : 0,
+            'net_salary' => $_POST['net_salary'] !== '' ? (float) $_POST['net_salary'] : 0,
+            'payment_day' => !empty($_POST['employment_payment_day']) ? (int) $_POST['employment_payment_day'] : null,
+            'bank_name' => trim($_POST['bank_name'] ?? '') ?: null,
+            'bank_account_name' => trim($_POST['account_name'] ?? '') ?: null,
+            'bank_account_number' => trim($_POST['account_number'] ?? '') ?: null,
+            'bank_branch_code' => trim($_POST['bank_branch_code'] ?? '') ?: null,
+            'status' => 'Submitted',
+            'extra_data' => empty($extra) ? null : json_encode($extra),
+        ];
+
+        $id = $this->applications->create($applicationData);
+        $this->applications->addStatusHistory($id, null, 'Submitted', $userId, 'Application created by staff via Add Borrower.');
+
+        $this->storeDocumentUploadsForApplication($id, $applicationNo, $_FILES['documents'] ?? [], $userId);
+        $this->storeBankStatementUploadsForApplication($id, $applicationNo, $_POST, $_FILES, $userId);
+
+        Audit::log('Create', 'Applications', 'Created application ' . $applicationNo . ' via Add Borrower (staff intake).');
+        Session::flash('success', 'Application ' . $applicationNo . ' created. Screen and approve it to register the borrower.');
+        $this->redirect('/applications/' . $id);
     }
 
     /**
@@ -411,6 +458,58 @@ class BorrowerController extends Controller
         }
     }
 
+    /**
+     * Application-side counterpart to storeBankStatementUploads() -- same
+     * merged/separate handling, but lands in loan_application_documents
+     * (application_id, no borrower yet) instead of borrower_documents.
+     * Writing 'Bank Statement (Merged)' as the document_type for the merged
+     * case (not plain 'Bank Statement') matches the convention
+     * ApplicationIntakeController/AgentSelfServiceController already use --
+     * analyzeBankStatements()'s CSV branch keys off of it.
+     */
+    private function storeBankStatementUploadsForApplication(int $applicationId, string $applicationNo, array $post, array $files, ?int $userId): void
+    {
+        $type = $post['bank_statement_type'] ?? '';
+        if ($type === '') {
+            return;
+        }
+
+        $fieldNames = $type === 'merged'
+            ? ['bank_statement_merged']
+            : ['bank_statement_1', 'bank_statement_2', 'bank_statement_3'];
+
+        $safeFolder = preg_replace('/[^A-Za-z0-9_-]/', '_', $applicationNo);
+        $targetDir = STORAGE_PATH . '/uploads/applications/' . $safeFolder;
+
+        foreach ($fieldNames as $field) {
+            $file = $files[$field] ?? null;
+            if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+                continue;
+            }
+
+            if (!is_dir($targetDir)) {
+                mkdir($targetDir, 0755, true);
+            }
+
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $storedName = uniqid('bankstmt_', true) . '.' . $ext;
+            $destination = $targetDir . '/' . $storedName;
+
+            if (!move_uploaded_file($file['tmp_name'], $destination)) {
+                continue;
+            }
+
+            $this->applications->addDocument([
+                'application_id' => $applicationId,
+                'document_type' => $type === 'merged' ? 'Bank Statement (Merged)' : 'Bank Statement',
+                'document_name' => 'Bank Statement (' . ($type === 'merged' ? 'Merged' : 'Separate') . ')',
+                'file_path' => 'uploads/applications/' . $safeFolder . '/' . $storedName,
+                'uploaded_by' => $userId,
+                'status' => 'Pending',
+            ]);
+        }
+    }
+
     private function collectContacts(array $post): array
     {
         $contacts = [];
@@ -505,6 +604,58 @@ class BorrowerController extends Controller
                 'document_type' => $requirement['document_type'],
                 'document_name' => $requirement['requirement_name'],
                 'file_path' => 'uploads/borrowers/' . $safeFolder . '/' . $storedName,
+                'uploaded_by' => $userId,
+                'status' => 'Pending',
+            ]);
+        }
+    }
+
+    /**
+     * Application-side counterpart to storeDocumentUploads() -- identical
+     * per-requirement logic (still driven by UploadRequirement::forBorrowers(),
+     * so all 5 requirement types stay available, not just the narrower fixed
+     * set the online/agent intake paths use), just lands in
+     * loan_application_documents instead of borrower_documents.
+     */
+    private function storeDocumentUploadsForApplication(int $applicationId, string $applicationNo, array $files, ?int $userId): void
+    {
+        if (empty($files['error'])) {
+            return;
+        }
+
+        $requirements = array_column($this->uploadRequirements->forBorrowers(), null, 'id');
+        $safeFolder = preg_replace('/[^A-Za-z0-9_-]/', '_', $applicationNo);
+        $targetDir = STORAGE_PATH . '/uploads/applications/' . $safeFolder;
+
+        foreach ($files['error'] as $requirementId => $error) {
+            if ($error !== UPLOAD_ERR_OK) {
+                continue;
+            }
+
+            $requirement = $requirements[$requirementId] ?? null;
+            if (!$requirement) {
+                continue;
+            }
+
+            if (!is_dir($targetDir)) {
+                mkdir($targetDir, 0755, true);
+            }
+
+            $tmpPath = $files['tmp_name'][$requirementId];
+            $originalName = $files['name'][$requirementId];
+            $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+            $storedName = uniqid('doc_', true) . '.' . $ext;
+            $destination = $targetDir . '/' . $storedName;
+
+            if (!move_uploaded_file($tmpPath, $destination)) {
+                continue;
+            }
+
+            $this->applications->addDocument([
+                'application_id' => $applicationId,
+                'document_type' => $requirement['document_type'],
+                'document_name' => $requirement['requirement_name'],
+                'file_path' => 'uploads/applications/' . $safeFolder . '/' . $storedName,
                 'uploaded_by' => $userId,
                 'status' => 'Pending',
             ]);
