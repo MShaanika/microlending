@@ -98,7 +98,10 @@ class Training extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT t.*, " . self::LOOKUP_COLUMNS . " FROM trainings t " . self::LOOKUP_JOINS . " WHERE t.id = ?",
+            "SELECT t.*, " . self::LOOKUP_COLUMNS . ", u.name AS created_by_name
+             FROM trainings t " . self::LOOKUP_JOINS . "
+             LEFT JOIN users u ON u.id = t.created_by
+             WHERE t.id = ?",
             [$id]
         );
     }

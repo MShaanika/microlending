@@ -31,6 +31,7 @@ $assignableTasks = array_filter($tasks, fn($tk) => !empty($tk['assigned_to']));
       <tr><th class="text-muted">Branch</th><td><?= e($t['branch_name'] ?: '—') ?></td>
           <th class="text-muted">Max Participants</th><td><?= e($t['max_participants'] ?: '—') ?></td></tr>
       <tr><th class="text-muted">Cost</th><td colspan="3"><?= $t['cost'] !== null ? format_money($t['cost']) : '—' ?></td></tr>
+      <tr><th class="text-muted">Created By</th><td colspan="3"><?= e($t['created_by_name'] ?: '—') ?></td></tr>
     </table>
     <?php if (!empty($t['description'])): ?>
       <hr><p class="mb-0"><?= nl2br(e($t['description'])) ?></p>

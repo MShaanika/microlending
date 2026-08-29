@@ -64,7 +64,10 @@ class RecruitmentCandidateOnboarding extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT o.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_candidate_onboardings o " . self::LOOKUP_JOINS . " WHERE o.id = ?",
+            "SELECT o.*, " . self::LOOKUP_COLUMNS . ", u.name AS created_by_name
+             FROM recruitment_candidate_onboardings o " . self::LOOKUP_JOINS . "
+             LEFT JOIN users u ON u.id = o.created_by
+             WHERE o.id = ?",
             [$id]
         );
     }

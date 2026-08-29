@@ -75,7 +75,10 @@ class RecruitmentInterview extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT i.*, " . self::LOOKUP_COLUMNS . " FROM recruitment_interviews i " . self::LOOKUP_JOINS . " WHERE i.id = ?",
+            "SELECT i.*, " . self::LOOKUP_COLUMNS . ", u.name AS created_by_name
+             FROM recruitment_interviews i " . self::LOOKUP_JOINS . "
+             LEFT JOIN users u ON u.id = i.created_by
+             WHERE i.id = ?",
             [$id]
         );
     }

@@ -133,6 +133,7 @@
               <span class="badge bg-<?= $p['status'] === 'Kept' ? 'success' : ($p['status'] === 'Broken' ? 'danger' : ($p['status'] === 'Cancelled' ? 'secondary' : 'info text-dark')) ?>"><?= e($p['status']) ?></span>
             </div>
             <div>Expected: <?= e(format_money($p['expected_amount'])) ?></div>
+            <div class="text-muted">Recorded by <?= e($p['created_by_name'] ?: '—') ?></div>
             <?php if ($p['notes']): ?><div><?= nl2br(e($p['notes'])) ?></div><?php endif; ?>
             <?php if ($p['status'] === 'Pending'): ?>
               <form method="post" action="<?= url('/collections/promises/' . $p['id']) ?>" class="d-flex gap-1 mt-1">
@@ -192,6 +193,9 @@
               </form>
             <?php elseif ($esc['resolution_notes']): ?>
               <div class="text-muted">Resolution: <?= nl2br(e($esc['resolution_notes'])) ?></div>
+              <?php if ($esc['resolved_by']): ?>
+                <div class="text-muted">by <?= e($esc['resolved_by_name'] ?: '—') ?><?= $esc['resolved_at'] ? ' on ' . e($esc['resolved_at']) : '' ?></div>
+              <?php endif; ?>
             <?php endif; ?>
           </div>
         <?php endforeach; ?>

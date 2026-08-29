@@ -37,7 +37,11 @@
 
         <?php if (!empty($ticket['resolution_notes'])): ?>
           <div class="alert alert-info">
-            <strong>Resolution Notes:</strong><br>
+            <strong>Resolution Notes:</strong>
+            <?php if (!empty($ticket['resolved_at'])): ?>
+              <span class="text-muted small">(<?= e($ticket['assigned_to_name'] ?? 'Unassigned') ?>, <?= e(date('d M Y H:i', strtotime($ticket['resolved_at']))) ?>)</span>
+            <?php endif; ?>
+            <br>
             <?= nl2br(e($ticket['resolution_notes'])) ?>
           </div>
         <?php endif; ?>

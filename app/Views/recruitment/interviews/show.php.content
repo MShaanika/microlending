@@ -26,6 +26,7 @@ $recBadge = ['Strong Hire' => 'success', 'Hire' => 'success', 'Maybe' => 'warnin
           <th class="text-muted" style="width:20%">Time</th><td><?= e($i['scheduled_time'] ?: '—') ?></td></tr>
       <tr><th class="text-muted">Location</th><td><?= e($i['location'] ?: '—') ?></td>
           <th class="text-muted">Meeting Link</th><td><?= $i['meeting_link'] ? '<a href="' . e($i['meeting_link']) . '" target="_blank">' . e($i['meeting_link']) . '</a>' : '—' ?></td></tr>
+      <tr><th class="text-muted">Scheduled By</th><td colspan="3"><?= e($i['created_by_name'] ?: '—') ?></td></tr>
     </table>
   </div>
 </div>

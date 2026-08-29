@@ -9,6 +9,7 @@ $statusBadge = ['Draft' => 'secondary', 'Active' => 'success', 'Closed' => 'dark
   <div>
     <h4 class="mb-0"><?= e($p['title']) ?> <?php if ($p['is_featured']): ?><span class="badge bg-warning">Featured</span><?php endif; ?></h4>
     <span class="text-muted"><?= e($p['posting_code']) ?> &middot; <?= e($p['job_type_name'] ?: 'Uncategorized') ?> &middot; <?= e($p['location_name'] ?: 'No location') ?></span>
+    <br><span class="text-muted small">Created by <?= e($p['created_by_name'] ?: '—') ?> on <?= e(date('d M Y', strtotime($p['created_at']))) ?></span>
   </div>
   <div class="d-flex align-items-center gap-2">
     <span class="badge bg-<?= $statusBadge[$p['status']] ?? 'secondary' ?> fs-6"><?= e($p['status']) ?></span>
