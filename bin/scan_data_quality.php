@@ -19,10 +19,12 @@ $summary = DataQualityService::scan();
 $totalFailing = array_sum(array_column($summary, 'failing'));
 $totalResolved = array_sum(array_column($summary, 'auto_resolved'));
 
-echo sprintf(
+$summaryLine = sprintf(
     "[%s] Data quality scan: %d rule(s) run, %d issue(s) currently failing, %d auto-resolved.\n",
     date('Y-m-d H:i:s'),
     count($summary),
     $totalFailing,
     $totalResolved
 );
+\App\Core\JobHeartbeat::ping('scan_data_quality', $summaryLine, 1440);
+echo $summaryLine;

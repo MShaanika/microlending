@@ -38,9 +38,11 @@ foreach ($instances as $instance) {
     $escalationsChecked++;
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] SLA sweep: %d instance(s) checked, %d status change(s).\n",
     date('Y-m-d H:i:s'),
     $escalationsChecked,
     $statusChanges
 );
+\App\Core\JobHeartbeat::ping('evaluate_sla', $summary, 5);
+echo $summary;

@@ -34,4 +34,6 @@ foreach ($results as $r) {
     );
 }
 
-echo "[" . date('Y-m-d H:i:s') . "] Processed " . count($results) . " recurring journal(s).\n";
+$summary = "[" . date('Y-m-d H:i:s') . "] Processed " . count($results) . " recurring journal(s).\n";
+\App\Core\JobHeartbeat::ping('process_recurring_journals', $summary, 1440);
+echo $summary;

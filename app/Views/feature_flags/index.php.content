@@ -1,0 +1,55 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-0">Feature Flags</h4>
+        <p class="text-muted small mb-0">No flags exist until a feature actually needs staged rollout. A flag controls <em>rollout</em>, never permissions -- every screen it gates still checks its own permission separately.</p>
+      </div>
+      <?php if (Auth::can('feature_flags.manage')): ?>
+        <a href="<?= url('/feature-flags/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> New Flag</a>
+      <?php endif; ?>
+    </div>
+
+    <?php if (empty($flags)): ?>
+      <p class="text-muted text-center py-4">No feature flags configured yet.</p>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Rollout</th>
+            <th>Status</th>
+            <th>Environment</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($flags as $f): ?>
+            <tr>
+              <td>
+                <span class="fw-semibold"><?= e($f['name']) ?></span>
+                <div class="text-muted small"><code><?= e($f['flag_key']) ?></code></div>
+              </td>
+              <td><span class="badge bg-light text-dark"><?= e($f['rollout_type']) ?></span><?= $f['rollout_type'] === 'PERCENTAGE' ? ' ' . (int) $f['rollout_percentage'] . '%' : '' ?></td>
+              <td><span class="badge bg-<?= $f['enabled'] ? 'success' : 'secondary' ?>"><?= $f['enabled'] ? 'Enabled' : 'Disabled' ?></span></td>
+              <td><?= e($f['environment']) ?></td>
+              <td class="text-muted small"><?= e($f['updated_by_name'] ?: $f['created_by_name'] ?: '—') ?></td>
+              <td>
+                <?php if (Auth::can('feature_flags.manage')): ?>
+                  <a href="<?= url('/feature-flags/' . $f['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary">Edit</a>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

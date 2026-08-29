@@ -25,7 +25,12 @@ use App\Services\CollexiaPaymentReconciliationService;
 
 $settings = new CollexiaSetting();
 if (!$settings->isEnabled() || !$settings->isConfigured()) {
-    echo sprintf("[%s] Skipped -- Collexia API integration is not enabled/configured.\n", date('Y-m-d H:i:s'));
+    $skipSummary = sprintf("[%s] Skipped -- Collexia API integration is not enabled/configured.\n", date('Y-m-d H:i:s'));
+    // Still a heartbeat: the cron entry itself fired on schedule, it's
+    // the (legitimate) business decision to leave Collexia disabled
+    // that's causing the no-op, not a missed job.
+    \App\Core\JobHeartbeat::ping('download_collexia_payments', $skipSummary, 360);
+    echo $skipSummary;
     exit(0);
 }
 
@@ -38,7 +43,7 @@ try {
 
 $result = (new CollexiaPaymentReconciliationService())->reconcile($response, null, null);
 
-echo sprintf(
+$summary = sprintf(
     "[%s] %d row(s) downloaded, %d matched to a mandate, %d payment(s) posted (import #%d).\n",
     date('Y-m-d H:i:s'),
     $result['total'],
@@ -46,3 +51,5 @@ echo sprintf(
     $result['posted'],
     $result['import_id']
 );
+\App\Core\JobHeartbeat::ping('download_collexia_payments', $summary, 360);
+echo $summary;

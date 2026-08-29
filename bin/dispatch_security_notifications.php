@@ -46,9 +46,11 @@ foreach ($rows as $row) {
     }
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] Security notifications: %d sent, %d failed.\n",
     date('Y-m-d H:i:s'),
     $sent,
     $failed
 );
+\App\Core\JobHeartbeat::ping('dispatch_security_notifications', $summary, 5);
+echo $summary;

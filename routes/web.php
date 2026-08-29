@@ -5,6 +5,9 @@ use App\Controllers\SlaPolicyController;
 use App\Controllers\ExceptionController;
 use App\Controllers\DataQualityController;
 use App\Controllers\RetentionController;
+use App\Controllers\ErrorTrackingController;
+use App\Controllers\FeatureFlagController;
+use App\Controllers\HealthCheckController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
@@ -583,6 +586,22 @@ $router->post('/retention/holds/{id}/release', [RetentionController::class, 'rel
 $router->get('/retention/{id}', [RetentionController::class, 'show']);
 $router->post('/retention/{id}', [RetentionController::class, 'update']);
 $router->post('/retention/{id}/execute', [RetentionController::class, 'execute']);
+
+// Enterprise Control Architecture -- Phase 5 (Platform Reliability):
+// Health Checks, Error Tracking, Feature Flags, own permission
+// namespaces (health.*, errors.*, feature_flags.*), not folded under /settings.
+$router->get('/health', [HealthCheckController::class, 'index']);
+$router->post('/health/run', [HealthCheckController::class, 'runNow']);
+
+$router->get('/errors', [ErrorTrackingController::class, 'index']);
+$router->get('/errors/{id}', [ErrorTrackingController::class, 'show']);
+$router->post('/errors/{id}/status', [ErrorTrackingController::class, 'updateStatus']);
+
+$router->get('/feature-flags', [FeatureFlagController::class, 'index']);
+$router->get('/feature-flags/create', [FeatureFlagController::class, 'create']);
+$router->post('/feature-flags', [FeatureFlagController::class, 'store']);
+$router->get('/feature-flags/{id}/edit', [FeatureFlagController::class, 'edit']);
+$router->post('/feature-flags/{id}', [FeatureFlagController::class, 'update']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 

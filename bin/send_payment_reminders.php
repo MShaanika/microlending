@@ -18,7 +18,7 @@ use App\Services\PaymentReminderService;
 
 $summary = PaymentReminderService::run();
 
-echo sprintf(
+$summaryLine = sprintf(
     "[%s] Due-soon: %d sent, %d skipped. Overdue: %d sent, %d skipped.\n",
     date('Y-m-d H:i:s'),
     $summary['due_soon_sent'],
@@ -26,3 +26,5 @@ echo sprintf(
     $summary['overdue_sent'],
     $summary['overdue_skipped']
 );
+\App\Core\JobHeartbeat::ping('send_payment_reminders', $summaryLine, 1440);
+echo $summaryLine;

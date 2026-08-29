@@ -1,0 +1,76 @@
+<?php
+  $sevBadge = match ($error['severity']) {
+      'Critical', 'High' => 'danger',
+      'Medium' => 'warning',
+      default => 'info',
+  };
+  $statusBadge = match ($error['status']) {
+      'NEW' => 'danger',
+      'INVESTIGATING' => 'warning',
+      'REOPENED' => 'dark',
+      'RESOLVED' => 'success',
+      'IGNORED' => 'secondary',
+      default => 'secondary',
+  };
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/errors') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Error Tracking</a>
+    <h4 class="mb-0"><?= e($error['exception_class']) ?></h4>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-<?= $sevBadge ?> fs-6"><?= e($error['severity']) ?></span>
+    <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($error['status']) ?></span>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted">Module</th><td><?= e($error['module'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Route</th><td><code class="small"><?= e($error['request_method'] ?: '') ?> <?= e($error['route'] ?: '—') ?></code></td></tr>
+          <tr><th class="text-muted">Source</th><td><code class="small"><?= e($error['source_file'] ?: '—') ?><?= $error['source_line'] ? ':' . (int) $error['source_line'] : '' ?></code></td></tr>
+          <tr><th class="text-muted">Occurrences</th><td><?= (int) $error['occurrence_count'] ?></td></tr>
+          <tr><th class="text-muted">First Seen</th><td><?= e(date('d M Y H:i', strtotime($error['first_seen_at']))) ?></td></tr>
+          <tr><th class="text-muted">Last Seen</th><td><?= e(date('d M Y H:i', strtotime($error['last_seen_at']))) ?></td></tr>
+          <?php if ($error['correlation_id']): ?>
+            <tr><th class="text-muted">Correlation ID</th><td><code class="small"><?= e($error['correlation_id']) ?></code></td></tr>
+          <?php endif; ?>
+          <?php if ($error['exception_id']): ?>
+            <tr><th class="text-muted">Linked Exception</th><td><a href="<?= url('/exceptions/' . (int) $error['exception_id']) ?>">View #<?= (int) $error['exception_id'] ?></a></td></tr>
+          <?php endif; ?>
+          <?php if ($error['resolved_at']): ?>
+            <tr><th class="text-muted">Resolved</th><td><?= e($error['resolved_by_name'] ?: '—') ?> &mdash; <?= e(date('d M Y H:i', strtotime($error['resolved_at']))) ?></td></tr>
+          <?php endif; ?>
+        </table>
+        <hr>
+        <h6 class="text-muted">Message</h6>
+        <p class="mb-0"><?= nl2br(e($error['safe_message'])) ?></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Actions</h5>
+        <form method="post" action="<?= url('/errors/' . $error['id'] . '/status') ?>" class="d-flex flex-wrap gap-2">
+          <?= csrf_field() ?>
+          <select name="status" class="form-select form-select-sm" style="max-width:200px;">
+            <?php foreach (['INVESTIGATING', 'RESOLVED', 'IGNORED', 'REOPENED'] as $s): ?>
+              <option value="<?= $s ?>" <?= $error['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+            <?php endforeach; ?>
+          </select>
+          <button type="submit" class="btn btn-sm btn-outline-primary">Update Status</button>
+        </form>
+        <p class="text-muted small mt-3 mb-0">Marking RESOLVED does not fix the underlying code -- it only tracks that someone addressed it. A recurrence automatically reopens this record.</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -66,10 +66,12 @@ foreach ($rows as $row) {
     }
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] General notifications: %d sent, %d failed, %d skipped (unrecognized channel).\n",
     date('Y-m-d H:i:s'),
     $sent,
     $failed,
     $skipped
 );
+\App\Core\JobHeartbeat::ping('dispatch_notifications', $summary, 5);
+echo $summary;

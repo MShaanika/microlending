@@ -39,9 +39,11 @@ foreach ($expiredUuids as $uuid) {
     $deletedDrafts++;
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] Swept %d expired draft(s), removed %d staged file(s).\n",
     date('Y-m-d H:i:s'),
     $deletedDrafts,
     $deletedFiles
 );
+\App\Core\JobHeartbeat::ping('sweep_draft_expiry', $summary, 1440);
+echo $summary;

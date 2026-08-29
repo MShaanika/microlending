@@ -1,0 +1,96 @@
+<?php
+  $isEdit = $flag !== null;
+  $metadata = $isEdit && $flag['metadata'] ? json_decode($flag['metadata'], true) : [];
+  $action = $isEdit ? url('/feature-flags/' . $flag['id']) : url('/feature-flags');
+  $toDatetimeLocal = fn (?string $v) => $v ? date('Y-m-d\TH:i', strtotime($v)) : '';
+?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <a href="<?= url('/feature-flags') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Feature Flags</a>
+    <h4 class="card-title mt-2"><?= e($title) ?></h4>
+
+    <form method="post" action="<?= $action ?>" class="row g-3 mt-1">
+      <?= csrf_field() ?>
+
+      <div class="col-md-6">
+        <label class="form-label">Flag Key <span class="text-danger">*</span></label>
+        <input type="text" name="flag_key" class="form-control" pattern="[a-z0-9_.]+" required
+               value="<?= e($flag['flag_key'] ?? '') ?>" <?= $isEdit ? 'readonly' : '' ?>
+               placeholder="e.g. new_loan_wizard">
+        <div class="form-text">Lowercase letters, numbers, dots, underscores. This is what code checks -- cannot be changed once created.</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Name <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control" required value="<?= e($flag['name'] ?? '') ?>">
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="2"><?= e($flag['description'] ?? '') ?></textarea>
+      </div>
+
+      <div class="col-md-3 form-check mt-4">
+        <input type="checkbox" name="enabled" value="1" class="form-check-input" id="enabled" <?= !empty($flag['enabled']) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="enabled">Enabled</label>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Rollout Type</label>
+        <select name="rollout_type" id="rollout_type" class="form-select" onchange="ffToggleRollout(this.value)">
+          <?php foreach ($rolloutTypes as $rt): ?>
+            <option value="<?= $rt ?>" <?= ($flag['rollout_type'] ?? 'OFF') === $rt ? 'selected' : '' ?>><?= $rt ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Environment</label>
+        <input type="text" name="environment" class="form-control" value="<?= e($flag['environment'] ?? 'production') ?>">
+      </div>
+
+      <div class="col-md-6" id="rollout_PERCENTAGE" style="display:none;">
+        <label class="form-label">Rollout Percentage</label>
+        <input type="number" name="rollout_percentage" class="form-control" min="0" max="100" value="<?= (int) ($flag['rollout_percentage'] ?? 0) ?>">
+        <div class="form-text">Sticky per-user assignment -- the same user always lands on the same side of this rollout.</div>
+      </div>
+      <div class="col-md-6" id="rollout_SPECIFIC_USERS" style="display:none;">
+        <label class="form-label">User IDs</label>
+        <input type="text" name="user_ids" class="form-control" placeholder="e.g. 3, 7, 12" value="<?= e(implode(', ', $metadata['user_ids'] ?? [])) ?>">
+      </div>
+      <div class="col-md-6" id="rollout_SPECIFIC_ROLES" style="display:none;">
+        <label class="form-label">Role Names</label>
+        <input type="text" name="role_names" class="form-control" placeholder="e.g. Admin, Manager" value="<?= e(implode(', ', $metadata['role_names'] ?? [])) ?>">
+      </div>
+      <div class="col-md-6" id="rollout_SPECIFIC_BRANCHES" style="display:none;">
+        <label class="form-label">Branch IDs</label>
+        <input type="text" name="branch_ids" class="form-control" placeholder="e.g. 1, 2" value="<?= e(implode(', ', $metadata['branch_ids'] ?? [])) ?>">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Starts At <span class="text-muted small">(optional)</span></label>
+        <input type="datetime-local" name="starts_at" class="form-control" value="<?= e($toDatetimeLocal($flag['starts_at'] ?? null)) ?>">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Ends At <span class="text-muted small">(optional)</span></label>
+        <input type="datetime-local" name="ends_at" class="form-control" value="<?= e($toDatetimeLocal($flag['ends_at'] ?? null)) ?>">
+      </div>
+
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+        <a href="<?= url('/feature-flags') ?>" class="btn btn-outline-light">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function ffToggleRollout(value) {
+  ['PERCENTAGE', 'SPECIFIC_USERS', 'SPECIFIC_ROLES', 'SPECIFIC_BRANCHES'].forEach(function (key) {
+    var el = document.getElementById('rollout_' + key);
+    if (el) el.style.display = (key === value) ? '' : 'none';
+  });
+}
+ffToggleRollout(document.getElementById('rollout_type').value);
+</script>

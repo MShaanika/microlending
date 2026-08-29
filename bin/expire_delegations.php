@@ -35,9 +35,11 @@ foreach ($model->dueToExpire() as $row) {
     \App\Core\Events::fire('DelegationExpired', ['delegation_id' => (int) $row['id'], 'reason' => 'ended']);
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] Delegations: %d activated, %d expired.\n",
     date('Y-m-d H:i:s'),
     $activated,
     $expired
 );
+\App\Core\JobHeartbeat::ping('expire_delegations', $summary, 1440);
+echo $summary;

@@ -1,0 +1,105 @@
+<?php
+  $statusColor = fn (string $s) => match ($s) {
+      'HEALTHY' => '#2bd67b',
+      'DEGRADED' => '#f9ab00',
+      'UNHEALTHY' => '#ff5c75',
+      default => '#8792a2',
+  };
+  $statusBadge = fn (string $s) => match ($s) {
+      'HEALTHY' => 'success',
+      'DEGRADED' => 'warning',
+      'UNHEALTHY' => 'danger',
+      default => 'secondary',
+  };
+  $statusIcon = fn (string $s) => match ($s) {
+      'HEALTHY' => 'mdi-check-circle',
+      'DEGRADED' => 'mdi-alert',
+      'UNHEALTHY' => 'mdi-alert-octagon',
+      default => 'mdi-help-circle',
+  };
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">System Health</h4>
+    <p class="text-muted small mb-0">Every check here is a real probe run just now, or on the last scheduled sweep -- nothing is marked healthy just because nothing failed to report.</p>
+  </div>
+  <form method="post" action="<?= url('/health/run') ?>">
+    <?= csrf_field() ?>
+    <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-refresh"></i> Run Checks Now</button>
+  </form>
+</div>
+
+<?php if (empty($checks)): ?>
+  <p class="text-muted text-center py-4">No health checks have run yet. Click "Run Checks Now" or wait for the next scheduled sweep.</p>
+<?php endif; ?>
+
+<div class="row">
+  <?php foreach ($checks as $c): ?>
+    <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+      <div class="card kpi-card h-100" style="border-left-color:<?= $statusColor($c['status']) ?>">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="text-muted small"><?= e($c['target_name']) ?></span>
+              <h5 class="mb-1"><span class="badge bg-<?= $statusBadge($c['status']) ?>"><?= e($c['status']) ?></span></h5>
+              <?php if ($c['response_time_ms'] !== null): ?>
+                <span class="text-muted small"><?= (int) $c['response_time_ms'] ?>ms</span>
+              <?php endif; ?>
+            </div>
+            <span class="kpi-icon" style="background:<?= $statusColor($c['status']) ?>"><i class="mdi <?= $statusIcon($c['status']) ?>"></i></span>
+          </div>
+          <p class="text-muted small mt-2 mb-0"><?= e($c['message'] ?: '') ?></p>
+          <p class="text-muted small mb-0"><?= e(date('d M Y H:i', strtotime($c['checked_at']))) ?></p>
+        </div>
+      </div>
+    </div>
+  <?php endforeach; ?>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Scheduled Job Heartbeats</h5>
+    <?php if (empty($heartbeats)): ?>
+      <p class="text-muted text-center py-4">No jobs have reported a heartbeat yet.</p>
+    <?php endif; ?>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th>Last Run</th>
+            <th>Expected Frequency</th>
+            <th>Status</th>
+            <th>Last Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($heartbeats as $hb):
+            $ageMinutes = (time() - strtotime($hb['last_run_at'])) / 60;
+            $freq = (int) ($hb['expected_frequency_minutes'] ?? 0);
+            if ($freq <= 0) {
+                $hbStatus = 'UNKNOWN';
+            } elseif ($ageMinutes > $freq * 5) {
+                $hbStatus = 'UNHEALTHY';
+            } elseif ($ageMinutes > $freq * 2) {
+                $hbStatus = 'DEGRADED';
+            } else {
+                $hbStatus = 'HEALTHY';
+            }
+          ?>
+            <tr>
+              <td><code><?= e($hb['job_key']) ?></code></td>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($hb['last_run_at']))) ?></td>
+              <td><?= $freq > 0 ? "every {$freq} min" : '—' ?></td>
+              <td><span class="badge bg-<?= $statusBadge($hbStatus) ?>"><?= $hbStatus ?></span></td>
+              <td class="text-muted small"><?= e(mb_strimwidth(trim((string) $hb['last_summary']), 0, 100, '…')) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

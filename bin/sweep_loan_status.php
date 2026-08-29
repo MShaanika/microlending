@@ -34,9 +34,11 @@ foreach ($loanIds as $loanId) {
     $touched++;
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] Swept loan status for %d active loan(s) as at %s.\n",
     date('Y-m-d H:i:s'),
     $touched,
     $asOfDate
 );
+\App\Core\JobHeartbeat::ping('sweep_loan_status', $summary, 1440);
+echo $summary;

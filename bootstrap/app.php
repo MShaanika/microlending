@@ -1,9 +1,6 @@
 <?php
 declare(strict_types=1);
 
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
-
 define('ROOT_PATH', dirname(__DIR__));
 define('APP_PATH', ROOT_PATH . '/app');
 define('VIEW_PATH', APP_PATH . '/Views');
@@ -21,6 +18,11 @@ spl_autoload_register(function ($class) {
 if (is_file(ROOT_PATH . '/vendor/autoload.php')) {
     require ROOT_PATH . '/vendor/autoload.php';
 }
+
+// Takes over error/exception/fatal display entirely (Part 4-6) -- what's
+// shown is decided by system_settings.error_display_mode, not php.ini.
+// Registered as early as possible so it can catch config/bootstrap failures too.
+\App\Core\ErrorHandler::register();
 
 use App\Core\Auth;
 use App\Core\Session;

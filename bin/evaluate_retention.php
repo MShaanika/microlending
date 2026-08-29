@@ -41,10 +41,12 @@ foreach ($model->activePolicies() as $policy) {
     $policiesRun++;
 }
 
-echo sprintf(
+$summary = sprintf(
     "[%s] Retention sweep: %d polic(ies) run, %d row(s) deleted, %d held by legal hold.\n",
     date('Y-m-d H:i:s'),
     $policiesRun,
     $totalDeleted,
     $totalHeld
 );
+\App\Core\JobHeartbeat::ping('evaluate_retention', $summary, 1440);
+echo $summary;

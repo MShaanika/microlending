@@ -30,10 +30,12 @@ if (empty($installments)) {
 
 $total = round(array_sum(array_column($installments, 'interest_amount')), 2);
 
-echo sprintf(
+$summary = sprintf(
     "[%s] Accrued interest for %d installment(s) as at %s, total %s.\n",
     date('Y-m-d H:i:s'),
     count($installments),
     $asOfDate,
     number_format($total, 2)
 );
+\App\Core\JobHeartbeat::ping('accrue_interest', $summary, 1440);
+echo $summary;

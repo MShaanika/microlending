@@ -496,6 +496,11 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Retention Policies', 'url' => url('/retention'), 'perm' => 'retention.view'],
               ['label' => 'Legal Holds', 'url' => url('/retention/holds'), 'perm' => 'retention.view'],
             ]],
+            'Platform' => ['icon' => 'mdi-server', 'items' => [
+              ['label' => 'System Health', 'url' => url('/health'), 'perm' => 'health.view'],
+              ['label' => 'Error Tracking', 'url' => url('/errors'), 'perm' => 'errors.view'],
+              ['label' => 'Feature Flags', 'url' => url('/feature-flags'), 'perm' => 'feature_flags.view'],
+            ]],
           ];
 
           // Drop items the current user's role(s) can't reach, then drop any
