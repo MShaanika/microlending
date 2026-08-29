@@ -22,13 +22,14 @@ class BackupService
     public static function run(string $triggeredBy = 'scheduled', ?int $userId = null): array
     {
         $model = new BackupRun();
-        $startedAt = date('Y-m-d H:i:s');
+        // started_at is left unset -- backup_runs.started_at defaults to
+        // MySQL's own CURRENT_TIMESTAMP, keeping it on MySQL's clock
+        // rather than a PHP-computed value (see markSuccessful()).
         $runId = $model->create([
             'backup_type' => 'database',
             'status' => 'RUNNING',
             'triggered_by' => $triggeredBy,
             'triggered_by_user' => $userId,
-            'started_at' => $startedAt,
         ]);
 
         $start = microtime(true);
@@ -65,22 +66,19 @@ class BackupService
             }
 
             $retentionDays = (int) ((new SystemSetting())->get('backup_retention_days', '30') ?? '30');
-            $model->updateRun($runId, [
+            $model->markSuccessful($runId, [
                 'file_path' => $file,
                 'file_size_bytes' => filesize($file),
                 'status' => 'SUCCESS',
-                'completed_at' => date('Y-m-d H:i:s'),
                 'duration_seconds' => (int) round(microtime(true) - $start),
-                'retention_expires_at' => date('Y-m-d H:i:s', strtotime("+{$retentionDays} days")),
-            ]);
+            ], $retentionDays);
 
             self::pruneExpired();
 
             return ['success' => true, 'run_id' => $runId, 'file' => $file];
         } catch (\Throwable $e) {
-            $model->updateRun($runId, [
+            $model->markFailed($runId, [
                 'status' => 'FAILED',
-                'completed_at' => date('Y-m-d H:i:s'),
                 'duration_seconds' => (int) round(microtime(true) - $start),
                 'error_message' => substr($e->getMessage(), 0, 2000),
             ]);

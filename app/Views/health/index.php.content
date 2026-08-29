@@ -78,7 +78,11 @@
         </thead>
         <tbody>
           <?php foreach ($heartbeats as $hb):
-            $ageMinutes = (time() - strtotime($hb['last_run_at'])) / 60;
+            // age_minutes comes from HealthCheckResult::heartbeats(), computed by
+            // MySQL's own TIMESTAMPDIFF -- never time()/strtotime() against a
+            // stored value, which silently breaks if PHP and MySQL disagree on
+            // timezone (they do on production: Africa/Windhoek vs EDT).
+            $ageMinutes = (int) $hb['age_minutes'];
             $freq = (int) ($hb['expected_frequency_minutes'] ?? 0);
             if ($freq <= 0) {
                 $hbStatus = 'UNKNOWN';

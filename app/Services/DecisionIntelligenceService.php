@@ -28,18 +28,22 @@ class DecisionIntelligenceService
     public static function hotspotsByModule(int $days = 30): array
     {
         $db = Database::connection();
-        $since = date('Y-m-d H:i:s', strtotime("-{$days} days"));
         $scores = [];
 
         $severityWeight = "CASE severity WHEN 'Critical' THEN 4 WHEN 'High' THEN 3 WHEN 'Medium' THEN 2 ELSE 1 END";
 
+        // Window cutoffs are computed by MySQL itself (NOW() - INTERVAL),
+        // not a PHP-computed date string -- production's MySQL server
+        // clock and PHP's configured timezone (Africa/Windhoek) don't
+        // agree, so binding a PHP-side "N days ago" against a
+        // MySQL-clock timestamp column is silently off by hours.
         $rows = $db->prepare(
             "SELECT module,
                     COUNT(*) AS exception_count,
                     SUM($severityWeight) AS exception_weight
-             FROM exceptions WHERE detected_at >= ? GROUP BY module"
+             FROM exceptions WHERE detected_at >= NOW() - INTERVAL ? DAY GROUP BY module"
         );
-        $rows->execute([$since]);
+        $rows->execute([$days]);
         foreach ($rows->fetchAll() as $r) {
             self::bump($scores, $r['module'], 'exceptions', (int) $r['exception_count'], (int) $r['exception_weight']);
         }
@@ -57,10 +61,10 @@ class DecisionIntelligenceService
 
         $stmt = $db->prepare(
             "SELECT module, COUNT(*) AS error_count, SUM(occurrence_count) AS occurrences
-             FROM system_errors WHERE last_seen_at >= ? AND status NOT IN ('RESOLVED', 'IGNORED') AND module IS NOT NULL
+             FROM system_errors WHERE last_seen_at >= NOW() - INTERVAL ? DAY AND status NOT IN ('RESOLVED', 'IGNORED') AND module IS NOT NULL
              GROUP BY module"
         );
-        $stmt->execute([$since]);
+        $stmt->execute([$days]);
         foreach ($stmt->fetchAll() as $r) {
             self::bump($scores, $r['module'], 'system_errors', (int) $r['error_count'], (int) $r['occurrences']);
         }
@@ -69,10 +73,10 @@ class DecisionIntelligenceService
             "SELECT p.module, COUNT(*) AS breach_count
              FROM sla_instances si
              INNER JOIN sla_policies p ON p.id = si.policy_id
-             WHERE si.status = 'BREACHED' AND si.created_at >= ?
+             WHERE si.status = 'BREACHED' AND si.created_at >= NOW() - INTERVAL ? DAY
              GROUP BY p.module"
         );
-        $stmt->execute([$since]);
+        $stmt->execute([$days]);
         foreach ($stmt->fetchAll() as $r) {
             self::bump($scores, $r['module'], 'sla_breaches', (int) $r['breach_count'], (int) $r['breach_count'] * 3);
         }
@@ -99,20 +103,19 @@ class DecisionIntelligenceService
     public static function recurringPatterns(int $days = 90, int $minOccurrences = 3): array
     {
         $db = Database::connection();
-        $since = date('Y-m-d H:i:s', strtotime("-{$days} days"));
 
         $stmt = $db->prepare(
             "SELECT module, category, exception_type, COUNT(*) AS occurrences,
                     MAX(detected_at) AS last_seen,
                     SUBSTRING_INDEX(GROUP_CONCAT(root_cause ORDER BY detected_at DESC SEPARATOR '|~|'), '|~|', 1) AS latest_root_cause
              FROM exceptions
-             WHERE detected_at >= ?
+             WHERE detected_at >= NOW() - INTERVAL ? DAY
              GROUP BY module, category, exception_type
              HAVING COUNT(*) >= ?
              ORDER BY occurrences DESC
              LIMIT 20"
         );
-        $stmt->execute([$since, $minOccurrences]);
+        $stmt->execute([$days, $minOccurrences]);
         return $stmt->fetchAll();
     }
 
@@ -120,17 +123,25 @@ class DecisionIntelligenceService
     public static function exceptionTrend(int $days = 30): array
     {
         $db = Database::connection();
+
+        // Day buckets are anchored to MySQL's own CURDATE(), not PHP's
+        // date() -- the data being bucketed (detected_at) is timestamped
+        // on MySQL's clock, so "today" for bucketing purposes has to
+        // agree with that clock too (see hotspotsByModule()). A bare
+        // date string carries no time-of-day, so the day-arithmetic
+        // below is safe from the PHP/MySQL timezone mismatch either way.
+        $today = $db->query('SELECT CURDATE()')->fetchColumn();
+
         $rows = [];
         for ($i = $days - 1; $i >= 0; $i--) {
-            $day = date('Y-m-d', strtotime("-{$i} days"));
+            $day = date('Y-m-d', strtotime("$today -{$i} days"));
             $rows[$day] = ['label' => date('d M', strtotime($day)), 'date' => $day, 'count' => 0];
         }
 
-        $since = date('Y-m-d 00:00:00', strtotime('-' . ($days - 1) . ' days'));
         $stmt = $db->prepare(
-            "SELECT DATE(detected_at) AS d, COUNT(*) AS count FROM exceptions WHERE detected_at >= ? GROUP BY DATE(detected_at)"
+            "SELECT DATE(detected_at) AS d, COUNT(*) AS count FROM exceptions WHERE detected_at >= CURDATE() - INTERVAL ? DAY GROUP BY DATE(detected_at)"
         );
-        $stmt->execute([$since]);
+        $stmt->execute([$days - 1]);
         foreach ($stmt->fetchAll() as $r) {
             if (isset($rows[$r['d']])) {
                 $rows[$r['d']]['count'] = (int) $r['count'];
@@ -143,18 +154,17 @@ class DecisionIntelligenceService
     public static function resolutionMetrics(int $days = 90): array
     {
         $db = Database::connection();
-        $since = date('Y-m-d H:i:s', strtotime("-{$days} days"));
 
         $stmt = $db->prepare(
             "SELECT severity,
                     COUNT(*) AS resolved_count,
                     AVG(TIMESTAMPDIFF(MINUTE, detected_at, resolved_at)) / 60 AS avg_hours
              FROM exceptions
-             WHERE status IN ('RESOLVED', 'CLOSED', 'ACCEPTED_RISK') AND resolved_at IS NOT NULL AND resolved_at >= ?
+             WHERE status IN ('RESOLVED', 'CLOSED', 'ACCEPTED_RISK') AND resolved_at IS NOT NULL AND resolved_at >= NOW() - INTERVAL ? DAY
              GROUP BY severity
              ORDER BY FIELD(severity, 'Critical', 'High', 'Medium', 'Low')"
         );
-        $stmt->execute([$since]);
+        $stmt->execute([$days]);
         return array_map(static function ($r) {
             $r['avg_hours'] = round((float) $r['avg_hours'], 1);
             return $r;

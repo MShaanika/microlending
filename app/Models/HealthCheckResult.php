@@ -37,8 +37,17 @@ class HealthCheckResult extends Model
         );
     }
 
+    /**
+     * age_minutes is computed by MySQL itself (TIMESTAMPDIFF against
+     * MySQL's own NOW()), not PHP's time()/strtotime() against a
+     * stored value -- production's MySQL server clock and PHP's
+     * configured timezone (Africa/Windhoek) don't agree, so mixing
+     * the two silently produces a multi-hour error. Keeping the whole
+     * comparison on MySQL's own clock sidesteps that regardless of
+     * either side's timezone configuration.
+     */
     public function heartbeats(): array
     {
-        return $this->all('SELECT * FROM scheduled_job_heartbeats ORDER BY job_key');
+        return $this->all('SELECT *, TIMESTAMPDIFF(MINUTE, last_run_at, NOW()) AS age_minutes FROM scheduled_job_heartbeats ORDER BY job_key');
     }
 }

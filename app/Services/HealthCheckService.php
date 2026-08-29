@@ -85,13 +85,12 @@ class HealthCheckService
 
             $stale = [];
             $veryStale = [];
-            $now = time();
             foreach ($jobs as $job) {
                 $freq = (int) ($job['expected_frequency_minutes'] ?? 0);
                 if ($freq <= 0) {
                     continue;
                 }
-                $ageMinutes = ($now - strtotime($job['last_run_at'])) / 60;
+                $ageMinutes = (int) $job['age_minutes'];
                 if ($ageMinutes > $freq * self::UNHEALTHY_MULTIPLIER) {
                     $veryStale[] = $job['job_key'];
                 } elseif ($ageMinutes > $freq * self::DEGRADED_MULTIPLIER) {
@@ -156,14 +155,13 @@ class HealthCheckService
             }
 
             $db = Database::connection();
-            $stmt = $db->prepare("SELECT last_run_at FROM scheduled_job_heartbeats WHERE job_key = 'download_collexia_payments'");
-            $stmt->execute();
-            $lastRun = $stmt->fetchColumn();
-            if (!$lastRun) {
+            $stmt = $db->query("SELECT TIMESTAMPDIFF(HOUR, last_run_at, NOW()) AS age_hours FROM scheduled_job_heartbeats WHERE job_key = 'download_collexia_payments'");
+            $ageHours = $stmt->fetchColumn();
+            if ($ageHours === false) {
                 return self::result('collexia_api', 'Collexia API Integration', 'UNKNOWN', null, 'Enabled, but no sync has run yet.');
             }
+            $ageHours = (int) $ageHours;
 
-            $ageHours = (time() - strtotime($lastRun)) / 3600;
             $status = $ageHours > 24 ? 'UNHEALTHY' : ($ageHours > 8 ? 'DEGRADED' : 'HEALTHY');
             return self::result('collexia_api', 'Collexia API Integration', $status, null, 'Last sync ' . round($ageHours, 1) . 'h ago.');
         } catch (\Throwable $e) {
@@ -187,10 +185,10 @@ class HealthCheckService
                 return self::result('backup', 'Backup Status', 'UNHEALTHY', null, 'No successful backup has ever completed' . $detail);
             }
 
-            $ageHours = (time() - strtotime($lastSuccess['completed_at'] ?? $lastSuccess['started_at'])) / 3600;
+            $ageHours = (int) $model->ageHoursOfLastSuccess();
             $status = $ageHours > self::UNHEALTHY_MULTIPLIER * 24 ? 'UNHEALTHY' : ($ageHours > self::DEGRADED_MULTIPLIER * 24 ? 'DEGRADED' : 'HEALTHY');
             $sizeMb = round(($lastSuccess['file_size_bytes'] ?? 0) / 1048576, 1);
-            return self::result('backup', 'Backup Status', $status, null, 'Last successful backup ' . round($ageHours, 1) . "h ago ({$sizeMb} MB).");
+            return self::result('backup', 'Backup Status', $status, null, "Last successful backup {$ageHours}h ago ({$sizeMb} MB).");
         } catch (\Throwable $e) {
             return self::result('backup', 'Backup Status', 'UNKNOWN', null, $e->getMessage());
         }
