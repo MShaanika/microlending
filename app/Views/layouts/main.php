@@ -271,7 +271,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 
           <li class="sidebar-item">
             <a class="sidebar-link waves-effect waves-dark sidebar-link" href="<?= url('/my/drafts') ?>">
-              <i class="mdi mdi-file-clock-outline"></i>
+              <i class="mdi mdi-history"></i>
               <span class="hide-menu">My Drafts</span>
             </a>
           </li>
@@ -617,7 +617,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
   <?php if ($showDraftNotice): ?>
     <div class="alert alert-info alert-dismissible d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0 rounded-0">
       <div>
-        <i class="mdi mdi-file-clock-outline"></i>
+        <i class="mdi mdi-history"></i>
         You have <?= (int) $unfinishedDraftCount ?> unfinished draft<?= $unfinishedDraftCount === 1 ? '' : 's' ?>.
         <a href="<?= url('/my/drafts') ?>">Open Draft Centre</a>
       </div>
