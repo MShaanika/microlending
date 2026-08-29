@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Security;
+use App\Core\SecurityEvent;
 use App\Models\Company;
 use App\Models\RecruitmentCandidate;
 use App\Models\RecruitmentCustomQuestion;
@@ -291,6 +292,10 @@ class RecruitmentFrontendController extends Controller
         }
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
+            SecurityEvent::record('SUSPICIOUS_UPLOAD', 'Low', [
+                'description' => 'Careers portal upload rejected: disallowed extension .' . $ext,
+                'metadata' => ['claimed_extension' => $ext],
+            ]);
             return 'Only PDF, JPG, and PNG files are allowed.';
         }
         return null;

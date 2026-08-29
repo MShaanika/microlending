@@ -3,7 +3,9 @@
 namespace App\Controllers;
 
 use App\Core\Audit;
+use App\Core\ClientIp;
 use App\Core\Controller;
+use App\Core\SecurityEvent;
 use App\Models\Branch;
 use App\Models\HrmEmployee;
 use App\Models\IntakeSource;
@@ -65,6 +67,11 @@ class ApplicationIntakeController extends Controller
 
         $ip = $this->clientIp();
         if ($this->sources->recentSubmissionCount((int) $source['id'], $ip) >= self::MAX_SUBMISSIONS_PER_HOUR) {
+            SecurityEvent::record('SOURCE_RATE_LIMITED', 'Low', [
+                'description' => 'Intake source ' . $sourceCode . ' rate-limited at ' . self::MAX_SUBMISSIONS_PER_HOUR . '/hour',
+                'ip' => $ip,
+                'metadata' => ['source_code' => $sourceCode],
+            ]);
             http_response_code(429);
             echo json_encode(['status' => 'error', 'message' => 'Too many submissions. Please try again later.']);
             return;
@@ -254,6 +261,14 @@ class ApplicationIntakeController extends Controller
         $realMime = finfo_file($finfo, $file['tmp_name']);
         finfo_close($finfo);
         if (!in_array($realMime, $allowedMimes, true)) {
+            // The extension looked fine but the actual file content didn't
+            // match any allowed MIME type -- a real spoofing signal, not
+            // just a user picking the wrong file.
+            SecurityEvent::record('SUSPICIOUS_UPLOAD', 'Medium', [
+                'description' => 'Upload rejected: extension/content mismatch on field ' . $fieldName,
+                'ip' => $this->clientIp(),
+                'metadata' => ['field' => $fieldName, 'claimed_extension' => $ext, 'sniffed_mime' => $realMime],
+            ]);
             return null;
         }
 
@@ -343,6 +358,6 @@ class ApplicationIntakeController extends Controller
 
     private function clientIp(): string
     {
-        return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+        return ClientIp::resolve() ?: '0.0.0.0';
     }
 }

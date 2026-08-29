@@ -98,6 +98,21 @@ class Auth
     {
         self::requireLogin();
         if (!self::can($permissionKey)) {
+            $user = self::user();
+            $userId = (int) ($user['id'] ?? 0);
+            // A permission denial has no "login string" the way a LOGIN_FAILED
+            // event does -- reuse attempted_login as the scope key, holding
+            // the stringified user_id instead. Safe: SecurityRuleEngine's
+            // window queries always filter by event_type first, so this
+            // never collides with a real login string from LOGIN_FAILED rows.
+            $accountScopeKey = $userId ? (string) $userId : null;
+            SecurityEvent::record('PERMISSION_DENIED', 'Low', [
+                'user_id' => $userId ?: null,
+                'attempted_login' => $accountScopeKey,
+                'description' => 'Denied ' . $permissionKey,
+                'metadata' => ['permission' => $permissionKey, 'path' => $_SERVER['REQUEST_URI'] ?? null],
+            ]);
+            self::safeEvaluateRules('PERMISSION_DENIED', ClientIp::resolve(), $accountScopeKey);
             Session::flash('error', 'You do not have permission to do that.');
             header('Location: ' . url('/dashboard'));
             exit;
@@ -150,6 +165,11 @@ class Auth
         }
 
         Audit::log('Impersonate', 'Security', "Logged in as {$target['name']} (#{$target['id']})");
+        SecurityEvent::record('IMPERSONATION_START', 'Medium', [
+            'user_id' => (int) $actor['id'],
+            'description' => ($actor['name'] ?? '') . ' started impersonating ' . $target['name'] . ' (#' . $target['id'] . ')',
+            'metadata' => ['actor_id' => $actor['id'], 'target_id' => $target['id']],
+        ]);
         Session::put('impersonator', $actor);
         self::loginSession($target);
         return true;
@@ -182,11 +202,46 @@ class Auth
 
     public static function attempt(string $login, string $password): bool
     {
+        $normalizedLogin = SecurityEvent::normalizeLogin($login);
+        $ip = ClientIp::resolve();
+
         $db = Database::connection();
         $stmt = $db->prepare("SELECT * FROM users WHERE (email = ? OR username = ?) AND is_active = 1 LIMIT 1");
         $stmt->execute([$login, $login]);
         $user = $stmt->fetch();
-        if (!$user || !password_verify($password, $user['password'])) return false;
+
+        // Super Admin/Admin/bypass-flagged users are exempt from BOTH block
+        // types -- mirrors ipAllowed()'s existing exemption exactly. An
+        // admin must never be lockable out of fixing a false positive
+        // (including one caused by other staff on a shared branch IP).
+        $isExempt = $user && (
+            in_array($user['user_type'] ?? '', ['Super Admin', 'Admin'], true)
+            || !empty($user['bypass_ip_restriction'])
+        );
+
+        if (!$isExempt) {
+            $blocked = self::checkBlocked($ip, $normalizedLogin);
+            if ($blocked) {
+                SecurityEvent::record('LOGIN_BLOCKED', 'Medium', [
+                    'attempted_login' => $normalizedLogin,
+                    'user_id' => $user['id'] ?? null,
+                    'description' => 'Login rejected: ' . $blocked['block_type'] . ' block active (' . $blocked['reason'] . ')',
+                    'ip' => $ip,
+                ]);
+                Session::flash('error', 'This account or source is temporarily restricted due to unusual activity. Please try again later or contact an administrator.');
+                return false;
+            }
+        }
+
+        if (!$user || !password_verify($password, $user['password'])) {
+            SecurityEvent::record('LOGIN_FAILED', 'Low', [
+                'attempted_login' => $normalizedLogin,
+                'description' => $user ? 'Incorrect password' : 'Unknown username/email',
+                'ip' => $ip,
+            ]);
+            self::safeEvaluateRules('LOGIN_FAILED', $ip, $normalizedLogin, $isExempt);
+            return false;
+        }
 
         if (!self::ipAllowed($user)) {
             Session::flash('error', 'You cannot log in from this location. Contact your administrator if you believe this is a mistake.');
@@ -202,7 +257,40 @@ class Auth
         self::loginSession($user);
         $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
         Audit::log('Login', 'Security', 'User logged in successfully');
+        SecurityEvent::record('LOGIN_SUCCESS', 'Info', [
+            'attempted_login' => $normalizedLogin,
+            'user_id' => (int) $user['id'],
+            'ip' => $ip,
+        ]);
         return true;
+    }
+
+    /** Active IP block or active account block for this login attempt, if either applies. */
+    private static function checkBlocked(string $ip, string $normalizedLogin): ?array
+    {
+        $blocks = new \App\Models\SecurityBlockedSource();
+        return $blocks->activeBlock('ip', $ip) ?? $blocks->activeBlock('account', $normalizedLogin);
+    }
+
+    /**
+     * SecurityRuleEngine::evaluate() must never be able to break login -- a
+     * bug here is not allowed to lock out real users.
+     *
+     * $exemptAccount still lets detection/incidents/notifications fire for
+     * an exempt (Super Admin/Admin) account -- an attacker guessing the
+     * admin's password is still worth knowing about -- but tells the engine
+     * to skip creating an account-lock block for it. Without this, the
+     * block row would still be created (and show as "Active" on the
+     * Blocked Sources page) even though checkBlocked() never enforces it
+     * for an exempt user, which is misleading, not just harmless.
+     */
+    private static function safeEvaluateRules(string $eventType, string $ip, ?string $account = null, bool $exemptAccount = false): void
+    {
+        try {
+            \App\Services\SecurityRuleEngine::evaluate($eventType, $ip, $account, $exemptAccount);
+        } catch (\Throwable $e) {
+            error_log('SecurityRuleEngine::evaluate failed: ' . $e->getMessage());
+        }
     }
 
     /** Shared by attempt() and attemptRememberLogin() so both populate the exact same session shape. */

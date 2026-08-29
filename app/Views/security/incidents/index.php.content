@@ -1,0 +1,92 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Security Incidents</h4>
+    </div>
+
+    <form method="get" action="<?= url('/security/incidents') ?>" class="row g-2 mb-3">
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach (['Open', 'Investigating', 'Contained', 'Resolved', 'False Positive', 'Closed'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="severity" class="form-select">
+          <option value="">All severities</option>
+          <?php foreach (['Low', 'Medium', 'High', 'Critical'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['severity'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" class="form-control" placeholder="From" value="<?= e($filters['date_from']) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" class="form-control" placeholder="To" value="<?= e($filters['date_to']) ?>">
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-magnify"></i> Filter</button>
+        <a href="<?= url('/security/incidents') ?>" class="btn btn-outline-light btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>First Seen</th>
+            <th>Last Seen</th>
+            <th>Title</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Events</th>
+            <th>Source</th>
+            <th>Assigned To</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($incidents)): ?>
+            <tr><td colspan="9" class="text-center text-muted py-4">No incidents found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($incidents as $inc):
+            $badge = match ($inc['severity']) {
+              'Critical', 'High' => 'danger',
+              'Medium' => 'warning',
+              default => 'info',
+            };
+            $statusBadge = match ($inc['status']) {
+              'Open' => 'danger',
+              'Investigating' => 'warning',
+              'Contained' => 'info',
+              'Resolved', 'Closed' => 'success',
+              default => 'secondary',
+            };
+          ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($inc['first_event_at']))) ?></td>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($inc['last_event_at']))) ?></td>
+              <td><?= e($inc['title']) ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($inc['severity']) ?></span></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($inc['status']) ?></span></td>
+              <td><?= (int) $inc['event_count'] ?></td>
+              <td><?= e($inc['source_ip'] ?: ($inc['source_login'] ?: '—')) ?></td>
+              <td><?= e($inc['assigned_to_name'] ?: '—') ?></td>
+              <td><a href="<?= url('/security/incidents/' . $inc['id']) ?>" class="btn btn-sm btn-outline-primary">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($incidents) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>

@@ -275,6 +275,10 @@ CREATE TABLE audit_logs (
     FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Dead: never written to or read from anywhere in app/ -- superseded by
+-- security_events (event_type LOGIN_FAILED/LOGIN_SUCCESS), which has a
+-- strictly better shape (severity, rule/incident linkage). Left in place
+-- rather than dropped; do not wire new code to this table.
 CREATE TABLE login_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,

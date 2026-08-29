@@ -1,0 +1,85 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Blocked Sources</h4>
+    </div>
+
+    <form method="get" action="<?= url('/security/blocked-sources') ?>" class="row g-2 mb-3">
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <?php foreach (['Active', 'Expired', 'Lifted', ''] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s === '' ? 'All statuses' : $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="block_type" class="form-select">
+          <option value="">All types</option>
+          <option value="ip" <?= $filters['block_type'] === 'ip' ? 'selected' : '' ?>>IP</option>
+          <option value="account" <?= $filters['block_type'] === 'account' ? 'selected' : '' ?>>Account</option>
+        </select>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-magnify"></i> Filter</button>
+        <a href="<?= url('/security/blocked-sources') ?>" class="btn btn-outline-light btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Reason</th>
+            <th>Blocked At</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($blocks)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No blocked sources found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($blocks as $b):
+            $statusBadge = match ($b['status']) {
+              'Active' => 'danger',
+              'Lifted' => 'success',
+              default => 'secondary',
+            };
+          ?>
+            <tr>
+              <td><span class="badge bg-light text-dark"><?= e($b['block_type']) ?></span></td>
+              <td><?= e($b['block_value']) ?></td>
+              <td><?= e($b['reason'] ?: '—') ?></td>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($b['blocked_at']))) ?></td>
+              <td class="text-nowrap"><?= $b['expires_at'] ? e(date('d M Y H:i', strtotime($b['expires_at']))) : 'No expiry' ?></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($b['status']) ?></span></td>
+              <td>
+                <?php if ($b['status'] === 'Active' && Auth::can('security.blocks.manage')): ?>
+                  <form method="post" action="<?= url('/security/blocked-sources/' . $b['id'] . '/lift') ?>" class="d-flex gap-1" onsubmit="return confirm('Lift this block?');">
+                    <?= csrf_field() ?>
+                    <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason (optional)" style="width: 160px;">
+                    <button type="submit" class="btn btn-sm btn-outline-success">Lift</button>
+                  </form>
+                <?php elseif ($b['status'] === 'Lifted'): ?>
+                  <span class="text-muted small">by <?= e($b['lifted_by_name'] ?: '—') ?></span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($blocks) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>

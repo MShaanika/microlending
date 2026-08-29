@@ -459,6 +459,13 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Intake Sources', 'url' => url('/settings/intake-sources'), 'perm' => 'admin.system_settings'],
               ['label' => 'Branch Login IP Restrictions', 'url' => url('/settings/branch-ip-ranges'), 'perm' => 'admin.system_settings'],
             ]],
+            'Security' => ['icon' => 'mdi-shield', 'items' => [
+              ['label' => 'Security Overview', 'url' => url('/security/overview'), 'perm' => 'security.view'],
+              ['label' => 'Security Events', 'url' => url('/security/events'), 'perm' => 'security.view'],
+              ['label' => 'Security Incidents', 'url' => url('/security/incidents'), 'perm' => 'security.view'],
+              ['label' => 'Blocked Sources', 'url' => url('/security/blocked-sources'), 'perm' => 'security.view'],
+              ['label' => 'Security Rules', 'url' => url('/security/rules'), 'perm' => 'security.view'],
+            ]],
           ];
 
           // Drop items the current user's role(s) can't reach, then drop any

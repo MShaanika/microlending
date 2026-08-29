@@ -17,7 +17,7 @@ class Audit
             $stmt->execute([
                 Session::get('user')['id'] ?? null, $action, $module, $description,
                 $metadata ? json_encode($metadata) : null, $referenceKey,
-                $_SERVER['REMOTE_ADDR'] ?? null, $_SERVER['HTTP_USER_AGENT'] ?? null
+                ClientIp::resolve(), $_SERVER['HTTP_USER_AGENT'] ?? null
             ]);
         } catch (\Throwable $e) { /* keep app alive */ }
     }

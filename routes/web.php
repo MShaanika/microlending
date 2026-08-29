@@ -36,6 +36,11 @@ use App\Controllers\UserController;
 use App\Controllers\RoleController;
 use App\Controllers\PermissionController;
 use App\Controllers\AuditLogController;
+use App\Controllers\SecurityDashboardController;
+use App\Controllers\SecurityEventController;
+use App\Controllers\SecurityIncidentController;
+use App\Controllers\SecurityBlockedSourceController;
+use App\Controllers\SecurityRuleController;
 use App\Controllers\CompanySettingController;
 use App\Controllers\SocialAnalyticsController;
 use App\Controllers\HrmDepartmentController;
@@ -508,6 +513,20 @@ $router->get('/settings/roles/{id}/permissions', [RoleController::class, 'permis
 $router->post('/settings/roles/{id}/permissions', [RoleController::class, 'updatePermissions']);
 
 $router->get('/settings/permissions', [PermissionController::class, 'index']);
+
+// Cyber Security / SOC module (Phase 1 Foundation) -- own permission
+// namespace (security.*), not folded under /settings.
+$router->get('/security/overview', [SecurityDashboardController::class, 'index']);
+$router->get('/security/overview/poll', [SecurityDashboardController::class, 'poll']);
+$router->get('/security/events', [SecurityEventController::class, 'index']);
+$router->get('/security/incidents', [SecurityIncidentController::class, 'index']);
+$router->get('/security/incidents/{id}', [SecurityIncidentController::class, 'show']);
+$router->post('/security/incidents/{id}', [SecurityIncidentController::class, 'update']);
+$router->get('/security/blocked-sources', [SecurityBlockedSourceController::class, 'index']);
+$router->post('/security/blocked-sources/{id}/lift', [SecurityBlockedSourceController::class, 'lift']);
+$router->get('/security/rules', [SecurityRuleController::class, 'index']);
+$router->post('/security/rules/{id}', [SecurityRuleController::class, 'update']);
+$router->post('/security/rules/settings', [SecurityRuleController::class, 'updateSettings']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 

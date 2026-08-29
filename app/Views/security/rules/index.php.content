@@ -1,0 +1,93 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-0">Security Rules</h4>
+    <p class="text-muted small">Detection rule <em>types</em> are code-defined; the numbers below control when they fire and how they respond. Editing a rule takes effect on the next matching event.</p>
+
+    <?php foreach ($rules as $rule): ?>
+      <div class="card border mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+              <h5 class="mb-0"><?= e($rule['rule_name']) ?></h5>
+              <p class="text-muted small mb-0"><?= e($rule['description']) ?></p>
+              <span class="badge bg-light text-dark"><?= e($rule['event_type']) ?></span>
+              <span class="badge bg-light text-dark">scope: <?= e($rule['scope']) ?></span>
+              <?php if ($rule['last_triggered_at']): ?>
+                <span class="text-muted small">Last triggered <?= e(date('d M Y H:i', strtotime($rule['last_triggered_at']))) ?></span>
+              <?php endif; ?>
+            </div>
+            <span class="badge bg-<?= $rule['is_active'] ? 'success' : 'secondary' ?>"><?= $rule['is_active'] ? 'Active' : 'Inactive' ?></span>
+          </div>
+
+          <?php if (Auth::can('security.rules.manage')): ?>
+          <form method="post" action="<?= url('/security/rules/' . $rule['id']) ?>" class="row g-2 align-items-end">
+            <?= csrf_field() ?>
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Threshold</label>
+              <input type="number" name="threshold_count" class="form-control form-control-sm" value="<?= (int) $rule['threshold_count'] ?>" min="1">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Window (min)</label>
+              <input type="number" name="window_minutes" class="form-control form-control-sm" value="<?= (int) $rule['window_minutes'] ?>" min="1">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Severity</label>
+              <select name="severity" class="form-select form-select-sm">
+                <?php foreach (['Low', 'Medium', 'High', 'Critical'] as $s): ?>
+                  <option value="<?= $s ?>" <?= $rule['severity'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Risk Score +</label>
+              <input type="number" name="risk_score_delta" class="form-control form-control-sm" value="<?= (int) $rule['risk_score_delta'] ?>">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Response</label>
+              <select name="response_action" class="form-select form-select-sm">
+                <option value="none" <?= $rule['response_action'] === 'none' ? 'selected' : '' ?>>None</option>
+                <option value="rate_limit_source" <?= $rule['response_action'] === 'rate_limit_source' ? 'selected' : '' ?>>Rate limit source</option>
+                <option value="lock_account" <?= $rule['response_action'] === 'lock_account' ? 'selected' : '' ?>>Lock account</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Duration (min)</label>
+              <input type="number" name="response_duration_minutes" class="form-control form-control-sm" value="<?= e($rule['response_duration_minutes'] ?? '') ?>" min="1">
+            </div>
+            <div class="col-md-3 form-check mt-3">
+              <input type="checkbox" name="is_active" value="1" class="form-check-input" id="active_<?= $rule['id'] ?>" <?= $rule['is_active'] ? 'checked' : '' ?>>
+              <label class="form-check-label small" for="active_<?= $rule['id'] ?>">Rule active</label>
+            </div>
+            <div class="col-md-3 mt-3">
+              <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+            </div>
+          </form>
+          <p class="text-muted small mt-2 mb-0">Updated by <?= e($rule['updated_by_name'] ?: '—') ?></p>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+
+<?php if (Auth::can('security.rules.manage')): ?>
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Security Alert Notifications</h4>
+    <p class="text-muted small">High and Critical severity incidents are emailed immediately to this address. Medium and Low severity incidents are queued.</p>
+    <form method="post" action="<?= url('/security/rules/settings') ?>" class="row g-2">
+      <?= csrf_field() ?>
+      <div class="col-md-4">
+        <input type="email" name="security_alert_recipient_email" class="form-control" placeholder="security-alerts@example.com" value="<?= e($alertRecipientEmail) ?>">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>

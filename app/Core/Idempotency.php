@@ -93,6 +93,16 @@ class Idempotency
                 self::begin($key, $operationType, $userId);
                 return;
             }
+            // A genuinely concurrent collision (not a stale/stuck row) --
+            // visibility only in Phase 1, no rule attached. A single benign
+            // double-click replay is NOT logged here (see the COMPLETED
+            // branch above) since that's the expected, common case this
+            // whole mechanism exists to handle gracefully -- logging it as a
+            // signal would just be noise.
+            SecurityEvent::record('REPLAY_ABUSE_SUSPECTED', 'Low', [
+                'user_id' => $userId,
+                'description' => 'Concurrent duplicate request for ' . $operationType,
+            ]);
             throw new IdempotencyBusyException();
         }
 

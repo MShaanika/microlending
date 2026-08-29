@@ -1,0 +1,120 @@
+<?php
+  use App\Core\Auth;
+  $badge = match ($incident['severity']) {
+      'Critical', 'High' => 'danger',
+      'Medium' => 'warning',
+      default => 'info',
+  };
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/security/incidents') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Incidents</a>
+    <h4 class="mb-0"><?= e($incident['title']) ?></h4>
+  </div>
+  <span class="badge bg-<?= $badge ?> fs-6"><?= e($incident['severity']) ?></span>
+</div>
+
+<div class="row">
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Incident Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted">Status</th><td><?= e($incident['status']) ?></td></tr>
+          <tr><th class="text-muted">Source IP</th><td><?= e($incident['source_ip'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Source Login</th><td><?= e($incident['source_login'] ?: '—') ?></td></tr>
+          <tr><th class="text-muted">Event Count</th><td><?= (int) $incident['event_count'] ?></td></tr>
+          <tr><th class="text-muted">First Seen</th><td><?= e(date('d M Y H:i', strtotime($incident['first_event_at']))) ?></td></tr>
+          <tr><th class="text-muted">Last Seen</th><td><?= e(date('d M Y H:i', strtotime($incident['last_event_at']))) ?></td></tr>
+          <tr><th class="text-muted">Assigned To</th><td><?= e($incident['assigned_to_name'] ?: 'Unassigned') ?></td></tr>
+          <?php if ($incident['resolved_at']): ?>
+            <tr><th class="text-muted">Resolved By</th><td><?= e($incident['resolved_by_name'] ?: '—') ?></td></tr>
+            <tr><th class="text-muted">Resolved At</th><td><?= e(date('d M Y H:i', strtotime($incident['resolved_at']))) ?></td></tr>
+          <?php endif; ?>
+        </table>
+        <?php if ($incident['resolution_notes']): ?>
+          <hr>
+          <h6 class="text-muted">Resolution Notes</h6>
+          <p class="mb-0"><?= nl2br(e($incident['resolution_notes'])) ?></p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8 mb-3">
+    <?php if (Auth::can('security.incidents.manage')): ?>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Update Incident</h5>
+        <form method="post" action="<?= url('/security/incidents/' . $incident['id']) ?>">
+          <?= csrf_field() ?>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label small text-muted">Status</label>
+              <select name="status" class="form-select">
+                <?php foreach (['Open', 'Investigating', 'Contained', 'Resolved', 'False Positive', 'Closed'] as $s): ?>
+                  <option value="<?= $s ?>" <?= $incident['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small text-muted">Assigned To</label>
+              <select name="assigned_to" class="form-select">
+                <option value="">Unassigned</option>
+                <?php foreach ($staffUsers as $u): ?>
+                  <option value="<?= (int) $u['id'] ?>" <?= (string) $incident['assigned_to'] === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small text-muted">Resolution Notes</label>
+              <textarea name="resolution_notes" class="form-control" rows="3" placeholder="What was found, and what was done about it..."><?= e($incident['resolution_notes'] ?? '') ?></textarea>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Investigation Timeline</h5>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>User / Login</th>
+                <th>IP</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($events)): ?>
+                <tr><td colspan="6" class="text-center text-muted py-4">No linked events.</td></tr>
+              <?php endif; ?>
+              <?php foreach ($events as $ev): ?>
+                <tr>
+                  <td class="text-nowrap"><?= e(date('d M Y H:i:s', strtotime($ev['created_at']))) ?></td>
+                  <td><span class="badge bg-light text-dark"><?= e($ev['event_type']) ?></span></td>
+                  <td><span class="badge bg-secondary"><?= e($ev['severity']) ?></span></td>
+                  <td><?= e($ev['user_name'] ?: ($ev['attempted_login'] ?: '—')) ?></td>
+                  <td><?= e($ev['ip_address'] ?: '—') ?></td>
+                  <td><?= e($ev['description']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

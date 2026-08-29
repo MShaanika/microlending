@@ -1,0 +1,101 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Security Events</h4>
+    </div>
+
+    <form method="get" action="<?= url('/security/events') ?>" class="row g-2 mb-3">
+      <div class="col-md-2">
+        <select name="event_type" class="form-select">
+          <option value="">All types</option>
+          <?php foreach ($eventTypes as $t): ?>
+            <option value="<?= e($t) ?>" <?= $filters['event_type'] === $t ? 'selected' : '' ?>><?= e($t) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="severity" class="form-select">
+          <option value="">All severities</option>
+          <?php foreach (['Info', 'Low', 'Medium', 'High', 'Critical'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['severity'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="user_id" class="form-select">
+          <option value="">All users</option>
+          <?php foreach ($users as $u): ?>
+            <option value="<?= (int) $u['id'] ?>" <?= (string) $filters['user_id'] === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="text" name="ip" class="form-control" placeholder="IP address" value="<?= e($filters['ip']) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" class="form-control" placeholder="From" value="<?= e($filters['date_from']) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" class="form-control" placeholder="To" value="<?= e($filters['date_to']) ?>">
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="search" class="form-control" placeholder="Search description or login...">
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-magnify"></i> Filter</button>
+        <a href="<?= url('/security/events') ?>" class="btn btn-outline-light btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>User / Login</th>
+            <th>IP</th>
+            <th>Description</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($events)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No security events found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($events as $ev):
+            $badge = match ($ev['severity']) {
+              'Critical' => 'danger',
+              'High' => 'danger',
+              'Medium' => 'warning',
+              'Low' => 'info',
+              default => 'secondary',
+            };
+          ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($ev['created_at']))) ?></td>
+              <td><span class="badge bg-light text-dark"><?= e($ev['event_type']) ?></span></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($ev['severity']) ?></span></td>
+              <td><?= e($ev['user_name'] ?: ($ev['attempted_login'] ?: '—')) ?></td>
+              <td><?= e($ev['ip_address'] ?: '—') ?></td>
+              <td><?= e($ev['description']) ?></td>
+              <td>
+                <?php if ($ev['incident_id']): ?>
+                  <a href="<?= url('/security/incidents/' . $ev['incident_id']) ?>" class="btn btn-sm btn-outline-primary" title="View related incident"><i class="mdi mdi-alert-octagon-outline"></i></a>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($events) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>

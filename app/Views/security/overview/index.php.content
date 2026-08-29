@@ -1,0 +1,190 @@
+<?php
+  $threatColors = [
+      'NORMAL' => 'success',
+      'ELEVATED' => 'info',
+      'HIGH' => 'warning',
+      'CRITICAL' => 'danger',
+  ];
+  $threatColor = $threatColors[$stats['threat_level']] ?? 'secondary';
+?>
+
+<?= flash_messages() ?>
+
+<div class="card mb-3 bg-<?= $threatColor ?> text-white">
+  <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <span class="opacity-75 small">Current Threat Level</span>
+      <h3 class="mb-0 text-white" id="threatLevelLabel"><?= e($stats['threat_level']) ?></h3>
+    </div>
+    <i class="mdi mdi-shield display-4 opacity-75"></i>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <a href="<?= url('/security/events') ?>" class="text-decoration-none">
+      <div class="card kpi-card h-100" style="border-left-color:#635bff">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h3 class="kpi-number mb-1" id="statEventsToday"><?= (int) $stats['events_today'] ?></h3>
+              <span class="text-muted small">Security Events Today</span>
+            </div>
+            <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-eye-outline"></i></span>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <a href="<?= url('/security/events?event_type=LOGIN_FAILED') ?>" class="text-decoration-none">
+      <div class="card kpi-card h-100" style="border-left-color:#f9ab00">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h3 class="kpi-number mb-1" id="statFailedLogins"><?= (int) $stats['failed_logins_today'] ?></h3>
+              <span class="text-muted small">Failed Logins Today</span>
+            </div>
+            <span class="kpi-icon" style="background:#f9ab00"><i class="mdi mdi-account-alert"></i></span>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <a href="<?= url('/security/incidents?status=Open') ?>" class="text-decoration-none">
+      <div class="card kpi-card h-100" style="border-left-color:#ff5c75">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h3 class="kpi-number mb-1" id="statOpenIncidents"><?= (int) $stats['open_incidents'] ?></h3>
+              <span class="text-muted small">Open Incidents</span>
+            </div>
+            <span class="kpi-icon" style="background:#ff5c75"><i class="mdi mdi-alert-octagon"></i></span>
+          </div>
+          <div class="kpi-footer">
+            <span class="text-muted small" id="statCriticalIncidents"><?= (int) $stats['critical_incidents'] ?> critical</span>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <a href="<?= url('/security/blocked-sources') ?>" class="text-decoration-none">
+      <div class="card kpi-card h-100" style="border-left-color:#0a66c2">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h3 class="kpi-number mb-1" id="statActiveBlocks"><?= (int) $stats['active_blocks'] ?></h3>
+              <span class="text-muted small">Active Blocks</span>
+            </div>
+            <span class="kpi-icon" style="background:#0a66c2"><i class="mdi mdi-block-helper"></i></span>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Failed Logins <span class="text-muted small">(last 24 hours)</span></h4>
+        <div id="trendChart"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title">Quick Links</h4>
+        <div class="list-group">
+          <a href="<?= url('/security/events') ?>" class="list-group-item list-group-item-action"><i class="mdi mdi-format-list-bulleted"></i> Security Events</a>
+          <a href="<?= url('/security/incidents') ?>" class="list-group-item list-group-item-action"><i class="mdi mdi-alert-octagon-outline"></i> Security Incidents</a>
+          <a href="<?= url('/security/blocked-sources') ?>" class="list-group-item list-group-item-action"><i class="mdi mdi-block-helper"></i> Blocked Sources</a>
+          <a href="<?= url('/security/rules') ?>" class="list-group-item list-group-item-action"><i class="mdi mdi-tune"></i> Security Rules</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Recent High &amp; Critical Events</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>User / Login</th>
+            <th>IP</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($recentHighSeverity)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No High or Critical severity events recently.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($recentHighSeverity as $ev): ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($ev['created_at']))) ?></td>
+              <td><span class="badge bg-light text-dark"><?= e($ev['event_type']) ?></span></td>
+              <td><span class="badge bg-danger"><?= e($ev['severity']) ?></span></td>
+              <td><?= e($ev['user_name'] ?: ($ev['attempted_login'] ?: '—')) ?></td>
+              <td><?= e($ev['ip_address'] ?: '—') ?></td>
+              <td><?= e($ev['description']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var trendData = <?= json_encode($trend) ?>;
+  var pollUrl = <?= json_encode(url('/security/overview/poll')) ?>;
+  var threatColors = { NORMAL: 'success', ELEVATED: 'info', HIGH: 'warning', CRITICAL: 'danger' };
+
+  new ApexCharts(document.getElementById('trendChart'), {
+    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+    series: [{ name: 'Failed Logins', data: trendData.map(function (r) { return parseInt(r.total, 10); }) }],
+    xaxis: { categories: trendData.map(function (r) { return r.hour_label; }) },
+    colors: ['#ff5c75'],
+    dataLabels: { enabled: false },
+    plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+  }).render();
+
+  function poll() {
+    fetch(pollUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success) { return; }
+        var s = data.stats;
+        document.getElementById('statEventsToday').textContent = s.events_today;
+        document.getElementById('statFailedLogins').textContent = s.failed_logins_today;
+        document.getElementById('statOpenIncidents').textContent = s.open_incidents;
+        document.getElementById('statCriticalIncidents').textContent = s.critical_incidents + ' critical';
+        document.getElementById('statActiveBlocks').textContent = s.active_blocks;
+
+        var label = document.getElementById('threatLevelLabel');
+        label.textContent = s.threat_level;
+        var banner = label.closest('.card');
+        Object.values(threatColors).forEach(function (c) { banner.classList.remove('bg-' + c); });
+        banner.classList.add('bg-' + (threatColors[s.threat_level] || 'secondary'));
+      })
+      .catch(function () { /* silent -- a failed poll must never disrupt the page */ });
+  }
+
+  setInterval(poll, 45000);
+})();
+</script>
