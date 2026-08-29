@@ -22,6 +22,10 @@
     <p class="mb-1"><strong>Cancellation Date:</strong> <?= e(date('d M Y', strtotime($cancellation['cancellation_date']))) ?></p>
     <p class="mb-1"><strong>Amount Cancelled:</strong> <?= format_money($cancellation['amount_cancelled']) ?></p>
     <p class="mb-1"><strong>Reason:</strong> <?= e($cancellation['reason']) ?></p>
+    <p class="mb-1 text-muted small">Requested by <?= e($cancellation['requested_by_name'] ?: '—') ?> on <?= e(date('d M Y', strtotime($cancellation['created_at']))) ?></p>
+    <?php if ($cancellation['approved_by']): ?>
+      <p class="mb-1 text-muted small">Actioned by <?= e($cancellation['approved_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($cancellation['approved_at']))) ?></p>
+    <?php endif; ?>
 
     <?php if ($cancellation['status'] === 'Pending'): ?>
       <div class="alert alert-warning small mt-3 mb-0">

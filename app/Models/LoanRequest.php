@@ -14,11 +14,12 @@ class LoanRequest extends Model
     public function paginated(string $status = '', int $limit = 100): array
     {
         $sql = "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.phone, b.borrower_no,
-                       el.loan_no AS existing_loan_no,
+                       el.loan_no AS existing_loan_no, u.name AS reviewed_by_name,
                        (SELECT COUNT(*) FROM loan_request_documents d WHERE d.loan_request_id = r.id) AS document_count
                 FROM loan_requests r
                 JOIN borrowers b ON b.id = r.borrower_id
                 LEFT JOIN loans el ON el.id = r.existing_loan_id
+                LEFT JOIN users u ON u.id = r.reviewed_by
                 WHERE 1=1";
         $params = [];
 

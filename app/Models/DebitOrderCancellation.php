@@ -29,10 +29,13 @@ class DebitOrderCancellation extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.branch_id AS borrower_branch_id, l.loan_no
+            "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.branch_id AS borrower_branch_id, l.loan_no,
+                    rqu.name AS requested_by_name, au.name AS approved_by_name
              FROM debit_order_cancellations c
              JOIN borrowers b ON b.id = c.borrower_id
              LEFT JOIN loans l ON l.id = c.loan_id
+             LEFT JOIN users rqu ON rqu.id = c.requested_by
+             LEFT JOIN users au ON au.id = c.approved_by
              WHERE c.id = ?",
             [$id]
         );

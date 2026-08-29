@@ -27,7 +27,12 @@ class DebitOrderRun extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT r.*, br.branch_name FROM debit_order_runs r JOIN branches br ON br.id = r.branch_id WHERE r.id = ?",
+            "SELECT r.*, br.branch_name, gu.name AS generated_by_name, pu.name AS posted_by_name
+             FROM debit_order_runs r
+             JOIN branches br ON br.id = r.branch_id
+             LEFT JOIN users gu ON gu.id = r.generated_by
+             LEFT JOIN users pu ON pu.id = r.posted_by
+             WHERE r.id = ?",
             [$id]
         );
     }

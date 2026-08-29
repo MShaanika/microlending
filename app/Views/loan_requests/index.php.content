@@ -24,12 +24,12 @@
       <table class="table table-hover align-middle">
         <thead>
           <tr>
-            <th>Request No</th><th>Borrower</th><th>Type</th><th>Amount</th><th>Term</th><th>Purpose</th><th>Docs</th><th>Status</th><th>Submitted</th><th class="text-end">Action</th>
+            <th>Request No</th><th>Borrower</th><th>Type</th><th>Amount</th><th>Term</th><th>Purpose</th><th>Docs</th><th>Status</th><th>Submitted</th><th>Reviewed By</th><th class="text-end">Action</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($requests)): ?>
-            <tr><td colspan="10" class="text-center text-muted py-4">No loan requests from the portal yet.</td></tr>
+            <tr><td colspan="11" class="text-center text-muted py-4">No loan requests from the portal yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($requests as $r): ?>
             <?php
@@ -60,6 +60,7 @@
               </td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
               <td><?= e(date('d M Y', strtotime($r['requested_at']))) ?></td>
+              <td class="text-muted small"><?= e($r['reviewed_by_name'] ?: '—') ?></td>
               <td class="text-end">
                 <?php if ($r['status'] === 'Pending'): ?>
                   <form method="post" action="<?= url('/loan-requests/' . $r['id'] . '/approve') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Approve this request? You will be taken to the New Loan screen to finalize it.');">

@@ -21,11 +21,11 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Claim No</th><th>Borrower</th><th>Loan</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th><th class="text-end">Action</th></tr>
+          <tr><th>Claim No</th><th>Borrower</th><th>Loan</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th><th>Last Action By</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($claims)): ?>
-            <tr><td colspan="8" class="text-center text-muted py-4">No refund claims yet.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4">No refund claims yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($claims as $c): ?>
             <?php
@@ -44,6 +44,7 @@
               <td><?= format_money($c['claim_amount']) ?></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($c['status']) ?></span></td>
               <td><?= e(date('d M Y', strtotime($c['claim_date']))) ?></td>
+              <td class="text-muted small"><?= e($c['last_action_by_name'] ?: '—') ?></td>
               <td class="text-end">
                 <?php if (in_array($c['status'], ['Pending', 'Under Review'], true)): ?>
                   <form method="post" action="<?= url('/refund-claims/' . $c['id'] . '/approve') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Approve this claim for ' + document.getElementById('amt-<?= $c['id'] ?>').value + '?');">

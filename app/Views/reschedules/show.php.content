@@ -101,6 +101,39 @@
 
 <div class="card">
   <div class="card-body">
+    <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Approval History</h4>
+    <ul class="list-unstyled mb-0">
+      <li class="mb-2 pb-2 border-bottom">
+        <strong>Requested</strong>
+        by <?= e($reschedule['requested_by_name'] ?: '—') ?>
+        <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($reschedule['created_at']))) ?></span>
+      </li>
+      <?php if ($reschedule['status'] === 'Rejected' && $reschedule['reviewed_by']): ?>
+        <li class="mb-2 pb-2 border-bottom">
+          <strong>Rejected</strong>
+          by <?= e($reschedule['reviewed_by_name'] ?: '—') ?>
+          <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($reschedule['reviewed_at']))) ?></span>
+        </li>
+      <?php elseif ($reschedule['approved_by']): ?>
+        <li class="mb-2 pb-2 border-bottom">
+          <strong>Approved</strong>
+          by <?= e($reschedule['approved_by_name'] ?: '—') ?>
+          <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($reschedule['approved_at']))) ?></span>
+        </li>
+      <?php endif; ?>
+      <?php if ($reschedule['implemented_by']): ?>
+        <li class="mb-2 pb-2 border-bottom">
+          <strong>Implemented</strong>
+          by <?= e($reschedule['implemented_by_name'] ?: '—') ?>
+          <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($reschedule['implemented_at']))) ?></span>
+        </li>
+      <?php endif; ?>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
     <h4 class="card-title">New Schedule</h4>
     <div class="table-responsive">
       <table class="table table-sm table-bordered">

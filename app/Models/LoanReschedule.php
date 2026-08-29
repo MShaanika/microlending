@@ -29,10 +29,16 @@ class LoanReschedule extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT r.*, l.loan_no, l.loan_status, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT r.*, l.loan_no, l.loan_status, CONCAT(b.first_name,' ',b.last_name) AS borrower_name,
+                    rqu.name AS requested_by_name, rvu.name AS reviewed_by_name,
+                    au.name AS approved_by_name, iu.name AS implemented_by_name
              FROM loan_reschedules r
              JOIN loans l ON l.id = r.loan_id
              JOIN borrowers b ON b.id = r.borrower_id
+             LEFT JOIN users rqu ON rqu.id = r.requested_by
+             LEFT JOIN users rvu ON rvu.id = r.reviewed_by
+             LEFT JOIN users au ON au.id = r.approved_by
+             LEFT JOIN users iu ON iu.id = r.implemented_by
              WHERE r.id = ?",
             [$id]
         );

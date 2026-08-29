@@ -17,10 +17,14 @@ class RefundClaim extends Model
 
     public function paginated(string $status = '', int $limit = 100): array
     {
-        $sql = "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no
+        $sql = "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no,
+                       COALESCE(pu.name, au.name, ru.name) AS last_action_by_name
                 FROM refund_claims r
                 JOIN borrowers b ON b.id = r.borrower_id
                 LEFT JOIN loans l ON l.id = r.loan_id
+                LEFT JOIN users ru ON ru.id = r.reviewed_by
+                LEFT JOIN users au ON au.id = r.approved_by
+                LEFT JOIN users pu ON pu.id = r.paid_by
                 WHERE 1=1";
         $params = [];
 
@@ -37,10 +41,14 @@ class RefundClaim extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.id AS borrower_id, b.phone AS borrower_phone, l.loan_no
+            "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.id AS borrower_id, b.phone AS borrower_phone, l.loan_no,
+                    ru.name AS reviewed_by_name, au.name AS approved_by_name, pu.name AS paid_by_name
              FROM refund_claims r
              JOIN borrowers b ON b.id = r.borrower_id
              LEFT JOIN loans l ON l.id = r.loan_id
+             LEFT JOIN users ru ON ru.id = r.reviewed_by
+             LEFT JOIN users au ON au.id = r.approved_by
+             LEFT JOIN users pu ON pu.id = r.paid_by
              WHERE r.id = ?",
             [$id]
         );
