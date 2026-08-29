@@ -1,0 +1,166 @@
+<?php
+  use App\Core\Auth;
+  $sevBadge = match ($exception['severity']) {
+      'Critical', 'High' => 'danger',
+      'Medium' => 'warning',
+      default => 'info',
+  };
+  $statusBadge = match ($exception['status']) {
+      'OPEN' => 'danger',
+      'ASSIGNED', 'INVESTIGATING' => 'warning',
+      'WAITING' => 'secondary',
+      'RESOLVED', 'CLOSED' => 'success',
+      'ACCEPTED_RISK' => 'info',
+      default => 'secondary',
+  };
+  $isOpen = !in_array($exception['status'], ['RESOLVED', 'ACCEPTED_RISK', 'CLOSED'], true);
+  // Drill-down (Part 26) -- only the resource types this phase actually
+  // links somewhere real; anything else just shows the raw reference.
+  $drillDownUrl = match ($exception['resource_type']) {
+      'approval_request' => url('/approvals/' . $exception['resource_id']),
+      default => null,
+  };
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/exceptions') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Exception Centre</a>
+    <h4 class="mb-0"><?= e($exception['exception_type']) ?></h4>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-<?= $sevBadge ?> fs-6"><?= e($exception['severity']) ?></span>
+    <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($exception['status']) ?></span>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted">Module</th><td><?= e($exception['module']) ?></td></tr>
+          <tr><th class="text-muted">Category</th><td><?= e($exception['category']) ?></td></tr>
+          <tr><th class="text-muted">Detected</th><td><?= e(date('d M Y H:i', strtotime($exception['detected_at']))) ?></td></tr>
+          <tr><th class="text-muted">Owner</th><td><?= e($exception['owner_name'] ?: 'Unassigned') ?></td></tr>
+          <?php if ($exception['correlation_id']): ?>
+            <tr><th class="text-muted">Correlation ID</th><td><code class="small"><?= e($exception['correlation_id']) ?></code></td></tr>
+          <?php endif; ?>
+          <?php if ($drillDownUrl): ?>
+            <tr><th class="text-muted">Affected Record</th><td><a href="<?= $drillDownUrl ?>">View <?= e($exception['resource_type']) ?> #<?= (int) $exception['resource_id'] ?></a></td></tr>
+          <?php elseif ($exception['resource_type']): ?>
+            <tr><th class="text-muted">Reference</th><td><?= e($exception['resource_type']) ?> #<?= (int) $exception['resource_id'] ?></td></tr>
+          <?php endif; ?>
+          <?php if ($exception['reopened_count'] > 0): ?>
+            <tr><th class="text-muted">Reopened</th><td><?= (int) $exception['reopened_count'] ?> time(s)</td></tr>
+          <?php endif; ?>
+        </table>
+        <hr>
+        <p class="mb-0"><?= nl2br(e($exception['description'])) ?></p>
+
+        <?php if ($exception['resolution']): ?>
+          <hr>
+          <h6 class="text-muted">Resolution</h6>
+          <p class="mb-1"><?= nl2br(e($exception['resolution'])) ?></p>
+          <?php if ($exception['root_cause']): ?>
+            <h6 class="text-muted">Root Cause</h6>
+            <p class="mb-0"><?= nl2br(e($exception['root_cause'])) ?></p>
+          <?php endif; ?>
+          <p class="text-muted small mt-2 mb-0">by <?= e($exception['resolved_by_name'] ?: '—') ?> &mdash; <?= e(date('d M Y H:i', strtotime($exception['resolved_at']))) ?></p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8 mb-3">
+    <?php if (Auth::can('exceptions.manage')): ?>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Actions</h5>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <?php if (!$exception['owner_user_id']): ?>
+            <form method="post" action="<?= url('/exceptions/' . $exception['id'] . '/assign') ?>" class="d-flex gap-1">
+              <?= csrf_field() ?>
+              <select name="owner_user_id" class="form-select form-select-sm" required>
+                <option value="">Assign to...</option>
+                <?php foreach ($staff as $u): ?>
+                  <option value="<?= (int) $u['id'] ?>"><?= e($u['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-primary">Assign</button>
+            </form>
+          <?php endif; ?>
+          <?php if ($exception['status'] === 'ASSIGNED'): ?>
+            <form method="post" action="<?= url('/exceptions/' . $exception['id'] . '/investigate') ?>">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-magnify"></i> Start Investigating</button>
+            </form>
+          <?php endif; ?>
+          <?php if (!$isOpen): ?>
+            <form method="post" action="<?= url('/exceptions/' . $exception['id'] . '/reopen') ?>" onsubmit="var r = prompt('Reason for reopening:'); if (!r) return false; this.querySelector('[name=reason]').value = r; return true;">
+              <?= csrf_field() ?>
+              <input type="hidden" name="reason" value="">
+              <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-restore"></i> Reopen</button>
+            </form>
+          <?php endif; ?>
+        </div>
+
+        <form method="post" action="<?= url('/exceptions/' . $exception['id'] . '/note') ?>" class="mb-3">
+          <?= csrf_field() ?>
+          <div class="input-group">
+            <input type="text" name="note" class="form-control" placeholder="Add an investigation note...">
+            <button type="submit" class="btn btn-outline-secondary">Add Note</button>
+          </div>
+        </form>
+
+        <?php if ($isOpen): ?>
+        <form method="post" action="<?= url('/exceptions/' . $exception['id'] . '/resolve') ?>" class="row g-2 border-top pt-3">
+          <?= csrf_field() ?>
+          <div class="col-md-4">
+            <label class="form-label small text-muted">Outcome</label>
+            <select name="status" class="form-select">
+              <option value="RESOLVED">Resolved</option>
+              <option value="ACCEPTED_RISK">Accepted Risk</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted">Resolution</label>
+            <textarea name="resolution" class="form-control" rows="2" required placeholder="What was done about it..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted">Root Cause <span class="text-muted">(optional, feeds Decision Intelligence)</span></label>
+            <textarea name="root_cause" class="form-control" rows="2" placeholder="Why it happened..."></textarea>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-success"><i class="mdi mdi-check"></i> Resolve</button>
+          </div>
+        </form>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Notes &amp; Investigation Trail</h5>
+        <ul class="list-unstyled mb-0">
+          <?php if (empty($notes)): ?>
+            <li class="text-muted py-2">No notes yet.</li>
+          <?php endif; ?>
+          <?php foreach ($notes as $n): ?>
+            <li class="d-flex align-items-start gap-2 py-2 border-bottom">
+              <div class="flex-grow-1">
+                <span class="fw-semibold"><?= e($n['author_name'] ?: 'System') ?></span>
+                <div class="small"><?= nl2br(e($n['note'])) ?></div>
+              </div>
+              <span class="text-muted small text-nowrap"><?= e(date('d M, H:i', strtotime($n['created_at']))) ?></span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

@@ -117,6 +117,40 @@ function commission_status_badge(string $status): string
     };
 }
 
+/**
+ * Renders an SLA status badge for a worklist row (Part 19) --
+ * 🟢 On Track / 🟡 Due Soon / 🟠 At Risk / 🔴 Breached, plus a plain-
+ * English remaining/overdue duration. $instance is a row shaped like
+ * sla_instances (status, due_at) -- pass null when the resource has no
+ * SLA tracked (e.g. no active policy configured yet), which renders
+ * nothing rather than a misleading badge.
+ */
+function sla_badge(?array $instance): string
+{
+    if (!$instance || !$instance['due_at']) {
+        return '';
+    }
+    $dueAt = strtotime($instance['due_at']);
+    $now = time();
+    $diffMinutes = (int) round(abs($dueAt - $now) / 60);
+    $hours = intdiv($diffMinutes, 60);
+    $mins = $diffMinutes % 60;
+    $duration = ($hours > 0 ? "{$hours}h " : '') . "{$mins}m";
+
+    [$emoji, $color, $text] = match ($instance['status']) {
+        'BREACHED' => ['🔴', 'danger', "Breached by $duration"],
+        'AT_RISK' => ['🟠', 'warning', "$duration remaining"],
+        'PAUSED' => ['⏸️', 'secondary', 'Paused'],
+        'COMPLETED' => ['🟢', 'success', 'Completed'],
+        'CANCELLED' => ['⚪', 'secondary', 'Cancelled'],
+        default => $dueAt - $now < 3600
+            ? ['🟡', 'info', "$duration remaining"]
+            : ['🟢', 'success', "$duration remaining"],
+    };
+
+    return '<span class="badge bg-' . $color . '-subtle text-' . $color . '" title="Due ' . e(date('d M Y H:i', $dueAt)) . '">' . $emoji . ' ' . e($text) . '</span>';
+}
+
 function flash_messages(): string
 {
     $html = '';

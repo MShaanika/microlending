@@ -1,6 +1,8 @@
 <?php
 use App\Controllers\ApprovalController;
 use App\Controllers\DelegationController;
+use App\Controllers\SlaPolicyController;
+use App\Controllers\ExceptionController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
@@ -545,6 +547,22 @@ $router->get('/delegations/create', [DelegationController::class, 'create']);
 $router->post('/delegations', [DelegationController::class, 'store']);
 $router->get('/delegations/{id}', [DelegationController::class, 'show']);
 $router->post('/delegations/{id}/revoke', [DelegationController::class, 'revoke']);
+
+// Enterprise Control Architecture -- Phase 3 (Operational Control):
+// SLA/escalation + Exception Management Centre, own permission
+// namespaces (sla.*, exceptions.*), not folded under /settings.
+$router->get('/sla/policies', [SlaPolicyController::class, 'index']);
+$router->get('/sla/policies/create', [SlaPolicyController::class, 'create']);
+$router->post('/sla/policies', [SlaPolicyController::class, 'store']);
+$router->post('/sla/policies/{id}', [SlaPolicyController::class, 'update']);
+
+$router->get('/exceptions', [ExceptionController::class, 'index']);
+$router->get('/exceptions/{id}', [ExceptionController::class, 'show']);
+$router->post('/exceptions/{id}/assign', [ExceptionController::class, 'assign']);
+$router->post('/exceptions/{id}/investigate', [ExceptionController::class, 'investigate']);
+$router->post('/exceptions/{id}/note', [ExceptionController::class, 'addNote']);
+$router->post('/exceptions/{id}/resolve', [ExceptionController::class, 'resolve']);
+$router->post('/exceptions/{id}/reopen', [ExceptionController::class, 'reopen']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 

@@ -65,6 +65,12 @@ class ApprovalService
         $model->createStep($requestId, 1, $policy['approver_permission']);
         $model->logAction($requestId, null, 'SUBMITTED', $data['maker_user_id'], null, $data['reason'] ?? null);
 
+        // Starts an SLA clock for this request if (and only if) an admin
+        // has configured an active 'approval_request_review' policy --
+        // SlaService::start() returns null otherwise, so approvals work
+        // identically whether or not SLA tracking has been set up yet.
+        SlaService::start('approval_request_review', 'approval_request', $requestId);
+
         Events::fire('ApprovalRequested', ['approval_request_id' => $requestId, 'policy_key' => $policyKey]);
 
         return $requestId;
@@ -99,6 +105,7 @@ class ApprovalService
         Audit::log('Approve', 'Governance', $description, ['approval_request_id' => $requestId]);
 
         if (!$stillPending) {
+            SlaService::completeForResource('approval_request', $requestId);
             Events::fire('ApprovalCompleted', ['approval_request_id' => $requestId, 'status' => 'APPROVED']);
         }
 
@@ -119,6 +126,7 @@ class ApprovalService
         $model->logAction($requestId, $step['id'], 'REJECTED', $checkerUserId, $delegation['id'] ?? null, $comments);
 
         Audit::log('Reject', 'Governance', sprintf('Rejected request #%d (%s): %s', $requestId, $request['title'], $comments), ['approval_request_id' => $requestId]);
+        SlaService::completeForResource('approval_request', $requestId);
         Events::fire('ApprovalCompleted', ['approval_request_id' => $requestId, 'status' => 'REJECTED']);
     }
 
@@ -136,6 +144,7 @@ class ApprovalService
         $model->logAction($requestId, $step['id'], 'RETURNED', $checkerUserId, $delegation['id'] ?? null, $comments);
 
         Audit::log('Return', 'Governance', sprintf('Returned request #%d (%s) for correction: %s', $requestId, $request['title'], $comments), ['approval_request_id' => $requestId]);
+        SlaService::cancelForResource('approval_request', $requestId, 'Returned for correction');
         Events::fire('ApprovalCompleted', ['approval_request_id' => $requestId, 'status' => 'RETURNED']);
     }
 

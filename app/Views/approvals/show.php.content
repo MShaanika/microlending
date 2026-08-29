@@ -18,7 +18,10 @@
     <a href="<?= url('/approvals') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to My Approvals</a>
     <h4 class="mb-0"><?= e($req['title']) ?></h4>
   </div>
-  <span class="badge bg-<?= $badge ?> fs-6"><?= e($req['status']) ?></span>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="badge bg-<?= $badge ?> fs-6"><?= e($req['status']) ?></span>
+    <?= sla_badge($slaInstance) ?>
+  </div>
 </div>
 
 <div class="row">

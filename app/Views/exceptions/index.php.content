@@ -1,0 +1,131 @@
+<?php
+  $cardDefs = [
+      ['open', 'Open Exceptions', '#635bff', 'mdi-alert-circle-outline', ['status' => 'OPEN']],
+      ['critical', 'Critical', '#9C3B34', 'mdi-alert-octagon', ['severity' => 'Critical']],
+      ['high', 'High', '#ff5c75', 'mdi-alert', ['severity' => 'High']],
+      ['unassigned', 'Unassigned', '#f9ab00', 'mdi-help-circle', []],
+      ['sla_breached', 'SLA Breached', '#e1306c', 'mdi-clock-alert', []],
+      ['resolved_today', 'Resolved Today', '#2bd67b', 'mdi-check-circle', ['status' => 'RESOLVED']],
+      ['reopened', 'Reopened', '#0a66c2', 'mdi-restore', []],
+  ];
+?>
+
+<?= flash_messages() ?>
+
+<div class="row">
+  <?php foreach ($cardDefs as [$key, $label, $color, $icon, $linkParams]): ?>
+    <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+      <a href="<?= url('/exceptions' . ($linkParams ? '?' . http_build_query($linkParams) : '')) ?>" class="text-decoration-none">
+        <div class="card kpi-card h-100" style="border-left-color:<?= $color ?>">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h3 class="kpi-number mb-1"><?= (int) $counts[$key] ?></h3>
+                <span class="text-muted small"><?= e($label) ?></span>
+              </div>
+              <span class="kpi-icon" style="background:<?= $color ?>"><i class="mdi <?= $icon ?>"></i></span>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+  <?php endforeach; ?>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">All Exceptions</h4>
+    </div>
+
+    <form method="get" action="<?= url('/exceptions') ?>" class="row g-2 mb-3">
+      <div class="col-md-2">
+        <select name="module" class="form-select">
+          <option value="">All modules</option>
+          <?php foreach ($modules as $m): ?>
+            <option value="<?= e($m) ?>" <?= $filters['module'] === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="category" class="form-select">
+          <option value="">All categories</option>
+          <?php foreach ($categories as $c): ?>
+            <option value="<?= e($c) ?>" <?= $filters['category'] === $c ? 'selected' : '' ?>><?= e($c) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="severity" class="form-select">
+          <option value="">All severities</option>
+          <?php foreach (['Low', 'Medium', 'High', 'Critical'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['severity'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach (['OPEN', 'ASSIGNED', 'INVESTIGATING', 'WAITING', 'RESOLVED', 'ACCEPTED_RISK', 'CLOSED'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-magnify"></i> Filter</button>
+        <a href="<?= url('/exceptions') ?>" class="btn btn-outline-light btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Detected</th>
+            <th>Type</th>
+            <th>Module</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($exceptions['rows'])): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No exceptions found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($exceptions['rows'] as $ex):
+            $sevBadge = match ($ex['severity']) {
+              'Critical', 'High' => 'danger',
+              'Medium' => 'warning',
+              default => 'info',
+            };
+            $statusBadge = match ($ex['status']) {
+              'OPEN' => 'danger',
+              'ASSIGNED', 'INVESTIGATING' => 'warning',
+              'WAITING' => 'secondary',
+              'RESOLVED', 'CLOSED' => 'success',
+              'ACCEPTED_RISK' => 'info',
+              default => 'secondary',
+            };
+          ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($ex['detected_at']))) ?></td>
+              <td><?= e($ex['exception_type']) ?><div class="text-muted small"><?= e(mb_strimwidth($ex['description'], 0, 60, '…')) ?></div></td>
+              <td><span class="badge bg-light text-dark"><?= e($ex['module']) ?></span></td>
+              <td><span class="badge bg-<?= $sevBadge ?>"><?= e($ex['severity']) ?></span></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($ex['status']) ?></span></td>
+              <td><?= e($ex['owner_name'] ?: 'Unassigned') ?></td>
+              <td><a href="<?= url('/exceptions/' . $ex['id']) ?>" class="btn btn-sm btn-outline-primary">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($exceptions['rows']) ?> of <?= $exceptions['total'] ?> result<?= $exceptions['total'] === 1 ? '' : 's' ?></p>
+      <?= pagination_nav((int) ($_GET['page'] ?? 1), $exceptions['totalPages'], $_GET) ?>
+    </div>
+  </div>
+</div>

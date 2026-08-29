@@ -1,0 +1,68 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Create SLA Policy</h4>
+      <a href="<?= url('/sla/policies') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+    </div>
+
+    <?php if (!empty($errors)): ?>
+      <div class="alert alert-danger">
+        <ul class="mb-0"><?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul>
+      </div>
+    <?php endif; ?>
+
+    <div class="alert alert-info small">
+      To track SLA on loan write-off approvals, use policy key <code>approval_request_review</code> with resource type <code>approval_request</code> — that's the one workflow already wired to start an SLA clock automatically. Any other <code>policy_key</code>/<code>resource_type</code> pair is ready for the next module that calls <code>SlaService::start()</code>.
+    </div>
+
+    <form method="post" action="<?= url('/sla/policies') ?>">
+      <?= csrf_field() ?>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Policy Key</label>
+          <input type="text" name="policy_key" class="form-control" placeholder="e.g. approval_request_review" pattern="[a-z0-9_]+" required>
+          <span class="form-text text-muted">Lowercase letters, numbers, underscores only.</span>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Policy Name</label>
+          <input type="text" name="policy_name" class="form-control" placeholder="e.g. Approval Request Review" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Module</label>
+          <input type="text" name="module" class="form-control" placeholder="e.g. Governance" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Resource Type</label>
+          <input type="text" name="resource_type" class="form-control" placeholder="e.g. approval_request" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Duration (minutes)</label>
+          <input type="number" name="duration_minutes" class="form-control" min="1" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">At-Risk Threshold %</label>
+          <input type="number" name="at_risk_threshold_percent" class="form-control" min="1" max="99" value="75">
+        </div>
+        <div class="col-md-4 d-flex align-items-end gap-3">
+          <div class="form-check">
+            <input type="checkbox" name="business_hours_aware" value="1" class="form-check-input" id="bh">
+            <label class="form-check-label" for="bh">Business hours only</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" name="is_active" value="1" class="form-check-input" id="active" checked>
+            <label class="form-check-label" for="active">Active</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Create Policy</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

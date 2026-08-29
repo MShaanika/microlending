@@ -8,6 +8,7 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\ApprovalRequest;
 use App\Models\Delegation;
+use App\Models\SlaInstance;
 use App\Services\ApprovalService;
 
 class ApprovalController extends Controller
@@ -58,6 +59,7 @@ class ApprovalController extends Controller
             'req' => $request,
             'timeline' => $this->requests->timeline((int) $id),
             'currentStep' => $this->requests->currentStep((int) $id),
+            'slaInstance' => (new SlaInstance())->findOpenByResource('approval_request', (int) $id),
         ]);
     }
 

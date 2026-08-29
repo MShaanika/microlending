@@ -28,12 +28,13 @@
               <th>Title</th>
               <th>Amount</th>
               <th>Requested By</th>
+              <th>SLA</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($awaiting['rows'])): ?>
-              <tr><td colspan="5" class="text-center text-muted py-4">Nothing awaiting your approval.</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">Nothing awaiting your approval.</td></tr>
             <?php endif; ?>
             <?php foreach ($awaiting['rows'] as $r): ?>
               <tr>
@@ -41,6 +42,7 @@
                 <td><?= e($r['title']) ?></td>
                 <td><?= $r['amount'] !== null ? format_money($r['amount']) : '—' ?></td>
                 <td><?= e($r['maker_name']) ?></td>
+                <td><?= sla_badge($r['sla_status'] ? ['status' => $r['sla_status'], 'due_at' => $r['sla_due_at']] : null) ?></td>
                 <td><a href="<?= url('/approvals/' . $r['id']) ?>" class="btn btn-sm btn-outline-primary">Review</a></td>
               </tr>
             <?php endforeach; ?>
@@ -57,12 +59,13 @@
               <th>Title</th>
               <th>Amount</th>
               <th>Status</th>
+              <th>SLA</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($submitted['rows'])): ?>
-              <tr><td colspan="5" class="text-center text-muted py-4">You haven't submitted anything for approval.</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">You haven't submitted anything for approval.</td></tr>
             <?php endif; ?>
             <?php foreach ($submitted['rows'] as $r):
               $badge = match ($r['status']) {
@@ -78,6 +81,7 @@
                 <td><?= e($r['title']) ?></td>
                 <td><?= $r['amount'] !== null ? format_money($r['amount']) : '—' ?></td>
                 <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+                <td><?= sla_badge($r['sla_status'] ? ['status' => $r['sla_status'], 'due_at' => $r['sla_due_at']] : null) ?></td>
                 <td><a href="<?= url('/approvals/' . $r['id']) ?>" class="btn btn-sm btn-outline-secondary">View</a></td>
               </tr>
             <?php endforeach; ?>

@@ -150,11 +150,13 @@ class ApprovalRequest extends Model
         $offset = max(0, ($page - 1) * $perPage);
 
         $rows = $this->all(
-            "SELECT r.*, u.name AS maker_name, p.policy_name
+            "SELECT r.*, u.name AS maker_name, p.policy_name,
+                    sla.status AS sla_status, sla.due_at AS sla_due_at
              FROM approval_requests r
              JOIN approval_steps s ON s.approval_request_id = r.id AND s.step_number = r.current_step
              JOIN users u ON u.id = r.maker_user_id
              JOIN approval_policies p ON p.id = r.policy_id
+             LEFT JOIN sla_instances sla ON sla.resource_type = 'approval_request' AND sla.resource_id = r.id AND sla.status NOT IN ('COMPLETED', 'CANCELLED')
              WHERE r.status = 'PENDING' AND s.approver_permission IN ($placeholders) AND r.maker_user_id != ?
              ORDER BY r.requested_at ASC LIMIT $perPage OFFSET $offset",
             $params
@@ -170,8 +172,10 @@ class ApprovalRequest extends Model
         $offset = max(0, ($page - 1) * $perPage);
 
         $rows = $this->all(
-            "SELECT r.*, p.policy_name FROM approval_requests r
+            "SELECT r.*, p.policy_name, sla.status AS sla_status, sla.due_at AS sla_due_at
+             FROM approval_requests r
              JOIN approval_policies p ON p.id = r.policy_id
+             LEFT JOIN sla_instances sla ON sla.resource_type = 'approval_request' AND sla.resource_id = r.id AND sla.status NOT IN ('COMPLETED', 'CANCELLED')
              WHERE r.maker_user_id = ? ORDER BY r.requested_at DESC LIMIT $perPage OFFSET $offset",
             [$userId]
         );

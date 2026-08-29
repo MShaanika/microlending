@@ -1,0 +1,64 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-0">SLA Policies</h4>
+        <p class="text-muted small mb-0">No durations are pre-set — create a policy with a real target time for a workflow, then it starts tracking automatically.</p>
+      </div>
+      <?php if (Auth::can('sla.manage')): ?>
+        <a href="<?= url('/sla/policies/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> Create Policy</a>
+      <?php endif; ?>
+    </div>
+
+    <?php if (empty($policies)): ?>
+      <p class="text-muted text-center py-4">No SLA policies configured yet.</p>
+    <?php endif; ?>
+
+    <?php foreach ($policies as $p): ?>
+      <div class="card border mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+              <h5 class="mb-0"><?= e($p['policy_name']) ?></h5>
+              <p class="text-muted small mb-0"><?= e($p['description']) ?></p>
+              <span class="badge bg-light text-dark"><?= e($p['module']) ?></span>
+              <span class="badge bg-light text-dark"><?= e($p['resource_type']) ?></span>
+              <code class="small"><?= e($p['policy_key']) ?></code>
+            </div>
+            <span class="badge bg-<?= $p['is_active'] ? 'success' : 'secondary' ?>"><?= $p['is_active'] ? 'Active' : 'Inactive' ?></span>
+          </div>
+
+          <?php if (Auth::can('sla.manage')): ?>
+          <form method="post" action="<?= url('/sla/policies/' . $p['id']) ?>" class="row g-2 align-items-end">
+            <?= csrf_field() ?>
+            <div class="col-md-3">
+              <label class="form-label small text-muted">Duration (minutes)</label>
+              <input type="number" name="duration_minutes" class="form-control form-control-sm" value="<?= (int) $p['duration_minutes'] ?>" min="1">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small text-muted">At-Risk Threshold %</label>
+              <input type="number" name="at_risk_threshold_percent" class="form-control form-control-sm" value="<?= (int) $p['at_risk_threshold_percent'] ?>" min="1" max="99">
+            </div>
+            <div class="col-md-2 form-check mt-3">
+              <input type="checkbox" name="business_hours_aware" value="1" class="form-check-input" id="bh_<?= $p['id'] ?>" <?= $p['business_hours_aware'] ? 'checked' : '' ?>>
+              <label class="form-check-label small" for="bh_<?= $p['id'] ?>">Business hours only</label>
+            </div>
+            <div class="col-md-2 form-check mt-3">
+              <input type="checkbox" name="is_active" value="1" class="form-check-input" id="active_<?= $p['id'] ?>" <?= $p['is_active'] ? 'checked' : '' ?>>
+              <label class="form-check-label small" for="active_<?= $p['id'] ?>">Active</label>
+            </div>
+            <div class="col-md-2 mt-3">
+              <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+            </div>
+          </form>
+          <p class="text-muted small mt-2 mb-0">Last updated by <?= e($p['updated_by_name'] ?: '—') ?></p>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>
