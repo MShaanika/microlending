@@ -52,8 +52,14 @@ class SecurityRuleEngine
             }
 
             $incidentKey = $rule['rule_key'] . '|' . $scopeValue;
-            $now = date('Y-m-d H:i:s');
-            $windowStart = date('Y-m-d H:i:s', time() - (int) $rule['window_minutes'] * 60);
+            // Computed by MySQL itself (NOW()/INTERVAL), not PHP's
+            // time() -- this window is compared against security_events
+            // rows timestamped on MySQL's own clock, which disagrees
+            // with PHP's configured timezone on production.
+            $windowMinutes = (int) $rule['window_minutes'];
+            $clock = $db->query("SELECT NOW() AS now_val, NOW() - INTERVAL {$windowMinutes} MINUTE AS window_start")->fetch();
+            $now = $clock['now_val'];
+            $windowStart = $clock['window_start'];
 
             $result = $incidents->createOrAppend([
                 'incident_key' => $incidentKey,
@@ -143,8 +149,7 @@ class SecurityRuleEngine
                 'rule_id' => $rule['id'],
                 'incident_id' => $incidentId,
                 'blocked_by' => null, // NULL = system-applied, not an admin action
-                'expires_at' => $durationMinutes ? date('Y-m-d H:i:s', time() + $durationMinutes * 60) : null,
-            ]);
+            ], $durationMinutes);
         } catch (\Throwable $e) {
             // A concurrent request won the race to insert the same block --
             // harmless, the block exists either way.

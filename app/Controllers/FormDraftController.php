@@ -82,7 +82,7 @@ class FormDraftController extends Controller
         $wasNew = !$this->drafts->findByUuid($uuid, $userId);
 
         if ($wasNew) {
-            $this->drafts->create([
+            $this->drafts->createWithRetention([
                 'draft_uuid' => $uuid,
                 'module' => $module,
                 'workflow_key' => $workflowKey,
@@ -92,8 +92,7 @@ class FormDraftController extends Controller
                 'status' => 'DRAFT',
                 'device_info' => substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
                 'last_autosaved_at' => date('Y-m-d H:i:s'),
-                'expires_at' => date('Y-m-d H:i:s', time() + $retentionDays * 86400),
-            ]);
+            ], $retentionDays);
             Audit::log('Create', 'Drafts', 'Draft started for ' . $workflowKey, [], $uuid);
         } else {
             $this->drafts->saveProgress($uuid, $userId, $formData, $currentStep, $retentionDays);

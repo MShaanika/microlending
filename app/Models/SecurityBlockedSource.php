@@ -17,9 +17,24 @@ class SecurityBlockedSource extends Model
         );
     }
 
-    public function create(array $data): int
+    /**
+     * $durationMinutes (not $data['expires_at']) drives the expiry --
+     * computed by MySQL's own NOW() + INTERVAL, not PHP's time(), so
+     * it stays consistent with the NOW() comparison activeBlock() uses
+     * to enforce it. Null duration means no expiry (permanent until lifted).
+     */
+    public function create(array $data, ?int $durationMinutes = null): int
     {
-        return $this->insert('security_blocked_sources', $data);
+        $columns = array_keys($data);
+        $placeholders = implode(', ', array_map(static fn ($c) => ":$c", $columns));
+        $expiresSql = $durationMinutes !== null ? 'NOW() + INTERVAL :duration_minutes MINUTE' : 'NULL';
+        $sql = "INSERT INTO security_blocked_sources (" . implode(', ', $columns) . ", expires_at) VALUES ($placeholders, $expiresSql)";
+        $params = $data;
+        if ($durationMinutes !== null) {
+            $params['duration_minutes'] = $durationMinutes;
+        }
+        $this->query($sql, $params);
+        return (int) $this->db->lastInsertId();
     }
 
     public function countActive(): int

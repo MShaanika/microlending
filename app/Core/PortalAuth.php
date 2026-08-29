@@ -68,16 +68,18 @@ class PortalAuth
         }
 
         $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::TTL_DAYS . ' days'));
-
+        // expires_at is computed by MySQL's own NOW() + INTERVAL, not PHP's
+        // strtotime() -- kept consistent with the NOW() comparison user()
+        // uses to enforce it (production's MySQL clock and PHP's configured
+        // timezone disagree).
         $db->prepare(
-            "INSERT INTO borrower_portal_sessions (portal_user_id, session_token, ip_address, user_agent, expires_at) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO borrower_portal_sessions (portal_user_id, session_token, ip_address, user_agent, expires_at)
+             VALUES (?, ?, ?, ?, NOW() + INTERVAL " . self::TTL_DAYS . " DAY)"
         )->execute([
             $portalUser['id'],
             $token,
             $_SERVER['REMOTE_ADDR'] ?? null,
             $_SERVER['HTTP_USER_AGENT'] ?? null,
-            $expiresAt,
         ]);
 
         setcookie(self::COOKIE_NAME, $token, [
@@ -106,16 +108,16 @@ class PortalAuth
     {
         $db = Database::connection();
         $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::TTL_DAYS . ' days'));
 
+        // expires_at computed by MySQL's own NOW() + INTERVAL -- see attempt().
         $db->prepare(
-            "INSERT INTO borrower_portal_sessions (portal_user_id, session_token, ip_address, user_agent, expires_at) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO borrower_portal_sessions (portal_user_id, session_token, ip_address, user_agent, expires_at)
+             VALUES (?, ?, ?, ?, NOW() + INTERVAL " . self::TTL_DAYS . " DAY)"
         )->execute([
             $portalUserId,
             $token,
             $_SERVER['REMOTE_ADDR'] ?? null,
             $_SERVER['HTTP_USER_AGENT'] ?? null,
-            $expiresAt,
         ]);
 
         setcookie(self::COOKIE_NAME, $token, [

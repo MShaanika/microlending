@@ -53,6 +53,16 @@ class FormDraft extends Model
         return $this->insert('form_drafts', $data);
     }
 
+    /** Same shape as create(), but expires_at is computed by MySQL's NOW()+INTERVAL (matching saveProgress()) instead of being passed in $data -- consistent with expiredUuids()'s NOW() comparison. */
+    public function createWithRetention(array $data, int $retentionDays): int
+    {
+        $columns = array_keys($data);
+        $placeholders = implode(', ', array_map(static fn ($c) => ":$c", $columns));
+        $sql = 'INSERT INTO form_drafts (' . implode(', ', $columns) . ', expires_at) VALUES (' . $placeholders . ', NOW() + INTERVAL :retention_days DAY)';
+        $this->query($sql, array_merge($data, ['retention_days' => $retentionDays]));
+        return (int) $this->db->lastInsertId();
+    }
+
     public function saveProgress(string $uuid, int $userId, string $formData, ?string $currentStep, int $retentionDays): bool
     {
         $stmt = $this->db->prepare(

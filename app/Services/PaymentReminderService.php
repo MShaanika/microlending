@@ -59,8 +59,7 @@ class PaymentReminderService
         }
 
         foreach (self::overdueInstallments() as $row) {
-            $existing = $log->find((int) $row['id'], 'Overdue');
-            if ($existing && strtotime($existing['last_sent_at']) > strtotime('-' . self::OVERDUE_RESEND_AFTER_DAYS . ' days')) {
+            if ($log->wasSentWithin((int) $row['id'], 'Overdue', self::OVERDUE_RESEND_AFTER_DAYS)) {
                 $summary['overdue_skipped']++;
                 continue;
             }

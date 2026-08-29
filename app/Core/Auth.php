@@ -321,9 +321,8 @@ class Auth
     {
         $selector = bin2hex(random_bytes(12));
         $validator = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::REMEMBER_DAYS . ' days'));
 
-        (new \App\Models\UserRememberToken())->create($userId, $selector, hash('sha256', $validator), $expiresAt);
+        (new \App\Models\UserRememberToken())->create($userId, $selector, hash('sha256', $validator), self::REMEMBER_DAYS);
         self::setRememberCookie($selector, $validator);
     }
 
