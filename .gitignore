@@ -1,5 +1,6 @@
 /vendor/
 /.claude/
+/.phpunit.cache/
 
 /storage/uploads/*
 !/storage/uploads/.gitkeep

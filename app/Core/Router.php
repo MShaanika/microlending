@@ -10,6 +10,12 @@ class Router
 
 	public function dispatch(string $method, string $uri): void
 	{
+		// One correlation ID per request, issued as early as possible so
+		// every Audit/SecurityEvent write (and later, error/exception
+		// record) this request produces can be traced back to it. See
+		// App\Core\Correlation.
+		Correlation::id();
+
 		$path = parse_url($uri, PHP_URL_PATH) ?: '/';
 
 		$scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');

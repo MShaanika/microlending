@@ -13,10 +13,10 @@ class Audit
     {
         try {
             $db = Database::connection();
-            $stmt = $db->prepare("INSERT INTO audit_logs (user_id, action, module_name, description, metadata, reference_key, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $db->prepare("INSERT INTO audit_logs (user_id, action, module_name, description, metadata, reference_key, correlation_id, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 Session::get('user')['id'] ?? null, $action, $module, $description,
-                $metadata ? json_encode($metadata) : null, $referenceKey,
+                $metadata ? json_encode($metadata) : null, $referenceKey, Correlation::id(),
                 ClientIp::resolve(), $_SERVER['HTTP_USER_AGENT'] ?? null
             ]);
         } catch (\Throwable $e) { /* keep app alive */ }

@@ -33,6 +33,8 @@ Session::start($security['session_name'] ?? 'MLS_SESSION');
 
 require APP_PATH . '/Helpers/functions.php';
 
+\App\Core\EventListeners::register();
+
 // Remember-me auto-login is disabled while investigating a login issue --
 // see Auth::attemptRememberLogin() for the (currently unused) implementation.
 

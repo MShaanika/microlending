@@ -27,8 +27,8 @@ class SecurityEvent
             $db = Database::connection();
             $stmt = $db->prepare(
                 "INSERT INTO security_events
-                    (event_type, severity, user_id, attempted_login, ip_address, user_agent, request_path, description, metadata, risk_score)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    (event_type, severity, user_id, attempted_login, ip_address, user_agent, request_path, description, metadata, correlation_id, risk_score)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $eventType,
@@ -40,6 +40,7 @@ class SecurityEvent
                 substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 255),
                 $context['description'] ?? null,
                 isset($context['metadata']) ? json_encode($context['metadata']) : null,
+                Correlation::id(),
                 (int) ($context['risk_score'] ?? 0),
             ]);
             return (int) $db->lastInsertId();

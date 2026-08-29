@@ -106,6 +106,7 @@ class Payment extends Model
             $this->allocateToSchedule($loan, $paymentId, $amount, $meta['user_id'], $meta['bank_account_id'] ?? null, $meta['payment_date']);
 
             $this->db->commit();
+            \App\Core\Events::fire('PaymentReceived', ['payment_id' => $paymentId, 'loan_id' => $loan['id'], 'amount' => $amount]);
             return $paymentId;
         } catch (\Throwable $e) {
             $this->db->rollBack();

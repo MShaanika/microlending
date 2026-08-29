@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Controller;
+use App\Core\Events;
 use App\Core\Idempotency;
 use App\Core\IdempotencyBusyException;
 use App\Core\IdempotencyReplayException;
@@ -673,6 +674,7 @@ class LoanController extends Controller
         $this->loans->logStatus($id, 'Pending Approval', 'Approved', Auth::user()['id'] ?? null);
 
         Audit::log('Approve', 'Loans', 'Approved loan #' . $id);
+        Events::fire('LoanApproved', ['loan_id' => $id, 'approved_by' => Auth::user()['id'] ?? null]);
         Session::flash('success', 'Loan approved.');
         $this->redirect('/loans/' . $id);
     }
@@ -764,6 +766,10 @@ class LoanController extends Controller
             $this->redirect('/loans/' . $id);
             return;
         }
+
+        // Fired only after the transaction above has committed -- a listener
+        // must never observe a disbursement that could still roll back.
+        Events::fire('LoanDisbursed', ['loan_id' => $id, 'released_by' => $userId]);
 
         Session::flash('success', $successMessage);
         $this->redirect('/loans/' . $id);
