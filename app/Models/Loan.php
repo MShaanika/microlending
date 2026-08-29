@@ -91,6 +91,19 @@ class Loan extends Model
         );
     }
 
+    /**
+     * Locks the loan row for the duration of the caller's transaction --
+     * used before a status-guarded write (e.g. release/disburse) so a
+     * second concurrent request for the same loan blocks until the first
+     * commits, then correctly sees the already-changed status instead of
+     * racing past the same unlocked check. Must be called inside an open
+     * transaction (see Model::transaction()); has no effect otherwise.
+     */
+    public function findForUpdate(int $id): ?array
+    {
+        return $this->one('SELECT * FROM loans WHERE id = ? FOR UPDATE', [$id]);
+    }
+
     public function create(array $data): int
     {
         return $this->insert('loans', $data);

@@ -1,0 +1,46 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">My Drafts</h4>
+    </div>
+    <p class="text-muted small">Unfinished work you started but haven't submitted yet. Drafts are saved automatically as you type and are kept for a limited time -- see Continue to pick up where you left off.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Module</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Last Saved</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($drafts)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No unfinished drafts.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($drafts as $d): ?>
+            <tr>
+              <td><?= e($d['module']) ?></td>
+              <td><span class="badge bg-secondary"><?= e($d['status']) ?></span></td>
+              <td><?= e(date('d M Y H:i', strtotime($d['created_at']))) ?></td>
+              <td><?= $d['last_autosaved_at'] ? e(date('d M Y H:i', strtotime($d['last_autosaved_at']))) : '—' ?></td>
+              <td class="text-end">
+                <?php if ($d['resume_url']): ?>
+                  <a href="<?= url($d['resume_url']) ?>" class="btn btn-sm btn-info"><i class="mdi mdi-play"></i> Continue</a>
+                <?php endif; ?>
+                <form method="post" action="<?= url('/my/drafts/' . $d['draft_uuid'] . '/discard') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Discard this draft? This cannot be undone.');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-trash-can-outline"></i> Discard</button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

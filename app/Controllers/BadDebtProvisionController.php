@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Idempotency;
+use App\Core\IdempotencyBusyException;
+use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\AccountingAccount;
@@ -12,6 +15,7 @@ use App\Models\AccountingJournal;
 use App\Models\BadDebt;
 use App\Models\BadDebtProvision;
 use App\Models\Loan;
+use App\Models\SystemSetting;
 use App\Services\ArrearsService;
 
 class BadDebtProvisionController extends Controller
@@ -21,6 +25,7 @@ class BadDebtProvisionController extends Controller
     private Loan $loans;
     private AccountingAccount $accounts;
     private AccountingJournal $journal;
+    private SystemSetting $settings;
 
     public function __construct()
     {
@@ -29,6 +34,7 @@ class BadDebtProvisionController extends Controller
         $this->loans = new Loan();
         $this->accounts = new AccountingAccount();
         $this->journal = new AccountingJournal();
+        $this->settings = new SystemSetting();
     }
 
     public function index(): void
@@ -80,153 +86,187 @@ class BadDebtProvisionController extends Controller
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/accounting/bad-debt-provisions');
+            return;
         }
 
         $asOfDate = $_POST['as_of_date'] ?? date('Y-m-d');
         $userId = Auth::user()['id'] ?? null;
-
-        [$loans, $totalRequired, $released] = $this->computeRun($asOfDate);
-        $currentBalance = $this->provisions->currentProvisionBalance();
-        $delta = round($totalRequired - $currentBalance, 2);
-
-        if (abs($delta) < 0.01 && empty($loans) && empty($released)) {
-            Session::flash('success', 'No change needed -- the provision already matches the required level (' . format_money($totalRequired) . ').');
-            $this->redirect('/accounting/bad-debt-provisions');
-            return;
-        }
-
-        // A loan that cures still needs its own zero-provision row written
-        // even when the PORTFOLIO-level delta nets to ~0 (e.g. one loan
-        // cures while another enters arrears for a similar amount) --
-        // otherwise provisionForLoan() keeps returning that loan's stale
-        // last-nonzero snapshot forever. $journalId stays null when no
-        // net GL adjustment is required this run; the zero rows below carry
-        // no independent GL impact of their own.
-        $journalId = null;
+        $key = $this->idempotencyKey();
         $badDebtExpenseId = $this->accounts->idByCode('5010');
         $provisionAccountId = $this->accounts->idByCode('1050');
 
         try {
-            if (abs($delta) < 0.01) {
-                // fall through with $journalId = null
-            } elseif ($delta > 0) {
-                $journalId = $this->journal->post(
-                    'BAD_DEBT_PROVISION',
-                    'bad_debt_provisions',
-                    null,
-                    generate_reference('PROV'),
-                    'Bad debt provision raised as at ' . $asOfDate,
-                    [
-                        ['account_id' => $badDebtExpenseId, 'debit' => $delta, 'credit' => 0],
-                        ['account_id' => $provisionAccountId, 'debit' => 0, 'credit' => $delta],
-                    ],
-                    $userId,
-                    $asOfDate,
-                    'Manual'
-                );
-            } else {
-                $release = abs($delta);
-                $journalId = $this->journal->post(
-                    'BAD_DEBT_PROVISION',
-                    'bad_debt_provisions',
-                    null,
-                    generate_reference('PROV'),
-                    'Bad debt provision released as at ' . $asOfDate,
-                    [
-                        ['account_id' => $provisionAccountId, 'debit' => $release, 'credit' => 0],
-                        ['account_id' => $badDebtExpenseId, 'debit' => 0, 'credit' => $release],
-                    ],
-                    $userId,
-                    $asOfDate,
-                    'Manual'
-                );
-            }
+            $flash = $this->provisions->transaction(function () use ($asOfDate, $userId, $key, $badDebtExpenseId, $provisionAccountId) {
+                Idempotency::begin($key, 'provision.post', $userId);
+
+                // No single business row represents "a provisioning run" --
+                // lock a dedicated sentinel settings row instead, so two
+                // concurrent runs can't both read the same pre-run balance
+                // and both post the same delta (double-counting it).
+                $this->settings->lockRow('provision_run_lock');
+
+                [$loans, $totalRequired, $released] = $this->computeRun($asOfDate);
+                $currentBalance = $this->provisions->currentProvisionBalance();
+                $delta = round($totalRequired - $currentBalance, 2);
+
+                if (abs($delta) < 0.01 && empty($loans) && empty($released)) {
+                    $message = 'No change needed -- the provision already matches the required level (' . format_money($totalRequired) . ').';
+                    Idempotency::complete($key, 'provision.post', 'REDIRECT', [
+                        'flash_type' => 'success',
+                        'flash_message' => $message,
+                        'redirect' => '/accounting/bad-debt-provisions',
+                    ]);
+                    return ['flash_type' => 'success', 'flash_message' => $message];
+                }
+
+                // A loan that cures still needs its own zero-provision row
+                // written even when the PORTFOLIO-level delta nets to ~0
+                // (e.g. one loan cures while another enters arrears for a
+                // similar amount) -- otherwise provisionForLoan() keeps
+                // returning that loan's stale last-nonzero snapshot
+                // forever. $journalId stays null when no net GL adjustment
+                // is required this run; the zero rows below carry no
+                // independent GL impact of their own.
+                $journalId = null;
+
+                if (abs($delta) < 0.01) {
+                    // fall through with $journalId = null
+                } elseif ($delta > 0) {
+                    $journalId = $this->journal->post(
+                        'BAD_DEBT_PROVISION',
+                        'bad_debt_provisions',
+                        null,
+                        generate_reference('PROV'),
+                        'Bad debt provision raised as at ' . $asOfDate,
+                        [
+                            ['account_id' => $badDebtExpenseId, 'debit' => $delta, 'credit' => 0],
+                            ['account_id' => $provisionAccountId, 'debit' => 0, 'credit' => $delta],
+                        ],
+                        $userId,
+                        $asOfDate,
+                        'Manual'
+                    );
+                } else {
+                    $release = abs($delta);
+                    $journalId = $this->journal->post(
+                        'BAD_DEBT_PROVISION',
+                        'bad_debt_provisions',
+                        null,
+                        generate_reference('PROV'),
+                        'Bad debt provision released as at ' . $asOfDate,
+                        [
+                            ['account_id' => $provisionAccountId, 'debit' => $release, 'credit' => 0],
+                            ['account_id' => $badDebtExpenseId, 'debit' => 0, 'credit' => $release],
+                        ],
+                        $userId,
+                        $asOfDate,
+                        'Manual'
+                    );
+                }
+
+                foreach ($loans as $loan) {
+                    $badDebt = $this->badDebts->findByLoan((int) $loan['loan_id']);
+                    if (!$badDebt) {
+                        $badDebtId = $this->badDebts->create([
+                            'loan_id' => $loan['loan_id'],
+                            'borrower_id' => $loan['borrower_id'],
+                            'branch_id' => $loan['branch_id'],
+                            'bad_debt_no' => generate_reference('BD'),
+                            'identified_date' => $asOfDate,
+                            'outstanding_balance' => $loan['outstanding_balance'],
+                            'days_in_arrears' => $loan['days_in_arrears'],
+                            'aging_bucket' => $loan['aging_bucket'],
+                            'reason' => 'Identified by provisioning run on ' . $asOfDate,
+                            'status' => 'Provisioned',
+                            'identified_by' => $userId,
+                        ]);
+                    } else {
+                        $badDebtId = (int) $badDebt['id'];
+                        $this->badDebts->updateRecord($badDebtId, [
+                            'outstanding_balance' => $loan['outstanding_balance'],
+                            'days_in_arrears' => $loan['days_in_arrears'],
+                            'aging_bucket' => $loan['aging_bucket'],
+                            'status' => 'Provisioned',
+                        ]);
+                    }
+
+                    $this->provisions->create([
+                        'loan_id' => $loan['loan_id'],
+                        'borrower_id' => $loan['borrower_id'],
+                        'branch_id' => $loan['branch_id'],
+                        'bad_debt_id' => $badDebtId,
+                        'provision_no' => generate_reference('PRVL'),
+                        'provision_date' => $asOfDate,
+                        'outstanding_balance' => $loan['outstanding_balance'],
+                        'aging_days' => $loan['days_in_arrears'],
+                        'provision_rate' => $loan['provision_rate'],
+                        'provision_amount' => $loan['provision_amount'],
+                        'status' => 'Posted',
+                        'journal_id' => $journalId,
+                        'posted_by' => $userId,
+                        'posted_at' => date('Y-m-d H:i:s'),
+                    ]);
+
+                    ArrearsService::refreshLoanStatus((int) $loan['loan_id'], $asOfDate, $userId, 'Sweep', 'PROVISION_RUN:' . $asOfDate);
+                }
+
+                // Cured loans: no GL impact of their own (provision_amount =
+                // 0), but still need an explicit snapshot row so
+                // provisionForLoan() stops returning their stale
+                // last-nonzero value and credit_status can revert.
+                // bad_debts.aging_bucket is left untouched here -- its ENUM
+                // only accepts the overdue buckets (30-59/60-89/90+), so a
+                // cured loan (back to Current/1-29) has no valid value to
+                // write into it.
+                foreach ($released as $loan) {
+                    $badDebt = $this->badDebts->findByLoan((int) $loan['loan_id']);
+                    if ($badDebt) {
+                        $this->badDebts->updateRecord((int) $badDebt['id'], ['status' => 'Open']);
+                    }
+
+                    $this->provisions->create([
+                        'loan_id' => $loan['loan_id'],
+                        'borrower_id' => $loan['borrower_id'],
+                        'branch_id' => $loan['branch_id'],
+                        'bad_debt_id' => $badDebt ? (int) $badDebt['id'] : null,
+                        'provision_no' => generate_reference('PRVL'),
+                        'provision_date' => $asOfDate,
+                        'outstanding_balance' => 0,
+                        'aging_days' => 0,
+                        'provision_rate' => 0,
+                        'provision_amount' => 0,
+                        'status' => 'Posted',
+                        'journal_id' => $journalId,
+                        'posted_by' => $userId,
+                        'posted_at' => date('Y-m-d H:i:s'),
+                    ]);
+
+                    ArrearsService::refreshLoanStatus((int) $loan['loan_id'], $asOfDate, $userId, 'Sweep', 'PROVISION_RUN:' . $asOfDate);
+                }
+
+                $message = 'Provisioning posted: ' . format_money($delta) . ' adjustment across ' . count($loans) . ' loan(s) in arrears' . (count($released) > 0 ? ', ' . count($released) . ' loan(s) released.' : '.');
+                Audit::log('Create', 'Accounting', 'Posted bad debt provisioning run as at ' . $asOfDate . ' (' . format_money($delta) . ' adjustment)', [], $key);
+                Idempotency::complete($key, 'provision.post', 'REDIRECT', [
+                    'flash_type' => 'success',
+                    'flash_message' => $message,
+                    'redirect' => '/accounting/bad-debt-provisions',
+                ]);
+
+                return ['flash_type' => 'success', 'flash_message' => $message];
+            });
+        } catch (IdempotencyReplayException $e) {
+            $this->replayIdempotent($e);
+            return;
+        } catch (IdempotencyBusyException $e) {
+            $this->busyIdempotent($e, '/accounting/bad-debt-provisions');
+            return;
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
             $this->redirect('/accounting/bad-debt-provisions');
             return;
         }
 
-        foreach ($loans as $loan) {
-            $badDebt = $this->badDebts->findByLoan((int) $loan['loan_id']);
-            if (!$badDebt) {
-                $badDebtId = $this->badDebts->create([
-                    'loan_id' => $loan['loan_id'],
-                    'borrower_id' => $loan['borrower_id'],
-                    'branch_id' => $loan['branch_id'],
-                    'bad_debt_no' => generate_reference('BD'),
-                    'identified_date' => $asOfDate,
-                    'outstanding_balance' => $loan['outstanding_balance'],
-                    'days_in_arrears' => $loan['days_in_arrears'],
-                    'aging_bucket' => $loan['aging_bucket'],
-                    'reason' => 'Identified by provisioning run on ' . $asOfDate,
-                    'status' => 'Provisioned',
-                    'identified_by' => $userId,
-                ]);
-            } else {
-                $badDebtId = (int) $badDebt['id'];
-                $this->badDebts->updateRecord($badDebtId, [
-                    'outstanding_balance' => $loan['outstanding_balance'],
-                    'days_in_arrears' => $loan['days_in_arrears'],
-                    'aging_bucket' => $loan['aging_bucket'],
-                    'status' => 'Provisioned',
-                ]);
-            }
-
-            $this->provisions->create([
-                'loan_id' => $loan['loan_id'],
-                'borrower_id' => $loan['borrower_id'],
-                'branch_id' => $loan['branch_id'],
-                'bad_debt_id' => $badDebtId,
-                'provision_no' => generate_reference('PRVL'),
-                'provision_date' => $asOfDate,
-                'outstanding_balance' => $loan['outstanding_balance'],
-                'aging_days' => $loan['days_in_arrears'],
-                'provision_rate' => $loan['provision_rate'],
-                'provision_amount' => $loan['provision_amount'],
-                'status' => 'Posted',
-                'journal_id' => $journalId,
-                'posted_by' => $userId,
-                'posted_at' => date('Y-m-d H:i:s'),
-            ]);
-
-            ArrearsService::refreshLoanStatus((int) $loan['loan_id'], $asOfDate, $userId, 'Sweep', 'PROVISION_RUN:' . $asOfDate);
-        }
-
-        // Cured loans: no GL impact of their own (provision_amount = 0), but
-        // still need an explicit snapshot row so provisionForLoan() stops
-        // returning their stale last-nonzero value and credit_status can
-        // revert. bad_debts.aging_bucket is left untouched here -- its ENUM
-        // only accepts the overdue buckets (30-59/60-89/90+), so a cured
-        // loan (back to Current/1-29) has no valid value to write into it.
-        foreach ($released as $loan) {
-            $badDebt = $this->badDebts->findByLoan((int) $loan['loan_id']);
-            if ($badDebt) {
-                $this->badDebts->updateRecord((int) $badDebt['id'], ['status' => 'Open']);
-            }
-
-            $this->provisions->create([
-                'loan_id' => $loan['loan_id'],
-                'borrower_id' => $loan['borrower_id'],
-                'branch_id' => $loan['branch_id'],
-                'bad_debt_id' => $badDebt ? (int) $badDebt['id'] : null,
-                'provision_no' => generate_reference('PRVL'),
-                'provision_date' => $asOfDate,
-                'outstanding_balance' => 0,
-                'aging_days' => 0,
-                'provision_rate' => 0,
-                'provision_amount' => 0,
-                'status' => 'Posted',
-                'journal_id' => $journalId,
-                'posted_by' => $userId,
-                'posted_at' => date('Y-m-d H:i:s'),
-            ]);
-
-            ArrearsService::refreshLoanStatus((int) $loan['loan_id'], $asOfDate, $userId, 'Sweep', 'PROVISION_RUN:' . $asOfDate);
-        }
-
-        Audit::log('Create', 'Accounting', 'Posted bad debt provisioning run as at ' . $asOfDate . ' (' . format_money($delta) . ' adjustment)');
-        Session::flash('success', 'Provisioning posted: ' . format_money($delta) . ' adjustment across ' . count($loans) . ' loan(s) in arrears' . (count($released) > 0 ? ', ' . count($released) . ' loan(s) released.' : '.'));
+        Session::flash($flash['flash_type'], $flash['flash_message']);
         $this->redirect('/accounting/bad-debt-provisions');
     }
 

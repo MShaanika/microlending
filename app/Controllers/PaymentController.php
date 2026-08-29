@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Controller;
+use App\Core\Idempotency;
+use App\Core\IdempotencyBusyException;
+use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\BankAccount;
@@ -117,6 +120,27 @@ class PaymentController extends Controller
         if ($amount <= 0) {
             Session::flash('error', 'Enter a payment amount greater than zero.');
             $this->redirect('/loans/' . $loanId . '/payments/create');
+            return;
+        }
+
+        $userId = Auth::user()['id'] ?? null;
+        $key = $this->idempotencyKey();
+        $successMessage = 'Payment recorded and allocated to the schedule.';
+
+        // Payment::recordAndAllocate() already owns its own internal
+        // transaction, so the idempotency check runs outside any
+        // transaction here (autocommits immediately) rather than inside
+        // one -- if recordAndAllocate() then throws, the PENDING row it
+        // wrote won't be rolled back automatically, so fail() explicitly
+        // removes it on the catch path to allow a genuine retry.
+        try {
+            Idempotency::begin($key, 'payment.store', $userId);
+        } catch (IdempotencyReplayException $e) {
+            $this->replayIdempotent($e);
+            return;
+        } catch (IdempotencyBusyException $e) {
+            $this->busyIdempotent($e, '/loans/' . $loanId . '/payments/create');
+            return;
         }
 
         try {
@@ -127,15 +151,22 @@ class PaymentController extends Controller
                 'reference_no' => trim($_POST['reference_no'] ?? ''),
                 'payer_name' => trim($_POST['payer_name'] ?? ''),
                 'notes' => trim($_POST['notes'] ?? ''),
-                'user_id' => Auth::user()['id'] ?? null,
+                'user_id' => $userId,
             ]);
         } catch (\RuntimeException $e) {
+            Idempotency::fail($key, 'payment.store');
             Session::flash('error', $e->getMessage());
             $this->redirect('/loans/' . $loanId . '/payments/create');
+            return;
         }
 
-        Audit::log('Create', 'Collections', 'Recorded payment #' . $paymentId . ' of ' . format_money($amount) . ' for loan #' . $loanId);
-        Session::flash('success', 'Payment recorded and allocated to the schedule.');
+        Audit::log('Create', 'Collections', 'Recorded payment #' . $paymentId . ' of ' . format_money($amount) . ' for loan #' . $loanId, [], $key);
+        Idempotency::complete($key, 'payment.store', 'REDIRECT', [
+            'flash_type' => 'success',
+            'flash_message' => $successMessage,
+            'redirect' => '/loans/' . $loanId,
+        ]);
+        Session::flash('success', $successMessage);
         $this->redirect('/loans/' . $loanId);
     }
 

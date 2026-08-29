@@ -72,6 +72,7 @@
           'Load Pending' => 'warning',
           'Load Failed' => 'danger',
           'Cancelled' => 'dark',
+          'Uncertain' => 'warning',
           default => 'secondary',
         };
       ?>
@@ -104,7 +105,7 @@
             <button type="submit" class="btn btn-info btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-cloud-upload"></i> Place Mandate</button>
           </form>
         <?php endif; ?>
-        <?php if (($debitOrder['collexia_api_status'] ?? '') === 'Load Pending'): ?>
+        <?php if (in_array($debitOrder['collexia_api_status'] ?? '', ['Load Pending', 'Uncertain'], true)): ?>
           <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/collexia/final-fate') ?>" class="d-inline">
             <?= csrf_field() ?>
             <button type="submit" class="btn btn-warning btn-sm" <?= (!$collexiaEnabled || !$collexiaConfigured) ? 'disabled' : '' ?>><i class="mdi mdi-check-circle-outline"></i> Check Final Fate</button>

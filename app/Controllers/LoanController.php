@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Controller;
+use App\Core\Idempotency;
+use App\Core\IdempotencyBusyException;
+use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\AccountingAccount;
@@ -682,56 +685,87 @@ class LoanController extends Controller
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/loans/' . $id);
+            return;
         }
 
         $loan = $this->loans->find($id);
         $this->assertBranchAccess($loan);
-        if (!$loan || $loan['loan_status'] !== 'Approved') {
-            Session::flash('error', 'Only approved loans can be released.');
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
             $this->redirect('/loans/' . $id);
+            return;
         }
 
         $userId = Auth::user()['id'] ?? null;
+        $key = $this->idempotencyKey();
         $bankAccountId = ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null;
         $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
+        $successMessage = 'Loan released, disbursement recorded, and accounting entries posted.';
 
-        // Post accounting first: if this fails (e.g. a closed accounting
-        // period), nothing else below should happen either -- the loan must
-        // not end up marked Active/disbursed with no journal behind it.
         try {
-            $this->postDisbursementAccounting($id, $loan, $userId, $bankAccount);
+            $this->loans->transaction(function () use ($id, $loan, $userId, $bankAccount, $key, $successMessage) {
+                Idempotency::begin($key, 'loan.release', $userId);
+
+                // Locked, authoritative status check -- a second concurrent
+                // release request blocks here until this transaction
+                // commits or rolls back, then correctly sees the
+                // already-changed status instead of racing past it.
+                $locked = $this->loans->findForUpdate($id);
+                if (!$locked || $locked['loan_status'] !== 'Approved') {
+                    throw new \RuntimeException('Only approved loans can be released.');
+                }
+
+                // Post accounting first: if this fails (e.g. a closed
+                // accounting period), the whole transaction rolls back --
+                // the loan must not end up marked Active/disbursed with no
+                // journal behind it, or vice versa.
+                $this->postDisbursementAccounting($id, $loan, $userId, $bankAccount);
+
+                $this->loans->updateFields($id, [
+                    'loan_status' => 'Active',
+                    'released_by' => $userId,
+                    'released_at' => date('Y-m-d H:i:s'),
+                ]);
+                $this->loans->logStatus($id, 'Approved', 'Active', $userId, 'Loan released / disbursed.');
+                \App\Services\AgentCommissionService::onDisbursement($loan, $userId);
+
+                $this->loans->createDisbursement([
+                    'loan_id' => $id,
+                    'borrower_id' => (int) $loan['borrower_id'],
+                    'disbursement_no' => generate_reference('DSB'),
+                    'disbursement_date' => date('Y-m-d'),
+                    'disbursement_method' => $_POST['disbursement_method'] ?: 'Cash',
+                    'bank_account_id' => $bankAccount ? $bankAccount['id'] : null,
+                    'amount' => (float) $loan['principal_amount'],
+                    'reference_no' => trim($_POST['reference_no'] ?? '') ?: null,
+                    'status' => 'Disbursed',
+                    'approved_by' => $userId,
+                    'approved_at' => date('Y-m-d H:i:s'),
+                    'disbursed_by' => $userId,
+                    'disbursed_at' => date('Y-m-d H:i:s'),
+                    'created_by' => $userId,
+                ]);
+
+                Audit::log('Release', 'Loans', 'Released loan #' . $id, [], $key);
+                Idempotency::complete($key, 'loan.release', 'REDIRECT', [
+                    'flash_type' => 'success',
+                    'flash_message' => $successMessage,
+                    'redirect' => '/loans/' . $id,
+                ]);
+            });
+        } catch (IdempotencyReplayException $e) {
+            $this->replayIdempotent($e);
+            return;
+        } catch (IdempotencyBusyException $e) {
+            $this->busyIdempotent($e, '/loans/' . $id);
+            return;
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
             $this->redirect('/loans/' . $id);
+            return;
         }
 
-        $this->loans->updateFields($id, [
-            'loan_status' => 'Active',
-            'released_by' => $userId,
-            'released_at' => date('Y-m-d H:i:s'),
-        ]);
-        $this->loans->logStatus($id, 'Approved', 'Active', $userId, 'Loan released / disbursed.');
-        \App\Services\AgentCommissionService::onDisbursement($loan, $userId);
-
-        $this->loans->createDisbursement([
-            'loan_id' => $id,
-            'borrower_id' => (int) $loan['borrower_id'],
-            'disbursement_no' => generate_reference('DSB'),
-            'disbursement_date' => date('Y-m-d'),
-            'disbursement_method' => $_POST['disbursement_method'] ?: 'Cash',
-            'bank_account_id' => $bankAccount ? $bankAccount['id'] : null,
-            'amount' => (float) $loan['principal_amount'],
-            'reference_no' => trim($_POST['reference_no'] ?? '') ?: null,
-            'status' => 'Disbursed',
-            'approved_by' => $userId,
-            'approved_at' => date('Y-m-d H:i:s'),
-            'disbursed_by' => $userId,
-            'disbursed_at' => date('Y-m-d H:i:s'),
-            'created_by' => $userId,
-        ]);
-
-        Audit::log('Release', 'Loans', 'Released loan #' . $id);
-        Session::flash('success', 'Loan released, disbursement recorded, and accounting entries posted.');
+        Session::flash('success', $successMessage);
         $this->redirect('/loans/' . $id);
     }
 

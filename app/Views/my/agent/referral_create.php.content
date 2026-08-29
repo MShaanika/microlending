@@ -16,7 +16,7 @@
     <h4 class="card-title mb-1">New Referral</h4>
     <p class="text-muted small">This is credited to you automatically. Staff will review and process it once submitted.</p>
 
-    <form method="post" action="<?= url('/my/referrals') ?>" enctype="multipart/form-data" id="referral-form">
+    <form method="post" action="<?= url('/my/referrals') ?>" enctype="multipart/form-data" id="referral-form" data-draft-workflow="agent.referral.create" data-draft-module="agent_referral">
       <?= csrf_field() ?>
 
       <ul class="nav nav-tabs" id="referralTabs" role="tablist">

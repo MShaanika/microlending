@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Idempotency;
+use App\Core\IdempotencyBusyException;
+use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\AccountingAccount;
@@ -70,8 +73,8 @@ class LoanRecoveryController extends Controller
         $writeOff = $this->writeOffs->find($writeOffId);
         $amount = (float) ($_POST['recovered_amount'] ?? 0);
 
-        if (!$writeOff || $writeOff['status'] !== 'Posted') {
-            Session::flash('error', 'Only posted write-offs can have recoveries recorded against them.');
+        if (!$writeOff) {
+            Session::flash('error', 'Write-off not found.');
             $this->redirect('/accounting/loan-write-offs');
             return;
         }
@@ -83,6 +86,7 @@ class LoanRecoveryController extends Controller
         }
 
         $userId = Auth::user()['id'] ?? null;
+        $key = $this->idempotencyKey();
         $bankAccountId = ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null;
         $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
 
@@ -90,71 +94,101 @@ class LoanRecoveryController extends Controller
         $recoveryIncomeId = $this->accounts->idByCode('4040');
 
         $recoveryDate = $_POST['recovery_date'] ?: date('Y-m-d');
+        $referenceNo = trim($_POST['reference_no'] ?? '') ?: null;
+        $notes = trim($_POST['notes'] ?? '') ?: null;
+        $successMessage = 'Recovery recorded and posted.';
 
         try {
-            $journalId = $this->journal->post(
-                'LOAN_RECOVERY',
-                'loan_recoveries',
-                null,
-                generate_reference('REC'),
-                'Bad debt recovery for loan ' . $writeOff['loan_no'] . ' (write-off ' . $writeOff['write_off_no'] . ')',
-                [
-                    ['account_id' => $bankGlAccountId, 'debit' => $amount, 'credit' => 0],
-                    ['account_id' => $recoveryIncomeId, 'debit' => 0, 'credit' => $amount],
-                ],
-                $userId,
-                $recoveryDate
-            );
+            $this->recoveries->transaction(function () use (
+                $writeOffId, $writeOff, $amount, $userId, $key, $bankGlAccountId, $recoveryIncomeId,
+                $recoveryDate, $referenceNo, $notes, $successMessage
+            ) {
+                Idempotency::begin($key, 'recovery.store', $userId);
+
+                // Locks the write-off row so a second concurrent recovery
+                // against the same write-off can't race this one's
+                // totalRecovered() read and bad-debt status transition below.
+                $locked = $this->writeOffs->findForUpdate($writeOffId);
+                if (!$locked || $locked['status'] !== 'Posted') {
+                    throw new \RuntimeException('Only posted write-offs can have recoveries recorded against them.');
+                }
+
+                $journalId = $this->journal->post(
+                    'LOAN_RECOVERY',
+                    'loan_recoveries',
+                    null,
+                    generate_reference('REC'),
+                    'Bad debt recovery for loan ' . $writeOff['loan_no'] . ' (write-off ' . $writeOff['write_off_no'] . ')',
+                    [
+                        ['account_id' => $bankGlAccountId, 'debit' => $amount, 'credit' => 0],
+                        ['account_id' => $recoveryIncomeId, 'debit' => 0, 'credit' => $amount],
+                    ],
+                    $userId,
+                    $recoveryDate
+                );
+
+                $recoveryId = $this->recoveries->create([
+                    'loan_id' => $writeOff['loan_id'],
+                    'borrower_id' => $writeOff['borrower_id'],
+                    'branch_id' => $writeOff['branch_id'],
+                    'write_off_id' => $writeOffId,
+                    'recovery_no' => generate_reference('RCV'),
+                    'recovery_date' => $recoveryDate,
+                    'recovered_amount' => $amount,
+                    'payment_method_id' => null,
+                    'reference_no' => $referenceNo,
+                    'notes' => $notes,
+                    'status' => 'Posted',
+                    'received_by' => $userId,
+                    'posted_by' => $userId,
+                    'posted_at' => date('Y-m-d H:i:s'),
+                    'journal_id' => $journalId,
+                ]);
+
+                $this->recoveries->createAllocation([
+                    'recovery_id' => $recoveryId,
+                    'write_off_id' => $writeOffId,
+                    'loan_id' => $writeOff['loan_id'],
+                    'amount_allocated' => $amount,
+                ]);
+
+                $totalRecovered = $this->writeOffs->totalRecoveredFor($writeOffId);
+                if (!empty($writeOff['bad_debt_id'])) {
+                    $newStatus = $totalRecovered >= (float) $writeOff['outstanding_balance'] ? 'Recovered' : 'Under Recovery';
+                    $this->badDebts->updateRecord((int) $writeOff['bad_debt_id'], ['status' => $newStatus]);
+
+                    if ($newStatus === 'Recovered') {
+                        $this->loans->updateFields((int) $writeOff['loan_id'], ['loan_status' => 'Recovered - Closed']);
+                        $this->loans->logStatus(
+                            (int) $writeOff['loan_id'],
+                            $writeOff['loan_status'],
+                            'Recovered - Closed',
+                            $userId,
+                            'Fully recovered after write-off ' . $writeOff['write_off_no'] . '.'
+                        );
+                    }
+                }
+
+                Audit::log('Create', 'Accounting', 'Recorded recovery #' . $recoveryId . ' of ' . format_money($amount) . ' for write-off ' . $writeOff['write_off_no'], [], $key);
+                Idempotency::complete($key, 'recovery.store', 'REDIRECT', [
+                    'flash_type' => 'success',
+                    'flash_message' => $successMessage,
+                    'redirect' => '/accounting/loan-write-offs/' . $writeOffId,
+                ]);
+            });
+        } catch (IdempotencyReplayException $e) {
+            $this->replayIdempotent($e);
+            return;
+        } catch (IdempotencyBusyException $e) {
+            $this->busyIdempotent($e, '/accounting/loan-write-offs/' . $writeOffId . '/recoveries/create');
+            return;
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
             $this->redirect('/accounting/loan-write-offs/' . $writeOffId . '/recoveries/create');
             return;
         }
 
-        $recoveryId = $this->recoveries->create([
-            'loan_id' => $writeOff['loan_id'],
-            'borrower_id' => $writeOff['borrower_id'],
-            'branch_id' => $writeOff['branch_id'],
-            'write_off_id' => $writeOffId,
-            'recovery_no' => generate_reference('RCV'),
-            'recovery_date' => $recoveryDate,
-            'recovered_amount' => $amount,
-            'payment_method_id' => null,
-            'reference_no' => trim($_POST['reference_no'] ?? '') ?: null,
-            'notes' => trim($_POST['notes'] ?? '') ?: null,
-            'status' => 'Posted',
-            'received_by' => $userId,
-            'posted_by' => $userId,
-            'posted_at' => date('Y-m-d H:i:s'),
-            'journal_id' => $journalId,
-        ]);
-
-        $this->recoveries->createAllocation([
-            'recovery_id' => $recoveryId,
-            'write_off_id' => $writeOffId,
-            'loan_id' => $writeOff['loan_id'],
-            'amount_allocated' => $amount,
-        ]);
-
-        $totalRecovered = $this->writeOffs->totalRecoveredFor($writeOffId);
-        if (!empty($writeOff['bad_debt_id'])) {
-            $newStatus = $totalRecovered >= (float) $writeOff['outstanding_balance'] ? 'Recovered' : 'Under Recovery';
-            $this->badDebts->updateRecord((int) $writeOff['bad_debt_id'], ['status' => $newStatus]);
-
-            if ($newStatus === 'Recovered') {
-                $this->loans->updateFields((int) $writeOff['loan_id'], ['loan_status' => 'Recovered - Closed']);
-                $this->loans->logStatus(
-                    (int) $writeOff['loan_id'],
-                    $writeOff['loan_status'],
-                    'Recovered - Closed',
-                    $userId,
-                    'Fully recovered after write-off ' . $writeOff['write_off_no'] . '.'
-                );
-            }
-        }
-
-        Audit::log('Create', 'Accounting', 'Recorded recovery #' . $recoveryId . ' of ' . format_money($amount) . ' for write-off ' . $writeOff['write_off_no']);
-        Session::flash('success', 'Recovery recorded and posted.');
+        Session::flash('success', $successMessage);
         $this->redirect('/accounting/loan-write-offs/' . $writeOffId);
     }
 }

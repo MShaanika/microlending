@@ -3,13 +3,20 @@ namespace App\Core;
 
 class Audit
 {
-    public static function log(string $action, string $module, string $description): void
+    /**
+     * $metadata/$referenceKey are optional and additive -- every existing
+     * 3-arg call site keeps working unchanged. $referenceKey is the
+     * idempotency key / draft UUID an event relates to, for fast
+     * cross-referencing without parsing $metadata's JSON.
+     */
+    public static function log(string $action, string $module, string $description, array $metadata = [], ?string $referenceKey = null): void
     {
         try {
             $db = Database::connection();
-            $stmt = $db->prepare("INSERT INTO audit_logs (user_id, action, module_name, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt = $db->prepare("INSERT INTO audit_logs (user_id, action, module_name, description, metadata, reference_key, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 Session::get('user')['id'] ?? null, $action, $module, $description,
+                $metadata ? json_encode($metadata) : null, $referenceKey,
                 $_SERVER['REMOTE_ADDR'] ?? null, $_SERVER['HTTP_USER_AGENT'] ?? null
             ]);
         } catch (\Throwable $e) { /* keep app alive */ }

@@ -142,7 +142,27 @@ class DebitOrderCollexiaController extends Controller
             ]);
             Session::flash('error', 'The mandate was rejected: ' . $e->getMessage());
         } catch (\RuntimeException $e) {
-            Session::flash('error', $e->getMessage());
+            // A network-level failure (e.g. a timeout) does NOT mean
+            // Collexia never received the request -- it may have been
+            // accepted on their end with the response lost in transit. Mark
+            // this visibly as Uncertain rather than leaving the previous
+            // status untouched (which would be indistinguishable from
+            // "never attempted" and could tempt a blind resubmit). Staff
+            // must use "Check Final Fate" to reconcile before assuming
+            // either outcome.
+            $this->debitOrders->updateCollexiaApiState($id, [
+                'collexia_api_contract_reference' => $contractReference,
+                'collexia_api_status' => 'Uncertain',
+                'collexia_api_last_response' => 'Network error, outcome unknown: ' . $e->getMessage(),
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+            Audit::log(
+                'Uncertain',
+                'Debit Orders',
+                'Collexia mandate request outcome unknown after network error for debit order #' . $id . ' (' . $contractReference . ')',
+                ['exception' => $e->getMessage()]
+            );
+            Session::flash('error', "The request may or may not have reached Collexia (network error). Status marked Uncertain -- use \"Check Final Fate\" to confirm before resubmitting.");
         }
     }
 

@@ -38,6 +38,12 @@ class LoanWriteOff extends Model
         );
     }
 
+    /** Locks the write-off row for the caller's transaction -- see Loan::findForUpdate() for why. */
+    public function findForUpdate(int $id): ?array
+    {
+        return $this->one('SELECT * FROM loan_write_offs WHERE id = ? FOR UPDATE', [$id]);
+    }
+
     public function create(array $data): int
     {
         return $this->insert('loan_write_offs', $data);

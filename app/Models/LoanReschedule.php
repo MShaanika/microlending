@@ -44,6 +44,12 @@ class LoanReschedule extends Model
         );
     }
 
+    /** Locks the reschedule row for the caller's transaction -- see Loan::findForUpdate() for why. */
+    public function findForUpdate(int $id): ?array
+    {
+        return $this->one('SELECT * FROM loan_reschedules WHERE id = ? FOR UPDATE', [$id]);
+    }
+
     public function create(array $data): int
     {
         return $this->insert('loan_reschedules', $data);

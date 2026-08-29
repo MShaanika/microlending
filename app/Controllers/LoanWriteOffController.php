@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Idempotency;
+use App\Core\IdempotencyBusyException;
+use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\AccountingAccount;
@@ -191,13 +194,14 @@ class LoanWriteOffController extends Controller
         }
 
         $writeOff = $this->writeOffs->find($id);
-        if (!$writeOff || $writeOff['status'] !== 'Approved') {
-            Session::flash('error', 'Only approved write-offs can be posted.');
+        if (!$writeOff) {
+            Session::flash('error', 'Write-off not found.');
             $this->redirect('/accounting/loan-write-offs/' . $id);
             return;
         }
 
         $userId = Auth::user()['id'] ?? null;
+        $key = $this->idempotencyKey();
         $loansReceivableId = $this->accounts->idByCode('1020');
         $provisionAccountId = $this->accounts->idByCode('1050');
         $badDebtExpenseId = $this->accounts->idByCode('5010');
@@ -236,39 +240,62 @@ class LoanWriteOffController extends Controller
             $lines[] = ['account_id' => $this->accounts->idByCode('1030'), 'debit' => 0, 'credit' => $interestOutstanding];
         }
 
+        $successMessage = 'Write-off posted and loan marked as written off.';
+
         try {
-            $journalId = $this->journal->post(
-                'LOAN_WRITE_OFF',
-                'loan_write_offs',
-                $id,
-                $writeOff['write_off_no'],
-                'Write-off of loan ' . $writeOff['loan_no'] . ': ' . $writeOff['reason'],
-                $lines,
-                $userId
-            );
+            $this->writeOffs->transaction(function () use ($id, $writeOff, $lines, $userId, $key, $outstanding, $successMessage) {
+                Idempotency::begin($key, 'writeoff.post', $userId);
+
+                $locked = $this->writeOffs->findForUpdate($id);
+                if (!$locked || $locked['status'] !== 'Approved') {
+                    throw new \RuntimeException('Only approved write-offs can be posted.');
+                }
+
+                $journalId = $this->journal->post(
+                    'LOAN_WRITE_OFF',
+                    'loan_write_offs',
+                    $id,
+                    $writeOff['write_off_no'],
+                    'Write-off of loan ' . $writeOff['loan_no'] . ': ' . $writeOff['reason'],
+                    $lines,
+                    $userId
+                );
+
+                $this->writeOffs->updateRecord($id, [
+                    'status' => 'Posted',
+                    'posted_by' => $userId,
+                    'posted_at' => date('Y-m-d H:i:s'),
+                    'journal_id' => $journalId,
+                ]);
+
+                $this->loans->updateFields((int) $writeOff['loan_id'], ['loan_status' => 'Written Off']);
+                $this->loans->logStatus((int) $writeOff['loan_id'], $writeOff['loan_status'] ?? null, 'Written Off', $userId, 'Written off via ' . $writeOff['write_off_no']);
+                \App\Services\AgentCommissionService::onWriteOff((int) $writeOff['loan_id'], $userId);
+
+                if (!empty($writeOff['bad_debt_id'])) {
+                    $this->badDebts->updateRecord((int) $writeOff['bad_debt_id'], ['status' => 'Written Off']);
+                }
+
+                Audit::log('Post', 'Accounting', 'Posted write-off #' . $id . ' for loan ' . $writeOff['loan_no'] . ' (' . format_money($outstanding) . ')', [], $key);
+                Idempotency::complete($key, 'writeoff.post', 'REDIRECT', [
+                    'flash_type' => 'success',
+                    'flash_message' => $successMessage,
+                    'redirect' => '/accounting/loan-write-offs/' . $id,
+                ]);
+            });
+        } catch (IdempotencyReplayException $e) {
+            $this->replayIdempotent($e);
+            return;
+        } catch (IdempotencyBusyException $e) {
+            $this->busyIdempotent($e, '/accounting/loan-write-offs/' . $id);
+            return;
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
             $this->redirect('/accounting/loan-write-offs/' . $id);
             return;
         }
 
-        $this->writeOffs->updateRecord($id, [
-            'status' => 'Posted',
-            'posted_by' => $userId,
-            'posted_at' => date('Y-m-d H:i:s'),
-            'journal_id' => $journalId,
-        ]);
-
-        $this->loans->updateFields((int) $writeOff['loan_id'], ['loan_status' => 'Written Off']);
-        $this->loans->logStatus((int) $writeOff['loan_id'], $writeOff['loan_status'] ?? null, 'Written Off', $userId, 'Written off via ' . $writeOff['write_off_no']);
-        \App\Services\AgentCommissionService::onWriteOff((int) $writeOff['loan_id'], $userId);
-
-        if (!empty($writeOff['bad_debt_id'])) {
-            $this->badDebts->updateRecord((int) $writeOff['bad_debt_id'], ['status' => 'Written Off']);
-        }
-
-        Audit::log('Post', 'Accounting', 'Posted write-off #' . $id . ' for loan ' . $writeOff['loan_no'] . ' (' . format_money($outstanding) . ')');
-        Session::flash('success', 'Write-off posted and loan marked as written off.');
+        Session::flash('success', $successMessage);
         $this->redirect('/accounting/loan-write-offs/' . $id);
     }
 }

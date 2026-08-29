@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Idempotency;
+use App\Core\IdempotencyBusyException;
+use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\DocumentTemplate;
@@ -351,19 +354,51 @@ class RescheduleController extends Controller
         }
 
         $reschedule = $this->reschedules->find($id);
-        if (!$reschedule || $reschedule['status'] !== 'Approved') {
-            Session::flash('error', 'Only approved reschedules can be implemented.');
+        if (!$reschedule) {
+            Session::flash('error', 'Reschedule not found.');
             $this->redirect('/reschedules/' . $id);
             return;
         }
         $this->assertBranchAccess($reschedule);
 
-        $newRows = $this->rescheduleSchedules->forReschedule($id);
         $userId = Auth::user()['id'] ?? null;
+        $key = $this->idempotencyKey();
+
+        // RescheduleService::implement() owns its own transaction (it
+        // replaces the loan's schedule, a larger unit of work than fits
+        // cleanly alongside a caller-held lock), so the locked status
+        // re-check below runs as its own short transaction just to close
+        // the double-click/two-staff race on *starting* implementation --
+        // not one continuous transaction spanning the whole operation.
+        try {
+            $this->reschedules->transaction(function () use ($id, $userId, $key) {
+                Idempotency::begin($key, 'reschedule.implement', $userId);
+                $locked = $this->reschedules->findForUpdate($id);
+                if (!$locked || $locked['status'] !== 'Approved') {
+                    throw new \RuntimeException('Only approved reschedules can be implemented.');
+                }
+                // Idempotency::complete() happens after the real work below,
+                // outside this short transaction -- see the try block that follows.
+            });
+        } catch (IdempotencyReplayException $e) {
+            $this->replayIdempotent($e);
+            return;
+        } catch (IdempotencyBusyException $e) {
+            $this->busyIdempotent($e, '/reschedules/' . $id);
+            return;
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/reschedules/' . $id);
+            return;
+        }
+
+        $newRows = $this->rescheduleSchedules->forReschedule($id);
+        $successMessage = 'Reschedule implemented. The loan now follows its new schedule.';
 
         try {
             RescheduleService::implement($reschedule, $newRows, $userId);
         } catch (\Throwable $e) {
+            Idempotency::fail($key, 'reschedule.implement');
             Session::flash('error', 'Could not implement reschedule: ' . $e->getMessage());
             $this->redirect('/reschedules/' . $id);
             return;
@@ -375,8 +410,13 @@ class RescheduleController extends Controller
             'implemented_at' => date('Y-m-d H:i:s'),
         ]);
 
-        Audit::log('Implement', 'Reschedules', 'Implemented reschedule #' . $id . ' for loan ' . $reschedule['loan_no']);
-        Session::flash('success', 'Reschedule implemented. The loan now follows its new schedule.');
+        Audit::log('Implement', 'Reschedules', 'Implemented reschedule #' . $id . ' for loan ' . $reschedule['loan_no'], [], $key);
+        Idempotency::complete($key, 'reschedule.implement', 'REDIRECT', [
+            'flash_type' => 'success',
+            'flash_message' => $successMessage,
+            'redirect' => '/reschedules/' . $id,
+        ]);
+        Session::flash('success', $successMessage);
         $this->redirect('/reschedules/' . $id);
     }
 

@@ -54,6 +54,7 @@ use App\Controllers\HrmDeductionController;
 use App\Controllers\HrmPayrollController;
 use App\Controllers\EmployeeSelfServiceController;
 use App\Controllers\AgentSelfServiceController;
+use App\Controllers\FormDraftController;
 use App\Controllers\CommissionController;
 use App\Controllers\HrmAwardTypeController;
 use App\Controllers\HrmAwardController;
@@ -713,6 +714,16 @@ $router->get('/my/loans/{id}/topup', [AgentSelfServiceController::class, 'topupR
 $router->post('/my/loans/{id}/topup', [AgentSelfServiceController::class, 'topupRequestStore']);
 $router->get('/my/commissions', [AgentSelfServiceController::class, 'commissions']);
 $router->get('/my/commissions/{id}', [AgentSelfServiceController::class, 'commissionShow']);
+
+// Draft autosave/recovery -- self-service, scoped to the logged-in user
+// (own drafts only), same as the agent self-service block above.
+$router->get('/my/drafts', [FormDraftController::class, 'index']);
+$router->post('/my/drafts', [FormDraftController::class, 'save']);
+$router->get('/my/drafts/latest', [FormDraftController::class, 'latest']);
+$router->get('/my/drafts/{uuid}', [FormDraftController::class, 'show']);
+$router->post('/my/drafts/{uuid}/discard', [FormDraftController::class, 'discard']);
+$router->post('/my/drafts/{uuid}/documents', [FormDraftController::class, 'uploadDocument']);
+$router->post('/my/drafts/{uuid}/documents/{docId}/delete', [FormDraftController::class, 'deleteDocument']);
 
 $router->get('/commissions', [CommissionController::class, 'index']);
 $router->get('/commissions/submissions', [CommissionController::class, 'submissions']);

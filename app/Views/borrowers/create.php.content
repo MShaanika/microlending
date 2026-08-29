@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <form method="post" action="<?= url('/borrowers') ?>" enctype="multipart/form-data" id="borrower-form">
+    <form method="post" action="<?= url('/borrowers') ?>" enctype="multipart/form-data" id="borrower-form" data-draft-workflow="borrowers.create" data-draft-module="borrower">
       <?= csrf_field() ?>
       <input type="hidden" name="client_mode" id="client_mode_field" value="<?= e($old['client_mode'] ?? 'new') ?>">
 

@@ -253,6 +253,13 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
           </li>
           <?php endif; ?>
 
+          <li class="sidebar-item">
+            <a class="sidebar-link waves-effect waves-dark sidebar-link" href="<?= url('/my/drafts') ?>">
+              <i class="mdi mdi-file-clock-outline"></i>
+              <span class="hide-menu">My Drafts</span>
+            </a>
+          </li>
+
           <li class="nav-small-cap">
             <i class="mdi mdi-dots-horizontal"></i>
             <span class="hide-menu"><?= e($brandName) ?></span>
@@ -563,6 +570,30 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     </div>
   <?php endif; ?>
 
+  <?php
+    // Shown on the dashboard only (not every page -- avoids nagging), and
+    // only once per PHP session so navigating back to the dashboard later
+    // in the same visit doesn't repeat it.
+    $showDraftNotice = false;
+    if (\App\Core\Auth::check() && str_contains($_SERVER['REQUEST_URI'] ?? '', '/dashboard') && empty($_SESSION['_drafts_notice_shown'])) {
+        $unfinishedDraftCount = (new \App\Models\FormDraft())->countUnfinishedForUser((int) (\App\Core\Auth::user()['id'] ?? 0));
+        if ($unfinishedDraftCount > 0) {
+            $showDraftNotice = true;
+            $_SESSION['_drafts_notice_shown'] = true;
+        }
+    }
+  ?>
+  <?php if ($showDraftNotice): ?>
+    <div class="alert alert-info alert-dismissible d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0 rounded-0">
+      <div>
+        <i class="mdi mdi-file-clock-outline"></i>
+        You have <?= (int) $unfinishedDraftCount ?> unfinished draft<?= $unfinishedDraftCount === 1 ? '' : 's' ?>.
+        <a href="<?= url('/my/drafts') ?>">Open Draft Centre</a>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  <?php endif; ?>
+
   <div class="row page-titles">
           <div class="col-md-5 col-12 align-self-center">
             <ol class="breadcrumb mb-0">
@@ -607,9 +638,12 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
   </div>
 </div>
 
+<script>window.APP_BASE_URL = <?= json_encode(url('')) ?>;</script>
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('dist/js/app-ui.js') ?>"></script>
+<script src="<?= asset('dist/js/submit-guard.js') ?>"></script>
+<script src="<?= asset('dist/js/form-draft.js') ?>"></script>
 <script src="<?= asset('assets/libs/perfect-scrollbar/dist/perfect-scrollbar.jquery.min.js') ?>"></script>
 <script src="<?= asset('dist/js/feather.min.js') ?>"></script>
 
