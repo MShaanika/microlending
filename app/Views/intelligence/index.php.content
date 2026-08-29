@@ -1,0 +1,135 @@
+<?php
+  $sevBadge = fn (string $s) => match ($s) {
+      'Critical', 'High' => 'danger',
+      'Medium' => 'warning',
+      default => 'info',
+  };
+?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Decision Intelligence</h4>
+    <p class="text-muted small mb-0">Read-only insight over what every other framework already recorded -- root causes, recurring patterns, and where problems cluster. Nothing here changes anything.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-fire text-danger"></i> Module Hotspots <span class="text-muted small fw-normal">(last 30 days)</span></h5>
+        <p class="text-muted small">A composite score combining open exceptions (weighted by severity), open data quality issues, active error occurrences, and breached SLAs -- a starting point for where to look, not a verdict on its own.</p>
+        <?php if (empty($hotspots)): ?>
+          <p class="text-muted text-center py-4">No activity recorded in the last 30 days.</p>
+        <?php endif; ?>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr><th>Module</th><th>Score</th><th>Exceptions</th><th>Data Quality</th><th>Errors</th><th>SLA Breaches</th></tr>
+            </thead>
+            <tbody>
+              <?php foreach (array_slice($hotspots, 0, 10) as $h): ?>
+                <tr>
+                  <td><span class="fw-semibold"><?= e($h['module']) ?></span></td>
+                  <td><span class="badge bg-dark"><?= (int) $h['score'] ?></span></td>
+                  <td><?= (int) $h['exceptions'] ?></td>
+                  <td><?= (int) $h['data_quality_issues'] ?></td>
+                  <td><?= (int) $h['system_errors'] ?></td>
+                  <td><?= (int) $h['sla_breaches'] ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-chart-line text-primary"></i> Exception Trend <span class="text-muted small fw-normal">(last 30 days)</span></h5>
+        <div id="trendChart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-repeat text-warning"></i> Recurring Patterns <span class="text-muted small fw-normal">(3+ times in 90 days)</span></h5>
+        <?php if (empty($recurringPatterns)): ?>
+          <p class="text-muted text-center py-4">No recurring exception pattern found in the last 90 days.</p>
+        <?php endif; ?>
+        <ul class="list-unstyled mb-0">
+          <?php foreach ($recurringPatterns as $p): ?>
+            <li class="d-flex justify-content-between align-items-start py-2 border-bottom">
+              <div>
+                <span class="badge bg-light text-dark me-1"><?= e($p['module']) ?></span>
+                <span class="fw-semibold"><?= e($p['exception_type']) ?></span>
+                <div class="text-muted small"><?= e($p['category']) ?> &mdash; last seen <?= e(date('d M Y', strtotime($p['last_seen']))) ?></div>
+                <?php if ($p['latest_root_cause']): ?>
+                  <div class="text-muted small fst-italic">"<?= e(mb_strimwidth($p['latest_root_cause'], 0, 90, '…')) ?>"</div>
+                <?php endif; ?>
+              </div>
+              <span class="badge bg-warning text-dark text-nowrap"><?= (int) $p['occurrences'] ?>x</span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="mdi mdi-history text-info"></i> Time to Resolve <span class="text-muted small fw-normal">(resolved in last 90 days)</span></h5>
+        <?php if (empty($resolutionMetrics)): ?>
+          <p class="text-muted text-center py-4">No exceptions resolved in the last 90 days.</p>
+        <?php endif; ?>
+        <table class="table table-sm table-borderless mb-3">
+          <?php foreach ($resolutionMetrics as $rm): ?>
+            <tr>
+              <td><span class="badge bg-<?= $sevBadge($rm['severity']) ?>"><?= e($rm['severity']) ?></span></td>
+              <td><?= (int) $rm['resolved_count'] ?> resolved</td>
+              <td class="text-end fw-semibold"><?= $rm['avg_hours'] ?>h avg</td>
+            </tr>
+          <?php endforeach; ?>
+        </table>
+
+        <h6 class="text-muted mt-3">Recent Root Causes</h6>
+        <ul class="list-unstyled mb-0">
+          <?php if (empty($recentRootCauses)): ?>
+            <li class="text-muted small py-2">No root causes recorded yet.</li>
+          <?php endif; ?>
+          <?php foreach ($recentRootCauses as $rc): ?>
+            <li class="py-2 border-bottom">
+              <a href="<?= url('/exceptions/' . $rc['id']) ?>" class="text-decoration-none">
+                <span class="badge bg-light text-dark"><?= e($rc['module']) ?></span>
+                <span class="fw-semibold"><?= e($rc['exception_type']) ?></span>
+              </a>
+              <div class="text-muted small"><?= e(mb_strimwidth($rc['root_cause'], 0, 100, '…')) ?></div>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="<?= asset('assets/libs/apexcharts/dist/apexcharts.min.js') ?>"></script>
+<script>
+(function () {
+  var trendData = <?= json_encode($trend) ?>;
+  new ApexCharts(document.getElementById('trendChart'), {
+    chart: { type: 'area', height: 320, toolbar: { show: false } },
+    series: [{ name: 'New Exceptions', data: trendData.map(function (r) { return r.count; }) }],
+    xaxis: { categories: trendData.map(function (r) { return r.label; }) },
+    colors: ['#e1306c'],
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+  }).render();
+})();
+</script>

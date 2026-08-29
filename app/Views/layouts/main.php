@@ -501,6 +501,9 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Error Tracking', 'url' => url('/errors'), 'perm' => 'errors.view'],
               ['label' => 'Feature Flags', 'url' => url('/feature-flags'), 'perm' => 'feature_flags.view'],
             ]],
+            'Intelligence' => ['icon' => 'mdi-lightbulb-on', 'items' => [
+              ['label' => 'Decision Intelligence', 'url' => url('/intelligence'), 'perm' => 'intelligence.view'],
+            ]],
           ];
 
           // Drop items the current user's role(s) can't reach, then drop any

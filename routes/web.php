@@ -8,6 +8,7 @@ use App\Controllers\RetentionController;
 use App\Controllers\ErrorTrackingController;
 use App\Controllers\FeatureFlagController;
 use App\Controllers\HealthCheckController;
+use App\Controllers\DecisionIntelligenceController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
@@ -602,6 +603,10 @@ $router->get('/feature-flags/create', [FeatureFlagController::class, 'create']);
 $router->post('/feature-flags', [FeatureFlagController::class, 'store']);
 $router->get('/feature-flags/{id}/edit', [FeatureFlagController::class, 'edit']);
 $router->post('/feature-flags/{id}', [FeatureFlagController::class, 'update']);
+
+// Enterprise Control Architecture -- Phase 6 (Decision Intelligence):
+// read-only insight over what every other framework already recorded.
+$router->get('/intelligence', [DecisionIntelligenceController::class, 'index']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 
