@@ -51,7 +51,7 @@
     <p class="text-muted small">Since the borrower now has two active loans, you may want to spread out the original loan's remaining installments to ease the combined repayment load.</p>
     <div class="d-flex gap-2 flex-wrap">
       <?php if ($originalLoan): ?>
-        <a href="<?= url('/loans/' . $originalLoan['id'] . '/reschedule') ?>" class="btn btn-warning btn-sm"><i class="mdi mdi-calendar-sync"></i> Reschedule the Original Loan Now</a>
+        <a href="<?= url('/loans/' . $originalLoan['id'] . '/reschedule') ?>" class="btn btn-warning btn-sm"><i class="mdi mdi-calendar-clock"></i> Reschedule the Original Loan Now</a>
       <?php endif; ?>
       <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm">No, That's Fine</a>
     </div>

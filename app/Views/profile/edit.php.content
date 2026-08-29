@@ -69,7 +69,7 @@
             <input type="password" name="password_confirmation" class="form-control">
           </div>
 
-          <button type="submit" class="btn btn-outline-info waves-effect waves-light"><i class="mdi mdi-lock-reset"></i> Change Password</button>
+          <button type="submit" class="btn btn-outline-info waves-effect waves-light"><i class="mdi mdi-key-change"></i> Change Password</button>
         </form>
       </div>
     </div>

@@ -78,7 +78,7 @@
       <?php elseif ($reschedule['status'] === 'Approved'): ?>
         <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/implement') ?>" onsubmit="return confirmSubmit(this, 'Implement this reschedule? This will replace the loan\'s remaining schedule now.');">
           <?= csrf_field() ?>
-          <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-calendar-sync"></i> Implement</button>
+          <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-calendar-clock"></i> Implement</button>
         </form>
       <?php elseif ($reschedule['status'] === 'Implemented'): ?>
         <a href="<?= url('/loans/' . $reschedule['loan_id']) ?>" class="btn btn-outline-primary"><i class="mdi mdi-eye"></i> View Loan</a>
@@ -101,7 +101,7 @@
 
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Approval History</h4>
+    <h4 class="card-title"><i class="mdi mdi-history me-1"></i> Approval History</h4>
     <ul class="list-unstyled mb-0">
       <li class="mb-2 pb-2 border-bottom">
         <strong>Requested</strong>

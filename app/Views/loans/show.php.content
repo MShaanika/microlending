@@ -108,13 +108,13 @@
           <a href="<?= url('/notifications/compose?borrower_id=' . $loan['borrower_id'] . '&loan_id=' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bell-ring-outline"></i> Notify Borrower</a>
 
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
-            <a href="<?= url('/loans/' . $loan['id'] . '/reschedule') ?>" class="btn btn-outline-warning btn-sm"><i class="mdi mdi-calendar-sync"></i> Reschedule</a>
+            <a href="<?= url('/loans/' . $loan['id'] . '/reschedule') ?>" class="btn btn-outline-warning btn-sm"><i class="mdi mdi-calendar-clock"></i> Reschedule</a>
             <a href="<?= url('/loans/' . $loan['id'] . '/debit-orders/create') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bank"></i> Register Debit Order</a>
             <?php if (!$hasReschedule): ?>
-              <a href="<?= url('/loans/create?borrower_id=' . $loan['borrower_id'] . '&loan_mode=topup&existing_loan_id=' . $loan['id']) ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-cash-plus"></i> Top Up This Loan</a>
+              <a href="<?= url('/loans/create?borrower_id=' . $loan['borrower_id'] . '&loan_mode=topup&existing_loan_id=' . $loan['id']) ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-cash-multiple"></i> Top Up This Loan</a>
             <?php else: ?>
               <span class="btn btn-outline-secondary btn-sm disabled" title="This loan has been rescheduled and can no longer be topped up.">
-                <i class="mdi mdi-cash-plus"></i> Top Up Unavailable (Rescheduled)
+                <i class="mdi mdi-cash-multiple"></i> Top Up Unavailable (Rescheduled)
               </span>
             <?php endif; ?>
           <?php endif; ?>
@@ -128,12 +128,12 @@
 
           <?php if ($loan['loan_status'] === 'Approved'): ?>
             <button class="btn btn-info btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#releaseForm">
-              <i class="mdi mdi-cash-fast"></i> Release / Disburse
+              <i class="mdi mdi-transfer"></i> Release / Disburse
             </button>
           <?php endif; ?>
 
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
-            <a href="<?= url('/loans/' . $loan['id'] . '/payments/create') ?>" class="btn btn-primary btn-sm"><i class="mdi mdi-cash-plus"></i> Record Payment</a>
+            <a href="<?= url('/loans/' . $loan['id'] . '/payments/create') ?>" class="btn btn-primary btn-sm"><i class="mdi mdi-cash-multiple"></i> Record Payment</a>
           <?php endif; ?>
         </div>
 
@@ -219,7 +219,7 @@
   <div class="col-12">
     <div class="card">
       <div class="card-body">
-        <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Status History</h4>
+        <h4 class="card-title"><i class="mdi mdi-history me-1"></i> Status History</h4>
         <ul class="list-unstyled mb-0">
           <?php foreach ($statusHistory as $h): ?>
             <li class="mb-2 pb-2 border-bottom">

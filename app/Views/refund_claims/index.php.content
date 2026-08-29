@@ -66,7 +66,7 @@
                         <option value="<?= (int) $ba['id'] ?>"><?= e($ba['account_name']) ?> - <?= e($ba['bank_name']) ?></option>
                       <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-cash-check"></i> Mark Paid</button>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-cash-100"></i> Mark Paid</button>
                   </form>
                 <?php elseif ($c['status'] === 'Paid' && !empty($c['journal_id'])): ?>
                   <a href="<?= url('/accounting/journals/' . $c['journal_id']) ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-book-open-variant"></i> View Journal</a>

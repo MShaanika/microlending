@@ -29,7 +29,7 @@
         <p class="mb-3"><strong>Paid so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
 
         <?php if ($canRequestTopup): ?>
-          <a href="<?= url('/my/loans/' . $loan['id'] . '/topup') ?>" class="btn btn-info btn-sm w-100"><i class="mdi mdi-cash-plus"></i> Request Top-Up for This Client</a>
+          <a href="<?= url('/my/loans/' . $loan['id'] . '/topup') ?>" class="btn btn-info btn-sm w-100"><i class="mdi mdi-cash-multiple"></i> Request Top-Up for This Client</a>
         <?php endif; ?>
       </div>
     </div>

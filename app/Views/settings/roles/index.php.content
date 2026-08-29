@@ -24,7 +24,7 @@
               <td class="text-end"><?= (int) $r['permission_count'] ?></td>
               <td class="text-end">
                 <a href="<?= url('/settings/roles/' . $r['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
-                <a href="<?= url('/settings/roles/' . $r['id'] . '/permissions') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-shield-key"></i> Permissions</a>
+                <a href="<?= url('/settings/roles/' . $r['id'] . '/permissions') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-key"></i> Permissions</a>
               </td>
             </tr>
           <?php endforeach; ?>

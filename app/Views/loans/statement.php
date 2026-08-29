@@ -27,7 +27,7 @@
   <form method="post" action="<?= url('/loans/' . $loan['id'] . '/statement/email') ?>" class="d-inline-flex align-items-center gap-2 ms-2">
     <?= csrf_field() ?>
     <input type="email" name="recipient_email" class="form-control form-control-sm" style="width: 260px; display: inline-block;" placeholder="Send to email address" required>
-    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-email-send"></i> Email Statement</button>
+    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-send"></i> Email Statement</button>
   </form>
 </div>
 

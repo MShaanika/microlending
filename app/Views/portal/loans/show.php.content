@@ -31,7 +31,7 @@
 
         <div class="d-flex gap-2 flex-wrap">
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
-            <a href="<?= url('/portal/payments/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-cash-plus"></i> Log a Payment</a>
+            <a href="<?= url('/portal/payments/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-cash-multiple"></i> Log a Payment</a>
           <?php endif; ?>
           <a href="<?= url('/portal/loans/' . $loan['id'] . '/invoice') ?>" target="_blank" class="btn btn-outline-info btn-sm"><i class="mdi mdi-receipt"></i> View Invoice</a>
         </div>

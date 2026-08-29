@@ -62,7 +62,7 @@
 
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Approval History</h4>
+    <h4 class="card-title"><i class="mdi mdi-history me-1"></i> Approval History</h4>
     <ul class="list-unstyled mb-0">
       <li class="mb-2 pb-2 border-bottom">
         <strong>Requested</strong>
@@ -90,7 +90,7 @@
 <?php if (!empty($recoveries)): ?>
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title"><i class="mdi mdi-cash-refund me-1"></i> Recoveries</h4>
+    <h4 class="card-title"><i class="mdi mdi-cash-multiple me-1"></i> Recoveries</h4>
     <div class="table-responsive">
       <table class="table table-sm table-hover align-middle">
         <thead><tr><th>Recovery No.</th><th>Date</th><th class="text-end">Amount</th><th>Reference</th><th>Recorded By</th></tr></thead>

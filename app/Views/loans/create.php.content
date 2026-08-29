@@ -22,10 +22,10 @@
           <label class="form-label d-block">Loan Type</label>
           <div class="btn-group" role="group">
             <input type="radio" class="btn-check" name="loan_mode" id="loan_mode_new" value="new" <?= (($old['loan_mode'] ?? 'new') !== 'topup') ? 'checked' : '' ?>>
-            <label class="btn btn-outline-info" for="loan_mode_new"><i class="mdi mdi-file-plus-outline"></i> New Loan</label>
+            <label class="btn btn-outline-info" for="loan_mode_new"><i class="mdi mdi-file-document"></i> New Loan</label>
 
             <input type="radio" class="btn-check" name="loan_mode" id="loan_mode_topup" value="topup" <?= (($old['loan_mode'] ?? '') === 'topup') ? 'checked' : '' ?>>
-            <label class="btn btn-outline-info" for="loan_mode_topup"><i class="mdi mdi-cash-plus"></i> Top-up</label>
+            <label class="btn btn-outline-info" for="loan_mode_topup"><i class="mdi mdi-cash-multiple"></i> Top-up</label>
           </div>
         </div>
 

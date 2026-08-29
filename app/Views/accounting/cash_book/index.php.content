@@ -74,7 +74,7 @@
                 <td><?= $line['reference_no'] ? e($line['reference_no']) : '&mdash;' ?></td>
                 <td>
                   <?= e($line['description']) ?>
-                  <?php if ($line['reconciliation_id']): ?><i class="mdi mdi-check-decagram text-success" title="Matched in bank reconciliation"></i><?php endif; ?>
+                  <?php if ($line['reconciliation_id']): ?><i class="mdi mdi-verified text-success" title="Matched in bank reconciliation"></i><?php endif; ?>
                   <?php if ($isLocked): ?><i class="mdi mdi-lock text-muted" title="Locked by a completed reconciliation"></i><?php endif; ?>
                 </td>
                 <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>

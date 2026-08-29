@@ -35,7 +35,7 @@
 
     <div class="card">
       <div class="card-body">
-        <h4 class="card-title"><i class="mdi mdi-cog me-1"></i> Actions</h4>
+        <h4 class="card-title"><i class="mdi mdi-settings me-1"></i> Actions</h4>
 
         <?php if ($expense['status'] === 'Draft'): ?>
           <div class="d-flex gap-2 flex-wrap">
@@ -89,7 +89,7 @@
                 <option value="<?= (int) $ba['id'] ?>"><?= e($ba['bank_name'] . ' - ' . $ba['account_name']) ?></option>
               <?php endforeach; ?>
             </select>
-            <button type="submit" class="btn btn-sm btn-success w-100"><i class="mdi mdi-cash-check"></i> Pay <?= format_money($expense['total_amount']) ?></button>
+            <button type="submit" class="btn btn-sm btn-success w-100"><i class="mdi mdi-cash-100"></i> Pay <?= format_money($expense['total_amount']) ?></button>
           </form>
         <?php endif; ?>
 
@@ -131,7 +131,7 @@
 
     <div class="card">
       <div class="card-body">
-        <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Approval History</h4>
+        <h4 class="card-title"><i class="mdi mdi-history me-1"></i> Approval History</h4>
         <ul class="list-unstyled mb-0">
           <?php if (empty($approvals)): ?>
             <li class="text-muted">No approval decisions recorded yet.</li>

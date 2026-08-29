@@ -37,15 +37,15 @@
 
     <div class="d-flex flex-wrap gap-3 small text-muted border-top pt-3">
       <span><i class="mdi mdi-check-circle text-success"></i> Present</span>
-      <span><i class="mdi mdi-circle-half-full text-warning"></i> Half Day</span>
+      <span><i class="mdi mdi-adjust text-warning"></i> Half Day</span>
       <span><i class="mdi mdi-close-circle text-danger"></i> Absent</span>
       <span><i class="mdi mdi-flag text-primary"></i> On Leave</span>
       <span><i class="mdi mdi-star text-info"></i> Holiday</span>
       <span><i class="mdi mdi-minus-circle-outline text-muted"></i> Day Off</span>
       <span><i class="mdi mdi-help-circle-outline text-muted"></i> Pending</span>
-      <span><i class="mdi mdi-clock-alert-outline text-danger"></i> Late</span>
+      <span><i class="mdi mdi-clock-alert text-danger"></i> Late</span>
       <span><i class="mdi mdi-arrow-left-bold text-warning"></i> Left Early</span>
-      <span><i class="mdi mdi-timer-plus-outline text-info"></i> Overtime</span>
+      <span><i class="mdi mdi-timer-sand text-info"></i> Overtime</span>
     </div>
   </div>
 </div>
@@ -76,7 +76,7 @@
                 <?php
                   $icon = [
                     'present' => 'mdi-check-circle text-success',
-                    'half' => 'mdi-circle-half-full text-warning',
+                    'half' => 'mdi-adjust text-warning',
                     'absent' => 'mdi-close-circle text-danger',
                     'leave' => 'mdi-flag text-primary',
                     'holiday' => 'mdi-star text-info',
@@ -85,9 +85,9 @@
                     'future' => '',
                   ][$cell['code']] ?? '';
                   $flagIcon = [
-                    'late' => 'mdi-clock-alert-outline text-danger',
+                    'late' => 'mdi-clock-alert text-danger',
                     'early' => 'mdi-arrow-left-bold text-warning',
-                    'overtime' => 'mdi-timer-plus-outline text-info',
+                    'overtime' => 'mdi-timer-sand text-info',
                     'holiday' => 'mdi-star text-info',
                   ];
                 ?>

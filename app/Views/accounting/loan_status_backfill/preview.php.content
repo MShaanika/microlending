@@ -38,7 +38,7 @@
     <?php else: ?>
       <form method="post" action="<?= url('/accounting/loan-status-backfill/run') ?>" onsubmit="return confirm('Run the backfill now? This updates loan status columns directly.');">
         <?= csrf_field() ?>
-        <button type="submit" class="btn btn-warning"><i class="mdi mdi-database-refresh"></i> Run Backfill</button>
+        <button type="submit" class="btn btn-warning"><i class="mdi mdi-refresh"></i> Run Backfill</button>
       </form>
     <?php endif; ?>
   </div>

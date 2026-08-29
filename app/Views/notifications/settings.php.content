@@ -58,7 +58,7 @@
             <input type="email" name="test_recipient" class="form-control form-control-sm" placeholder="you@example.com" required>
           </div>
           <div class="col-md-4">
-            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-email-fast-outline"></i> Send Test</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-send"></i> Send Test</button>
           </div>
         </form>
       </div>
@@ -100,7 +100,7 @@
             <input type="text" name="test_recipient" class="form-control form-control-sm" placeholder="+264811234567" required>
           </div>
           <div class="col-md-4">
-            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-message-fast-outline"></i> Send Test</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-send"></i> Send Test</button>
           </div>
         </form>
       </div>
@@ -191,7 +191,7 @@
             <input type="text" name="test_recipient" class="form-control form-control-sm" placeholder="+264811234567" required>
           </div>
           <div class="col-md-4">
-            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-phone-outline"></i> Call Now</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-phone"></i> Call Now</button>
           </div>
         </form>
       </div>

@@ -32,7 +32,7 @@
               <td><span class="badge bg-<?= $bd['status'] === 'Provisioned' ? 'warning text-dark' : ($bd['status'] === 'Written Off' ? 'dark' : ($bd['status'] === 'Recovered' ? 'success' : 'secondary')) ?>"><?= e($bd['status']) ?></span></td>
               <td class="text-end">
                 <?php if ($bd['status'] === 'Provisioned'): ?>
-                  <a href="<?= url('/accounting/bad-debts/' . $bd['id'] . '/write-off/create') ?>" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-file-remove"></i> Write Off</a>
+                  <a href="<?= url('/accounting/bad-debts/' . $bd['id'] . '/write-off/create') ?>" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-minus-circle"></i> Write Off</a>
                 <?php endif; ?>
               </td>
             </tr>

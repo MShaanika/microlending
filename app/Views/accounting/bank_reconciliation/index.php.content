@@ -247,7 +247,7 @@
       <?= csrf_field() ?>
       <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
       <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
-      <button type="submit" class="btn btn-primary" <?= $isReconciled ? '' : 'disabled' ?>><i class="mdi mdi-lock-check"></i> Complete Reconciliation</button>
+      <button type="submit" class="btn btn-primary" <?= $isReconciled ? '' : 'disabled' ?>><i class="mdi mdi-lock"></i> Complete Reconciliation</button>
       <?php if (!$isReconciled): ?><span class="text-muted small ms-2">Only works once Difference = $0.00.</span><?php endif; ?>
     </form>
   </div>

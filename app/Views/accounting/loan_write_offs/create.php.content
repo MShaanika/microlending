@@ -40,7 +40,7 @@
         <?php if (isset($errors['reason'])): ?><div class="invalid-feedback d-block"><?= e($errors['reason']) ?></div><?php endif; ?>
       </div>
 
-      <button type="submit" class="btn btn-danger waves-effect waves-light"><i class="mdi mdi-file-remove"></i> Request Write-Off</button>
+      <button type="submit" class="btn btn-danger waves-effect waves-light"><i class="mdi mdi-minus-circle"></i> Request Write-Off</button>
       <a href="<?= url('/accounting/bad-debts') ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>

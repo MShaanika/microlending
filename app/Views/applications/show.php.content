@@ -28,7 +28,7 @@
         <hr>
         <p class="mb-1"><i class="mdi mdi-phone me-1"></i> <?= e($application['applicant_phone']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($application['applicant_email']) ?: '&mdash;' ?></p>
-        <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($application['applicant_id_number']) ?: '&mdash;' ?></p>
+        <p class="mb-1"><i class="mdi mdi-account-card-details me-1"></i> ID: <?= e($application['applicant_id_number']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($application['applicant_address']) ?: '&mdash;' ?></p>
         <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Submitted: <?= e(date('d M Y H:i', strtotime($application['created_at']))) ?></p>
         <?php if ($application['screened_by']): ?>
@@ -105,7 +105,7 @@
 
     <div class="card">
       <div class="card-body">
-        <h4 class="card-title"><i class="mdi mdi-cog me-1"></i> Actions</h4>
+        <h4 class="card-title"><i class="mdi mdi-settings me-1"></i> Actions</h4>
 
         <?php $hasAiData = $bankAnalysis && $bankAnalysis['status'] === 'Completed' && (float) $bankAnalysis['average_monthly_income'] > 0; ?>
         <?php if ($canScreen): ?>
@@ -113,7 +113,7 @@
             <?= csrf_field() ?>
             <?php if ($hasAiData): ?>
               <div class="alert alert-info py-2 px-2 small mb-2">
-                <i class="mdi mdi-robot-outline"></i> AI bank statement analysis will be used for income, existing commitments &amp; disposable income &mdash;
+                <i class="mdi mdi-robot"></i> AI bank statement analysis will be used for income, existing commitments &amp; disposable income &mdash;
                 income <strong><?= format_money($bankAnalysis['average_monthly_income']) ?></strong>,
                 existing commitments <strong><?= format_money($bankAnalysis['existing_commitments_total']) ?></strong>.
               </div>
@@ -149,7 +149,7 @@
         <?php if (!empty($bankStatementDocs)): ?>
           <form method="post" action="<?= url('/applications/' . $application['id'] . '/analyze-bank-statements') ?>" class="mb-3">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="mdi mdi-robot-outline"></i> Analyze Bank Statements</button>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="mdi mdi-robot"></i> Analyze Bank Statements</button>
           </form>
         <?php endif; ?>
 
@@ -289,7 +289,7 @@
       <div class="card">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
-            <h4 class="card-title"><i class="mdi mdi-robot-outline me-1"></i> Bank Statement Analysis</h4>
+            <h4 class="card-title"><i class="mdi mdi-robot me-1"></i> Bank Statement Analysis</h4>
             <div>
               <span class="badge bg-<?= $bankAnalysis['status'] === 'Completed' ? 'success' : 'danger' ?>"><?= e($bankAnalysis['status']) ?></span>
               <span class="badge bg-secondary"><?= e($bankAnalysis['ingestion_method'] ?? 'AI Document Analysis') ?></span>
@@ -419,7 +419,7 @@
 
     <div class="card">
       <div class="card-body">
-        <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Status History</h4>
+        <h4 class="card-title"><i class="mdi mdi-history me-1"></i> Status History</h4>
         <ul class="list-unstyled mb-0">
           <?php foreach ($history as $h): ?>
             <li class="mb-2 pb-2 border-bottom">

@@ -34,7 +34,7 @@
                 <?php endif; ?>
                 <form method="post" action="<?= url('/my/drafts/' . $d['draft_uuid'] . '/discard') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Discard this draft? This cannot be undone.');">
                   <?= csrf_field() ?>
-                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-trash-can-outline"></i> Discard</button>
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete-empty"></i> Discard</button>
                 </form>
               </td>
             </tr>
