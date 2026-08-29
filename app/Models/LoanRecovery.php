@@ -9,7 +9,9 @@ class LoanRecovery extends Model
     public function forWriteOff(int $writeOffId): array
     {
         return $this->all(
-            "SELECT * FROM loan_recoveries WHERE write_off_id = ? ORDER BY recovery_date DESC",
+            "SELECT r.*, u.name AS posted_by_name FROM loan_recoveries r
+             LEFT JOIN users u ON u.id = r.posted_by
+             WHERE r.write_off_id = ? ORDER BY r.recovery_date DESC",
             [$writeOffId]
         );
     }

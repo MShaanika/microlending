@@ -25,10 +25,14 @@ class LoanWriteOff extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT wo.*, l.loan_no, l.loan_status, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT wo.*, l.loan_no, l.loan_status, CONCAT(b.first_name,' ',b.last_name) AS borrower_name,
+                    rqu.name AS requested_by_name, au.name AS approved_by_name, pu.name AS posted_by_name
              FROM loan_write_offs wo
              JOIN loans l ON l.id = wo.loan_id
              JOIN borrowers b ON b.id = wo.borrower_id
+             LEFT JOIN users rqu ON rqu.id = wo.requested_by
+             LEFT JOIN users au ON au.id = wo.approved_by
+             LEFT JOIN users pu ON pu.id = wo.posted_by
              WHERE wo.id = ?",
             [$id]
         );

@@ -2,10 +2,13 @@
 
 <div class="card">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-1">
       <h4 class="card-title mb-0">Provisioning Run &mdash; <?= e($provisionDate) ?></h4>
       <a href="<?= url('/accounting/bad-debt-provisions') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-arrow-left"></i> Back</a>
     </div>
+    <?php if (!empty($lines) && $lines[0]['posted_by']): ?>
+      <p class="text-muted small mb-3">Posted by <?= e($lines[0]['posted_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($lines[0]['posted_at']))) ?></p>
+    <?php endif; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">

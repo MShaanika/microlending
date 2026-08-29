@@ -26,6 +26,13 @@
       <div class="col-md-4"><strong>Type:</strong> Adjustment</div>
     </div>
 
+    <div class="row mb-3">
+      <div class="col-md-6 text-muted small">Created by <?= e($journal['created_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($journal['created_at']))) ?></div>
+      <?php if ($journal['posted_by']): ?>
+        <div class="col-md-6 text-muted small">Posted by <?= e($journal['posted_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($journal['posted_at']))) ?></div>
+      <?php endif; ?>
+    </div>
+
     <div class="table-responsive">
       <table class="table table-bordered no-datatable">
         <thead class="table-light">

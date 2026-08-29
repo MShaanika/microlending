@@ -25,10 +25,11 @@ class Penalty extends Model
     public function forRun(string $penaltyDate): array
     {
         return $this->all(
-            "SELECT p.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT p.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS charged_by_name
              FROM penalties p
              JOIN loans l ON l.id = p.loan_id
              JOIN borrowers b ON b.id = p.borrower_id
+             LEFT JOIN users u ON u.id = p.charged_by
              WHERE p.penalty_date = ?
              ORDER BY p.penalty_amount DESC",
             [$penaltyDate]

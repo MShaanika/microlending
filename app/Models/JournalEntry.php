@@ -32,7 +32,14 @@ class JournalEntry extends Model
 
     public function find(int $id): ?array
     {
-        return $this->one("SELECT * FROM accounting_journal_entries WHERE id = ?", [$id]);
+        return $this->one(
+            "SELECT je.*, cu.name AS created_by_name, pu.name AS posted_by_name
+             FROM accounting_journal_entries je
+             LEFT JOIN users cu ON cu.id = je.created_by
+             LEFT JOIN users pu ON pu.id = je.posted_by
+             WHERE je.id = ?",
+            [$id]
+        );
     }
 
     public function lines(int $journalId): array

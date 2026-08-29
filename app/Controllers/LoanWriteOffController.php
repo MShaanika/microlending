@@ -13,6 +13,7 @@ use App\Models\BadDebt;
 use App\Models\BadDebtProvision;
 use App\Models\InterestAccrual;
 use App\Models\Loan;
+use App\Models\LoanRecovery;
 use App\Models\LoanWriteOff;
 use App\Models\Penalty;
 use App\Services\ArrearsService;
@@ -20,6 +21,7 @@ use App\Services\ArrearsService;
 class LoanWriteOffController extends Controller
 {
     private LoanWriteOff $writeOffs;
+    private LoanRecovery $recoveries;
     private BadDebt $badDebts;
     private BadDebtProvision $provisions;
     private Loan $loans;
@@ -29,6 +31,7 @@ class LoanWriteOffController extends Controller
     public function __construct()
     {
         $this->writeOffs = new LoanWriteOff();
+        $this->recoveries = new LoanRecovery();
         $this->badDebts = new BadDebt();
         $this->provisions = new BadDebtProvision();
         $this->loans = new Loan();
@@ -143,6 +146,7 @@ class LoanWriteOffController extends Controller
             'title' => 'Write-Off ' . $writeOff['write_off_no'],
             'writeOff' => $writeOff,
             'totalRecovered' => $this->writeOffs->totalRecoveredFor((int) $id),
+            'recoveries' => $this->recoveries->forWriteOff((int) $id),
         ]);
     }
 

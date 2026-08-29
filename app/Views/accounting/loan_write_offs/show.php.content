@@ -38,6 +38,7 @@
     </div>
 
     <p><strong>Reason:</strong> <?= e($writeOff['reason']) ?></p>
+    <p class="text-muted small">Write-off date: <?= e(date('d M Y', strtotime($writeOff['write_off_date']))) ?></p>
 
     <div class="d-flex gap-2 flex-wrap">
       <?php if ($writeOff['status'] === 'Pending'): ?>
@@ -58,3 +59,54 @@
     </div>
   </div>
 </div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Approval History</h4>
+    <ul class="list-unstyled mb-0">
+      <li class="mb-2 pb-2 border-bottom">
+        <strong>Requested</strong>
+        by <?= e($writeOff['requested_by_name'] ?: '—') ?>
+        <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($writeOff['created_at']))) ?></span>
+      </li>
+      <?php if ($writeOff['approved_by']): ?>
+        <li class="mb-2 pb-2 border-bottom">
+          <strong>Approved</strong>
+          by <?= e($writeOff['approved_by_name'] ?: '—') ?>
+          <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($writeOff['approved_at']))) ?></span>
+        </li>
+      <?php endif; ?>
+      <?php if ($writeOff['posted_by']): ?>
+        <li class="mb-2 pb-2 border-bottom">
+          <strong>Posted</strong>
+          by <?= e($writeOff['posted_by_name'] ?: '—') ?>
+          <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($writeOff['posted_at']))) ?></span>
+        </li>
+      <?php endif; ?>
+    </ul>
+  </div>
+</div>
+
+<?php if (!empty($recoveries)): ?>
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title"><i class="mdi mdi-cash-refund me-1"></i> Recoveries</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr><th>Recovery No.</th><th>Date</th><th class="text-end">Amount</th><th>Reference</th><th>Recorded By</th></tr></thead>
+        <tbody>
+          <?php foreach ($recoveries as $r): ?>
+            <tr>
+              <td><?= e($r['recovery_no']) ?></td>
+              <td><?= e(date('d M Y', strtotime($r['recovery_date']))) ?></td>
+              <td class="text-end"><?= format_money($r['recovered_amount']) ?></td>
+              <td><?= e($r['reference_no'] ?: '—') ?></td>
+              <td><?= e($r['posted_by_name'] ?: '—') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>

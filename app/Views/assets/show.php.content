@@ -22,6 +22,11 @@
         </div>
         <p class="text-muted mb-3"><?= e($asset['asset_no']) ?> &middot; <?= e($asset['category_name']) ?> (<?= e($asset['asset_nature']) ?>)</p>
 
+        <p class="mb-1 text-muted small">Added by <?= e($asset['created_by_name'] ?: '—') ?> on <?= e(date('d M Y', strtotime($asset['created_at']))) ?></p>
+        <?php if ($asset['status'] === 'Disposed'): ?>
+          <p class="mb-1 text-muted small">Disposed by <?= e($asset['disposed_by_name'] ?: '—') ?></p>
+        <?php endif; ?>
+
         <p class="mb-1"><strong>Purchase Date:</strong> <?= e($asset['purchase_date']) ?></p>
         <p class="mb-1"><strong>Capitalized Cost:</strong> <?= format_money($asset['capitalized_cost']) ?></p>
         <p class="mb-1"><strong>Residual Value:</strong> <?= format_money($asset['residual_value']) ?></p>

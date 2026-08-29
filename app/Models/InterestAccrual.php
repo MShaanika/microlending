@@ -25,10 +25,11 @@ class InterestAccrual extends Model
     public function forRun(string $accrualDate): array
     {
         return $this->all(
-            "SELECT ia.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT ia.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS accrued_by_name
              FROM interest_accruals ia
              JOIN loans l ON l.id = ia.loan_id
              JOIN borrowers b ON b.id = ia.borrower_id
+             LEFT JOIN users u ON u.id = ia.accrued_by
              WHERE ia.accrual_date = ?
              ORDER BY ia.amount DESC",
             [$accrualDate]

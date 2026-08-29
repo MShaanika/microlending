@@ -25,10 +25,11 @@ class BadDebtProvision extends Model
     public function forRun(string $provisionDate): array
     {
         return $this->all(
-            "SELECT bdp.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+            "SELECT bdp.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS posted_by_name
              FROM bad_debt_provisions bdp
              JOIN loans l ON l.id = bdp.loan_id
              JOIN borrowers b ON b.id = bdp.borrower_id
+             LEFT JOIN users u ON u.id = bdp.posted_by
              WHERE bdp.provision_date = ?
              ORDER BY bdp.provision_amount DESC",
             [$provisionDate]
