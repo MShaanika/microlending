@@ -452,6 +452,7 @@ class LoanController extends Controller
             'hasReschedule' => (new \App\Models\LoanReschedule())->hasImplementedReschedule((int) $id),
             'namfisaLevy' => $levyTxn ? (float) $levyTxn['levy_amount'] : 0.0,
             'dutyStamp' => $stampTxn ? (float) $stampTxn['stamp_amount'] : 0.0,
+            'statusHistory' => $this->loans->statusHistory((int) $id),
         ]);
     }
 

@@ -75,11 +75,17 @@ class Loan extends Model
     {
         return $this->one(
             "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.phone AS borrower_phone,
-                    p.product_name, p.interest_method, pl.plan_name
+                    p.product_name, p.interest_method, pl.plan_name,
+                    cu.name AS created_by_name, au.name AS approved_by_name,
+                    du.name AS denied_by_name, ru.name AS released_by_name
              FROM loans l
              JOIN borrowers b ON b.id = l.borrower_id
              JOIN loan_products p ON p.id = l.product_id
              JOIN loan_plans pl ON pl.id = l.plan_id
+             LEFT JOIN users cu ON cu.id = l.created_by
+             LEFT JOIN users au ON au.id = l.approved_by
+             LEFT JOIN users du ON du.id = l.denied_by
+             LEFT JOIN users ru ON ru.id = l.released_by
              WHERE l.id = ?",
             [$id]
         );
@@ -135,6 +141,16 @@ class Loan extends Model
             'notes' => $notes ?: null,
             'changed_by' => $userId,
         ]);
+    }
+
+    public function statusHistory(int $loanId): array
+    {
+        return $this->all(
+            "SELECT h.*, u.name AS changed_by_name FROM loan_status_history h
+             LEFT JOIN users u ON u.id = h.changed_by
+             WHERE h.loan_id = ? ORDER BY h.id ASC",
+            [$loanId]
+        );
     }
 
     public function createDisbursement(array $data): int

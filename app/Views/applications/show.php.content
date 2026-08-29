@@ -31,6 +31,15 @@
         <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($application['applicant_id_number']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($application['applicant_address']) ?: '&mdash;' ?></p>
         <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Submitted: <?= e(date('d M Y H:i', strtotime($application['created_at']))) ?></p>
+        <?php if ($application['screened_by']): ?>
+          <p class="mb-0 text-muted small">Screened by <?= e($application['screened_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($application['screened_at']))) ?></p>
+        <?php endif; ?>
+        <?php if ($application['approved_by']): ?>
+          <p class="mb-0 text-muted small">Approved by <?= e($application['approved_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($application['approved_at']))) ?></p>
+        <?php endif; ?>
+        <?php if ($application['rejected_by']): ?>
+          <p class="mb-0 text-muted small">Rejected by <?= e($application['rejected_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($application['rejected_at']))) ?><?= $application['rejection_reason'] ? ' — ' . e($application['rejection_reason']) : '' ?></p>
+        <?php endif; ?>
 
         <?php if ($application['borrower_id']): ?>
           <p class="mt-2 mb-0"><a href="<?= url('/borrowers/' . $application['borrower_id']) ?>"><i class="mdi mdi-account"></i> View Borrower Record</a></p>
@@ -415,6 +424,7 @@
           <?php foreach ($history as $h): ?>
             <li class="mb-2 pb-2 border-bottom">
               <strong><?= e($h['new_status']) ?></strong>
+              by <?= e($h['changed_by_name'] ?: '—') ?>
               <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($h['changed_at']))) ?></span>
               <?php if ($h['notes']): ?><br><span class="text-muted"><?= e($h['notes']) ?></span><?php endif; ?>
             </li>

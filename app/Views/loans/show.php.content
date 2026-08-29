@@ -42,6 +42,17 @@
         </div>
         <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
 
+        <p class="mb-1 text-muted small">Created by <?= e($loan['created_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($loan['created_at']))) ?></p>
+        <?php if ($loan['approved_by']): ?>
+          <p class="mb-1 text-muted small">Approved by <?= e($loan['approved_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($loan['approved_at']))) ?></p>
+        <?php endif; ?>
+        <?php if ($loan['denied_by']): ?>
+          <p class="mb-1 text-muted small">Denied by <?= e($loan['denied_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($loan['denied_at']))) ?><?= $loan['denial_reason'] ? ' — ' . e($loan['denial_reason']) : '' ?></p>
+        <?php endif; ?>
+        <?php if ($loan['released_by']): ?>
+          <p class="mb-3 text-muted small">Released by <?= e($loan['released_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($loan['released_at']))) ?></p>
+        <?php endif; ?>
+
         <p class="mb-1"><strong>Borrower:</strong> <a href="<?= url('/borrowers/' . $loan['borrower_id']) ?>"><?= e($loan['borrower_name']) ?></a></p>
         <p class="mb-1"><strong>Amount Borrowed:</strong> <?= format_money($loan['principal_amount']) ?></p>
         <?php if ($namfisaLevy > 0): ?>
@@ -202,3 +213,25 @@
     </div>
   </div>
 </div>
+
+<?php if (!empty($statusHistory)): ?>
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-timeline-clock me-1"></i> Status History</h4>
+        <ul class="list-unstyled mb-0">
+          <?php foreach ($statusHistory as $h): ?>
+            <li class="mb-2 pb-2 border-bottom">
+              <strong><?= e($h['new_status']) ?></strong>
+              by <?= e($h['changed_by_name'] ?: '—') ?>
+              <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($h['changed_at']))) ?></span>
+              <?php if ($h['notes']): ?><br><span class="text-muted"><?= e($h['notes']) ?></span><?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>

@@ -53,7 +53,12 @@ class Borrower extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT b.*, br.branch_name FROM borrowers b LEFT JOIN branches br ON br.id = b.branch_id WHERE b.id = ?",
+            "SELECT b.*, br.branch_name, cu.name AS created_by_name, au.name AS approved_by_name
+             FROM borrowers b
+             LEFT JOIN branches br ON br.id = b.branch_id
+             LEFT JOIN users cu ON cu.id = b.created_by
+             LEFT JOIN users au ON au.id = b.approved_by
+             WHERE b.id = ?",
             [$id]
         );
     }

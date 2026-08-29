@@ -47,11 +47,15 @@ class LoanApplication extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT a.*, s.source_name, s.source_code, b.borrower_no, br.branch_name
+            "SELECT a.*, s.source_name, s.source_code, b.borrower_no, br.branch_name,
+                    su.name AS screened_by_name, au.name AS approved_by_name, ru.name AS rejected_by_name
              FROM loan_applications a
              LEFT JOIN intake_sources s ON s.id = a.intake_source_id
              LEFT JOIN borrowers b ON b.id = a.borrower_id
              LEFT JOIN branches br ON br.id = a.branch_id
+             LEFT JOIN users su ON su.id = a.screened_by
+             LEFT JOIN users au ON au.id = a.approved_by
+             LEFT JOIN users ru ON ru.id = a.rejected_by
              WHERE a.id = ?",
             [$id]
         );
@@ -182,7 +186,12 @@ class LoanApplication extends Model
 
     public function statusHistory(int $applicationId): array
     {
-        return $this->all("SELECT * FROM loan_application_status_history WHERE application_id = ? ORDER BY id ASC", [$applicationId]);
+        return $this->all(
+            "SELECT h.*, u.name AS changed_by_name FROM loan_application_status_history h
+             LEFT JOIN users u ON u.id = h.changed_by
+             WHERE h.application_id = ? ORDER BY h.id ASC",
+            [$applicationId]
+        );
     }
 
     public function addDocument(array $data): int

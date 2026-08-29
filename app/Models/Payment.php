@@ -8,10 +8,11 @@ class Payment extends Model
 {
     public function paginated(string $search = '', int $limit = 100, ?int $branchId = null): array
     {
-        $sql = "SELECT p.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no
+        $sql = "SELECT p.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no, u.name AS posted_by_name
                 FROM payments p
                 JOIN borrowers b ON b.id = p.borrower_id
                 JOIN loans l ON l.id = p.loan_id
+                LEFT JOIN users u ON u.id = p.posted_by
                 WHERE 1=1";
         $params = [];
 

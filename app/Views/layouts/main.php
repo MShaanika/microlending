@@ -445,6 +445,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ['label' => 'Users', 'url' => url('/settings/users'), 'perm' => 'admin.users'],
               ['label' => 'Roles', 'url' => url('/settings/roles'), 'perm' => 'admin.roles'],
               ['label' => 'Permissions', 'url' => url('/settings/permissions'), 'perm' => 'admin.permissions'],
+              ['label' => 'Activity Log', 'url' => url('/settings/audit-log'), 'perm' => 'admin.audit'],
               ['label' => 'Company Settings', 'url' => url('/settings/company'), 'perm' => 'admin.company'],
               ['label' => 'Branches', 'url' => url('/branches'), 'perm' => 'admin.system_settings'],
               ['label' => 'AI Settings', 'url' => url('/settings/ai'), 'perm' => 'admin.system_settings'],

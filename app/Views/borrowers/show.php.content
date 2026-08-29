@@ -26,7 +26,10 @@
         <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($borrower['id_number']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($borrower['physical_address']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-bank me-1"></i> Branch: <?= e($borrower['branch_name']) ?></p>
-        <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Registered: <?= e(date('d M Y', strtotime($borrower['created_at']))) ?></p>
+        <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Registered: <?= e(date('d M Y', strtotime($borrower['created_at']))) ?><?= $borrower['created_by_name'] ? ' by ' . e($borrower['created_by_name']) : '' ?></p>
+        <?php if ($borrower['approved_by']): ?>
+          <p class="mb-0 text-muted small">Approved by <?= e($borrower['approved_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($borrower['approved_at']))) ?></p>
+        <?php endif; ?>
 
         <div class="mt-3">
           <a href="<?= url('/borrowers/' . $borrower['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i> Edit</a>

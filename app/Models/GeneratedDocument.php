@@ -24,10 +24,11 @@ class GeneratedDocument extends Model
 
     public function paginated(string $status = '', int $limit = 100, ?int $branchId = null): array
     {
-        $sql = "SELECT g.*, t.template_name, t.template_type, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+        $sql = "SELECT g.*, t.template_name, t.template_type, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS generated_by_name
                 FROM generated_documents g
                 JOIN document_templates t ON t.id = g.template_id
                 JOIN borrowers b ON b.id = g.borrower_id
+                LEFT JOIN users u ON u.id = g.generated_by
                 WHERE 1=1";
         $params = [];
 
@@ -83,10 +84,11 @@ class GeneratedDocument extends Model
     public function paginatedAll(string $sourceModule = '', string $status = '', string $search = '', int $limit = 200, ?int $branchId = null): array
     {
         $sql = "SELECT g.*, t.template_name, t.template_type,
-                       CONCAT(b.first_name,' ',b.last_name) AS borrower_name
+                       CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS generated_by_name
                 FROM generated_documents g
                 LEFT JOIN document_templates t ON t.id = g.template_id
                 LEFT JOIN borrowers b ON b.id = g.borrower_id
+                LEFT JOIN users u ON u.id = g.generated_by
                 WHERE 1=1";
         $params = [];
 

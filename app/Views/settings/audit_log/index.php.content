@@ -1,0 +1,87 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Activity Log</h4>
+    </div>
+
+    <form method="get" action="<?= url('/settings/audit-log') ?>" class="row g-2 mb-3">
+      <div class="col-md-2">
+        <select name="module_name" class="form-select">
+          <option value="">All modules</option>
+          <?php foreach ($modules as $m): ?>
+            <option value="<?= e($m) ?>" <?= $filters['module_name'] === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="action" class="form-select">
+          <option value="">All actions</option>
+          <?php foreach ($actions as $a): ?>
+            <option value="<?= e($a) ?>" <?= $filters['action'] === $a ? 'selected' : '' ?>><?= e($a) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="user_id" class="form-select">
+          <option value="">All users</option>
+          <?php foreach ($users as $u): ?>
+            <option value="<?= (int) $u['id'] ?>" <?= (string) $filters['user_id'] === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_from" class="form-control" placeholder="From" value="<?= e($filters['date_from']) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="date_to" class="form-control" placeholder="To" value="<?= e($filters['date_to']) ?>">
+      </div>
+      <div class="col-md-2">
+        <input type="text" name="search" class="form-control" placeholder="Search description..." value="<?= e($filters['search']) ?>">
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-magnify"></i> Filter</button>
+        <a href="<?= url('/settings/audit-log') ?>" class="btn btn-outline-light btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>User</th>
+            <th>Module</th>
+            <th>Action</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($logs)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-4">No activity found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($logs as $log): ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($log['created_at']))) ?></td>
+              <td><?= e($log['user_name'] ?: 'System') ?></td>
+              <td><span class="badge bg-light text-dark"><?= e($log['module_name']) ?></span></td>
+              <td><?= e($log['action']) ?></td>
+              <td>
+                <?= e($log['description']) ?>
+                <?php if ($log['ip_address']): ?>
+                  <i class="mdi mdi-information-outline text-muted" title="IP: <?= e($log['ip_address']) ?><?= $log['user_agent'] ? "\n" . e($log['user_agent']) : '' ?>"></i>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($logs) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
+      <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
+  </div>
+</div>

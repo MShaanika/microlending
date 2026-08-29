@@ -35,6 +35,7 @@ use App\Controllers\BankReconciliationController;
 use App\Controllers\UserController;
 use App\Controllers\RoleController;
 use App\Controllers\PermissionController;
+use App\Controllers\AuditLogController;
 use App\Controllers\CompanySettingController;
 use App\Controllers\SocialAnalyticsController;
 use App\Controllers\HrmDepartmentController;
@@ -506,6 +507,8 @@ $router->get('/settings/roles/{id}/permissions', [RoleController::class, 'permis
 $router->post('/settings/roles/{id}/permissions', [RoleController::class, 'updatePermissions']);
 
 $router->get('/settings/permissions', [PermissionController::class, 'index']);
+
+$router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 
 $router->get('/settings/company', [CompanySettingController::class, 'edit']);
 $router->post('/settings/company', [CompanySettingController::class, 'update']);

@@ -46,11 +46,11 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Document No</th><th>Title</th><th>Source</th><th>Related To</th><th>Status</th><th>Generated</th><th class="text-end">Action</th></tr>
+          <tr><th>Document No</th><th>Title</th><th>Source</th><th>Related To</th><th>Status</th><th>Generated</th><th>By</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($documents)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No documents match this filter.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No documents match this filter.</td></tr>
           <?php endif; ?>
           <?php foreach ($documents as $d): ?>
             <?php
@@ -75,6 +75,7 @@
               </td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
               <td><?= $d['generated_at'] ? e(date('d M Y H:i', strtotime($d['generated_at']))) : '&mdash;' ?></td>
+              <td class="text-muted small"><?= e($d['generated_by_name'] ?: '—') ?></td>
               <td class="text-end">
                 <?php if ($d['file_path']): ?>
                   <a href="<?= url('/generated-documents/' . $d['id'] . '/download') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i> Download</a>
