@@ -1,0 +1,58 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Data Quality Rules</h4>
+      <a href="<?= url('/data-quality') ?>" class="btn btn-outline-secondary btn-sm">Back to Issues</a>
+    </div>
+    <p class="text-muted small">Rule types are code-defined and reviewed against this app's actual schema — what's editable here is severity, whether a High/Critical finding also opens an Exception, and whether the rule runs at all.</p>
+
+    <?php foreach ($rules as $rule): ?>
+      <div class="card border mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+              <h5 class="mb-0"><?= e($rule['rule_name']) ?></h5>
+              <p class="text-muted small mb-0"><?= e($rule['description']) ?></p>
+              <span class="badge bg-light text-dark"><?= e($rule['dimension']) ?></span>
+              <span class="badge bg-light text-dark"><?= e($rule['module']) ?></span>
+              <?php if ($rule['last_run_at']): ?>
+                <span class="text-muted small">Last run <?= e(date('d M Y H:i', strtotime($rule['last_run_at']))) ?></span>
+              <?php endif; ?>
+            </div>
+            <span class="badge bg-<?= $rule['is_active'] ? 'success' : 'secondary' ?>"><?= $rule['is_active'] ? 'Active' : 'Inactive' ?></span>
+          </div>
+
+          <?php if (Auth::can('data_quality.manage')): ?>
+          <form method="post" action="<?= url('/data-quality/rules/' . $rule['id']) ?>" class="row g-2 align-items-end">
+            <?= csrf_field() ?>
+            <div class="col-md-3">
+              <label class="form-label small text-muted">Severity</label>
+              <select name="severity" class="form-select form-select-sm">
+                <?php foreach (['Low', 'Medium', 'High', 'Critical'] as $s): ?>
+                  <option value="<?= $s ?>" <?= $rule['severity'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-3 form-check mt-3">
+              <input type="checkbox" name="auto_create_exception" value="1" class="form-check-input" id="exc_<?= $rule['id'] ?>" <?= $rule['auto_create_exception'] ? 'checked' : '' ?>>
+              <label class="form-check-label small" for="exc_<?= $rule['id'] ?>">Auto-create Exception on new finding</label>
+            </div>
+            <div class="col-md-3 form-check mt-3">
+              <input type="checkbox" name="is_active" value="1" class="form-check-input" id="active_<?= $rule['id'] ?>" <?= $rule['is_active'] ? 'checked' : '' ?>>
+              <label class="form-check-label small" for="active_<?= $rule['id'] ?>">Rule active</label>
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+            </div>
+          </form>
+          <p class="text-muted small mt-2 mb-0">Updated by <?= e($rule['updated_by_name'] ?: '—') ?></p>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>

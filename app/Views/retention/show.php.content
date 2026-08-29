@@ -1,0 +1,115 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/retention') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Retention Policies</a>
+    <h4 class="mb-0"><?= e($policy['policy_name']) ?></h4>
+  </div>
+  <span class="badge bg-<?= $policy['is_active'] ? 'success' : 'secondary' ?> fs-6"><?= $policy['is_active'] ? 'Active' : 'Inactive' ?></span>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Policy</h5>
+        <table class="table table-sm table-borderless mb-3">
+          <tr><th class="text-muted">Category</th><td><?= e($policy['data_category']) ?></td></tr>
+          <tr><th class="text-muted">Table</th><td><code><?= e($policy['resource_table']) ?></code></td></tr>
+          <tr><th class="text-muted">Comparison</th><td><?= $policy['comparison_mode'] === 'DATE_COLUMN_IS_EXPIRY' ? "Row's own {$policy['date_column']} column" : "{$policy['date_column']} + retention_days" ?></td></tr>
+          <tr><th class="text-muted">Legal hold supported</th><td><?= $policy['legal_hold_supported'] ? 'Yes' : 'No' ?></td></tr>
+        </table>
+
+        <?php if (Auth::can('retention.manage') && $policy['comparison_mode'] === 'AGE_FROM_DATE_COLUMN'): ?>
+        <form method="post" action="<?= url('/retention/' . $policy['id']) ?>" class="row g-2 align-items-end border-top pt-3">
+          <?= csrf_field() ?>
+          <div class="col-md-6">
+            <label class="form-label small text-muted">Retention (days)</label>
+            <input type="number" name="retention_days" class="form-control form-control-sm" value="<?= (int) $policy['retention_days'] ?>" min="0">
+          </div>
+          <div class="col-md-3 form-check mt-3">
+            <input type="checkbox" name="is_active" value="1" class="form-check-input" id="active" <?= $policy['is_active'] ? 'checked' : '' ?>>
+            <label class="form-check-label small" for="active">Active</label>
+          </div>
+          <div class="col-md-3">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+          </div>
+        </form>
+        <?php elseif ($policy['comparison_mode'] === 'DATE_COLUMN_IS_EXPIRY'): ?>
+          <p class="text-muted small border-top pt-3 mb-0">This policy tracks a retention period that's already computed per-row elsewhere in the app — there's nothing to edit here beyond active/inactive.</p>
+          <?php if (Auth::can('retention.manage')): ?>
+          <form method="post" action="<?= url('/retention/' . $policy['id']) ?>" class="mt-2">
+            <?= csrf_field() ?>
+            <input type="hidden" name="retention_days" value="0">
+            <div class="form-check d-inline-block me-2">
+              <input type="checkbox" name="is_active" value="1" class="form-check-input" id="active2" <?= $policy['is_active'] ? 'checked' : '' ?>>
+              <label class="form-check-label small" for="active2">Active</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+          </form>
+          <?php endif; ?>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Preview <span class="text-muted small">(dry run — nothing has been deleted)</span></h5>
+        <div class="row text-center mb-3">
+          <div class="col-6">
+            <div class="border rounded p-2">
+              <div class="fs-4 fw-bold"><?= (int) $preview['eligible'] ?></div>
+              <div class="text-muted small">Eligible for deletion</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="border rounded p-2">
+              <div class="fs-4 fw-bold"><?= (int) $preview['held'] ?></div>
+              <div class="text-muted small">Held (legal hold)</div>
+            </div>
+          </div>
+        </div>
+
+        <?php if (Auth::can('retention.manage') && $policy['is_active']): ?>
+        <form method="post" action="<?= url('/retention/' . $policy['id'] . '/execute') ?>" onsubmit="return confirm('This will permanently delete the eligible rows now. Continue?');">
+          <?= csrf_field() ?>
+          <div class="form-check mb-2">
+            <input type="checkbox" name="confirm" value="1" class="form-check-input" id="confirmDelete" required>
+            <label class="form-check-label small" for="confirmDelete">I understand this permanently deletes the eligible rows and cannot be undone.</label>
+          </div>
+          <button type="submit" class="btn btn-danger" <?= $preview['eligible'] === 0 ? 'disabled' : '' ?>><i class="mdi mdi-delete"></i> Run Now (Delete Eligible Rows)</button>
+        </form>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Run History</h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>When</th><th>Eligible</th><th>Held</th><th>Deleted</th><th>By</th></tr></thead>
+        <tbody>
+          <?php if (empty($runs)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-3">No runs recorded yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($runs as $r): ?>
+            <tr>
+              <td><?= e(date('d M Y H:i', strtotime($r['ran_at']))) ?></td>
+              <td><?= (int) $r['eligible_count'] ?></td>
+              <td><?= (int) $r['held_count'] ?></td>
+              <td><?= (int) $r['deleted_count'] ?></td>
+              <td><?= e($r['ran_by_name'] ?: 'Scheduled task') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

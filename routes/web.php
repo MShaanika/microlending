@@ -3,6 +3,8 @@ use App\Controllers\ApprovalController;
 use App\Controllers\DelegationController;
 use App\Controllers\SlaPolicyController;
 use App\Controllers\ExceptionController;
+use App\Controllers\DataQualityController;
+use App\Controllers\RetentionController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
@@ -563,6 +565,24 @@ $router->post('/exceptions/{id}/investigate', [ExceptionController::class, 'inve
 $router->post('/exceptions/{id}/note', [ExceptionController::class, 'addNote']);
 $router->post('/exceptions/{id}/resolve', [ExceptionController::class, 'resolve']);
 $router->post('/exceptions/{id}/reopen', [ExceptionController::class, 'reopen']);
+
+// Enterprise Control Architecture -- Phase 4 (Data Governance): Data
+// Quality + Retention/Legal Hold, own permission namespaces
+// (data_quality.*, retention.*), not folded under /settings.
+$router->get('/data-quality', [DataQualityController::class, 'index']);
+$router->get('/data-quality/rules', [DataQualityController::class, 'rules']);
+$router->post('/data-quality/rules/{id}', [DataQualityController::class, 'updateRule']);
+$router->post('/data-quality/scan', [DataQualityController::class, 'runScan']);
+$router->get('/data-quality/{id}', [DataQualityController::class, 'show']);
+$router->post('/data-quality/{id}/status', [DataQualityController::class, 'updateStatus']);
+
+$router->get('/retention', [RetentionController::class, 'index']);
+$router->get('/retention/holds', [RetentionController::class, 'holds']);
+$router->post('/retention/holds', [RetentionController::class, 'placeHold']);
+$router->post('/retention/holds/{id}/release', [RetentionController::class, 'releaseHold']);
+$router->get('/retention/{id}', [RetentionController::class, 'show']);
+$router->post('/retention/{id}', [RetentionController::class, 'update']);
+$router->post('/retention/{id}/execute', [RetentionController::class, 'execute']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 

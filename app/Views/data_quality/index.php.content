@@ -1,0 +1,158 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <a href="<?= url('/data-quality?status=OPEN') ?>" class="text-decoration-none">
+      <div class="card kpi-card h-100" style="border-left-color:#635bff">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h3 class="kpi-number mb-1"><?= (int) $counts['open'] ?></h3>
+              <span class="text-muted small">Open Issues</span>
+            </div>
+            <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-database"></i></span>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#9C3B34">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= (int) $counts['critical'] ?></h3>
+            <span class="text-muted small">Critical</span>
+          </div>
+          <span class="kpi-icon" style="background:#9C3B34"><i class="mdi mdi-alert-box"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#2bd67b">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= (int) $counts['resolved_total'] ?></h3>
+            <span class="text-muted small">Resolved (all time)</span>
+          </div>
+          <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-check-circle"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#0a66c2">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= (int) $counts['false_positive_total'] ?></h3>
+            <span class="text-muted small">False Positives</span>
+          </div>
+          <span class="kpi-icon" style="background:#0a66c2"><i class="mdi mdi-link-off"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if (!empty($byDimension)): ?>
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Open Issues by Dimension</h5>
+    <div class="d-flex flex-wrap gap-2">
+      <?php foreach ($byDimension as $d): ?>
+        <span class="badge bg-light text-dark fs-6"><?= e($d['dimension']) ?>: <?= (int) $d['total'] ?></span>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Issues</h4>
+      <?php if (Auth::can('data_quality.manage')): ?>
+        <form method="post" action="<?= url('/data-quality/scan') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-magnify"></i> Run Scan Now</button>
+        </form>
+      <?php endif; ?>
+    </div>
+
+    <form method="get" action="<?= url('/data-quality') ?>" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All statuses</option>
+          <?php foreach (['OPEN', 'REVIEWING', 'CONFIRMED', 'RESOLVED', 'FALSE_POSITIVE'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="dimension" class="form-select">
+          <option value="">All dimensions</option>
+          <?php foreach (['Completeness', 'Validity', 'Consistency', 'Uniqueness', 'Integrity', 'Timeliness', 'Accuracy'] as $d): ?>
+            <option value="<?= $d ?>" <?= $filters['dimension'] === $d ? 'selected' : '' ?>><?= $d ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-magnify"></i> Filter</button>
+        <a href="<?= url('/data-quality') ?>" class="btn btn-outline-light btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Detected</th>
+            <th>Rule</th>
+            <th>Dimension</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($issues['rows'])): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No data quality issues found.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($issues['rows'] as $i):
+            $sevBadge = match ($i['severity']) {
+              'Critical', 'High' => 'danger',
+              'Medium' => 'warning',
+              default => 'info',
+            };
+            $statusBadge = match ($i['status']) {
+              'OPEN' => 'danger',
+              'REVIEWING', 'CONFIRMED' => 'warning',
+              'RESOLVED' => 'success',
+              'FALSE_POSITIVE' => 'secondary',
+              default => 'secondary',
+            };
+          ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($i['detected_at']))) ?></td>
+              <td><?= e($i['rule_name']) ?><div class="text-muted small"><?= e(mb_strimwidth($i['description'], 0, 60, '…')) ?></div></td>
+              <td><span class="badge bg-light text-dark"><?= e($i['dimension']) ?></span></td>
+              <td><span class="badge bg-<?= $sevBadge ?>"><?= e($i['severity']) ?></span></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($i['status']) ?></span></td>
+              <td><a href="<?= url('/data-quality/' . $i['id']) ?>" class="btn btn-sm btn-outline-primary">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+      <p class="text-muted small mb-0">Showing <?= count($issues['rows']) ?> of <?= $issues['total'] ?> result<?= $issues['total'] === 1 ? '' : 's' ?></p>
+      <?= pagination_nav((int) ($_GET['page'] ?? 1), $issues['totalPages'], $_GET) ?>
+    </div>
+  </div>
+</div>

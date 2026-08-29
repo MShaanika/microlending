@@ -1,0 +1,91 @@
+<?php
+  use App\Core\Auth;
+  $sevBadge = match ($issue['severity']) {
+      'Critical', 'High' => 'danger',
+      'Medium' => 'warning',
+      default => 'info',
+  };
+  $statusBadge = match ($issue['status']) {
+      'OPEN' => 'danger',
+      'REVIEWING', 'CONFIRMED' => 'warning',
+      'RESOLVED' => 'success',
+      'FALSE_POSITIVE' => 'secondary',
+      default => 'secondary',
+  };
+  $isOpen = !in_array($issue['status'], ['RESOLVED', 'FALSE_POSITIVE'], true);
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/data-quality') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Data Quality</a>
+    <h4 class="mb-0"><?= e($issue['rule_name']) ?></h4>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-<?= $sevBadge ?> fs-6"><?= e($issue['severity']) ?></span>
+    <span class="badge bg-<?= $statusBadge ?> fs-6"><?= e($issue['status']) ?></span>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">What Was Found</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted">Dimension</th><td><span class="badge bg-light text-dark"><?= e($issue['dimension']) ?></span></td></tr>
+          <tr><th class="text-muted">Resource</th><td><?= e($issue['resource_type']) ?> #<?= (int) $issue['resource_id'] ?></td></tr>
+          <tr><th class="text-muted">First Detected</th><td><?= e(date('d M Y H:i', strtotime($issue['detected_at']))) ?></td></tr>
+          <tr><th class="text-muted">Last Seen</th><td><?= e(date('d M Y H:i', strtotime($issue['last_seen_at']))) ?></td></tr>
+          <?php if ($issue['exception_id']): ?>
+            <tr><th class="text-muted">Linked Exception</th><td><a href="<?= url('/exceptions/' . $issue['exception_id']) ?>">View Exception #<?= (int) $issue['exception_id'] ?></a></td></tr>
+          <?php endif; ?>
+        </table>
+        <hr>
+        <p class="mb-0"><?= nl2br(e($issue['description'])) ?></p>
+
+        <?php if ($issue['remediation_guidance']): ?>
+          <hr>
+          <h6 class="text-muted">How to Fix</h6>
+          <p class="mb-0"><?= nl2br(e($issue['remediation_guidance'])) ?></p>
+        <?php endif; ?>
+
+        <?php if (!$isOpen): ?>
+          <hr>
+          <h6 class="text-muted">Resolution</h6>
+          <p class="mb-1"><?= nl2br(e($issue['resolution_notes'])) ?></p>
+          <p class="text-muted small mb-0">by <?= e($issue['resolved_by_name'] ?: '—') ?> &mdash; <?= e(date('d M Y H:i', strtotime($issue['resolved_at']))) ?></p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <?php if ($isOpen && Auth::can('data_quality.manage')): ?>
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Update Status</h5>
+        <p class="text-muted small">This never modifies the underlying record — correction happens through that record's own normal workflow. This only updates the issue's tracking status.</p>
+        <form method="post" action="<?= url('/data-quality/' . $issue['id'] . '/status') ?>" class="row g-2">
+          <?= csrf_field() ?>
+          <div class="col-12">
+            <select name="status" class="form-select">
+              <option value="REVIEWING">Reviewing</option>
+              <option value="CONFIRMED">Confirmed (real issue)</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="FALSE_POSITIVE">False Positive</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <textarea name="notes" class="form-control" rows="3" placeholder="Note (required for Resolved / False Positive)..."></textarea>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Update</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+</div>

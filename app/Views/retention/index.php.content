@@ -1,0 +1,50 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-0">Retention Policies</h4>
+        <p class="text-muted small mb-0">No retention periods are pre-set for anything with a legal/compliance dimension — confirm real periods with compliance before creating those policies.</p>
+      </div>
+      <a href="<?= url('/retention/holds') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-lock"></i> Legal Holds</a>
+    </div>
+
+    <?php if (empty($policies)): ?>
+      <p class="text-muted text-center py-4">No retention policies configured.</p>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Policy</th>
+            <th>Category</th>
+            <th>Table</th>
+            <th>Retention</th>
+            <th>Eligible Now</th>
+            <th>Held</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($policies as $p): ?>
+            <tr>
+              <td><?= e($p['policy_name']) ?><?php if ($p['requires_legal_confirmation']): ?> <span class="badge bg-warning-subtle text-warning" title="Needs legal/compliance sign-off before relying on this period">Needs confirmation</span><?php endif; ?></td>
+              <td><span class="badge bg-light text-dark"><?= e($p['data_category']) ?></span></td>
+              <td><code class="small"><?= e($p['resource_table']) ?></code></td>
+              <td><?= $p['comparison_mode'] === 'DATE_COLUMN_IS_EXPIRY' ? "Row's own expiry ($p[date_column])" : (int) $p['retention_days'] . ' days' ?></td>
+              <td><span class="badge bg-<?= $p['preview']['eligible'] > 0 ? 'warning' : 'success' ?>"><?= (int) $p['preview']['eligible'] ?></span></td>
+              <td><?= (int) $p['preview']['held'] ?></td>
+              <td><span class="badge bg-<?= $p['is_active'] ? 'success' : 'secondary' ?>"><?= $p['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td><a href="<?= url('/retention/' . $p['id']) ?>" class="btn btn-sm btn-outline-primary">Manage</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
