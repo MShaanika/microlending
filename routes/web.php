@@ -1,4 +1,6 @@
 <?php
+use App\Controllers\ApprovalController;
+use App\Controllers\DelegationController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
@@ -460,6 +462,7 @@ $router->get('/accounting/loan-write-offs', [LoanWriteOffController::class, 'ind
 $router->post('/accounting/loan-write-offs', [LoanWriteOffController::class, 'store']);
 $router->get('/accounting/loan-write-offs/{id}', [LoanWriteOffController::class, 'show']);
 $router->post('/accounting/loan-write-offs/{id}/approve', [LoanWriteOffController::class, 'approve']);
+$router->post('/accounting/loan-write-offs/{id}/reject', [LoanWriteOffController::class, 'reject']);
 $router->post('/accounting/loan-write-offs/{id}/post', [LoanWriteOffController::class, 'post']);
 $router->get('/accounting/loan-write-offs/{id}/recoveries/create', [LoanRecoveryController::class, 'create']);
 
@@ -527,6 +530,21 @@ $router->post('/security/blocked-sources/{id}/lift', [SecurityBlockedSourceContr
 $router->get('/security/rules', [SecurityRuleController::class, 'index']);
 $router->post('/security/rules/{id}', [SecurityRuleController::class, 'update']);
 $router->post('/security/rules/settings', [SecurityRuleController::class, 'updateSettings']);
+
+// Enterprise Control Architecture -- Phase 2 (Governance): generic
+// maker-checker engine + delegation, own permission namespaces
+// (approvals.*, delegations.*), not folded under /settings.
+$router->get('/approvals', [ApprovalController::class, 'index']);
+$router->get('/approvals/{id}', [ApprovalController::class, 'show']);
+$router->post('/approvals/{id}/approve', [ApprovalController::class, 'approve']);
+$router->post('/approvals/{id}/reject', [ApprovalController::class, 'reject']);
+$router->post('/approvals/{id}/return', [ApprovalController::class, 'returnForCorrection']);
+
+$router->get('/delegations', [DelegationController::class, 'index']);
+$router->get('/delegations/create', [DelegationController::class, 'create']);
+$router->post('/delegations', [DelegationController::class, 'store']);
+$router->get('/delegations/{id}', [DelegationController::class, 'show']);
+$router->post('/delegations/{id}/revoke', [DelegationController::class, 'revoke']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 

@@ -1,0 +1,81 @@
+<?php
+  use App\Core\Auth;
+  $badge = match ($delegation['status']) {
+      'Active' => 'success',
+      'Scheduled' => 'info',
+      'Expired' => 'secondary',
+      'Revoked' => 'danger',
+      default => 'secondary',
+  };
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/delegations') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Delegations</a>
+    <h4 class="mb-0">Delegation #<?= (int) $delegation['id'] ?></h4>
+  </div>
+  <span class="badge bg-<?= $badge ?> fs-6"><?= e($delegation['status']) ?></span>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted">Delegator</th><td><?= e($delegation['delegator_name']) ?></td></tr>
+          <tr><th class="text-muted">Delegate</th><td><?= e($delegation['delegate_name']) ?></td></tr>
+          <tr><th class="text-muted">Starts</th><td><?= e(date('d M Y H:i', strtotime($delegation['starts_at']))) ?></td></tr>
+          <tr><th class="text-muted">Ends</th><td><?= e(date('d M Y H:i', strtotime($delegation['ends_at']))) ?></td></tr>
+          <?php if ($delegation['reason']): ?>
+            <tr><th class="text-muted">Reason</th><td><?= nl2br(e($delegation['reason'])) ?></td></tr>
+          <?php endif; ?>
+          <?php if ($delegation['status'] === 'Revoked'): ?>
+            <tr><th class="text-muted">Revoked By</th><td><?= e($delegation['revoked_by_name'] ?: '—') ?></td></tr>
+            <tr><th class="text-muted">Revoked At</th><td><?= e(date('d M Y H:i', strtotime($delegation['revoked_at']))) ?></td></tr>
+            <tr><th class="text-muted">Revoke Reason</th><td><?= e($delegation['revoke_reason']) ?></td></tr>
+          <?php endif; ?>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Delegated Permissions</h5>
+        <table class="table table-sm">
+          <thead><tr><th>Permission</th><th>Amount Limit</th><th>Branch</th></tr></thead>
+          <tbody>
+            <?php foreach ($scopes as $s): ?>
+              <tr>
+                <td><code><?= e($s['permission_key']) ?></code></td>
+                <td><?= $s['amount_limit'] !== null ? format_money($s['amount_limit']) : 'No limit' ?></td>
+                <td><?= e($s['branch_name'] ?: 'All branches') ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if ($delegation['status'] !== 'Revoked' && $delegation['status'] !== 'Expired' && Auth::can('delegations.manage')): ?>
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Revoke</h5>
+    <form method="post" action="<?= url('/delegations/' . $delegation['id'] . '/revoke') ?>" class="row g-2" onsubmit="return confirm('Revoke this delegation immediately?');">
+      <?= csrf_field() ?>
+      <div class="col-md-8">
+        <input type="text" name="reason" class="form-control" placeholder="Reason (optional)">
+      </div>
+      <div class="col-md-4">
+        <button type="submit" class="btn btn-outline-danger"><i class="mdi mdi-close-circle"></i> Revoke Now</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>

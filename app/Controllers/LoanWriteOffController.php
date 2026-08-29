@@ -12,6 +12,7 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\AccountingAccount;
 use App\Models\AccountingJournal;
+use App\Models\ApprovalRequest;
 use App\Models\BadDebt;
 use App\Models\BadDebtProvision;
 use App\Models\InterestAccrual;
@@ -19,6 +20,7 @@ use App\Models\Loan;
 use App\Models\LoanRecovery;
 use App\Models\LoanWriteOff;
 use App\Models\Penalty;
+use App\Services\ApprovalService;
 use App\Services\ArrearsService;
 
 class LoanWriteOffController extends Controller
@@ -112,12 +114,13 @@ class LoanWriteOffController extends Controller
         $outstanding = ArrearsService::loanOutstanding((int) $badDebt['loan_id'], date('Y-m-d'));
         $provisionAmount = $this->provisions->provisionForLoan((int) $badDebt['loan_id']);
 
+        $writeOffNo = generate_reference('WO');
         $writeOffId = $this->writeOffs->create([
             'loan_id' => $badDebt['loan_id'],
             'borrower_id' => $badDebt['borrower_id'],
             'branch_id' => $badDebt['branch_id'],
             'bad_debt_id' => $badDebtId,
-            'write_off_no' => generate_reference('WO'),
+            'write_off_no' => $writeOffNo,
             'write_off_date' => date('Y-m-d'),
             'loan_amount' => $outstanding['outstanding_balance'],
             'total_paid' => 0,
@@ -130,6 +133,20 @@ class LoanWriteOffController extends Controller
         ]);
 
         Audit::log('Create', 'Accounting', 'Requested write-off #' . $writeOffId . ' for loan ' . $badDebt['loan_no']);
+
+        // Creates a real maker-checker approval request only if the
+        // loan_write_off_approval policy is currently active (Part 41's
+        // staged-rollout "off switch") -- if it's ever turned off, approve()
+        // below falls back to the pre-existing single-permission check, so
+        // this never becomes a dead end for a write-off already in flight.
+        ApprovalService::request('loan_write_off_approval', [
+            'resource_id' => $writeOffId,
+            'maker_user_id' => Auth::user()['id'] ?? null,
+            'title' => 'Write-off ' . $writeOffNo . ' for loan ' . $badDebt['loan_no'],
+            'amount' => round($outstanding['outstanding_balance'] - $provisionAmount, 2),
+            'reason' => $reason,
+        ]);
+
         Session::flash('success', 'Write-off requested. It needs approval before it can be posted.');
         $this->redirect('/accounting/loan-write-offs/' . $writeOffId);
     }
@@ -153,6 +170,16 @@ class LoanWriteOffController extends Controller
         ]);
     }
 
+    /**
+     * Routes through ApprovalService when a real approval request exists
+     * for this write-off (the normal case -- see store(), which requests
+     * one under the loan_write_off_approval policy). Falls back to the
+     * pre-existing single-permission behavior only if that policy was
+     * inactive at request time -- the Part 41 "disable immediately, no
+     * code change" staged-rollout escape hatch. Either way, this method
+     * still owns the write-off's own status transition; ApprovalService
+     * never touches loan_write_offs directly.
+     */
     public function approve(string $id): void
     {
         Auth::authorize('accounting.writeoffs');
@@ -171,6 +198,19 @@ class LoanWriteOffController extends Controller
             return;
         }
 
+        $comments = trim((string) ($_POST['comments'] ?? ''));
+        $approvalRequest = (new ApprovalRequest())->findPendingByResource('Accounting', 'loan_write_off', $id);
+
+        if ($approvalRequest) {
+            try {
+                ApprovalService::approve((int) $approvalRequest['id'], $comments !== '' ? $comments : null);
+            } catch (\RuntimeException $e) {
+                Session::flash('error', $e->getMessage());
+                $this->redirect('/accounting/loan-write-offs/' . $id);
+                return;
+            }
+        }
+
         $this->writeOffs->updateRecord($id, [
             'status' => 'Approved',
             'approved_by' => Auth::user()['id'] ?? null,
@@ -179,6 +219,49 @@ class LoanWriteOffController extends Controller
 
         Audit::log('Approve', 'Accounting', 'Approved write-off #' . $id);
         Session::flash('success', 'Write-off approved. It can now be posted.');
+        $this->redirect('/accounting/loan-write-offs/' . $id);
+    }
+
+    /** No equivalent existed before this phase -- loan_write_offs.status has always had a Rejected value in its schema, but nothing wrote it. Only meaningful when a real approval request is open (see approve() above); a write-off submitted while the policy was inactive has no checker step to reject from, so this is a no-op refusal in that case rather than silently rejecting anyway. */
+    public function reject(string $id): void
+    {
+        Auth::authorize('accounting.writeoffs');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/accounting/loan-write-offs/' . $id);
+            return;
+        }
+
+        $writeOff = $this->writeOffs->find($id);
+        if (!$writeOff || $writeOff['status'] !== 'Pending') {
+            Session::flash('error', 'Only pending write-offs can be rejected.');
+            $this->redirect('/accounting/loan-write-offs/' . $id);
+            return;
+        }
+
+        $comments = trim((string) ($_POST['comments'] ?? ''));
+        $approvalRequest = (new ApprovalRequest())->findPendingByResource('Accounting', 'loan_write_off', $id);
+
+        if (!$approvalRequest) {
+            Session::flash('error', 'This write-off was requested before approval was required and has no open review step to reject.');
+            $this->redirect('/accounting/loan-write-offs/' . $id);
+            return;
+        }
+
+        try {
+            ApprovalService::reject((int) $approvalRequest['id'], $comments);
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/accounting/loan-write-offs/' . $id);
+            return;
+        }
+
+        $this->writeOffs->updateRecord($id, ['status' => 'Rejected']);
+
+        Audit::log('Reject', 'Accounting', 'Rejected write-off #' . $id . ': ' . $comments);
+        Session::flash('success', 'Write-off rejected.');
         $this->redirect('/accounting/loan-write-offs/' . $id);
     }
 

@@ -1,0 +1,99 @@
+<?php
+  $grouped = [];
+  foreach ($permissions as $p) {
+      $grouped[$p['module_name'] ?: 'Other'][] = $p;
+  }
+?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Create Delegation</h4>
+      <a href="<?= url('/delegations') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
+    </div>
+
+    <?php if (!empty($errors)): ?>
+      <div class="alert alert-danger">
+        <ul class="mb-0">
+          <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
+
+    <p class="text-muted small">A delegation never copies a role wholesale — pick exactly which permissions the delegate should temporarily hold. The delegator must already hold every permission selected; authority can never extend beyond what they themselves have.</p>
+
+    <form method="post" action="<?= url('/delegations') ?>">
+      <?= csrf_field() ?>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Delegator (who is temporarily unavailable)</label>
+          <select name="delegator_user_id" class="form-select" required>
+            <option value="">Select staff member...</option>
+            <?php foreach ($staff as $u): ?>
+              <option value="<?= (int) $u['id'] ?>" <?= (string) ($_POST['delegator_user_id'] ?? '') === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Delegate (who receives temporary authority)</label>
+          <select name="delegate_user_id" class="form-select" required>
+            <option value="">Select staff member...</option>
+            <?php foreach ($staff as $u): ?>
+              <option value="<?= (int) $u['id'] ?>" <?= (string) ($_POST['delegate_user_id'] ?? '') === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Starts</label>
+          <input type="datetime-local" name="starts_at" class="form-control" value="<?= e($_POST['starts_at'] ?? '') ?>" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Ends</label>
+          <input type="datetime-local" name="ends_at" class="form-control" value="<?= e($_POST['ends_at'] ?? '') ?>" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Amount Limit <span class="text-muted small">(optional)</span></label>
+          <input type="number" step="0.01" name="amount_limit" class="form-control" placeholder="No limit" value="<?= e($_POST['amount_limit'] ?? '') ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Branch <span class="text-muted small">(optional)</span></label>
+          <select name="branch_id" class="form-select">
+            <option value="">All branches</option>
+            <?php foreach ($branches as $b): ?>
+              <option value="<?= (int) $b['id'] ?>"><?= e($b['branch_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Reason</label>
+          <textarea name="reason" class="form-control" rows="2" placeholder="e.g. Manager on leave 1-15 September"><?= e($_POST['reason'] ?? '') ?></textarea>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Permissions to Delegate</label>
+          <?php foreach ($grouped as $module => $perms): ?>
+            <div class="border rounded p-2 mb-2">
+              <div class="fw-semibold small mb-1"><?= e($module) ?></div>
+              <div class="row">
+                <?php foreach ($perms as $p): ?>
+                  <div class="col-md-4">
+                    <div class="form-check">
+                      <input type="checkbox" name="permission_keys[]" value="<?= e($p['permission_key']) ?>" class="form-check-input" id="perm_<?= e($p['permission_key']) ?>">
+                      <label class="form-check-label small" for="perm_<?= e($p['permission_key']) ?>"><?= e($p['permission_name']) ?></label>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Create Delegation</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

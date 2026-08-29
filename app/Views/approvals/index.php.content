@@ -1,0 +1,90 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">My Approvals</h4>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+      <li class="nav-item">
+        <a class="nav-link <?= $tab === 'awaiting' ? 'active' : '' ?>" href="<?= url('/approvals?tab=awaiting') ?>">
+          Awaiting My Approval <span class="badge bg-danger ms-1"><?= (int) $awaiting['total'] ?></span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link <?= $tab === 'submitted' ? 'active' : '' ?>" href="<?= url('/approvals?tab=submitted') ?>">
+          Submitted by Me <span class="badge bg-light text-dark ms-1"><?= (int) $submitted['total'] ?></span>
+        </a>
+      </li>
+    </ul>
+
+    <?php if ($tab === 'awaiting'): ?>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Requested</th>
+              <th>Title</th>
+              <th>Amount</th>
+              <th>Requested By</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (empty($awaiting['rows'])): ?>
+              <tr><td colspan="5" class="text-center text-muted py-4">Nothing awaiting your approval.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($awaiting['rows'] as $r): ?>
+              <tr>
+                <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($r['requested_at']))) ?></td>
+                <td><?= e($r['title']) ?></td>
+                <td><?= $r['amount'] !== null ? format_money($r['amount']) : '—' ?></td>
+                <td><?= e($r['maker_name']) ?></td>
+                <td><a href="<?= url('/approvals/' . $r['id']) ?>" class="btn btn-sm btn-outline-primary">Review</a></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?= pagination_nav($page, $awaiting['totalPages'], $_GET) ?>
+    <?php else: ?>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Requested</th>
+              <th>Title</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (empty($submitted['rows'])): ?>
+              <tr><td colspan="5" class="text-center text-muted py-4">You haven't submitted anything for approval.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($submitted['rows'] as $r):
+              $badge = match ($r['status']) {
+                'APPROVED' => 'success',
+                'REJECTED' => 'danger',
+                'RETURNED' => 'warning',
+                'CANCELLED', 'EXPIRED' => 'secondary',
+                default => 'info',
+              };
+            ?>
+              <tr>
+                <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($r['requested_at']))) ?></td>
+                <td><?= e($r['title']) ?></td>
+                <td><?= $r['amount'] !== null ? format_money($r['amount']) : '—' ?></td>
+                <td><span class="badge bg-<?= $badge ?>"><?= e($r['status']) ?></span></td>
+                <td><a href="<?= url('/approvals/' . $r['id']) ?>" class="btn btn-sm btn-outline-secondary">View</a></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?= pagination_nav($page, $submitted['totalPages'], $_GET) ?>
+    <?php endif; ?>
+  </div>
+</div>

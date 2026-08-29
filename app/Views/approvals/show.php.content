@@ -1,0 +1,104 @@
+<?php
+  use App\Core\Auth;
+  $badge = match ($req['status']) {
+      'APPROVED' => 'success',
+      'REJECTED' => 'danger',
+      'RETURNED' => 'warning',
+      'CANCELLED', 'EXPIRED' => 'secondary',
+      default => 'info',
+  };
+  $isMaker = (int) $req['maker_user_id'] === (int) (Auth::user()['id'] ?? 0);
+  $canAct = $req['status'] === 'PENDING' && !$isMaker && Auth::can('approvals.approve');
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <a href="<?= url('/approvals') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to My Approvals</a>
+    <h4 class="mb-0"><?= e($req['title']) ?></h4>
+  </div>
+  <span class="badge bg-<?= $badge ?> fs-6"><?= e($req['status']) ?></span>
+</div>
+
+<div class="row">
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Request Details</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tr><th class="text-muted">Policy</th><td><?= e($req['policy_name']) ?></td></tr>
+          <tr><th class="text-muted">Requested By</th><td><?= e($req['maker_name']) ?></td></tr>
+          <tr><th class="text-muted">Requested At</th><td><?= e(date('d M Y H:i', strtotime($req['requested_at']))) ?></td></tr>
+          <tr><th class="text-muted">Amount</th><td><?= $req['amount'] !== null ? format_money($req['amount']) : '—' ?></td></tr>
+          <?php if ($req['reason']): ?>
+            <tr><th class="text-muted">Reason</th><td><?= nl2br(e($req['reason'])) ?></td></tr>
+          <?php endif; ?>
+          <?php if ($req['completed_at']): ?>
+            <tr><th class="text-muted">Completed</th><td><?= e(date('d M Y H:i', strtotime($req['completed_at']))) ?></td></tr>
+          <?php endif; ?>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8 mb-3">
+    <?php if ($isMaker && $req['status'] === 'PENDING'): ?>
+      <div class="alert alert-info">This is your own request — someone else must review it. You cannot approve or reject your own submission.</div>
+    <?php endif; ?>
+
+    <?php if ($canAct): ?>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Review</h5>
+        <div class="row g-2">
+          <div class="col-12">
+            <textarea class="form-control" rows="2" placeholder="Comments (required for reject/return, optional for approve)" id="reviewComments"></textarea>
+          </div>
+          <div class="col-12 d-flex gap-2 mt-2">
+            <form method="post" action="<?= url('/approvals/' . $req['id'] . '/approve') ?>" class="d-inline" onsubmit="document.getElementById('approveComments').value = document.getElementById('reviewComments').value;">
+              <?= csrf_field() ?>
+              <input type="hidden" name="comments" id="approveComments">
+              <button type="submit" class="btn btn-success"><i class="mdi mdi-check"></i> Approve</button>
+            </form>
+            <form method="post" action="<?= url('/approvals/' . $req['id'] . '/reject') ?>" class="d-inline" onsubmit="document.getElementById('rejectComments').value = document.getElementById('reviewComments').value; return document.getElementById('rejectComments').value.trim() !== '' || (alert('A reason is required to reject.') &amp;&amp; false);">
+              <?= csrf_field() ?>
+              <input type="hidden" name="comments" id="rejectComments">
+              <button type="submit" class="btn btn-danger"><i class="mdi mdi-close"></i> Reject</button>
+            </form>
+            <form method="post" action="<?= url('/approvals/' . $req['id'] . '/return') ?>" class="d-inline" onsubmit="document.getElementById('returnComments').value = document.getElementById('reviewComments').value; return document.getElementById('returnComments').value.trim() !== '' || (alert('A reason is required to return for correction.') &amp;&amp; false);">
+              <?= csrf_field() ?>
+              <input type="hidden" name="comments" id="returnComments">
+              <button type="submit" class="btn btn-outline-warning"><i class="mdi mdi-undo"></i> Return for Correction</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Timeline</h5>
+        <ul class="list-unstyled mb-0">
+          <?php foreach ($timeline as $t): ?>
+            <li class="d-flex align-items-start gap-2 py-2 border-bottom">
+              <i class="mdi mdi-record text-info" style="font-size: 10px; padding-top: 6px;"></i>
+              <div class="flex-grow-1">
+                <span class="fw-semibold"><?= e($t['action']) ?></span>
+                <span class="text-muted">by <?= e($t['actor_name'] ?: 'System') ?></span>
+                <?php if ($t['delegator_name']): ?>
+                  <span class="badge bg-light text-dark">acting under delegated authority from <?= e($t['delegator_name']) ?></span>
+                <?php endif; ?>
+                <?php if ($t['comments']): ?>
+                  <div class="small text-muted"><?= nl2br(e($t['comments'])) ?></div>
+                <?php endif; ?>
+              </div>
+              <span class="text-muted small text-nowrap"><?= e(date('d M, H:i', strtotime($t['created_at']))) ?></span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

@@ -7,7 +7,15 @@
         <h4 class="card-title mb-1">Write-Off <?= e($writeOff['write_off_no']) ?></h4>
         <p class="text-muted small mb-0">Loan <?= e($writeOff['loan_no']) ?> &bull; <?= e($writeOff['borrower_name']) ?></p>
       </div>
-      <span class="badge fs-6 bg-<?= $writeOff['status'] === 'Posted' ? 'success' : ($writeOff['status'] === 'Pending' ? 'secondary' : 'info') ?>"><?= e($writeOff['status']) ?></span>
+      <?php
+        $statusBadge = match ($writeOff['status']) {
+          'Posted' => 'success',
+          'Pending' => 'secondary',
+          'Rejected' => 'danger',
+          default => 'info',
+        };
+      ?>
+      <span class="badge fs-6 bg-<?= $statusBadge ?>"><?= e($writeOff['status']) ?></span>
     </div>
 
     <div class="row text-center my-3">
@@ -46,6 +54,11 @@
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-check"></i> Approve</button>
         </form>
+        <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/reject') ?>" onsubmit="var reason = prompt('Reason for rejecting this write-off:'); if (!reason) { return false; } this.querySelector('[name=comments]').value = reason; return true;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="comments" value="">
+          <button type="submit" class="btn btn-outline-danger waves-effect waves-light"><i class="mdi mdi-close"></i> Reject</button>
+        </form>
       <?php elseif ($writeOff['status'] === 'Approved'): ?>
         <form method="post" action="<?= url('/accounting/loan-write-offs/' . $writeOff['id'] . '/post') ?>" onsubmit="return confirmSubmit(this, 'Post this write-off? This will create a journal entry and mark the loan as written off.');">
           <?= csrf_field() ?>
@@ -74,6 +87,12 @@
           <strong>Approved</strong>
           by <?= e($writeOff['approved_by_name'] ?: '—') ?>
           <span class="text-muted small"> &mdash; <?= e(date('d M Y H:i', strtotime($writeOff['approved_at']))) ?></span>
+        </li>
+      <?php endif; ?>
+      <?php if ($writeOff['status'] === 'Rejected'): ?>
+        <li class="mb-2 pb-2 border-bottom text-danger">
+          <strong>Rejected</strong>
+          <span class="text-muted small">&mdash; see the Governance audit trail for who and why.</span>
         </li>
       <?php endif; ?>
       <?php if ($writeOff['posted_by']): ?>
