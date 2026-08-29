@@ -1,0 +1,130 @@
+<?php
+  use App\Core\Auth;
+  $statusColor = match ($backupStatus['status']) {
+      'HEALTHY' => '#2bd67b',
+      'DEGRADED' => '#f9ab00',
+      'UNHEALTHY' => '#ff5c75',
+      default => '#8792a2',
+  };
+  $statusBadge = match ($backupStatus['status']) {
+      'HEALTHY' => 'success',
+      'DEGRADED' => 'warning',
+      'UNHEALTHY' => 'danger',
+      default => 'secondary',
+  };
+  $runBadge = fn (string $s) => match ($s) {
+      'SUCCESS' => 'success',
+      'FAILED' => 'danger',
+      default => 'warning',
+  };
+  $activePlans = array_filter($plans, fn ($p) => $p['is_active']);
+  $unreviewed = array_filter($activePlans, fn ($p) => empty($p['last_reviewed_at']));
+?>
+
+<?= flash_messages() ?>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Business Continuity</h4>
+    <p class="text-muted small mb-0">Backup status and disaster recovery plans -- what actually runs and what's documented for a real recovery.</p>
+  </div>
+  <?php if (Auth::can('continuity.manage')): ?>
+    <form method="post" action="<?= url('/continuity/backup-now') ?>">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-cloud-upload"></i> Run Backup Now</button>
+    </form>
+  <?php endif; ?>
+</div>
+
+<div class="row">
+  <div class="col-lg-4 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:<?= $statusColor ?>">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="text-muted small">Backup Status</span>
+            <h5 class="mb-1"><span class="badge bg-<?= $statusBadge ?>"><?= e($backupStatus['status']) ?></span></h5>
+          </div>
+          <span class="kpi-icon" style="background:<?= $statusColor ?>"><i class="mdi mdi-cloud-check"></i></span>
+        </div>
+        <p class="text-muted small mt-2 mb-0"><?= e($backupStatus['message']) ?></p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <span class="text-muted small">Active Continuity Plans</span>
+        <h3 class="mb-0"><?= count($activePlans) ?></h3>
+        <?php if (count($unreviewed) > 0): ?>
+          <span class="badge bg-warning text-dark mt-1"><?= count($unreviewed) ?> never reviewed</span>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <span class="text-muted small">Recent Backup Runs</span>
+        <h3 class="mb-0"><?= count($recentBackups) ?></h3>
+        <a href="<?= url('/continuity/plans') ?>" class="small">Manage recovery plans &rarr;</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Backup History</h5>
+    <?php if (empty($recentBackups)): ?>
+      <p class="text-muted text-center py-4">No backups have run yet.</p>
+    <?php endif; ?>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead>
+          <tr><th>Started</th><th>Status</th><th>Trigger</th><th>Size</th><th>Duration</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($recentBackups as $b): ?>
+            <tr>
+              <td class="text-nowrap"><?= e(date('d M Y H:i', strtotime($b['started_at']))) ?></td>
+              <td><span class="badge bg-<?= $runBadge($b['status']) ?>"><?= e($b['status']) ?></span></td>
+              <td><?= e($b['triggered_by']) ?><?= $b['triggered_by_name'] ? ' (' . e($b['triggered_by_name']) . ')' : '' ?></td>
+              <td><?= $b['file_size_bytes'] ? round($b['file_size_bytes'] / 1048576, 1) . ' MB' : '—' ?></td>
+              <td><?= $b['duration_seconds'] !== null ? $b['duration_seconds'] . 's' : '—' ?></td>
+              <td class="text-muted small"><?= e(mb_strimwidth((string) $b['error_message'], 0, 60, '…')) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="card-title mb-0">Continuity Plans</h5>
+      <a href="<?= url('/continuity/plans') ?>" class="btn btn-outline-secondary btn-sm">View All</a>
+    </div>
+    <?php if (empty($plans)): ?>
+      <p class="text-muted text-center py-4">No continuity plans have been documented yet. RTO/RPO targets and recovery steps are business decisions this app can't invent for you -- <a href="<?= url('/continuity/plans/create') ?>">create the first one</a>.</p>
+    <?php endif; ?>
+    <ul class="list-unstyled mb-0">
+      <?php foreach (array_slice($plans, 0, 5) as $p): ?>
+        <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+          <div>
+            <span class="fw-semibold"><?= e($p['plan_name']) ?></span>
+            <span class="text-muted small">&mdash; <?= e($p['scope_description']) ?></span>
+            <?php if (!$p['is_active']): ?><span class="badge bg-secondary">Inactive</span><?php endif; ?>
+          </div>
+          <div class="text-muted small text-end">
+            <?= $p['rto_minutes'] !== null ? 'RTO ' . (int) $p['rto_minutes'] . 'm' : 'RTO not set' ?>
+            /
+            <?= $p['rpo_minutes'] !== null ? 'RPO ' . (int) $p['rpo_minutes'] . 'm' : 'RPO not set' ?>
+          </div>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+</div>

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\BackupRun;
 use App\Models\CollexiaSetting;
 use App\Models\HealthCheckResult;
 
@@ -10,9 +11,9 @@ use App\Models\HealthCheckResult;
  * Automated health checks (Part 35-38). Every check here is a real,
  * honest probe of something that can actually be verified right now --
  * Part 36 is explicit that nothing gets marked healthy just because no
- * error was reported. Backup is the deliberate exception: no in-app
- * backup automation exists yet (that's a later phase), so it is always
- * reported UNKNOWN rather than faked green.
+ * error was reported. Backup reports UNKNOWN only when no backup has
+ * ever run (Phase 7's BackupService is what produces the history this
+ * now reads) -- it never assumes healthy just because nothing failed.
  */
 class HealthCheckService
 {
@@ -170,10 +171,29 @@ class HealthCheckService
         }
     }
 
-    /** No backup automation exists in-app yet -- honestly UNKNOWN rather than assuming healthy from silence (Part 36). */
+    /** Reads BackupService's own run history (Phase 7) -- UNKNOWN only when nothing has ever run; otherwise judged on how long ago the last SUCCESS actually completed, never on absence of failure alone (Part 36). */
     public static function checkBackup(): array
     {
-        return self::result('backup', 'Backup Status', 'UNKNOWN', null, 'No in-app backup automation exists yet -- verify backups through hosting/ops tooling directly.');
+        try {
+            $model = new BackupRun();
+            $lastRun = $model->lastRun();
+            if (!$lastRun) {
+                return self::result('backup', 'Backup Status', 'UNKNOWN', null, 'No backup has ever run yet.');
+            }
+
+            $lastSuccess = $model->lastSuccessful();
+            if (!$lastSuccess) {
+                $detail = $lastRun['status'] === 'FAILED' ? (': ' . $lastRun['error_message']) : ' (still running or in an unexpected state).';
+                return self::result('backup', 'Backup Status', 'UNHEALTHY', null, 'No successful backup has ever completed' . $detail);
+            }
+
+            $ageHours = (time() - strtotime($lastSuccess['completed_at'] ?? $lastSuccess['started_at'])) / 3600;
+            $status = $ageHours > self::UNHEALTHY_MULTIPLIER * 24 ? 'UNHEALTHY' : ($ageHours > self::DEGRADED_MULTIPLIER * 24 ? 'DEGRADED' : 'HEALTHY');
+            $sizeMb = round(($lastSuccess['file_size_bytes'] ?? 0) / 1048576, 1);
+            return self::result('backup', 'Backup Status', $status, null, 'Last successful backup ' . round($ageHours, 1) . "h ago ({$sizeMb} MB).");
+        } catch (\Throwable $e) {
+            return self::result('backup', 'Backup Status', 'UNKNOWN', null, $e->getMessage());
+        }
     }
 
     private static function result(string $checkKey, string $targetName, string $status, ?int $responseTimeMs, string $message): array

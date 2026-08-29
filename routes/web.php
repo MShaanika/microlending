@@ -9,6 +9,7 @@ use App\Controllers\ErrorTrackingController;
 use App\Controllers\FeatureFlagController;
 use App\Controllers\HealthCheckController;
 use App\Controllers\DecisionIntelligenceController;
+use App\Controllers\ContinuityController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\BorrowerController;
@@ -607,6 +608,18 @@ $router->post('/feature-flags/{id}', [FeatureFlagController::class, 'update']);
 // Enterprise Control Architecture -- Phase 6 (Decision Intelligence):
 // read-only insight over what every other framework already recorded.
 $router->get('/intelligence', [DecisionIntelligenceController::class, 'index']);
+
+// Enterprise Control Architecture -- Phase 7 (Business Continuity/DR):
+// backup automation + admin-authored recovery plans, own permission
+// namespace (continuity.*), not folded under /settings.
+$router->get('/continuity', [ContinuityController::class, 'index']);
+$router->post('/continuity/backup-now', [ContinuityController::class, 'runBackupNow']);
+$router->get('/continuity/plans', [ContinuityController::class, 'plans']);
+$router->get('/continuity/plans/create', [ContinuityController::class, 'createPlan']);
+$router->post('/continuity/plans', [ContinuityController::class, 'storePlan']);
+$router->get('/continuity/plans/{id}/edit', [ContinuityController::class, 'editPlan']);
+$router->post('/continuity/plans/{id}', [ContinuityController::class, 'updatePlan']);
+$router->post('/continuity/plans/{id}/review', [ContinuityController::class, 'markReviewed']);
 
 $router->get('/settings/audit-log', [AuditLogController::class, 'index']);
 

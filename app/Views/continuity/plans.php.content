@@ -1,0 +1,61 @@
+<?php use App\Core\Auth; ?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-0">Continuity Plans</h4>
+        <a href="<?= url('/continuity') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Business Continuity</a>
+      </div>
+      <?php if (Auth::can('continuity.manage')): ?>
+        <a href="<?= url('/continuity/plans/create') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-plus"></i> New Plan</a>
+      <?php endif; ?>
+    </div>
+
+    <?php if (empty($plans)): ?>
+      <p class="text-muted text-center py-4">No continuity plans documented yet.</p>
+    <?php endif; ?>
+
+    <?php foreach ($plans as $p): ?>
+      <div class="card border mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+              <h5 class="mb-0"><?= e($p['plan_name']) ?></h5>
+              <p class="text-muted small mb-1"><?= e($p['scope_description']) ?></p>
+              <span class="badge bg-light text-dark"><?= $p['rto_minutes'] !== null ? 'RTO ' . (int) $p['rto_minutes'] . ' min' : 'RTO not set' ?></span>
+              <span class="badge bg-light text-dark"><?= $p['rpo_minutes'] !== null ? 'RPO ' . (int) $p['rpo_minutes'] . ' min' : 'RPO not set' ?></span>
+              <?php if ($p['last_reviewed_at']): ?>
+                <span class="badge bg-success">Reviewed <?= e(date('d M Y', strtotime($p['last_reviewed_at']))) ?> by <?= e($p['last_reviewed_by_name'] ?: '—') ?></span>
+              <?php else: ?>
+                <span class="badge bg-warning text-dark">Never reviewed</span>
+              <?php endif; ?>
+            </div>
+            <span class="badge bg-<?= $p['is_active'] ? 'success' : 'secondary' ?>"><?= $p['is_active'] ? 'Active' : 'Inactive' ?></span>
+          </div>
+
+          <?php if ($p['recovery_steps']): ?>
+            <h6 class="text-muted small mt-2">Recovery Steps</h6>
+            <p class="small mb-2" style="white-space:pre-wrap;"><?= e(mb_strimwidth($p['recovery_steps'], 0, 300, '…')) ?></p>
+          <?php endif; ?>
+          <?php if ($p['key_contacts']): ?>
+            <h6 class="text-muted small mt-2"><i class="mdi mdi-account-multiple"></i> Key Contacts</h6>
+            <p class="small mb-2" style="white-space:pre-wrap;"><?= e($p['key_contacts']) ?></p>
+          <?php endif; ?>
+
+          <?php if (Auth::can('continuity.manage')): ?>
+            <div class="d-flex gap-2 mt-2">
+              <a href="<?= url('/continuity/plans/' . $p['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary">Edit</a>
+              <form method="post" action="<?= url('/continuity/plans/' . $p['id'] . '/review') ?>">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-check"></i> Mark Reviewed</button>
+              </form>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>

@@ -1,0 +1,56 @@
+<?php
+  $isEdit = $plan !== null;
+  $action = $isEdit ? url('/continuity/plans/' . $plan['id']) : url('/continuity/plans');
+?>
+
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <a href="<?= url('/continuity/plans') ?>" class="text-muted small"><i class="mdi mdi-arrow-left"></i> Back to Continuity Plans</a>
+    <h4 class="card-title mt-2"><?= e($title) ?></h4>
+
+    <form method="post" action="<?= $action ?>" class="row g-3 mt-1">
+      <?= csrf_field() ?>
+
+      <div class="col-md-6">
+        <label class="form-label">Plan Name <span class="text-danger">*</span></label>
+        <input type="text" name="plan_name" class="form-control" required value="<?= e($plan['plan_name'] ?? '') ?>" placeholder="e.g. Loan Disbursement System Recovery">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Scope <span class="text-danger">*</span></label>
+        <input type="text" name="scope_description" class="form-control" required value="<?= e($plan['scope_description'] ?? '') ?>" placeholder="e.g. Core application + database on solid-desert.com">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">RTO (minutes) <span class="text-muted small">(optional)</span></label>
+        <input type="number" name="rto_minutes" class="form-control" min="0" value="<?= e($plan['rto_minutes'] ?? '') ?>">
+        <div class="form-text">Recovery Time Objective -- how long this scope can be down before it's a crisis. A business decision only you can set.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">RPO (minutes) <span class="text-muted small">(optional)</span></label>
+        <input type="number" name="rpo_minutes" class="form-control" min="0" value="<?= e($plan['rpo_minutes'] ?? '') ?>">
+        <div class="form-text">Recovery Point Objective -- how much data loss is acceptable, measured in time since the last good backup.</div>
+      </div>
+      <div class="col-md-3 form-check mt-4">
+        <input type="checkbox" name="is_active" value="1" class="form-check-input" id="is_active" <?= !$isEdit || !empty($plan['is_active']) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="is_active">Active</label>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Recovery Steps</label>
+        <textarea name="recovery_steps" class="form-control" rows="6" placeholder="Step-by-step manual recovery procedure -- who does what, in what order, using what access/credentials."><?= e($plan['recovery_steps'] ?? '') ?></textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Key Contacts</label>
+        <textarea name="key_contacts" class="form-control" rows="3" placeholder="Who to notify/involve -- name, role, contact method."><?= e($plan['key_contacts'] ?? '') ?></textarea>
+      </div>
+
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+        <a href="<?= url('/continuity/plans') ?>" class="btn btn-outline-light">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

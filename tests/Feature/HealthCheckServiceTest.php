@@ -23,6 +23,7 @@ class HealthCheckServiceTest extends TestCase
 {
     private array $heartbeatJobKeys = [];
     private array $savedFrequencies = [];
+    private array $backupRunIds = [];
 
     protected function setUp(): void
     {
@@ -43,6 +44,23 @@ class HealthCheckServiceTest extends TestCase
             $db->prepare('UPDATE scheduled_job_heartbeats SET expected_frequency_minutes = ? WHERE job_key = ?')->execute([$freq, $jobKey]);
         }
         $this->savedFrequencies = [];
+
+        foreach ($this->backupRunIds as $id) {
+            $db->prepare('DELETE FROM backup_runs WHERE id = ?')->execute([$id]);
+        }
+        $this->backupRunIds = [];
+    }
+
+    private function seedBackupRun(string $status, string $startedAtOffset, ?string $errorMessage = null): void
+    {
+        $db = Database::connection();
+        $startedAt = date('Y-m-d H:i:s', strtotime($startedAtOffset));
+        $stmt = $db->prepare(
+            'INSERT INTO backup_runs (backup_type, status, started_at, completed_at, file_size_bytes, error_message)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute(['database', $status, $startedAt, $startedAt, 1000000, $errorMessage]);
+        $this->backupRunIds[] = (int) $db->lastInsertId();
     }
 
     public function testDatabaseCheckIsHealthyAgainstARealConnection(): void
@@ -58,11 +76,46 @@ class HealthCheckServiceTest extends TestCase
         $this->assertContains($result['status'], ['HEALTHY', 'DEGRADED', 'UNHEALTHY', 'UNKNOWN']);
     }
 
-    /** Part 36: never fake healthy for something never actually verified -- no in-app backup automation exists, so this must always report UNKNOWN, not HEALTHY. */
-    public function testBackupCheckIsHonestlyUnknownRatherThanAssumedHealthy(): void
+    /** Part 36: with no backup_runs row at all, this must report UNKNOWN, never assume healthy from silence. */
+    public function testBackupCheckIsUnknownWhenNoBackupHasEverRun(): void
     {
+        $db = Database::connection();
+        $existing = (int) $db->query('SELECT COUNT(*) FROM backup_runs')->fetchColumn();
+        if ($existing > 0) {
+            $this->markTestSkipped('backup_runs already has data in this environment -- this test only proves the true-empty case.');
+        }
+
         $result = HealthCheckService::checkBackup();
         $this->assertSame('UNKNOWN', $result['status']);
+    }
+
+    public function testBackupCheckIsHealthyForARecentSuccessfulBackup(): void
+    {
+        $this->seedBackupRun('SUCCESS', '-2 hours');
+        $result = HealthCheckService::checkBackup();
+        $this->assertSame('HEALTHY', $result['status']);
+    }
+
+    public function testBackupCheckIsDegradedWhenTheLastSuccessIsGettingStale(): void
+    {
+        $this->seedBackupRun('SUCCESS', '-60 hours');
+        $result = HealthCheckService::checkBackup();
+        $this->assertSame('DEGRADED', $result['status']);
+    }
+
+    public function testBackupCheckIsUnhealthyWhenTheLastSuccessIsVeryStale(): void
+    {
+        $this->seedBackupRun('SUCCESS', '-200 hours');
+        $result = HealthCheckService::checkBackup();
+        $this->assertSame('UNHEALTHY', $result['status']);
+    }
+
+    public function testBackupCheckIsUnhealthyWhenTheOnlyRunOnRecordFailed(): void
+    {
+        $this->seedBackupRun('FAILED', '-1 hour', 'disk full');
+        $result = HealthCheckService::checkBackup();
+        $this->assertSame('UNHEALTHY', $result['status']);
+        $this->assertStringContainsString('disk full', $result['message']);
     }
 
     public function testScheduledJobsIsHealthyWhenEveryDeclaredJobIsWithinItsExpectedFrequency(): void
