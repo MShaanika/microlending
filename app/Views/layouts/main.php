@@ -118,6 +118,22 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
       align-items: center;
       justify-content: center;
     }
+
+    /* Colorful stat-tile cards -- shared across every module's stat/KPI row
+       (Dashboard, Security Overview, module index pages, etc.) so they all
+       look like one consistent design instead of each page reinventing its
+       own card markup. Left accent bar color and icon circle background are
+       set per-card via an inline style="border-left-color:#hex" plus a
+       matching background on .kpi-icon -- see dashboard/index.php.content
+       for the reference usage. */
+    .kpi-card { border: none; border-left: 4px solid transparent; border-radius: .6rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); transition: box-shadow .15s ease; }
+    .kpi-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.1); }
+    .kpi-number { font-size: 1.85rem; font-weight: 700; line-height: 1.1; }
+    .kpi-icon { width: 46px; height: 46px; min-width: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .kpi-icon i { font-size: 1.3rem; color: #fff; }
+    .kpi-footer { border-top: 1px solid rgba(0,0,0,.06); margin-top: .85rem; padding-top: .6rem; }
+    .chart-card-icon-btn { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(0,0,0,.04); color: #6c757d; }
+    .chart-card-icon-btn:hover { background: rgba(0,0,0,.08); color: #333; }
   </style>
 </head>
 

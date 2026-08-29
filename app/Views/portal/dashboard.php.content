@@ -9,27 +9,42 @@
 ?>
 
 <div class="row mb-3">
-  <div class="col-md-4">
-    <div class="card">
+  <div class="col-md-4 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#635bff">
       <div class="card-body">
-        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash-multiple display-6 text-info"></i></div>
-        <div><h3 class="mb-0"><?= count($loans) ?></h3><span>Total Loans</span></div></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= count($loans) ?></h3>
+            <span class="text-muted small">Total Loans</span>
+          </div>
+          <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-cash-multiple"></i></span>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card">
+  <div class="col-md-4 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#2bd67b">
       <div class="card-body">
-        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-progress-check display-6 text-success"></i></div>
-        <div><h3 class="mb-0"><?= count($activeLoans) ?></h3><span>Active Loans</span></div></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= count($activeLoans) ?></h3>
+            <span class="text-muted small">Active Loans</span>
+          </div>
+          <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-check-circle"></i></span>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card">
+  <div class="col-md-4 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#f9ab00">
       <div class="card-body">
-        <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash-multiple display-6 text-warning"></i></div>
-        <div><h3 class="mb-0"><?= format_money($outstanding) ?></h3><span>Outstanding (Active Loans)</span></div></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= format_money($outstanding) ?></h3>
+            <span class="text-muted small">Outstanding (Active Loans)</span>
+          </div>
+          <span class="kpi-icon" style="background:#f9ab00"><i class="mdi mdi-cash-multiple"></i></span>
+        </div>
       </div>
     </div>
   </div>

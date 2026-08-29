@@ -2,6 +2,7 @@
   use App\Core\Auth;
   $deltaUp = $kpis['collected_delta_pct'] >= 0;
   $parBadge = $kpis['par_ratio'] >= 10 ? 'danger' : ($kpis['par_ratio'] >= 5 ? 'warning' : 'success');
+  $parColors = ['success' => '#2bd67b', 'warning' => '#f9ab00', 'danger' => '#ff5c75'];
   $hour = (int) date('G');
   $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
   $firstName = trim(explode(' ', (string) ($user['name'] ?? 'there'))[0]);
@@ -68,92 +69,106 @@
 
 <div class="row">
   <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
-    <div class="card h-100">
+    <div class="card kpi-card h-100" style="border-left-color:#635bff">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <div>
+            <h3 class="kpi-number mb-1"><?= (int) $kpis['total_borrowers'] ?></h3>
             <span class="text-muted small">Total Borrowers</span>
-            <h3 class="mb-0"><?= (int) $kpis['total_borrowers'] ?></h3>
-            <span class="badge bg-info-subtle text-info small">+<?= (int) $kpis['new_borrowers_this_month'] ?> this month</span>
           </div>
-          <i class="mdi mdi-account-multiple display-6 text-info"></i>
+          <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-account-multiple"></i></span>
+        </div>
+        <div class="kpi-footer">
+          <span class="small fw-semibold" style="color:#2bd67b"><i class="mdi mdi-arrow-up"></i> +<?= (int) $kpis['new_borrowers_this_month'] ?></span>
+          <span class="text-muted small">this month</span>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
-    <div class="card h-100">
+    <div class="card kpi-card h-100" style="border-left-color:#2bd67b">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <div>
+            <h3 class="kpi-number mb-1"><?= (int) $kpis['active_loans'] ?></h3>
             <span class="text-muted small">Active Loans</span>
-            <h3 class="mb-0"><?= (int) $kpis['active_loans'] ?></h3>
-            <span class="text-muted small">Portfolio: <?= format_money($kpis['portfolio_outstanding']) ?></span>
           </div>
-          <i class="mdi mdi-cash-multiple display-6 text-success"></i>
+          <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-cash-multiple"></i></span>
+        </div>
+        <div class="kpi-footer">
+          <span class="text-muted small">Portfolio: <?= format_money($kpis['portfolio_outstanding']) ?></span>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
-    <div class="card h-100">
+    <div class="card kpi-card h-100" style="border-left-color:#f9ab00">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <div>
+            <h3 class="kpi-number mb-1"><?= format_money($kpis['collected_this_month']) ?></h3>
             <span class="text-muted small">Collected This Month</span>
-            <h3 class="mb-0"><?= format_money($kpis['collected_this_month']) ?></h3>
-            <span class="badge bg-<?= $deltaUp ? 'success' : 'danger' ?>-subtle text-<?= $deltaUp ? 'success' : 'danger' ?> small">
-              <i class="mdi mdi-arrow-<?= $deltaUp ? 'up' : 'down' ?>"></i> <?= abs($kpis['collected_delta_pct']) ?>% vs last month
-            </span>
           </div>
-          <i class="mdi mdi-bank display-6 text-primary"></i>
+          <span class="kpi-icon" style="background:#f9ab00"><i class="mdi mdi-bank"></i></span>
+        </div>
+        <div class="kpi-footer">
+          <span class="small fw-semibold" style="color:<?= $deltaUp ? '#2bd67b' : '#ff5c75' ?>">
+            <i class="mdi mdi-arrow-<?= $deltaUp ? 'up' : 'down' ?>"></i> <?= abs($kpis['collected_delta_pct']) ?>%
+          </span>
+          <span class="text-muted small">vs last month</span>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
-    <div class="card h-100">
+    <div class="card kpi-card h-100" style="border-left-color:#ff5c75">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <div>
+            <h3 class="kpi-number mb-1"><?= (int) $kpis['arrears_count'] ?></h3>
             <span class="text-muted small">Loans in Arrears</span>
-            <h3 class="mb-0"><?= (int) $kpis['arrears_count'] ?></h3>
-            <span class="text-muted small"><?= format_money($kpis['arrears_value']) ?> outstanding</span>
           </div>
-          <i class="mdi mdi-alert-circle display-6 text-danger"></i>
+          <span class="kpi-icon" style="background:#ff5c75"><i class="mdi mdi-alert-circle"></i></span>
+        </div>
+        <div class="kpi-footer">
+          <span class="text-muted small"><?= format_money($kpis['arrears_value']) ?> outstanding</span>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
-    <div class="card h-100">
+    <div class="card kpi-card h-100" style="border-left-color:<?= $parColors[$parBadge] ?>">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <div>
+            <h3 class="kpi-number mb-1"><?= $kpis['par_ratio'] ?>%</h3>
             <span class="text-muted small">Portfolio at Risk</span>
-            <h3 class="mb-0"><?= $kpis['par_ratio'] ?>%</h3>
-            <span class="badge bg-<?= $parBadge ?>-subtle text-<?= $parBadge ?> small">of outstanding portfolio</span>
           </div>
-          <i class="mdi mdi-shield-alert display-6 text-<?= $parBadge ?>"></i>
+          <span class="kpi-icon" style="background:<?= $parColors[$parBadge] ?>"><i class="mdi mdi-shield"></i></span>
+        </div>
+        <div class="kpi-footer">
+          <span class="text-muted small">of outstanding portfolio</span>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-4 col-lg-6 col-md-6 mb-3">
-    <div class="card h-100">
+    <div class="card kpi-card h-100" style="border-left-color:#0a66c2">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <div>
+            <h3 class="kpi-number mb-1"><?= format_money($stats['assets_nbv']) ?></h3>
             <span class="text-muted small">Fixed Assets NBV</span>
-            <h3 class="mb-0"><?= format_money($stats['assets_nbv']) ?></h3>
-            <span class="text-muted small"><?= (int) $stats['total_assets'] ?> assets registered</span>
           </div>
-          <i class="mdi mdi-office-building-marker display-6 text-warning"></i>
+          <span class="kpi-icon" style="background:#0a66c2"><i class="mdi mdi-domain"></i></span>
+        </div>
+        <div class="kpi-footer">
+          <span class="text-muted small"><?= (int) $stats['total_assets'] ?> assets registered</span>
         </div>
       </div>
     </div>
@@ -164,31 +179,36 @@
 <div class="row">
   <div class="col-md-6 mb-3">
     <a href="<?= url('/debit-orders?status=Active') ?>" class="text-decoration-none">
-      <div class="card h-100">
+      <div class="card kpi-card h-100" style="border-left-color:#2bd67b">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
+              <h3 class="kpi-number mb-1"><?= (int) $stats['debit_orders_registered'] ?></h3>
               <span class="text-muted small">Debit Orders Registered</span>
-              <h3 class="mb-0"><?= (int) $stats['debit_orders_registered'] ?></h3>
-              <span class="text-muted small">Borrowers with an active mandate &mdash; view list</span>
             </div>
-            <i class="mdi mdi-bank-check display-6 text-success"></i>
+            <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-check-circle"></i></span>
+          </div>
+          <div class="kpi-footer">
+            <span class="text-muted small">Borrowers with an active mandate &mdash; view list</span>
           </div>
         </div>
       </div>
     </a>
   </div>
   <div class="col-md-6 mb-3">
+    <?php $missingColor = $stats['debit_orders_missing'] > 0 ? '#f9ab00' : '#2bd67b'; ?>
     <a href="<?= url('/debit-orders/missing') ?>" class="text-decoration-none">
-      <div class="card h-100">
+      <div class="card kpi-card h-100" style="border-left-color:<?= $missingColor ?>">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
+              <h3 class="kpi-number mb-1"><?= (int) $stats['debit_orders_missing'] ?></h3>
               <span class="text-muted small">Debit Orders Not Yet Placed</span>
-              <h3 class="mb-0"><?= (int) $stats['debit_orders_missing'] ?></h3>
-              <span class="text-muted small">Active loans with no mandate on file &mdash; view list</span>
             </div>
-            <i class="mdi mdi-bank-remove display-6 text-<?= $stats['debit_orders_missing'] > 0 ? 'warning' : 'success' ?>"></i>
+            <span class="kpi-icon" style="background:<?= $missingColor ?>"><i class="mdi mdi-clipboard-alert"></i></span>
+          </div>
+          <div class="kpi-footer">
+            <span class="text-muted small">Active loans with no mandate on file &mdash; view list</span>
           </div>
         </div>
       </div>
@@ -200,17 +220,35 @@
 <div class="row">
   <div class="col-lg-7 mb-3">
     <div class="card h-100">
-      <div class="card-body">
-        <h4 class="card-title">Disbursements vs Collections <span class="text-muted small">(last 6 months)</span></h4>
-        <div id="trendChart"></div>
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h4 class="card-title mb-0">Disbursements vs Collections</h4>
+            <span class="text-muted small">Last 6 months</span>
+          </div>
+          <a href="<?= url('/reports') ?>" class="chart-card-icon-btn" title="Open reports"><i class="mdi mdi-chevron-right"></i></a>
+        </div>
+        <div id="trendChart" class="flex-grow-1"></div>
+        <div class="text-end mt-2 pt-2 border-top">
+          <a href="<?= url('/reports') ?>" class="small fw-semibold text-decoration-none" style="color:#635bff">OPEN REPORT <i class="mdi mdi-chevron-right"></i></a>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-lg-5 mb-3">
     <div class="card h-100">
-      <div class="card-body">
-        <h4 class="card-title">Loan Status Distribution</h4>
-        <div id="statusChart"></div>
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h4 class="card-title mb-0">Loan Status</h4>
+            <span class="text-muted small">Portfolio distribution</span>
+          </div>
+          <a href="<?= url('/loans') ?>" class="chart-card-icon-btn" title="Open loans"><i class="mdi mdi-chevron-right"></i></a>
+        </div>
+        <div id="statusChart" class="flex-grow-1"></div>
+        <div class="text-end mt-2 pt-2 border-top">
+          <a href="<?= url('/loans') ?>" class="small fw-semibold text-decoration-none" style="color:#635bff">OPEN REPORT <i class="mdi mdi-chevron-right"></i></a>
+        </div>
       </div>
     </div>
   </div>
@@ -496,7 +534,11 @@
     chart: { type: 'donut', height: 320 },
     series: statusData.map(function (r) { return parseInt(r.count, 10); }),
     labels: statusData.map(function (r) { return r.loan_status; }),
+    colors: ['#635bff', '#2bd67b', '#f9ab00', '#e1306c', '#0a66c2', '#ff5c75'],
     legend: { position: 'bottom' },
+    dataLabels: { enabled: false },
+    stroke: { width: 0 },
+    plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'Total Loans' } } } } },
   }).render();
 
   new ApexCharts(document.getElementById('agingChart'), {

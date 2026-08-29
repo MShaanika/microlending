@@ -1,23 +1,44 @@
 <?= flash_messages() ?>
 
 <div class="row">
-  <div class="col-lg-3 col-md-6">
-    <div class="card"><div class="card-body">
-      <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-office-building display-6 text-info"></i></div>
-      <div><h3 class="mb-0"><?= (int) $totals['count'] ?></h3><span>Assets in Register</span></div></div>
-    </div></div>
+  <div class="col-lg-4 col-md-6 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#635bff">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= (int) $totals['count'] ?></h3>
+            <span class="text-muted small">Assets in Register</span>
+          </div>
+          <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-domain"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="col-lg-3 col-md-6">
-    <div class="card"><div class="card-body">
-      <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-cash display-6 text-success"></i></div>
-      <div><h3 class="mb-0"><?= format_money($totals['net_book_value']) ?></h3><span>Total Net Book Value</span></div></div>
-    </div></div>
+  <div class="col-lg-4 col-md-6 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#2bd67b">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= format_money($totals['net_book_value']) ?></h3>
+            <span class="text-muted small">Total Net Book Value</span>
+          </div>
+          <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-cash"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="col-lg-3 col-md-6">
-    <div class="card"><div class="card-body">
-      <div class="d-flex"><div class="me-3 align-self-center"><i class="mdi mdi-calendar-clock display-6 text-warning"></i></div>
-      <div><h3 class="mb-0"><?= format_money($totals['monthly_charge']) ?></h3><span>Next Month's Depreciation/Amortization</span></div></div>
-    </div></div>
+  <div class="col-lg-4 col-md-6 mb-3">
+    <div class="card kpi-card h-100" style="border-left-color:#f9ab00">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= format_money($totals['monthly_charge']) ?></h3>
+            <span class="text-muted small">Next Month's Depreciation/Amortization</span>
+          </div>
+          <span class="kpi-icon" style="background:#f9ab00"><i class="mdi mdi-calendar-clock"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

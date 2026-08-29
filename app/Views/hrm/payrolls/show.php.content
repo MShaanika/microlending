@@ -24,28 +24,56 @@ $statusBadge = ['Draft' => 'secondary', 'Processing' => 'warning', 'Completed' =
 
 <div class="row">
   <div class="col-xl-3 col-md-6 mb-3">
-    <div class="card h-100"><div class="card-body">
-      <span class="text-muted small">Employees</span>
-      <h3 class="mb-0"><?= (int) $p['employee_count'] ?></h3>
-    </div></div>
+    <div class="card kpi-card h-100" style="border-left-color:#635bff">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= (int) $p['employee_count'] ?></h3>
+            <span class="text-muted small">Employees</span>
+          </div>
+          <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-account-multiple"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="col-xl-3 col-md-6 mb-3">
-    <div class="card h-100"><div class="card-body">
-      <span class="text-muted small">Gross Pay</span>
-      <h3 class="mb-0"><?= format_money($p['total_gross_pay']) ?></h3>
-    </div></div>
+    <div class="card kpi-card h-100" style="border-left-color:#0a66c2">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= format_money($p['total_gross_pay']) ?></h3>
+            <span class="text-muted small">Gross Pay</span>
+          </div>
+          <span class="kpi-icon" style="background:#0a66c2"><i class="mdi mdi-cash"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="col-xl-3 col-md-6 mb-3">
-    <div class="card h-100"><div class="card-body">
-      <span class="text-muted small">Deductions</span>
-      <h3 class="mb-0 text-danger"><?= format_money($p['total_deductions']) ?></h3>
-    </div></div>
+    <div class="card kpi-card h-100" style="border-left-color:#ff5c75">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= format_money($p['total_deductions']) ?></h3>
+            <span class="text-muted small">Deductions</span>
+          </div>
+          <span class="kpi-icon" style="background:#ff5c75"><i class="mdi mdi-minus-circle"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="col-xl-3 col-md-6 mb-3">
-    <div class="card h-100"><div class="card-body">
-      <span class="text-muted small">Net Pay</span>
-      <h3 class="mb-0 text-success"><?= format_money($p['total_net_pay']) ?></h3>
-    </div></div>
+    <div class="card kpi-card h-100" style="border-left-color:#2bd67b">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h3 class="kpi-number mb-1"><?= format_money($p['total_net_pay']) ?></h3>
+            <span class="text-muted small">Net Pay</span>
+          </div>
+          <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-cash-100"></i></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
