@@ -134,6 +134,23 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     .kpi-footer { border-top: 1px solid rgba(0,0,0,.06); margin-top: .85rem; padding-top: .6rem; }
     .chart-card-icon-btn { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(0,0,0,.04); color: #6c757d; }
     .chart-card-icon-btn:hover { background: rgba(0,0,0,.08); color: #333; }
+
+    /* Third sidebar level (Module > Subgroup > Page) -- the vendor
+       theme's own .second-level/.third-level rules only apply inside
+       [data-layout="horizontal"] mega-dropdowns, which this app doesn't
+       use (it's data-layout="vertical"), so they never reach the normal
+       collapsible sidebar. This mirrors the vendor's own selector
+       nesting for .first-level (style.css ~line 10653) one level
+       deeper, so its specificity reliably wins -- progressively smaller
+       type and deeper indentation for the deepest level, per the "don't
+       make all levels look identical" navigation guidance. */
+    .sidebar-nav ul .sidebar-item .first-level .sidebar-item .second-level .sidebar-item .sidebar-link {
+      padding: 8px 35px 8px 40px;
+      font-size: 13.5px;
+    }
+    .sidebar-nav ul .sidebar-item .first-level .sidebar-item .second-level .sidebar-item .sidebar-link i.mdi-adjust {
+      font-size: 9px;
+    }
   </style>
 </head>
 
@@ -255,10 +272,6 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
       <nav class="sidebar-nav">
         <ul id="sidebarnav">
 
-          <li class="nav-small-cap">
-            <i class="mdi mdi-dots-horizontal"></i>
-            <span class="hide-menu">Main</span>
-          </li>
 
           <?php if (Auth::can('dashboard.view')): ?>
           <li class="sidebar-item">
@@ -276,249 +289,334 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             </a>
           </li>
 
-          <li class="nav-small-cap">
-            <i class="mdi mdi-dots-horizontal"></i>
-            <span class="hide-menu"><?= e($brandName) ?></span>
-          </li>
-
           <?php
+          // Three-level hierarchy: Main Module -> Subgroup -> Item. A
+          // module with no natural subgroups (e.g. Collections) uses the
+          // single reserved key '_flat' -- the render loop below skips the
+          // extra <li> wrapper for that key so it renders as a plain list
+          // directly under the module, one level shallower than a grouped
+          // module. Every url()/perm value here is unchanged from the
+          // previous flat 30-group structure -- this pass only regroups
+          // them; Create-action items (Add Borrower, New Loan, Register
+          // Asset, Raise Ticket, New Referral, New Manual Journal, Add
+          // Employee) were dropped because their list page already has its
+          // own "+ Create" button (verified against each view before
+          // removing), not because the routes/permissions changed.
           $menus = [
-            'Borrowers' => ['icon' => 'mdi-account-multiple', 'items' => [
-              ['label' => 'Borrower List', 'url' => url('/borrowers'), 'perm' => 'borrowers.view'],
-              ['label' => 'Add Borrower', 'url' => url('/borrowers/create'), 'perm' => 'borrowers.create'],
+            'Lending' => ['icon' => 'mdi-cash-multiple', 'groups' => [
+              'Borrowers' => ['items' => [
+                ['label' => 'Borrower List', 'url' => url('/borrowers'), 'perm' => 'borrowers.view'],
+              ]],
+              'Applications' => ['items' => [
+                ['label' => 'All Applications', 'url' => url('/applications'), 'perm' => 'applications.view'],
+                ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view'],
+                ['label' => 'Screening', 'url' => url('/applications?status=Screening'), 'perm' => 'applications.view'],
+                ['label' => 'Rejected Applications', 'url' => url('/applications?status=Rejected'), 'perm' => 'applications.view'],
+              ]],
+              'Loans' => ['items' => [
+                ['label' => 'Loan List', 'url' => url('/loans'), 'perm' => 'loans.view'],
+                ['label' => 'Loan Products & Plans', 'url' => url('/loan-products'), 'perm' => 'loans.view'],
+                ['label' => 'Portal Loan Requests', 'url' => url('/loan-requests'), 'perm' => 'loans.view'],
+                ['label' => 'Loan Reschedules', 'url' => url('/reschedules'), 'perm' => 'reschedules.view'],
+              ]],
             ]],
-            'Loans' => ['icon' => 'mdi-cash-multiple', 'items' => [
-              ['label' => 'Loan List', 'url' => url('/loans'), 'perm' => 'loans.view'],
-              ['label' => 'New Loan', 'url' => url('/loans/create'), 'perm' => 'loans.create'],
-              ['label' => 'Loan Products & Plans', 'url' => url('/loan-products'), 'perm' => 'loans.view'],
-              ['label' => 'Portal Loan Requests', 'url' => url('/loan-requests'), 'perm' => 'loans.view'],
-              ['label' => 'Loan Reschedules', 'url' => url('/reschedules'), 'perm' => 'reschedules.view'],
+            'Collections' => ['icon' => 'mdi-bank', 'groups' => [
+              '_flat' => ['items' => [
+                ['label' => 'Payments', 'url' => url('/payments'), 'perm' => 'collections.view'],
+                ['label' => 'Collections Worklist', 'url' => url('/collections/worklist'), 'perm' => 'collections.arrears'],
+                ['label' => 'Debit Orders', 'url' => url('/debit-orders'), 'perm' => 'collections.debit_orders'],
+                ['label' => 'Debit Order Runs', 'url' => url('/debit-order-runs'), 'perm' => 'collections.debit_orders'],
+                ['label' => 'Collection Reports', 'url' => url('/debit-order-collections'), 'perm' => 'collections.debit_orders'],
+                ['label' => 'Debit Order Cancellations', 'url' => url('/debit-order-cancellations'), 'perm' => 'collections.debit_orders'],
+                ['label' => 'Refund Claims', 'url' => url('/refund-claims'), 'perm' => 'refunds.view'],
+              ]],
             ]],
-            'Collections' => ['icon' => 'mdi-bank', 'items' => [
-              ['label' => 'Payments', 'url' => url('/payments'), 'perm' => 'collections.view'],
-              ['label' => 'Refund Claims', 'url' => url('/refund-claims'), 'perm' => 'refunds.view'],
-              ['label' => 'Collections Worklist', 'url' => url('/collections/worklist'), 'perm' => 'collections.arrears'],
-              ['label' => 'Debit Orders', 'url' => url('/debit-orders'), 'perm' => 'collections.debit_orders'],
-              ['label' => 'Debit Order Runs', 'url' => url('/debit-order-runs'), 'perm' => 'collections.debit_orders'],
-              ['label' => 'Collection Reports', 'url' => url('/debit-order-collections'), 'perm' => 'collections.debit_orders'],
-              ['label' => 'Debit Order Cancellations', 'url' => url('/debit-order-cancellations'), 'perm' => 'collections.debit_orders'],
-              ['label' => 'Debit Order API Settings', 'url' => url('/collexia/settings'), 'perm' => 'collections.debit_orders'],
+            'Accounting & Finance' => ['icon' => 'mdi-calculator', 'groups' => [
+              'General Accounting' => ['items' => [
+                ['label' => 'Chart of Accounts', 'url' => url('/accounting/accounts'), 'perm' => 'accounting.chart'],
+                ['label' => 'General Journal', 'url' => url('/accounting/journals'), 'perm' => 'accounting.journals'],
+                ['label' => 'General Ledger', 'url' => url('/accounting/general-ledger'), 'perm' => 'accounting.journals'],
+                ['label' => 'Adjustment Journals', 'url' => url('/accounting/adjustment-journals'), 'perm' => 'accounting.adjustment_journals'],
+                ['label' => 'Recurring Journals', 'url' => url('/accounting/recurring-journals'), 'perm' => 'accounting.recurring_journals'],
+                ['label' => 'Cash Book', 'url' => url('/accounting/cash-book'), 'perm' => 'accounting.cashbook'],
+              ]],
+              'Banking' => ['items' => [
+                ['label' => 'Bank Accounts', 'url' => url('/accounting/bank-accounts'), 'perm' => 'accounting.bank_accounts'],
+                ['label' => 'Bank Reconciliation', 'url' => url('/accounting/bank-reconciliation'), 'perm' => 'accounting.bank_reconciliation'],
+                ['label' => 'Reconciliation History', 'url' => url('/accounting/bank-reconciliation/history'), 'perm' => 'accounting.bank_reconciliation'],
+              ]],
+              'Loan Accounting' => ['items' => [
+                ['label' => 'Bad Debt Provisioning', 'url' => url('/accounting/bad-debt-provisions'), 'perm' => 'accounting.provisions'],
+                ['label' => 'Bad Debts & Write-Offs', 'url' => url('/accounting/bad-debts'), 'perm' => 'accounting.provisions'],
+                ['label' => 'Loan Write-Offs', 'url' => url('/accounting/loan-write-offs'), 'perm' => 'accounting.writeoffs'],
+                ['label' => 'Interest Accruals', 'url' => url('/accounting/interest-accruals'), 'perm' => 'accounting.view'],
+                ['label' => 'Penalty Accruals', 'url' => url('/accounting/penalty-accruals'), 'perm' => 'accounting.view'],
+              ]],
+              'Expenses' => ['items' => [
+                ['label' => 'Expenses', 'url' => url('/expenses'), 'perm' => 'expenses.view'],
+                ['label' => 'Expense Categories', 'url' => url('/expense-categories'), 'perm' => 'expenses.view'],
+              ]],
+              'Financial Statements' => ['items' => [
+                ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance'), 'perm' => 'accounting.trial_balance'],
+                ['label' => 'AFS Export', 'url' => url('/accounting/afs-export'), 'perm' => 'accounting.balance_sheet'],
+              ]],
+              'Accounting Administration' => ['items' => [
+                ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years'), 'perm' => 'accounting.settings'],
+              ]],
+              'Utilities / Maintenance' => ['items' => [
+                ['label' => 'Disbursement Accrual Restatement', 'url' => url('/accounting/disbursement-restatement'), 'perm' => 'accounting.adjustment_journals'],
+                ['label' => 'Interest & Penalty Restatement', 'url' => url('/accounting/interest-restatement'), 'perm' => 'accounting.adjustment_journals'],
+                ['label' => 'Loan Status Dimensions Backfill', 'url' => url('/accounting/loan-status-backfill'), 'perm' => 'accounting.adjustment_journals'],
+              ]],
             ]],
-            'Fixed Assets' => ['icon' => 'mdi-trending-up', 'items' => [
-              ['label' => 'Asset Register', 'url' => url('/fixed-assets'), 'perm' => 'assets.view'],
-              ['label' => 'Register Asset', 'url' => url('/fixed-assets/create'), 'perm' => 'assets.manage'],
+            'Fixed Assets' => ['icon' => 'mdi-trending-up', 'groups' => [
+              '_flat' => ['items' => [
+                ['label' => 'Asset Register', 'url' => url('/fixed-assets'), 'perm' => 'assets.view'],
+              ]],
             ]],
-            'Support' => ['icon' => 'mdi-ticket', 'items' => [
-              ['label' => 'Support Tickets', 'url' => url('/tickets'), 'perm' => 'tickets.view'],
-              ['label' => 'Raise Ticket', 'url' => url('/tickets/create'), 'perm' => 'tickets.view'],
+            'Reports & Compliance' => ['icon' => 'mdi-file-chart', 'groups' => [
+              'Reports' => ['items' => [
+                ['label' => 'Operational Reports', 'url' => url('/reports/operational'), 'perm' => 'reports.operational'],
+                ['label' => 'Financial Reports', 'url' => url('/reports'), 'perm' => 'reports.financial'],
+                ['label' => 'Regulatory Reports', 'url' => url('/reports/regulatory'), 'perm' => 'reports.regulatory'],
+              ]],
+              'Regulatory Compliance' => ['items' => [
+                ['label' => 'NAMFISA Reports', 'url' => url('/compliance/namfisa'), 'perm' => 'compliance.namfisa'],
+                ['label' => 'Quarterly Reports', 'url' => url('/compliance/quarterly-reports'), 'perm' => 'compliance.quarterly'],
+                ['label' => 'Duty Stamps', 'url' => url('/compliance/duty-stamps'), 'perm' => 'compliance.duty_stamp'],
+                ['label' => 'Payment Methods', 'url' => url('/compliance/payment-methods'), 'perm' => 'compliance.payment_methods'],
+              ]],
             ]],
-            'Applications' => ['icon' => 'mdi-telegram', 'items' => [
-              ['label' => 'All Applications', 'url' => url('/applications'), 'perm' => 'applications.view'],
-              ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view'],
-              ['label' => 'Screening', 'url' => url('/applications?status=Screening'), 'perm' => 'applications.view'],
-              ['label' => 'Rejected Applications', 'url' => url('/applications?status=Rejected'), 'perm' => 'applications.view'],
+            'Documents' => ['icon' => 'mdi-file-document', 'groups' => [
+              '_flat' => ['items' => [
+                ['label' => 'Templates', 'url' => url('/templates'), 'perm' => 'documents.templates'],
+                ['label' => 'Generated Documents', 'url' => url('/generated-documents'), 'perm' => 'documents.view'],
+                ['label' => 'Letters', 'url' => url('/letters'), 'perm' => 'documents.view'],
+              ]],
             ]],
-            'Accounting' => ['icon' => 'mdi-calculator', 'items' => [
-              ['label' => 'Chart of Accounts', 'url' => url('/accounting/accounts'), 'perm' => 'accounting.chart'],
-              ['label' => 'Bank Accounts', 'url' => url('/accounting/bank-accounts'), 'perm' => 'accounting.bank_accounts'],
-              ['label' => 'General Journal', 'url' => url('/accounting/journals'), 'perm' => 'accounting.journals'],
-              ['label' => 'General Ledger', 'url' => url('/accounting/general-ledger'), 'perm' => 'accounting.journals'],
-              ['label' => 'New Manual Journal', 'url' => url('/accounting/journals/create'), 'perm' => 'accounting.journals'],
-              ['label' => 'Adjustment Journals', 'url' => url('/accounting/adjustment-journals'), 'perm' => 'accounting.adjustment_journals'],
-              ['label' => 'Disbursement Accrual Restatement', 'url' => url('/accounting/disbursement-restatement'), 'perm' => 'accounting.adjustment_journals'],
-              ['label' => 'Recurring Journals', 'url' => url('/accounting/recurring-journals'), 'perm' => 'accounting.recurring_journals'],
-              ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years'), 'perm' => 'accounting.settings'],
-              ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance'), 'perm' => 'accounting.trial_balance'],
-              ['label' => 'Cash Book', 'url' => url('/accounting/cash-book'), 'perm' => 'accounting.cashbook'],
-              ['label' => 'AFS Export', 'url' => url('/accounting/afs-export'), 'perm' => 'accounting.balance_sheet'],
-              ['label' => 'Bad Debt Provisioning', 'url' => url('/accounting/bad-debt-provisions'), 'perm' => 'accounting.provisions'],
-              ['label' => 'Bad Debts & Write-Offs', 'url' => url('/accounting/bad-debts'), 'perm' => 'accounting.provisions'],
-              ['label' => 'Loan Write-Offs', 'url' => url('/accounting/loan-write-offs'), 'perm' => 'accounting.writeoffs'],
-              ['label' => 'Penalty Accruals', 'url' => url('/accounting/penalty-accruals'), 'perm' => 'accounting.view'],
-              ['label' => 'Interest Accruals', 'url' => url('/accounting/interest-accruals'), 'perm' => 'accounting.view'],
-              ['label' => 'Interest & Penalty Restatement', 'url' => url('/accounting/interest-restatement'), 'perm' => 'accounting.adjustment_journals'],
-              ['label' => 'Loan Status Dimensions Backfill', 'url' => url('/accounting/loan-status-backfill'), 'perm' => 'accounting.adjustment_journals'],
-              ['label' => 'Bank Reconciliation', 'url' => url('/accounting/bank-reconciliation'), 'perm' => 'accounting.bank_reconciliation'],
-              ['label' => 'Reconciliation History', 'url' => url('/accounting/bank-reconciliation/history'), 'perm' => 'accounting.bank_reconciliation'],
-              ['label' => 'Expenses', 'url' => url('/expenses'), 'perm' => 'expenses.view'],
-              ['label' => 'Expense Categories', 'url' => url('/expense-categories'), 'perm' => 'expenses.view'],
+            'Human Resources' => ['icon' => 'mdi-account-multiple-plus', 'groups' => [
+              'Employee Management' => ['items' => [
+                ['label' => 'Employees', 'url' => url('/hrm/employees'), 'perm' => 'hrm.view'],
+                ['label' => 'Departments', 'url' => url('/hrm/departments'), 'perm' => 'hrm.view'],
+                ['label' => 'Designations', 'url' => url('/hrm/designations'), 'perm' => 'hrm.view'],
+                ['label' => 'Shifts', 'url' => url('/hrm/shifts'), 'perm' => 'hrm.view'],
+                ['label' => 'Document Types', 'url' => url('/hrm/document-types'), 'perm' => 'hrm.manage'],
+              ]],
+              'Attendance & Leave' => ['items' => [
+                ['label' => 'Attendance Records', 'url' => url('/hrm/attendance'), 'perm' => 'hrm.view'],
+                ['label' => 'Attendance Report', 'url' => url('/hrm/attendance/report'), 'perm' => 'hrm.view'],
+                ['label' => 'Leave Applications', 'url' => url('/hrm/leave-applications'), 'perm' => 'hrm.view'],
+                ['label' => 'Leave Balance', 'url' => url('/hrm/leave-balance'), 'perm' => 'hrm.view'],
+                ['label' => 'Leave Types', 'url' => url('/hrm/leave-types'), 'perm' => 'hrm.view'],
+                ['label' => 'Holidays', 'url' => url('/hrm/holidays'), 'perm' => 'hrm.view'],
+              ]],
+              'Payroll & Benefits' => ['items' => [
+                ['label' => 'Payroll', 'url' => url('/hrm/payrolls'), 'perm' => 'hrm.view'],
+                ['label' => 'Allowances', 'url' => url('/hrm/allowances'), 'perm' => 'hrm.view'],
+                ['label' => 'Deductions', 'url' => url('/hrm/deductions'), 'perm' => 'hrm.view'],
+                ['label' => 'Staff Loans', 'url' => url('/hrm/staff-loans'), 'perm' => 'hrm.view'],
+              ]],
+              'Payroll Setup' => ['items' => [
+                ['label' => 'Allowance Types', 'url' => url('/hrm/allowance-types'), 'perm' => 'hrm.manage'],
+                ['label' => 'Deduction Types', 'url' => url('/hrm/deduction-types'), 'perm' => 'hrm.manage'],
+                ['label' => 'Staff Loan Types', 'url' => url('/hrm/staff-loan-types'), 'perm' => 'hrm.manage'],
+              ]],
+              'Employee Relations' => ['items' => [
+                ['label' => 'Awards', 'url' => url('/hrm/awards'), 'perm' => 'hrm.view'],
+                ['label' => 'Complaints', 'url' => url('/hrm/complaints'), 'perm' => 'hrm.view'],
+                ['label' => 'Warnings', 'url' => url('/hrm/warnings'), 'perm' => 'hrm.view'],
+              ]],
+              'Employee Relations Setup' => ['items' => [
+                ['label' => 'Award Types', 'url' => url('/hrm/award-types'), 'perm' => 'hrm.manage'],
+                ['label' => 'Complaint Types', 'url' => url('/hrm/complaint-types'), 'perm' => 'hrm.manage'],
+                ['label' => 'Warning Types', 'url' => url('/hrm/warning-types'), 'perm' => 'hrm.manage'],
+              ]],
+              'Career Management' => ['items' => [
+                ['label' => 'Promotions', 'url' => url('/hrm/promotions'), 'perm' => 'hrm.view'],
+                ['label' => 'Transfers', 'url' => url('/hrm/transfers'), 'perm' => 'hrm.view'],
+                ['label' => 'Terminations', 'url' => url('/hrm/terminations'), 'perm' => 'hrm.view'],
+              ]],
+              'Career Management Setup' => ['items' => [
+                ['label' => 'Termination Types', 'url' => url('/hrm/termination-types'), 'perm' => 'hrm.manage'],
+              ]],
+              'Communications' => ['items' => [
+                ['label' => 'Announcements', 'url' => url('/hrm/announcements'), 'perm' => 'hrm.view'],
+                ['label' => 'Events', 'url' => url('/hrm/events'), 'perm' => 'hrm.view'],
+                ['label' => 'Zoom Meetings', 'url' => url('/hrm/zoom-meetings'), 'perm' => 'hrm.view'],
+              ]],
+              'Communications Setup' => ['items' => [
+                ['label' => 'Announcement Categories', 'url' => url('/hrm/announcement-categories'), 'perm' => 'hrm.manage'],
+                ['label' => 'Event Types', 'url' => url('/hrm/event-types'), 'perm' => 'hrm.manage'],
+              ]],
+              'Performance' => ['items' => [
+                ['label' => 'Employee Goals', 'url' => url('/performance/employee-goals'), 'perm' => 'performance.view'],
+                ['label' => 'Employee Reviews', 'url' => url('/performance/employee-reviews'), 'perm' => 'performance.view'],
+                ['label' => 'Review Cycles', 'url' => url('/performance/review-cycles'), 'perm' => 'performance.view'],
+              ]],
+              'Performance Setup' => ['items' => [
+                ['label' => 'Goal Types', 'url' => url('/performance/goal-types'), 'perm' => 'performance.manage'],
+                ['label' => 'Indicator Categories', 'url' => url('/performance/indicator-categories'), 'perm' => 'performance.manage'],
+                ['label' => 'Indicators', 'url' => url('/performance/indicators'), 'perm' => 'performance.manage'],
+              ]],
+              'Recruitment' => ['items' => [
+                ['label' => 'Job Postings', 'url' => url('/recruitment/job-postings'), 'perm' => 'recruitment.view'],
+                ['label' => 'Candidates', 'url' => url('/recruitment/candidates'), 'perm' => 'recruitment.view'],
+                ['label' => 'Interviews', 'url' => url('/recruitment/interviews'), 'perm' => 'recruitment.view'],
+                ['label' => 'Interview Feedback', 'url' => url('/recruitment/interview-feedback'), 'perm' => 'recruitment.view'],
+                ['label' => 'Candidate Assessments', 'url' => url('/recruitment/candidate-assessments'), 'perm' => 'recruitment.view'],
+                ['label' => 'Offers', 'url' => url('/recruitment/offers'), 'perm' => 'recruitment.view'],
+                ['label' => 'Onboarding', 'url' => url('/recruitment/candidate-onboardings'), 'perm' => 'recruitment.view'],
+              ]],
+              'Recruitment Setup' => ['items' => [
+                ['label' => 'Interview Rounds', 'url' => url('/recruitment/interview-rounds'), 'perm' => 'recruitment.view'],
+                ['label' => 'Checklist Items', 'url' => url('/recruitment/checklist-items'), 'perm' => 'recruitment.view'],
+                ['label' => 'Onboarding Checklists', 'url' => url('/recruitment/onboarding-checklists'), 'perm' => 'recruitment.manage'],
+                ['label' => 'Offer Letter Templates', 'url' => url('/recruitment/offer-letter-templates'), 'perm' => 'recruitment.manage'],
+                ['label' => 'Job Types', 'url' => url('/recruitment/job-types'), 'perm' => 'recruitment.manage'],
+                ['label' => 'Job Locations', 'url' => url('/recruitment/job-locations'), 'perm' => 'recruitment.manage'],
+                ['label' => 'Candidate Sources', 'url' => url('/recruitment/candidate-sources'), 'perm' => 'recruitment.manage'],
+                ['label' => 'Interview Types', 'url' => url('/recruitment/interview-types'), 'perm' => 'recruitment.manage'],
+                ['label' => 'Application Questions', 'url' => url('/recruitment/custom-questions'), 'perm' => 'recruitment.manage'],
+                ['label' => 'System Setup', 'url' => url('/recruitment/settings'), 'perm' => 'recruitment.manage'],
+              ]],
+              'Training' => ['items' => [
+                ['label' => 'Trainings', 'url' => url('/training/trainings'), 'perm' => 'training.view'],
+                ['label' => 'Trainers', 'url' => url('/training/trainers'), 'perm' => 'training.manage'],
+              ]],
+              'Training Setup' => ['items' => [
+                ['label' => 'Training Types', 'url' => url('/training/types'), 'perm' => 'training.manage'],
+              ]],
             ]],
-            'Reports' => ['icon' => 'mdi-chart-bar', 'items' => [
-              ['label' => 'Operational Reports', 'url' => url('/reports/operational'), 'perm' => 'reports.operational'],
-              ['label' => 'Financial Reports', 'url' => url('/reports'), 'perm' => 'reports.financial'],
-              ['label' => 'Regulatory Reports', 'url' => url('/reports/regulatory'), 'perm' => 'reports.regulatory'],
+            'Agents & Referrals' => ['icon' => 'mdi-account-star', 'groups' => [
+              'Administrative' => ['items' => [
+                ['label' => 'Agent Commissions', 'url' => url('/commissions'), 'perm' => 'commissions.manage'],
+                ['label' => 'Agent Submissions', 'url' => url('/commissions/submissions'), 'perm' => 'commissions.manage'],
+              ]],
+              'My Referrals' => ['items' => [
+                ['label' => 'Referral Dashboard', 'url' => url('/my/referrals'), 'perm' => 'referrals.submit'],
+                ['label' => 'Referral History', 'url' => url('/my/referrals/list'), 'perm' => 'referrals.submit'],
+                ['label' => "My Clients' Loans", 'url' => url('/my/loans'), 'perm' => 'referrals.submit'],
+                ['label' => 'My Commissions', 'url' => url('/my/commissions'), 'perm' => 'referrals.submit'],
+              ]],
             ]],
-            'Documents' => ['icon' => 'mdi-file-document', 'items' => [
-              ['label' => 'Templates', 'url' => url('/templates'), 'perm' => 'documents.templates'],
-              ['label' => 'Generated Documents', 'url' => url('/generated-documents'), 'perm' => 'documents.view'],
-              ['label' => 'Letters', 'url' => url('/letters'), 'perm' => 'documents.view'],
+            'Governance & Control' => ['icon' => 'mdi-clipboard-check', 'groups' => [
+              'Approvals' => ['items' => [
+                ['label' => 'My Approvals', 'url' => url('/approvals'), 'perm' => 'approvals.view'],
+              ]],
+              'Delegation' => ['items' => [
+                ['label' => 'Delegations', 'url' => url('/delegations'), 'perm' => 'delegations.view'],
+              ]],
+              'Exception Management' => ['items' => [
+                ['label' => 'Exceptions', 'url' => url('/exceptions'), 'perm' => 'exceptions.view'],
+              ]],
+              'SLA & Escalations' => ['items' => [
+                ['label' => 'SLA Policies', 'url' => url('/sla/policies'), 'perm' => 'sla.view'],
+              ]],
+              'Data Quality' => ['items' => [
+                ['label' => 'Data Quality', 'url' => url('/data-quality'), 'perm' => 'data_quality.view'],
+                ['label' => 'Data Quality Rules', 'url' => url('/data-quality/rules'), 'perm' => 'data_quality.view'],
+              ]],
+              'Data Governance' => ['items' => [
+                ['label' => 'Retention Policies', 'url' => url('/retention'), 'perm' => 'retention.view'],
+                ['label' => 'Legal Holds', 'url' => url('/retention/holds'), 'perm' => 'retention.view'],
+              ]],
             ]],
-            'Compliance' => ['icon' => 'mdi-gavel', 'items' => [
-              ['label' => 'NAMFISA Reports', 'url' => url('/compliance/namfisa'), 'perm' => 'compliance.namfisa'],
-              ['label' => 'Duty Stamps', 'url' => url('/compliance/duty-stamps'), 'perm' => 'compliance.duty_stamp'],
-              ['label' => 'Payment Methods', 'url' => url('/compliance/payment-methods'), 'perm' => 'compliance.payment_methods'],
-              ['label' => 'Quarterly Reports', 'url' => url('/compliance/quarterly-reports'), 'perm' => 'compliance.quarterly'],
+            'Cyber Security' => ['icon' => 'mdi-shield', 'groups' => [
+              'Monitoring' => ['items' => [
+                ['label' => 'Security Overview', 'url' => url('/security/overview'), 'perm' => 'security.view'],
+                ['label' => 'Security Events', 'url' => url('/security/events'), 'perm' => 'security.view'],
+                ['label' => 'Security Incidents', 'url' => url('/security/incidents'), 'perm' => 'security.view'],
+              ]],
+              'Protection' => ['items' => [
+                ['label' => 'Blocked Sources', 'url' => url('/security/blocked-sources'), 'perm' => 'security.view'],
+                ['label' => 'Security Rules', 'url' => url('/security/rules'), 'perm' => 'security.view'],
+              ]],
             ]],
-            'Notifications' => ['icon' => 'mdi-bell', 'items' => [
-              ['label' => 'SMS Queue', 'url' => url('/notifications/sms'), 'perm' => 'notifications.view'],
-              ['label' => 'Email Queue', 'url' => url('/notifications/email'), 'perm' => 'notifications.view'],
-              ['label' => 'Templates', 'url' => url('/notifications/templates'), 'perm' => 'notifications.templates'],
-              ['label' => 'Settings', 'url' => url('/notifications/settings'), 'perm' => 'notifications.settings'],
+            'Intelligence & Analytics' => ['icon' => 'mdi-lightbulb-on', 'groups' => [
+              'Management' => ['items' => [
+                ['label' => 'Decision Intelligence', 'url' => url('/intelligence'), 'perm' => 'intelligence.view'],
+              ]],
+              'Marketing' => ['items' => [
+                ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
+              ]],
             ]],
-            'Commissions' => ['icon' => 'mdi-cash-multiple', 'items' => [
-              ['label' => 'Agent Commissions', 'url' => url('/commissions'), 'perm' => 'commissions.manage'],
-              ['label' => 'Agent Submissions', 'url' => url('/commissions/submissions'), 'perm' => 'commissions.manage'],
+            'System & Platform' => ['icon' => 'mdi-server', 'groups' => [
+              'System Health' => ['items' => [
+                ['label' => 'System Health', 'url' => url('/health'), 'perm' => 'health.view'],
+              ]],
+              'Error Management' => ['items' => [
+                ['label' => 'Error Tracking', 'url' => url('/errors'), 'perm' => 'errors.view'],
+              ]],
+              'Deployment & Features' => ['items' => [
+                ['label' => 'Feature Flags', 'url' => url('/feature-flags'), 'perm' => 'feature_flags.view'],
+              ]],
+              'Business Continuity' => ['items' => [
+                ['label' => 'Business Continuity', 'url' => url('/continuity'), 'perm' => 'continuity.view'],
+                ['label' => 'Continuity Plans', 'url' => url('/continuity/plans'), 'perm' => 'continuity.view'],
+              ]],
+              'Integrations' => ['items' => [
+                ['label' => 'Debit Order API Settings', 'url' => url('/collexia/settings'), 'perm' => 'collections.debit_orders'],
+              ]],
             ]],
-            'My Referrals' => ['icon' => 'mdi-gift', 'items' => [
-              ['label' => 'Dashboard', 'url' => url('/my/referrals'), 'perm' => 'referrals.submit'],
-              ['label' => 'New Referral', 'url' => url('/my/referrals/create'), 'perm' => 'referrals.submit'],
-              ['label' => 'Referral History', 'url' => url('/my/referrals/list'), 'perm' => 'referrals.submit'],
-              ['label' => "My Clients' Loans", 'url' => url('/my/loans'), 'perm' => 'referrals.submit'],
-              ['label' => 'My Commissions', 'url' => url('/my/commissions'), 'perm' => 'referrals.submit'],
+            'Support' => ['icon' => 'mdi-ticket', 'groups' => [
+              '_flat' => ['items' => [
+                ['label' => 'Support Tickets', 'url' => url('/tickets'), 'perm' => 'tickets.view'],
+              ]],
             ]],
-            'My HR' => ['icon' => 'mdi-account-box', 'items' => [
-              ['label' => 'My Leave', 'url' => url('/my/leave'), 'perm' => 'dashboard.view'],
-              ['label' => 'My Leave Balance', 'url' => url('/my/leave/balance'), 'perm' => 'dashboard.view'],
-              ['label' => 'My Payslips', 'url' => url('/my/payslips'), 'perm' => 'dashboard.view'],
-              ['label' => 'My Attendance', 'url' => url('/my/attendance'), 'perm' => 'dashboard.view'],
+            'Administration' => ['icon' => 'mdi-settings', 'groups' => [
+              'User & Access Management' => ['items' => [
+                ['label' => 'Users', 'url' => url('/settings/users'), 'perm' => 'admin.users'],
+                ['label' => 'Roles', 'url' => url('/settings/roles'), 'perm' => 'admin.roles'],
+                ['label' => 'Permissions', 'url' => url('/settings/permissions'), 'perm' => 'admin.permissions'],
+                ['label' => 'Branch Login IP Restrictions', 'url' => url('/settings/branch-ip-ranges'), 'perm' => 'admin.system_settings'],
+              ]],
+              'Organization' => ['items' => [
+                ['label' => 'Company Settings', 'url' => url('/settings/company'), 'perm' => 'admin.company'],
+                ['label' => 'Branches', 'url' => url('/branches'), 'perm' => 'admin.system_settings'],
+                ['label' => 'Intake Sources', 'url' => url('/settings/intake-sources'), 'perm' => 'admin.system_settings'],
+              ]],
+              'System Configuration' => ['items' => [
+                ['label' => 'AI Settings', 'url' => url('/settings/ai'), 'perm' => 'admin.system_settings'],
+                ['label' => 'Analytics Settings', 'url' => url('/settings/social-analytics'), 'perm' => 'social_analytics.manage'],
+              ]],
+              'Audit' => ['items' => [
+                ['label' => 'Activity Log', 'url' => url('/settings/audit-log'), 'perm' => 'admin.audit'],
+              ]],
+              'Communications' => ['items' => [
+                ['label' => 'SMS Queue', 'url' => url('/notifications/sms'), 'perm' => 'notifications.view'],
+                ['label' => 'Email Queue', 'url' => url('/notifications/email'), 'perm' => 'notifications.view'],
+                ['label' => 'Notification Templates', 'url' => url('/notifications/templates'), 'perm' => 'notifications.templates'],
+                ['label' => 'Notification Settings', 'url' => url('/notifications/settings'), 'perm' => 'notifications.settings'],
+              ]],
             ]],
-            'Employees' => ['icon' => 'mdi-account-card-details', 'items' => [
-              ['label' => 'Employees', 'url' => url('/hrm/employees'), 'perm' => 'hrm.view'],
-              ['label' => 'Add Employee', 'url' => url('/hrm/employees/create'), 'perm' => 'hrm.manage'],
-              ['label' => 'Departments', 'url' => url('/hrm/departments'), 'perm' => 'hrm.view'],
-              ['label' => 'Designations', 'url' => url('/hrm/designations'), 'perm' => 'hrm.view'],
-              ['label' => 'Shifts', 'url' => url('/hrm/shifts'), 'perm' => 'hrm.view'],
-              ['label' => 'Document Types', 'url' => url('/hrm/document-types'), 'perm' => 'hrm.manage'],
-            ]],
-            'Attendance & Leave' => ['icon' => 'mdi-calendar-check', 'items' => [
-              ['label' => 'Attendance Report', 'url' => url('/hrm/attendance/report'), 'perm' => 'hrm.view'],
-              ['label' => 'Attendance Records', 'url' => url('/hrm/attendance'), 'perm' => 'hrm.view'],
-              ['label' => 'Leave Applications', 'url' => url('/hrm/leave-applications'), 'perm' => 'hrm.view'],
-              ['label' => 'Leave Balance', 'url' => url('/hrm/leave-balance'), 'perm' => 'hrm.view'],
-              ['label' => 'Leave Types', 'url' => url('/hrm/leave-types'), 'perm' => 'hrm.view'],
-              ['label' => 'Holidays', 'url' => url('/hrm/holidays'), 'perm' => 'hrm.view'],
-            ]],
-            'Payroll' => ['icon' => 'mdi-wallet', 'items' => [
-              ['label' => 'Payroll', 'url' => url('/hrm/payrolls'), 'perm' => 'hrm.view'],
-              ['label' => 'Allowances', 'url' => url('/hrm/allowances'), 'perm' => 'hrm.view'],
-              ['label' => 'Deductions', 'url' => url('/hrm/deductions'), 'perm' => 'hrm.view'],
-              ['label' => 'Allowance Types', 'url' => url('/hrm/allowance-types'), 'perm' => 'hrm.manage'],
-              ['label' => 'Deduction Types', 'url' => url('/hrm/deduction-types'), 'perm' => 'hrm.manage'],
-              ['label' => 'Staff Loans', 'url' => url('/hrm/staff-loans'), 'perm' => 'hrm.view'],
-              ['label' => 'Staff Loan Types', 'url' => url('/hrm/staff-loan-types'), 'perm' => 'hrm.manage'],
-            ]],
-            'Recognition & Discipline' => ['icon' => 'mdi-trophy-award', 'items' => [
-              ['label' => 'Awards', 'url' => url('/hrm/awards'), 'perm' => 'hrm.view'],
-              ['label' => 'Complaints', 'url' => url('/hrm/complaints'), 'perm' => 'hrm.view'],
-              ['label' => 'Warnings', 'url' => url('/hrm/warnings'), 'perm' => 'hrm.view'],
-              ['label' => 'Award Types', 'url' => url('/hrm/award-types'), 'perm' => 'hrm.manage'],
-              ['label' => 'Complaint Types', 'url' => url('/hrm/complaint-types'), 'perm' => 'hrm.manage'],
-              ['label' => 'Warning Types', 'url' => url('/hrm/warning-types'), 'perm' => 'hrm.manage'],
-            ]],
-            'Career Movement' => ['icon' => 'mdi-account-switch', 'items' => [
-              ['label' => 'Terminations', 'url' => url('/hrm/terminations'), 'perm' => 'hrm.view'],
-              ['label' => 'Promotions', 'url' => url('/hrm/promotions'), 'perm' => 'hrm.view'],
-              ['label' => 'Transfers', 'url' => url('/hrm/transfers'), 'perm' => 'hrm.view'],
-              ['label' => 'Termination Types', 'url' => url('/hrm/termination-types'), 'perm' => 'hrm.manage'],
-            ]],
-            'Announcements & Events' => ['icon' => 'mdi-bullhorn', 'items' => [
-              ['label' => 'Announcements', 'url' => url('/hrm/announcements'), 'perm' => 'hrm.view'],
-              ['label' => 'Events', 'url' => url('/hrm/events'), 'perm' => 'hrm.view'],
-              ['label' => 'Announcement Categories', 'url' => url('/hrm/announcement-categories'), 'perm' => 'hrm.manage'],
-              ['label' => 'Event Types', 'url' => url('/hrm/event-types'), 'perm' => 'hrm.manage'],
-              ['label' => 'Zoom Meetings', 'url' => url('/hrm/zoom-meetings'), 'perm' => 'hrm.view'],
-            ]],
-            'Performance' => ['icon' => 'mdi-target', 'items' => [
-              ['label' => 'Employee Goals', 'url' => url('/performance/employee-goals'), 'perm' => 'performance.view'],
-              ['label' => 'Employee Reviews', 'url' => url('/performance/employee-reviews'), 'perm' => 'performance.view'],
-              ['label' => 'Review Cycles', 'url' => url('/performance/review-cycles'), 'perm' => 'performance.view'],
-              ['label' => 'Goal Types', 'url' => url('/performance/goal-types'), 'perm' => 'performance.manage'],
-              ['label' => 'Indicator Categories', 'url' => url('/performance/indicator-categories'), 'perm' => 'performance.manage'],
-              ['label' => 'Indicators', 'url' => url('/performance/indicators'), 'perm' => 'performance.manage'],
-            ]],
-            'Recruitment' => ['icon' => 'mdi-account-search', 'items' => [
-              ['label' => 'Job Postings', 'url' => url('/recruitment/job-postings'), 'perm' => 'recruitment.view'],
-              ['label' => 'Candidates', 'url' => url('/recruitment/candidates'), 'perm' => 'recruitment.view'],
-              ['label' => 'Interview Rounds', 'url' => url('/recruitment/interview-rounds'), 'perm' => 'recruitment.view'],
-              ['label' => 'Interviews', 'url' => url('/recruitment/interviews'), 'perm' => 'recruitment.view'],
-              ['label' => 'Interview Feedback', 'url' => url('/recruitment/interview-feedback'), 'perm' => 'recruitment.view'],
-              ['label' => 'Candidate Assessments', 'url' => url('/recruitment/candidate-assessments'), 'perm' => 'recruitment.view'],
-              ['label' => 'Offers', 'url' => url('/recruitment/offers'), 'perm' => 'recruitment.view'],
-              ['label' => 'Checklist Items', 'url' => url('/recruitment/checklist-items'), 'perm' => 'recruitment.view'],
-              ['label' => 'Onboarding', 'url' => url('/recruitment/candidate-onboardings'), 'perm' => 'recruitment.view'],
-              ['label' => 'Onboarding Checklists', 'url' => url('/recruitment/onboarding-checklists'), 'perm' => 'recruitment.manage'],
-              ['label' => 'Offer Letter Templates', 'url' => url('/recruitment/offer-letter-templates'), 'perm' => 'recruitment.manage'],
-              ['label' => 'Job Types', 'url' => url('/recruitment/job-types'), 'perm' => 'recruitment.manage'],
-              ['label' => 'Job Locations', 'url' => url('/recruitment/job-locations'), 'perm' => 'recruitment.manage'],
-              ['label' => 'Candidate Sources', 'url' => url('/recruitment/candidate-sources'), 'perm' => 'recruitment.manage'],
-              ['label' => 'Interview Types', 'url' => url('/recruitment/interview-types'), 'perm' => 'recruitment.manage'],
-              ['label' => 'Application Questions', 'url' => url('/recruitment/custom-questions'), 'perm' => 'recruitment.manage'],
-              ['label' => 'System Setup', 'url' => url('/recruitment/settings'), 'perm' => 'recruitment.manage'],
-            ]],
-            'Training' => ['icon' => 'mdi-school', 'items' => [
-              ['label' => 'Trainings', 'url' => url('/training/trainings'), 'perm' => 'training.view'],
-              ['label' => 'Trainers', 'url' => url('/training/trainers'), 'perm' => 'training.manage'],
-              ['label' => 'Training Types', 'url' => url('/training/types'), 'perm' => 'training.manage'],
-            ]],
-            'Marketing' => ['icon' => 'mdi-chart-line', 'items' => [
-              ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
-              ['label' => 'Analytics Settings', 'url' => url('/settings/social-analytics'), 'perm' => 'social_analytics.manage'],
-            ]],
-            'Settings' => ['icon' => 'mdi-settings', 'items' => [
-              ['label' => 'Users', 'url' => url('/settings/users'), 'perm' => 'admin.users'],
-              ['label' => 'Roles', 'url' => url('/settings/roles'), 'perm' => 'admin.roles'],
-              ['label' => 'Permissions', 'url' => url('/settings/permissions'), 'perm' => 'admin.permissions'],
-              ['label' => 'Activity Log', 'url' => url('/settings/audit-log'), 'perm' => 'admin.audit'],
-              ['label' => 'Company Settings', 'url' => url('/settings/company'), 'perm' => 'admin.company'],
-              ['label' => 'Branches', 'url' => url('/branches'), 'perm' => 'admin.system_settings'],
-              ['label' => 'AI Settings', 'url' => url('/settings/ai'), 'perm' => 'admin.system_settings'],
-              ['label' => 'Intake Sources', 'url' => url('/settings/intake-sources'), 'perm' => 'admin.system_settings'],
-              ['label' => 'Branch Login IP Restrictions', 'url' => url('/settings/branch-ip-ranges'), 'perm' => 'admin.system_settings'],
-            ]],
-            'Security' => ['icon' => 'mdi-shield', 'items' => [
-              ['label' => 'Security Overview', 'url' => url('/security/overview'), 'perm' => 'security.view'],
-              ['label' => 'Security Events', 'url' => url('/security/events'), 'perm' => 'security.view'],
-              ['label' => 'Security Incidents', 'url' => url('/security/incidents'), 'perm' => 'security.view'],
-              ['label' => 'Blocked Sources', 'url' => url('/security/blocked-sources'), 'perm' => 'security.view'],
-              ['label' => 'Security Rules', 'url' => url('/security/rules'), 'perm' => 'security.view'],
-            ]],
-            'Governance' => ['icon' => 'mdi-clipboard-check', 'items' => [
-              ['label' => 'My Approvals', 'url' => url('/approvals'), 'perm' => 'approvals.view'],
-              ['label' => 'Delegation & Temporary Authority', 'url' => url('/delegations'), 'perm' => 'delegations.view'],
-            ]],
-            'Operations' => ['icon' => 'mdi-clock-fast', 'items' => [
-              ['label' => 'Exception Management Centre', 'url' => url('/exceptions'), 'perm' => 'exceptions.view'],
-              ['label' => 'SLA Policies', 'url' => url('/sla/policies'), 'perm' => 'sla.view'],
-            ]],
-            'Data Governance' => ['icon' => 'mdi-database', 'items' => [
-              ['label' => 'Data Quality', 'url' => url('/data-quality'), 'perm' => 'data_quality.view'],
-              ['label' => 'Data Quality Rules', 'url' => url('/data-quality/rules'), 'perm' => 'data_quality.view'],
-              ['label' => 'Retention Policies', 'url' => url('/retention'), 'perm' => 'retention.view'],
-              ['label' => 'Legal Holds', 'url' => url('/retention/holds'), 'perm' => 'retention.view'],
-            ]],
-            'Platform' => ['icon' => 'mdi-server', 'items' => [
-              ['label' => 'System Health', 'url' => url('/health'), 'perm' => 'health.view'],
-              ['label' => 'Error Tracking', 'url' => url('/errors'), 'perm' => 'errors.view'],
-              ['label' => 'Feature Flags', 'url' => url('/feature-flags'), 'perm' => 'feature_flags.view'],
-            ]],
-            'Intelligence' => ['icon' => 'mdi-lightbulb-on', 'items' => [
-              ['label' => 'Decision Intelligence', 'url' => url('/intelligence'), 'perm' => 'intelligence.view'],
-            ]],
-            'Continuity' => ['icon' => 'mdi-backup-restore', 'items' => [
-              ['label' => 'Business Continuity', 'url' => url('/continuity'), 'perm' => 'continuity.view'],
-              ['label' => 'Continuity Plans', 'url' => url('/continuity/plans'), 'perm' => 'continuity.view'],
+            'My Workspace' => ['icon' => 'mdi-briefcase', 'groups' => [
+              'My HR' => ['items' => [
+                ['label' => 'My Leave', 'url' => url('/my/leave'), 'perm' => 'dashboard.view'],
+                ['label' => 'My Leave Balance', 'url' => url('/my/leave/balance'), 'perm' => 'dashboard.view'],
+                ['label' => 'My Payslips', 'url' => url('/my/payslips'), 'perm' => 'dashboard.view'],
+                ['label' => 'My Attendance', 'url' => url('/my/attendance'), 'perm' => 'dashboard.view'],
+              ]],
             ]],
           ];
 
-          // Drop items the current user's role(s) can't reach, then drop any
-          // group left with zero visible items -- keeps the sidebar honest
-          // about what's actually clickable instead of just what exists.
+          // Drop items the current user's role(s) can't reach, then drop
+          // any subgroup left with zero visible items, then drop any
+          // module left with zero visible subgroups -- keeps the sidebar
+          // honest about what's actually clickable instead of just what
+          // exists. $menus (filtered) is reused below for the breadcrumb
+          // lookup, so an item never appears there unless the current
+          // user could actually reach it via the sidebar too.
           foreach ($menus as $menuName => $menu) {
-            $menus[$menuName]['items'] = array_values(array_filter(
-                $menu['items'],
-                fn ($item) => Auth::can($item['perm'])
-            ));
-            if (empty($menus[$menuName]['items'])) {
+            foreach ($menu['groups'] as $groupName => $group) {
+              $menus[$menuName]['groups'][$groupName]['items'] = array_values(array_filter(
+                  $group['items'],
+                  fn ($item) => Auth::can($item['perm'])
+              ));
+              if (empty($menus[$menuName]['groups'][$groupName]['items'])) {
+                  unset($menus[$menuName]['groups'][$groupName]);
+              }
+            }
+            if (empty($menus[$menuName]['groups'])) {
                 unset($menus[$menuName]);
             }
           }
@@ -531,13 +629,32 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 <span class="hide-menu"><?= e($menuName) ?></span>
               </a>
               <ul aria-expanded="false" class="collapse first-level">
-                <?php foreach ($menu['items'] as $item): ?>
-                  <li class="sidebar-item">
-                    <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>">
-                      <i class="mdi mdi-adjust"></i>
-                      <span class="hide-menu"><?= e($item['label']) ?><?= isset($item['url']) ? '' : ' <small>(soon)</small>' ?></span>
-                    </a>
-                  </li>
+                <?php foreach ($menu['groups'] as $groupName => $group): ?>
+                  <?php if ($groupName === '_flat'): ?>
+                    <?php foreach ($group['items'] as $item): ?>
+                      <li class="sidebar-item">
+                        <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>">
+                          <i class="mdi mdi-adjust"></i>
+                          <span class="hide-menu"><?= e($item['label']) ?><?= isset($item['url']) ? '' : ' <small>(soon)</small>' ?></span>
+                        </a>
+                      </li>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <li class="sidebar-item">
+                      <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false">
+                        <span class="hide-menu"><?= e($groupName) ?></span>
+                      </a>
+                      <ul aria-expanded="false" class="collapse second-level">
+                        <?php foreach ($group['items'] as $item): ?>
+                          <li class="sidebar-item">
+                            <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>">
+                              <span class="hide-menu"><?= e($item['label']) ?><?= isset($item['url']) ? '' : ' <small>(soon)</small>' ?></span>
+                            </a>
+                          </li>
+                        <?php endforeach; ?>
+                      </ul>
+                    </li>
+                  <?php endif; ?>
                 <?php endforeach; ?>
               </ul>
             </li>
@@ -643,12 +760,49 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
     </div>
   <?php endif; ?>
 
+  <?php
+    // Auto-derive the breadcrumb trail from the same (already
+    // permission-filtered) $menus structure the sidebar just rendered,
+    // instead of hand-maintaining a separate breadcrumb per page. An
+    // exact match (including query string, e.g. distinguishing "All
+    // Applications" from "New Applications") wins outright; a path-only
+    // match is kept as a fallback. Pages whose URL isn't in the menu at
+    // all (detail/edit screens with a dynamic ID) fall back to today's
+    // plain "Home > $title".
+    $currentUri = $_SERVER['REQUEST_URI'] ?? '';
+    $currentPath = parse_url($currentUri, PHP_URL_PATH) ?: '';
+    $breadcrumbTrail = null;
+    $breadcrumbFallback = null;
+    foreach ($menus as $menuName => $menu) {
+        foreach ($menu['groups'] as $groupName => $group) {
+            foreach ($group['items'] as $item) {
+                if (!isset($item['url'])) {
+                    continue;
+                }
+                if ($item['url'] === $currentUri) {
+                    $breadcrumbTrail = [$menuName, $groupName === '_flat' ? null : $groupName];
+                    break 3;
+                }
+                if ($breadcrumbFallback === null && parse_url($item['url'], PHP_URL_PATH) === $currentPath) {
+                    $breadcrumbFallback = [$menuName, $groupName === '_flat' ? null : $groupName];
+                }
+            }
+        }
+    }
+    $breadcrumbTrail = $breadcrumbTrail ?? $breadcrumbFallback;
+  ?>
   <div class="row page-titles">
           <div class="col-md-5 col-12 align-self-center">
             <ol class="breadcrumb mb-0">
               <li class="breadcrumb-item">
                 <a href="<?= url(Auth::homePath()) ?>">Home</a>
               </li>
+              <?php if ($breadcrumbTrail): ?>
+                <li class="breadcrumb-item"><?= e($breadcrumbTrail[0]) ?></li>
+                <?php if ($breadcrumbTrail[1]): ?>
+                  <li class="breadcrumb-item"><?= e($breadcrumbTrail[1]) ?></li>
+                <?php endif; ?>
+              <?php endif; ?>
               <li class="breadcrumb-item active"><?= e($title ?? 'Dashboard') ?></li>
             </ol>
           </div>
