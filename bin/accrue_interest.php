@@ -21,7 +21,19 @@ require __DIR__ . '/../bootstrap/app.php';
 use App\Services\InterestAccrualService;
 
 $asOfDate = date('Y-m-d');
-$installments = InterestAccrualService::accrue($asOfDate, null);
+
+try {
+    $installments = InterestAccrualService::accrue($asOfDate, null);
+} catch (\Throwable $e) {
+    // AccountingJournal::post() throws if the accounting period for
+    // $asOfDate is closed, or if a target account is missing -- without
+    // this catch, that killed the whole cron run silently: no heartbeat
+    // ping (so it looked merely "late" on the Health dashboard, not
+    // failed), and the underlying reason only visible by digging through
+    // php's own fatal-error output rather than this script's own log.
+    echo sprintf("[%s] Failed to accrue interest as at %s: %s\n", date('Y-m-d H:i:s'), $asOfDate, $e->getMessage());
+    exit(1);
+}
 
 if (empty($installments)) {
     echo "[" . date('Y-m-d H:i:s') . "] No interest to accrue as at $asOfDate.\n";

@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\AccountingAccount;
+use App\Models\AccountingJournal;
+use App\Models\BankAccount;
 use App\Models\Company;
 use App\Models\HrmEmployee;
 use App\Models\HrmPayroll;
@@ -71,7 +74,96 @@ class PayrollService
             'employee_count' => $totals['count'],
         ]);
 
+        // HrmPayrollController::run() blocks calling this again once status
+        // is Completed, but that's a UI-layer guard, not a data-layer one --
+        // postPayrollAccounting() has its own idempotency check (mirrors
+        // DebitOrderCollection::alreadyPosted()'s pattern) so a second call
+        // to this method for the same payroll (direct service call, or a
+        // race between two concurrent requests) can never double-post.
+        // Guarded on gross > 0, not just count > 0 -- an employee with no
+        // basic_salary set (e.g. a commission-only agent processed through
+        // payroll by mistake) produces an all-zero payslip; posting that
+        // would write a journal header with no lines (AccountingJournal::
+        // post() skips zero-value lines), which is meaningless GL noise.
+        if ($totals['gross'] > 0) {
+            self::postPayrollAccounting($payroll, $totals, $userId);
+        }
+
         return ['new_entries' => $newEntriesCount, 'total_entries' => $totals['count']];
+    }
+
+    /**
+     * Dr Salary Expense (gross) / Cr Bank (net paid out) / Cr Payroll
+     * Deductions Payable (external deductions) / Cr Staff Loan
+     * Receivable (repayments deducted this run) -- balances because
+     * gross = net + deductions + staff_loans (see processEmployee()).
+     * "Completed" is treated as "already paid" (confirmed with the
+     * user), same timing model as loan disbursement -- no Net Pay
+     * Payable clearing account or separate payment step.
+     */
+    private static function postPayrollAccounting(array $payroll, array $totals, ?int $userId): void
+    {
+        $alreadyPosted = Database::connection()->prepare(
+            "SELECT 1 FROM accounting_journal_entries WHERE source_table = 'hrm_payrolls' AND source_id = ? LIMIT 1"
+        );
+        $alreadyPosted->execute([(int) $payroll['id']]);
+        if ($alreadyPosted->fetchColumn()) {
+            return;
+        }
+
+        $accounts = new AccountingAccount();
+
+        $bankGlAccountId = $accounts->idByCode('1010');
+        $bankLabel = 'Bank Account';
+        if (!empty($payroll['bank_account_id'])) {
+            $bankAccount = (new BankAccount())->find((int) $payroll['bank_account_id']);
+            if ($bankAccount) {
+                $bankGlAccountId = (int) $bankAccount['account_id'];
+                $bankLabel = $bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'];
+            }
+        }
+
+        $lines = [
+            [
+                'account_id' => $accounts->idByCode('5040'),
+                'debit' => $totals['gross'],
+                'credit' => 0,
+                'description' => 'Salary expense for ' . $payroll['title'],
+            ],
+            [
+                'account_id' => $bankGlAccountId,
+                'debit' => 0,
+                'credit' => $totals['net'],
+                'description' => 'Net pay disbursed from ' . $bankLabel . ' for ' . $payroll['title'],
+            ],
+        ];
+        if ($totals['deductions'] > 0) {
+            $lines[] = [
+                'account_id' => $accounts->idByCode('2060'),
+                'debit' => 0,
+                'credit' => $totals['deductions'],
+                'description' => 'Payroll deductions withheld for ' . $payroll['title'],
+            ];
+        }
+        if ($totals['staff_loans'] > 0) {
+            $lines[] = [
+                'account_id' => $accounts->idByCode('1080'),
+                'debit' => 0,
+                'credit' => $totals['staff_loans'],
+                'description' => 'Staff loan repayments deducted for ' . $payroll['title'],
+            ];
+        }
+
+        (new AccountingJournal())->post(
+            'PAYROLL_RUN',
+            'hrm_payrolls',
+            (int) $payroll['id'],
+            generate_reference('PAY'),
+            'Payroll processed: ' . $payroll['title'],
+            $lines,
+            $userId,
+            $payroll['pay_date'] ?? null
+        );
     }
 
     private static function countWorkingDays(DateTime $start, DateTime $end, array $workingDayIndices): int
