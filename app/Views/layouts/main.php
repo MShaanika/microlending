@@ -145,11 +145,31 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
        type and deeper indentation for the deepest level, per the "don't
        make all levels look identical" navigation guidance. */
     .sidebar-nav ul .sidebar-item .first-level .sidebar-item .second-level .sidebar-item .sidebar-link {
-      padding: 8px 35px 8px 40px;
+      padding: 8px 20px 8px 32px;
       font-size: 13.5px;
     }
     .sidebar-nav ul .sidebar-item .first-level .sidebar-item .second-level .sidebar-item .sidebar-link i.mdi-adjust {
       font-size: 9px;
+    }
+
+    /* The vendor sidebar is a fixed 240px at every screen size (only
+       its on/off-canvas *offset* changes on mobile, never its width --
+       see style.css ~line 10571) -- too narrow for 3 nested levels of
+       real label text, so .hide-menu's overflow:hidden/text-overflow:
+       ellipsis was cutting labels like "General Accounting" or
+       "Adjustment Journals" off well before their natural width.
+       Widened to 270px; every dependent selector below targets the
+       exact same rules the vendor CSS uses (page content's offsetting
+       margin, and the mobile hidden-state left offset, which must
+       exactly match the sidebar's own width or a sliver stays visible
+       when "hidden") so nothing misaligns. */
+    .left-sidebar, .left-sidebar .sidebar-footer { width: 270px; }
+    #main-wrapper[data-layout="vertical"][data-sidebartype="full"] .page-wrapper { margin-left: 270px; }
+    @media (max-width: 767px) {
+      #main-wrapper[data-sidebartype="mini-sidebar"] .left-sidebar,
+      #main-wrapper[data-sidebartype="mini-sidebar"] .left-sidebar .sidebar-footer {
+        left: -270px;
+      }
     }
   </style>
 </head>
@@ -360,7 +380,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Trial Balance', 'url' => url('/accounting/trial-balance'), 'perm' => 'accounting.trial_balance'],
                 ['label' => 'AFS Export', 'url' => url('/accounting/afs-export'), 'perm' => 'accounting.balance_sheet'],
               ]],
-              'Accounting Administration' => ['items' => [
+              'Accounting Admin' => ['items' => [
                 ['label' => 'Fiscal Years & Periods', 'url' => url('/accounting/fiscal-years'), 'perm' => 'accounting.settings'],
               ]],
               'Utilities / Maintenance' => ['items' => [
@@ -532,7 +552,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Security Rules', 'url' => url('/security/rules'), 'perm' => 'security.view'],
               ]],
             ]],
-            'Intelligence & Analytics' => ['icon' => 'mdi-lightbulb-on', 'groups' => [
+            'Intelligence' => ['icon' => 'mdi-lightbulb-on', 'groups' => [
               'Management' => ['items' => [
                 ['label' => 'Decision Intelligence', 'url' => url('/intelligence'), 'perm' => 'intelligence.view'],
               ]],
@@ -624,7 +644,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 
           <?php foreach ($menus as $menuName => $menu): ?>
             <li class="sidebar-item">
-              <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false">
+              <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false" title="<?= e($menuName) ?>">
                 <i class="mdi <?= $menu['icon'] ?>"></i>
                 <span class="hide-menu"><?= e($menuName) ?></span>
               </a>
@@ -633,7 +653,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                   <?php if ($groupName === '_flat'): ?>
                     <?php foreach ($group['items'] as $item): ?>
                       <li class="sidebar-item">
-                        <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>">
+                        <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>" title="<?= e($item['label']) ?>">
                           <i class="mdi mdi-adjust"></i>
                           <span class="hide-menu"><?= e($item['label']) ?><?= isset($item['url']) ? '' : ' <small>(soon)</small>' ?></span>
                         </a>
@@ -641,13 +661,13 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                     <?php endforeach; ?>
                   <?php else: ?>
                     <li class="sidebar-item">
-                      <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false">
+                      <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false" title="<?= e($groupName) ?>">
                         <span class="hide-menu"><?= e($groupName) ?></span>
                       </a>
                       <ul aria-expanded="false" class="collapse second-level">
                         <?php foreach ($group['items'] as $item): ?>
                           <li class="sidebar-item">
-                            <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>">
+                            <a href="<?= $item['url'] ?? 'javascript:void(0)' ?>" class="sidebar-link <?= isset($item['url']) ? '' : 'disabled text-muted' ?>" title="<?= e($item['label']) ?>">
                               <span class="hide-menu"><?= e($item['label']) ?><?= isset($item['url']) ? '' : ' <small>(soon)</small>' ?></span>
                             </a>
                           </li>
