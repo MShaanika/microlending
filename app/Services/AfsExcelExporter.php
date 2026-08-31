@@ -298,7 +298,18 @@ class AfsExcelExporter
             fn ($l) => $l['code'] === 'pl_opex_depreciation' ? 0.0 : $mv($l['code']),
             AfsReportService::operatingExpenseLines()
         ));
-        $cashToSuppliers = -($cosTotal + $opexTotal);
+        // Ordinary customer lending is this entity's main revenue-producing
+        // activity (IAS 7 para 14), so its cash effect belongs in Operating,
+        // not Financing -- matches the Balance Sheet folding this same
+        // balance (bs_loan_to_members) into "Receivables and prepayments".
+        // Folded into this line (not a separate one) per the client's own
+        // corrected reference. Net of the doubtful-debts provision
+        // movement (a non-cash expense, added back same as depreciation).
+        // Distinct from the rare, manually-tracked actual member loan on
+        // "Loans (granted)/repaid" under Financing below -- see that
+        // line's comment.
+        $loanMovement = -$bsMv('bs_loan_to_members') + $bsMv('bs_provision_doubtful_debts');
+        $cashToSuppliers = -($cosTotal + $opexTotal) + $loanMovement;
 
         $row = 5;
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM OPERATING ACTIVITIES');
@@ -306,18 +317,8 @@ class AfsExcelExporter
         $this->dataRow($sheet, $row++, 'Cash receipts from customers', $cashFromCustomers);
         $paidRow = $row;
         $this->dataRow($sheet, $row++, 'Cash paid to suppliers and employees', $cashToSuppliers);
-        // Ordinary customer lending is this entity's main revenue-producing
-        // activity (IAS 7 para 14), so its cash effect belongs in Operating,
-        // not Financing -- matches the Balance Sheet folding this same
-        // balance (bs_loan_to_members) into "Receivables and prepayments".
-        // Net of the doubtful-debts provision movement (a non-cash expense,
-        // added back same as depreciation). This is distinct from the rare,
-        // manually-tracked actual member loan on "Loans (granted)/repaid"
-        // under Financing below -- see that line's comment.
-        $loanMovementRow = $row;
-        $this->dataRow($sheet, $row++, '(Increase)/Decrease in Loans Receivable', -$bsMv('bs_loan_to_members') + $bsMv('bs_provision_doubtful_debts'));
         $genRow = $row;
-        $this->totalRow($sheet, $row++, 'Cash generated from operations', "SUM(C{$recRow}:C{$loanMovementRow})");
+        $this->totalRow($sheet, $row++, 'Cash generated from operations', "C{$recRow}+C{$paidRow}");
         $intPaidRow = $row;
         $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
         $financeRow = $row;
