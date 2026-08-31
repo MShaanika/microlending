@@ -170,6 +170,16 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
       #main-wrapper[data-sidebartype="mini-sidebar"] .left-sidebar .sidebar-footer {
         left: -270px;
       }
+      /* The hidden-offset rule above ties the vendor's own
+         #main-wrapper.show-sidebar .left-sidebar{left:0} on specificity,
+         so being later in the cascade let it always win -- the mobile
+         hamburger correctly added .show-sidebar but the sidebar never
+         actually slid into view. !important forces the shown state back
+         regardless of any other rule's position in the cascade. */
+      #main-wrapper[data-sidebartype="mini-sidebar"].show-sidebar .left-sidebar,
+      #main-wrapper[data-sidebartype="mini-sidebar"].show-sidebar .left-sidebar .sidebar-footer {
+        left: 0 !important;
+      }
     }
   </style>
 </head>
