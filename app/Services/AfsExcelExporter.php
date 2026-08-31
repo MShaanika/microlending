@@ -306,18 +306,18 @@ class AfsExcelExporter
         $this->dataRow($sheet, $row++, 'Cash receipts from customers', $cashFromCustomers);
         $paidRow = $row;
         $this->dataRow($sheet, $row++, 'Cash paid to suppliers and employees', $cashToSuppliers);
-        // Lending to customers is this entity's main revenue-producing
-        // activity (IAS 7 para 14: loans and advances made by a financial
-        // institution belong in operating activities), not a financing
-        // transaction for the entity itself -- financing is reserved for
-        // how the entity itself is funded (member contributions, its own
-        // borrowings), below. Account Payable (e.g. NAMFISA levy / duty
-        // stamp accrued at disbursement) is a separate non-cash liability
-        // and must never be netted against it here.
-        $loansGrantedRow = $row;
-        $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', -$bsMv('bs_loan_to_members'));
+        // Ordinary customer lending is this entity's main revenue-producing
+        // activity (IAS 7 para 14), so its cash effect belongs in Operating,
+        // not Financing -- matches the Balance Sheet folding this same
+        // balance (bs_loan_to_members) into "Receivables and prepayments".
+        // Net of the doubtful-debts provision movement (a non-cash expense,
+        // added back same as depreciation). This is distinct from the rare,
+        // manually-tracked actual member loan on "Loans (granted)/repaid"
+        // under Financing below -- see that line's comment.
+        $loanMovementRow = $row;
+        $this->dataRow($sheet, $row++, '(Increase)/Decrease in Loans Receivable', -$bsMv('bs_loan_to_members') + $bsMv('bs_provision_doubtful_debts'));
         $genRow = $row;
-        $this->totalRow($sheet, $row++, 'Cash generated from operations', "SUM(C{$recRow}:C{$loansGrantedRow})");
+        $this->totalRow($sheet, $row++, 'Cash generated from operations', "SUM(C{$recRow}:C{$loanMovementRow})");
         $intPaidRow = $row;
         $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
         $financeRow = $row;
@@ -342,6 +342,14 @@ class AfsExcelExporter
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM FINANCING ACTIVITIES');
         $membersContribRow = $row;
         $this->dataRow($sheet, $row++, 'Members contribution', $bsMv('bs_members_contributions'));
+        // A genuine loan TO/FROM one of the entity's own members (owners) --
+        // distinct from ordinary customer lending above, which the system
+        // tracks automatically. An actual member loan is rare and, as of
+        // now, not posted through the regular disbursement flow at all, so
+        // there is no ledger balance to compute this from -- it stays 0
+        // unless/until entered manually for a real occurrence.
+        $loansGrantedRow = $row;
+        $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', 0);
         $loansMemberRow = $row;
         $this->dataRow($sheet, $row++, 'Decrease/(Increase) in loans from member', $bsMv('bs_interest_bearing_borrowings'));
         $ltbMovement = $bsMv('bs_longterm_borrowings');
