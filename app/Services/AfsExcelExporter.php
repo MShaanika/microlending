@@ -326,12 +326,12 @@ class AfsExcelExporter
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM FINANCING ACTIVITIES');
         $membersContribRow = $row;
         $this->dataRow($sheet, $row++, 'Members contribution', $bsMv('bs_members_contributions'));
-        // Part of any loan book increase can be funded by a non-cash accrual
-        // (e.g. NAMFISA levy / duty stamp raised as a payable at disbursement
-        // rather than paid from the bank) -- net that portion back out so
-        // this line reflects the actual cash advanced/recovered.
+        // This is the actual cash principal advanced/recovered -- Account
+        // Payable (e.g. NAMFISA levy / duty stamp accrued at disbursement)
+        // is a separate non-cash liability and must never be netted against
+        // it here, even though both can move on the same disbursement.
         $loansGrantedRow = $row;
-        $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', -$bsMv('bs_loan_to_members') + $bsMv('bs_accounts_payable'));
+        $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', -$bsMv('bs_loan_to_members'));
         $loansMemberRow = $row;
         $this->dataRow($sheet, $row++, 'Decrease/(Increase) in loans from member', $bsMv('bs_interest_bearing_borrowings'));
         $ltbMovement = $bsMv('bs_longterm_borrowings');
