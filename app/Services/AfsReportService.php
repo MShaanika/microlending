@@ -86,7 +86,15 @@ class AfsReportService
     {
         return [
             ['code' => 'bs_inventory', 'label' => 'Inventory'],
-            ['code' => 'bs_loan_to_members', 'label' => 'Loan to Members'],
+            // Loan principal (bs_loan_to_members) is folded into
+            // 'Receivables and prepayments' by the callers below, at
+            // display time only -- it stays a separate code fetched
+            // directly by each exporter (needed for the Cash Flow
+            // statement's loan-movement line) and is never merged into
+            // the raw bs_receivables_prepayments balance itself, since
+            // that same code independently feeds the Tax Computation's
+            // "Less: Receivables & Prepayment" deduction and must not
+            // pick up the loan book.
             ['code' => 'bs_receivables_prepayments', 'label' => 'Receivables and prepayments'],
             // 'Cash and cash equivalents' is computed separately from all
             // is_cash_bank_account=1 accounts, not a single tagged line.

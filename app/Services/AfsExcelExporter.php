@@ -86,7 +86,11 @@ class AfsExcelExporter
         $bsCodes = array_merge(
             array_column(AfsReportService::balanceSheetCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentLiabilityLines(), 'code'),
-            ['bs_members_contributions', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
+            // bs_loan_to_members is no longer its own displayed Balance
+            // Sheet line (folded into Receivables and prepayments), but
+            // is still needed here for the Cash Flow statement's loan
+            // movement line -- fetch it explicitly.
+            ['bs_members_contributions', 'bs_loan_to_members', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
         );
         $bsCodes = array_values(array_unique($bsCodes));
         $this->bsBalance = AfsReportService::balanceByCode($bsCodes, $endDate);
@@ -204,11 +208,13 @@ class AfsExcelExporter
         $caStart = $row;
         foreach (AfsReportService::balanceSheetCurrentAssetLines() as $line) {
             $amount = $this->bsBalance[$line['code']] ?? 0;
-            if ($line['code'] === 'bs_loan_to_members') {
-                // Present net of the doubtful-debts provision -- the
-                // template has one "Loan to Members" line, not a separate
-                // provision line.
-                $amount -= $this->bsBalance['bs_provision_doubtful_debts'] ?? 0;
+            if ($line['code'] === 'bs_receivables_prepayments') {
+                // Loan principal (net of the doubtful-debts provision) is
+                // presented as part of Receivables and prepayments, not as
+                // its own "Loan to Members" line -- this is display-only,
+                // the underlying bs_receivables_prepayments balance used
+                // by the Tax Computation sheet is untouched.
+                $amount += ($this->bsBalance['bs_loan_to_members'] ?? 0) - ($this->bsBalance['bs_provision_doubtful_debts'] ?? 0);
             }
             $this->dataRow($sheet, $row++, $line['label'], $amount);
         }
@@ -300,8 +306,18 @@ class AfsExcelExporter
         $this->dataRow($sheet, $row++, 'Cash receipts from customers', $cashFromCustomers);
         $paidRow = $row;
         $this->dataRow($sheet, $row++, 'Cash paid to suppliers and employees', $cashToSuppliers);
+        // Lending to customers is this entity's main revenue-producing
+        // activity (IAS 7 para 14: loans and advances made by a financial
+        // institution belong in operating activities), not a financing
+        // transaction for the entity itself -- financing is reserved for
+        // how the entity itself is funded (member contributions, its own
+        // borrowings), below. Account Payable (e.g. NAMFISA levy / duty
+        // stamp accrued at disbursement) is a separate non-cash liability
+        // and must never be netted against it here.
+        $loansGrantedRow = $row;
+        $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', -$bsMv('bs_loan_to_members'));
         $genRow = $row;
-        $this->totalRow($sheet, $row++, 'Cash generated from operations', "C{$recRow}+C{$paidRow}");
+        $this->totalRow($sheet, $row++, 'Cash generated from operations', "SUM(C{$recRow}:C{$loansGrantedRow})");
         $intPaidRow = $row;
         $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
         $financeRow = $row;
@@ -326,12 +342,6 @@ class AfsExcelExporter
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM FINANCING ACTIVITIES');
         $membersContribRow = $row;
         $this->dataRow($sheet, $row++, 'Members contribution', $bsMv('bs_members_contributions'));
-        // This is the actual cash principal advanced/recovered -- Account
-        // Payable (e.g. NAMFISA levy / duty stamp accrued at disbursement)
-        // is a separate non-cash liability and must never be netted against
-        // it here, even though both can move on the same disbursement.
-        $loansGrantedRow = $row;
-        $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', -$bsMv('bs_loan_to_members'));
         $loansMemberRow = $row;
         $this->dataRow($sheet, $row++, 'Decrease/(Increase) in loans from member', $bsMv('bs_interest_bearing_borrowings'));
         $ltbMovement = $bsMv('bs_longterm_borrowings');
