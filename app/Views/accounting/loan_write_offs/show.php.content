@@ -15,7 +15,10 @@
           default => 'info',
         };
       ?>
-      <span class="badge fs-6 bg-<?= $statusBadge ?>"><?= e($writeOff['status']) ?></span>
+      <span class="text-end">
+        <span class="badge fs-6 bg-secondary"><?= e($writeOff['write_off_method'] ?? '-') ?></span>
+        <span class="badge fs-6 bg-<?= $statusBadge ?>"><?= e($writeOff['status']) ?></span>
+      </span>
     </div>
 
     <div class="row text-center my-3">

@@ -21,6 +21,19 @@ use App\Models\StatutoryCharge;
  * posted, and posts only the difference -- while updating the levy/stamp
  * transaction rows to the new cumulative totals so the loan's statutory
  * records always reflect the true full amount.
+ *
+ * Never applies to an Upfront-model loan (interest_recognition_method =
+ * 'Upfront'), regardless of month/payment state -- consolidation rewrites
+ * the original loan's schedule, which would destroy its already-recognized,
+ * non-refundable interest. Those top-ups always fall through to the
+ * separate child-loan tranche path instead (LoanController::store(), the
+ * loan_mode=topup branch that DOESN'T call consolidate()), whose interest is
+ * calculated there as a delta against the combined principal and recognized
+ * upfront at that child loan's own disbursement -- same mechanism as any
+ * other Upfront loan (InterestAccrualService::recognizeUpfront()), just
+ * fed a pre-computed total instead of principal x rate (see
+ * LoanScheduleService::generateForFixedInterest()). reverseChildTopup()
+ * below undoes a released tranche of that kind.
  */
 class TopUpService
 {
@@ -39,6 +52,19 @@ class TopUpService
 
     public static function shouldConsolidate(array $existingLoan, string $requestDate): bool
     {
+        // Consolidation deletes and regenerates the ENTIRE schedule for the
+        // combined principal -- a full rewrite of the original loan. Fine
+        // for a Progressive loan (nothing was earned upfront to lose), but
+        // an Upfront loan's interest is a flat, non-refundable fee already
+        // fully recognized at disbursement -- rewriting it would destroy
+        // that recognition. An Upfront loan's top-up always falls through
+        // to the separate child-loan tranche path instead (see
+        // LoanController::store()), which leaves the original loan and its
+        // already-recognized interest completely untouched.
+        if (($existingLoan['interest_recognition_method'] ?? 'Progressive') === 'Upfront') {
+            return false;
+        }
+
         return self::isSameMonth($existingLoan['start_date'], $requestDate)
             && !self::hasAnyPayment((int) $existingLoan['id']);
     }
@@ -360,6 +386,67 @@ class TopUpService
                 $previousLoan['loan_status'] ?? null,
                 $userId,
                 'Top-up of ' . format_money((float) $topup['topup_amount']) . ' reversed; loan restored to its terms from before that top-up.'
+            );
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Reverses a released top-up child loan (loans.topup_of_loan_id set --
+     * the path an Upfront-model top-up always takes, see shouldConsolidate()
+     * above). Unlike reverseConsolidation(), there is nothing to restore on
+     * the original loan -- the child-loan path never touches it in the
+     * first place, so this only needs to unwind the CHILD loan's own two
+     * journals (disbursement, and upfront interest if one was posted) and
+     * retire the child loan itself. No prior snapshot mechanism needed for
+     * the same reason.
+     */
+    public static function reverseChildTopup(int $childLoanId, int $userId): void
+    {
+        $db = Database::connection();
+        $loanModel = new Loan();
+        $journal = new AccountingJournal();
+
+        $loan = $loanModel->find($childLoanId);
+        if (!$loan || empty($loan['topup_of_loan_id'])) {
+            throw new \RuntimeException('This loan is not a top-up tranche.');
+        }
+        if (!in_array($loan['loan_status'], ['Active', 'Current'], true)) {
+            throw new \RuntimeException('Only a released, still-active top-up can be reversed.');
+        }
+        if (self::hasAnyPayment($childLoanId)) {
+            throw new \RuntimeException('This top-up has a payment recorded against it, so it can no longer be reversed.');
+        }
+
+        $db->beginTransaction();
+
+        try {
+            $journalIds = $db->prepare(
+                "SELECT id FROM accounting_journal_entries
+                 WHERE source_table = 'loans' AND source_id = ? AND status = 'Posted'
+                   AND source_module IN ('LOAN_RELEASED', 'INTEREST_ACCRUAL')"
+            );
+            $journalIds->execute([$childLoanId]);
+            $ids = $journalIds->fetchAll(\PDO::FETCH_COLUMN);
+
+            foreach ($ids as $journalId) {
+                $journal->reverse((int) $journalId, $userId);
+            }
+
+            $db->prepare("UPDATE loan_disbursements SET status = 'Cancelled' WHERE loan_id = ? AND status != 'Cancelled'")
+                ->execute([$childLoanId]);
+
+            $loanModel->updateFields($childLoanId, ['loan_status' => 'Cancelled']);
+            $loanModel->logStatus(
+                $childLoanId,
+                $loan['loan_status'],
+                'Cancelled',
+                $userId,
+                'Top-up tranche reversed -- disbursement and upfront interest journals reversed, no payment had been recorded against it.'
             );
 
             $db->commit();

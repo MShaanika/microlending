@@ -77,6 +77,18 @@
         <?php if (!empty($originalLoan)): ?>
           <p class="mb-1"><i class="mdi mdi-arrow-up-bold-circle-outline text-info"></i> Top-up of loan
             <a href="<?= url('/loans/' . $originalLoan['id']) ?>"><?= e($originalLoan['loan_no']) ?></a></p>
+          <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
+            <div class="alert alert-<?= $childTopupReversible ? 'warning' : 'secondary' ?> py-2 px-3 mb-2">
+              <?php if ($childTopupReversible): ?>
+                <form method="post" action="<?= url('/loans/' . $loan['id'] . '/reverse-topup') ?>" onsubmit="return confirmSubmit(this, 'Reverse this top-up tranche? Its disbursement and interest journals will be reversed and it will be marked Cancelled. The original loan is not affected.');">
+                  <?= csrf_field() ?>
+                  <button class="btn btn-sm btn-outline-danger"><i class="mdi mdi-undo"></i> Reverse This Top-up</button>
+                </form>
+              <?php else: ?>
+                <span class="small text-muted">Can no longer be reversed -- a payment has been recorded against this top-up.</span>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
         <?php endif; ?>
         <?php if (!empty($topups)): ?>
           <p class="mb-1"><i class="mdi mdi-arrow-down-bold-circle-outline text-info"></i> Topped up by:

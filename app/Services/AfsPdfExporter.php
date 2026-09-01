@@ -151,13 +151,11 @@ class AfsPdfExporter
         }
         $capitalAllowanceTotal = $capAllow['total'];
 
-        // Receivables/Prepayment and prior-year-assessed auto-compute from
-        // the ledger/prior fiscal year; a manual figure, when present,
-        // overrides the auto value (e.g. once the actual assessed prior-year
-        // tax position is known, which can differ from accounting profit).
-        $receivablesAuto = $bsBalance['bs_receivables_prepayments'] ?? 0.0;
-        $receivablesPrepayment = ($tax['receivables_prepayment']['value_number'] ?? null) !== null
-            ? (float) $tax['receivables_prepayment']['value_number'] : $receivablesAuto;
+        // Accounting recognition on the Balance Sheet does not by itself
+        // make a receivable/prepayment tax-deductible -- this must never
+        // auto-pull the ledger balance. Zero unless an accountant enters a
+        // specific, confirmed-deductible figure via AFS Manual Figures.
+        $receivablesPrepayment = (float) ($tax['receivables_prepayment']['value_number'] ?? 0.0);
 
         $priorYearAuto = AfsReportService::priorYearProfit($startDate);
         $priorYear = ($tax['prior_year_assessed']['value_number'] ?? null) !== null

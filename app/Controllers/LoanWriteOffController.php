@@ -15,11 +15,10 @@ use App\Models\AccountingJournal;
 use App\Models\ApprovalRequest;
 use App\Models\BadDebt;
 use App\Models\BadDebtProvision;
-use App\Models\InterestAccrual;
 use App\Models\Loan;
 use App\Models\LoanRecovery;
 use App\Models\LoanWriteOff;
-use App\Models\Penalty;
+use App\Models\SystemSetting;
 use App\Services\ApprovalService;
 use App\Services\ArrearsService;
 
@@ -32,6 +31,7 @@ class LoanWriteOffController extends Controller
     private Loan $loans;
     private AccountingAccount $accounts;
     private AccountingJournal $journal;
+    private SystemSetting $settings;
 
     public function __construct()
     {
@@ -42,6 +42,13 @@ class LoanWriteOffController extends Controller
         $this->loans = new Loan();
         $this->accounts = new AccountingAccount();
         $this->journal = new AccountingJournal();
+        $this->settings = new SystemSetting();
+    }
+
+    /** ALLOWANCE / DIRECT / SELECT_AT_WRITE_OFF -- see LOAN_WRITE_OFF_METHOD setting. */
+    private function configuredWriteOffMethod(): string
+    {
+        return $this->settings->get('LOAN_WRITE_OFF_METHOD', 'SELECT_AT_WRITE_OFF') ?: 'SELECT_AT_WRITE_OFF';
     }
 
     public function index(): void
@@ -66,15 +73,28 @@ class LoanWriteOffController extends Controller
             return;
         }
 
+        if ($this->writeOffs->hasActiveForLoan((int) $badDebt['loan_id'])) {
+            Session::flash('error', 'This loan already has a write-off in progress or posted. Reverse it first if a new one is genuinely needed.');
+            $this->redirect('/accounting/bad-debt-provisions');
+            return;
+        }
+
         $outstanding = ArrearsService::loanOutstanding((int) $badDebt['loan_id'], date('Y-m-d'));
         $provisionAmount = $this->provisions->provisionForLoan((int) $badDebt['loan_id']);
+        $configuredMethod = $this->configuredWriteOffMethod();
 
         $this->view('accounting/loan_write_offs/create', [
             'title' => 'Write Off Loan ' . $badDebt['loan_no'],
             'badDebt' => $badDebt,
             'outstandingBalance' => $outstanding['outstanding_balance'],
             'provisionAmount' => $provisionAmount,
-            'netWriteOffAmount' => round($outstanding['outstanding_balance'] - $provisionAmount, 2),
+            // Allowance requires the loan's provision to fully cover the
+            // outstanding balance -- never a partial draw-down mixed with a
+            // new expense (that would post both methods against the same
+            // balance, which the spec explicitly forbids).
+            'allowanceEligible' => $provisionAmount >= $outstanding['outstanding_balance'],
+            'configuredMethod' => $configuredMethod,
+            'requiresMethodChoice' => $configuredMethod === 'SELECT_AT_WRITE_OFF',
             'errors' => [],
         ]);
     }
@@ -99,34 +119,63 @@ class LoanWriteOffController extends Controller
             return;
         }
 
-        if ($reason === '') {
+        $outstanding = ArrearsService::loanOutstanding((int) $badDebt['loan_id'], date('Y-m-d'));
+        $provisionAmount = $this->provisions->provisionForLoan((int) $badDebt['loan_id']);
+        $allowanceEligible = $provisionAmount >= $outstanding['outstanding_balance'];
+        $configuredMethod = $this->configuredWriteOffMethod();
+
+        $method = $configuredMethod === 'SELECT_AT_WRITE_OFF'
+            ? trim((string) ($_POST['write_off_method'] ?? ''))
+            : ($configuredMethod === 'DIRECT' ? 'Direct' : 'Allowance');
+
+        $methodError = null;
+        if (!in_array($method, ['Allowance', 'Direct'], true)) {
+            $methodError = 'Select a write-off method.';
+        } elseif ($method === 'Allowance' && !$allowanceEligible) {
+            $methodError = 'The Allowance method needs the provision to fully cover the outstanding balance. Fund the provision first, or use Direct Write-Off.';
+        }
+
+        if ($reason === '' || $methodError !== null) {
             $this->view('accounting/loan_write_offs/create', [
                 'title' => 'Write Off Loan ' . $badDebt['loan_no'],
                 'badDebt' => $badDebt,
-                'outstandingBalance' => (float) $_POST['outstanding_balance'],
-                'provisionAmount' => (float) $_POST['provision_amount'],
-                'netWriteOffAmount' => (float) $_POST['net_write_off_amount'],
-                'errors' => ['reason' => 'A reason is required to request a write-off.'],
+                'outstandingBalance' => $outstanding['outstanding_balance'],
+                'provisionAmount' => $provisionAmount,
+                'allowanceEligible' => $allowanceEligible,
+                'configuredMethod' => $configuredMethod,
+                'requiresMethodChoice' => $configuredMethod === 'SELECT_AT_WRITE_OFF',
+                'errors' => array_filter([
+                    'reason' => $reason === '' ? 'A reason is required to request a write-off.' : null,
+                    'write_off_method' => $methodError,
+                ]),
             ]);
             return;
         }
 
-        $outstanding = ArrearsService::loanOutstanding((int) $badDebt['loan_id'], date('Y-m-d'));
-        $provisionAmount = $this->provisions->provisionForLoan((int) $badDebt['loan_id']);
+        if ($this->writeOffs->hasActiveForLoan((int) $badDebt['loan_id'])) {
+            Session::flash('error', 'This loan already has a write-off in progress or posted.');
+            $this->redirect('/accounting/bad-debt-provisions');
+            return;
+        }
 
         $writeOffNo = generate_reference('WO');
         $writeOffId = $this->writeOffs->create([
             'loan_id' => $badDebt['loan_id'],
             'borrower_id' => $badDebt['borrower_id'],
             'branch_id' => $badDebt['branch_id'],
+            'write_off_method' => $method,
             'bad_debt_id' => $badDebtId,
             'write_off_no' => $writeOffNo,
             'write_off_date' => date('Y-m-d'),
             'loan_amount' => $outstanding['outstanding_balance'],
             'total_paid' => 0,
             'outstanding_balance' => $outstanding['outstanding_balance'],
-            'provision_amount' => $provisionAmount,
-            'net_write_off_amount' => round($outstanding['outstanding_balance'] - $provisionAmount, 2),
+            // Reflects the chosen method, not a hybrid split: Allowance
+            // draws the full amount from the provision (no new expense);
+            // Direct recognizes the full amount as a new expense (no
+            // provision drawn down).
+            'provision_amount' => $method === 'Allowance' ? $outstanding['outstanding_balance'] : 0.0,
+            'net_write_off_amount' => $method === 'Direct' ? $outstanding['outstanding_balance'] : 0.0,
             'reason' => $reason,
             'status' => 'Pending',
             'requested_by' => Auth::user()['id'] ?? null,
@@ -142,8 +191,8 @@ class LoanWriteOffController extends Controller
         ApprovalService::request('loan_write_off_approval', [
             'resource_id' => $writeOffId,
             'maker_user_id' => Auth::user()['id'] ?? null,
-            'title' => 'Write-off ' . $writeOffNo . ' for loan ' . $badDebt['loan_no'],
-            'amount' => round($outstanding['outstanding_balance'] - $provisionAmount, 2),
+            'title' => 'Write-off ' . $writeOffNo . ' for loan ' . $badDebt['loan_no'] . ' (' . $method . ')',
+            'amount' => $outstanding['outstanding_balance'],
             'reason' => $reason,
         ]);
 
@@ -286,42 +335,23 @@ class LoanWriteOffController extends Controller
         $userId = Auth::user()['id'] ?? null;
         $key = $this->idempotencyKey();
         $loansReceivableId = $this->accounts->idByCode('1020');
-        $provisionAccountId = $this->accounts->idByCode('1050');
-        $badDebtExpenseId = $this->accounts->idByCode('5010');
-
-        $provisionPortion = round((float) $writeOff['provision_amount'], 2);
-        $expensePortion = round((float) $writeOff['net_write_off_amount'], 2);
         $outstanding = round((float) $writeOff['outstanding_balance'], 2);
 
-        $lines = [];
-        if ($provisionPortion > 0) {
-            $lines[] = ['account_id' => $provisionAccountId, 'debit' => $provisionPortion, 'credit' => 0];
-        }
-        if ($expensePortion > 0) {
-            $lines[] = ['account_id' => $badDebtExpenseId, 'debit' => $expensePortion, 'credit' => 0];
-        }
-        $lines[] = ['account_id' => $loansReceivableId, 'debit' => 0, 'credit' => $outstanding];
+        // Pure branch on the method selected at request time -- never both.
+        // Allowance: the expense was already recognized when the provision
+        // was raised, so only the provision moves now, for the full amount.
+        // Direct: no provision exists for this write-off, so the full
+        // amount is a new expense right now. Original Interest Income is
+        // never reversed by a write-off, under either method -- it was
+        // genuinely earned and stays on the books regardless of collection.
+        $debitAccountId = $writeOff['write_off_method'] === 'Allowance'
+            ? $this->accounts->idByCode('1050')
+            : $this->accounts->idByCode('5010');
 
-        // Any penalty charged via the accrual run but never collected was
-        // already recognized as Penalty Income the moment it was charged --
-        // writing it off reverses that income (it will now never be
-        // collected) and clears the receivable.
-        $penaltyOutstanding = round((new Penalty())->outstandingForLoan((int) $writeOff['loan_id']), 2);
-        if ($penaltyOutstanding > 0) {
-            $lines[] = ['account_id' => $this->accounts->idByCode('4020'), 'debit' => $penaltyOutstanding, 'credit' => 0];
-            $lines[] = ['account_id' => $this->accounts->idByCode('1040'), 'debit' => 0, 'credit' => $penaltyOutstanding];
-        }
-
-        // Same idea for interest already recognized via the accrual run
-        // (InterestAccrualService) but never collected -- not-yet-due,
-        // not-yet-accrued interest was never booked to 1030 in the first
-        // place, so only the actually-accrued outstanding amount needs
-        // reversing here.
-        $interestOutstanding = round((new InterestAccrual())->outstandingForLoan((int) $writeOff['loan_id']), 2);
-        if ($interestOutstanding > 0) {
-            $lines[] = ['account_id' => $this->accounts->idByCode('4010'), 'debit' => $interestOutstanding, 'credit' => 0];
-            $lines[] = ['account_id' => $this->accounts->idByCode('1030'), 'debit' => 0, 'credit' => $interestOutstanding];
-        }
+        $lines = [
+            ['account_id' => $debitAccountId, 'debit' => $outstanding, 'credit' => 0],
+            ['account_id' => $loansReceivableId, 'debit' => 0, 'credit' => $outstanding],
+        ];
 
         $successMessage = 'Write-off posted and loan marked as written off.';
 

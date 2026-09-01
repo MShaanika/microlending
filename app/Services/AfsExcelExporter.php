@@ -453,12 +453,13 @@ class AfsExcelExporter
         }
         $row++;
 
-        // Receivables/Prepayment and prior-year-assessed auto-compute from
-        // the ledger/prior fiscal year; a manual figure, when present,
-        // overrides the auto value.
-        $receivablesAuto = $this->bsBalance['bs_receivables_prepayments'] ?? 0.0;
-        $receivablesPrepayment = ($this->taxFigures['receivables_prepayment']['value_number'] ?? null) !== null
-            ? (float) $this->taxFigures['receivables_prepayment']['value_number'] : $receivablesAuto;
+        // Accounting recognition on the Balance Sheet does not by itself
+        // make a receivable/prepayment tax-deductible -- this must never
+        // auto-pull the ledger balance (it isn't a real tax adjustment
+        // just because it's sitting on the books). Zero unless an
+        // accountant enters a specific, confirmed-deductible figure via
+        // AFS Manual Figures.
+        $receivablesPrepayment = (float) ($this->taxFigures['receivables_prepayment']['value_number'] ?? 0.0);
 
         $recvRow = $row;
         $this->dataRow($sheet, $row++, 'Less: Receivables & Prepayment', -$receivablesPrepayment);

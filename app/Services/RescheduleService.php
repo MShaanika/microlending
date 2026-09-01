@@ -152,6 +152,9 @@ class RescheduleService
         $db->beginTransaction();
 
         try {
+            $loan = $loanModel->find($loanId);
+            $isUpfront = ($loan['interest_recognition_method'] ?? 'Progressive') === 'Upfront';
+
             $existing = $db->prepare("SELECT * FROM loan_schedules WHERE loan_id = ? AND status IN ('Pending','Partial')");
             $existing->execute([$loanId]);
             $rows = $existing->fetchAll();
@@ -160,9 +163,25 @@ class RescheduleService
             $forgivenAccruedInterest = 0.0;
 
             foreach ($rows as $row) {
-                if ($row['status'] === 'Pending') {
+                // An Upfront loan has already recognized every row's
+                // interest in full, non-refundably, at disbursement -- per
+                // the client's explicit rule, a reschedule changes only the
+                // amortization schedule display, never the accounting. So a
+                // Pending row here is closed out exactly like a Partial row
+                // below (zeroed out, marked Paid, removed from outstanding
+                // queries) instead of deleted -- deleting it would violate
+                // interest_accruals' FK to this row, since every row already
+                // has one from disbursement, and no interest reversal runs.
+                if ($row['status'] === 'Pending' && !$isUpfront) {
                     $del = $db->prepare("DELETE FROM loan_schedules WHERE id = ?");
                     $del->execute([$row['id']]);
+                } elseif ($row['status'] === 'Pending' && $isUpfront) {
+                    $upd = $db->prepare(
+                        "UPDATE loan_schedules SET principal_due = principal_paid, interest_due = interest_paid,
+                         fees_due = fees_paid, namfisa_levy_due = namfisa_levy_paid, duty_stamp_due = duty_stamp_paid,
+                         total_due = total_paid, status = 'Paid', paid_at = ? WHERE id = ?"
+                    );
+                    $upd->execute([date('Y-m-d H:i:s'), $row['id']]);
                 } else {
                     // Partial: payment_allocations reference this row, so it
                     // is closed out in place rather than deleted -- setting
@@ -176,8 +195,12 @@ class RescheduleService
                     // as one combined journal for the whole reschedule once
                     // the loop finishes. A never-accrued row needs no entry;
                     // nothing was recognized for it in the first place.
+                    // Skipped entirely for an Upfront loan: its interest was
+                    // a flat, non-refundable fee earned in full at
+                    // disbursement, never conditional on the row's due date
+                    // being reached -- there is nothing to forgive.
                     $forgiven = round((float) $row['interest_due'] - (float) $row['interest_paid'], 2);
-                    if ($forgiven > 0 && $interestAccruals->findByScheduleId((int) $row['id'])) {
+                    if (!$isUpfront && $forgiven > 0 && $interestAccruals->findByScheduleId((int) $row['id'])) {
                         $forgivenAccruedInterest += $forgiven;
                     }
 

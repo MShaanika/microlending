@@ -1,0 +1,36 @@
+<?= flash_messages() ?>
+
+<div class="row">
+  <div class="col-lg-6 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h4 class="card-title mb-2">Write-Off Accounting Method</h4>
+        <p class="text-muted small">Controls how a loan write-off is posted -- see the "Write Off Loan" screen for the two supported treatments. Only Finance/Admin can change this.</p>
+
+        <form method="post" action="<?= url('/settings/loan-write-off') ?>">
+          <?= csrf_field() ?>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="method" id="wo_allowance" value="ALLOWANCE" <?= $method === 'ALLOWANCE' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="wo_allowance">
+              <strong>Allowance</strong> -- always draw the write-off from the Provision for Doubtful Debts. Requires the loan's provision to fully cover the outstanding balance.
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="method" id="wo_direct" value="DIRECT" <?= $method === 'DIRECT' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="wo_direct">
+              <strong>Direct Write-Off</strong> -- always recognize Bad Debt Expense at the moment of write-off, regardless of any existing provision.
+            </label>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="radio" name="method" id="wo_select" value="SELECT_AT_WRITE_OFF" <?= $method === 'SELECT_AT_WRITE_OFF' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="wo_select">
+              <strong>Select at write-off</strong> -- staff choose Allowance or Direct each time they request a write-off.
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

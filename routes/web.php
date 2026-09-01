@@ -37,6 +37,7 @@ use App\Controllers\AfsReportController;
 use App\Controllers\AfsManualFigureController;
 use App\Controllers\BadDebtProvisionController;
 use App\Controllers\LoanWriteOffController;
+use App\Controllers\LoanWriteOffSettingController;
 use App\Controllers\LoanRecoveryController;
 use App\Controllers\InterestAccrualController;
 use App\Controllers\InterestAccrualRestatementController;
@@ -196,6 +197,7 @@ $router->post('/loans/{id}/approve', [LoanController::class, 'approve']);
 $router->post('/loans/{id}/release', [LoanController::class, 'release']);
 $router->get('/loans/{id}/topup-created', [LoanController::class, 'topupCreated']);
 $router->post('/loan-topups/{topupId}/reverse', [LoanController::class, 'reverseTopup']);
+$router->post('/loans/{id}/reverse-topup', [LoanController::class, 'reverseChildTopup']);
 
 // Loan Reschedules
 $router->get('/reschedules', [RescheduleController::class, 'index']);
@@ -466,6 +468,9 @@ $router->post('/accounting/bad-debt-provisions', [BadDebtProvisionController::cl
 $router->get('/accounting/bad-debt-provisions/runs/{date}', [BadDebtProvisionController::class, 'show']);
 $router->get('/accounting/bad-debts', [BadDebtProvisionController::class, 'badDebts']);
 $router->get('/accounting/bad-debts/{id}/write-off/create', [LoanWriteOffController::class, 'create']);
+
+$router->get('/settings/loan-write-off', [LoanWriteOffSettingController::class, 'index']);
+$router->post('/settings/loan-write-off', [LoanWriteOffSettingController::class, 'store']);
 
 $router->get('/accounting/loan-write-offs', [LoanWriteOffController::class, 'index']);
 $router->post('/accounting/loan-write-offs', [LoanWriteOffController::class, 'store']);

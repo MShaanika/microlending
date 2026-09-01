@@ -298,17 +298,69 @@ class LoanController extends Controller
         $dutyStampAmount = $this->statutoryCharges->currentDutyStampAmount();
         $paymentDay = $_POST['payment_day'] !== '' ? (int) $_POST['payment_day'] : null;
 
-        $schedule = LoanScheduleService::generate(
-            $principal,
-            (int) $plan['months'],
-            (float) $plan['interest_rate'],
-            (float) $plan['admin_fee'],
-            $product['interest_method'],
-            $startDate,
-            $namfisaRate,
-            $dutyStampAmount,
-            $paymentDay
-        );
+        // A Fixed Fee product's interest is a flat, non-refundable fee fully
+        // earned at disbursement (see InterestAccrualService::recognizeUpfront()),
+        // never earned progressively -- snapshotted onto the loan once here,
+        // same convention as interest_rate/term_months/etc. below.
+        $interestRecognitionMethod = $product['interest_method'] === 'Fixed Fee' ? 'Upfront' : 'Progressive';
+
+        // Top-up child loan, same plan as the original, both upfront-model:
+        // the original loan's interest must never be recalculated -- only
+        // the INCREMENTAL interest attributable to the new money (the delta
+        // between what the combined principal would earn under the
+        // original's own rate/term, and what the original loan already
+        // earned) belongs to this tranche. A different plan/rate chosen for
+        // the top-up has no shared rate to delta against, so it keeps the
+        // normal independent calculation below (this tranche's own interest
+        // on just the top-up amount, at its own plan's rate) -- exactly
+        // what already happens for every top-up today.
+        if ($existingLoan && $interestRecognitionMethod === 'Upfront' && (int) $plan['id'] === (int) $existingLoan['plan_id']) {
+            $combinedPrincipal = round((float) $existingLoan['principal_amount'] + $principal, 2);
+            $recalculated = LoanScheduleService::generate(
+                $combinedPrincipal,
+                (int) $existingLoan['term_months'],
+                (float) $existingLoan['interest_rate'],
+                (float) $plan['admin_fee'],
+                $product['interest_method'],
+                $existingLoan['start_date'],
+                $namfisaRate,
+                $dutyStampAmount,
+                $paymentDay
+            );
+            $topupInterest = round($recalculated['interest_amount'] - (float) $existingLoan['interest_amount'], 2);
+            if ($topupInterest < 0) {
+                Session::flash('error', 'Could not calculate top-up interest: the recalculated combined interest is lower than the original loan\'s already-earned interest. Check the original loan\'s rate/term before retrying.');
+                $this->redirect('/loans/create');
+                return;
+            }
+
+            $schedule = LoanScheduleService::generateForFixedInterest(
+                $principal,
+                (int) $existingLoan['term_months'],
+                $topupInterest,
+                (float) $plan['admin_fee'],
+                $startDate,
+                $paymentDay
+            );
+            // Levy/duty stamp are calculated on just the new money, same as
+            // the independent (different-plan) branch below and the
+            // existing separate-child-loan path already do -- the client's
+            // spec only discusses interest, not statutory charges.
+            $schedule['namfisa_levy'] = round($principal * ($namfisaRate / 100), 2);
+            $schedule['duty_stamp'] = round($dutyStampAmount, 2);
+        } else {
+            $schedule = LoanScheduleService::generate(
+                $principal,
+                (int) $plan['months'],
+                (float) $plan['interest_rate'],
+                (float) $plan['admin_fee'],
+                $product['interest_method'],
+                $startDate,
+                $namfisaRate,
+                $dutyStampAmount,
+                $paymentDay
+            );
+        }
 
         $applicationId = (int) ($_POST['application_id'] ?? 0);
         // Only the loan tied to the introducing application auto-carries
@@ -337,6 +389,7 @@ class LoanController extends Controller
             'installment_amount' => $schedule['installment_amount'],
             'term_months' => (int) $plan['months'],
             'interest_rate' => (float) $plan['interest_rate'],
+            'interest_recognition_method' => $interestRecognitionMethod,
             'penalty_rate' => (float) $plan['penalty_rate'],
             'purpose' => trim($_POST['purpose'] ?? '') ?: null,
             'payment_day' => $paymentDay,
@@ -453,6 +506,9 @@ class LoanController extends Controller
             'topups' => $this->loans->topupsOf((int) $id),
             'latestTopup' => $latestTopup,
             'latestTopupReversible' => $latestTopup ? !TopUpService::hasAnyPayment((int) $id) : false,
+            'childTopupReversible' => !empty($loan['topup_of_loan_id'])
+                && in_array($loan['loan_status'], ['Active', 'Current'], true)
+                && !TopUpService::hasAnyPayment((int) $id),
             'hasReschedule' => (new \App\Models\LoanReschedule())->hasImplementedReschedule((int) $id),
             'namfisaLevy' => $levyTxn ? (float) $levyTxn['levy_amount'] : 0.0,
             'dutyStamp' => $stampTxn ? (float) $stampTxn['stamp_amount'] : 0.0,
@@ -492,6 +548,48 @@ class LoanController extends Controller
         Audit::log('Reverse', 'Loans', 'Reversed top-up #' . $topupId . ' on loan #' . $loanId . '.');
         Session::flash('success', 'Top-up reversed. The loan has been restored to its terms from before that top-up.');
         $this->redirect('/loans/' . $loanId);
+    }
+
+    /**
+     * Reverses a released top-up TRANCHE (a separate loan record with
+     * topup_of_loan_id set -- see TopUpService::shouldConsolidate()), as
+     * opposed to reverseTopup() above, which undoes a same-month
+     * consolidation. The original loan was never touched by this loan's
+     * existence, so there's nothing to restore on it -- only this loan's
+     * own journals are unwound and it's marked Cancelled.
+     */
+    public function reverseChildTopup(string $id): void
+    {
+        Auth::authorize('loans.edit');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/loans/' . $id);
+            return;
+        }
+
+        $loan = $this->loans->find($id);
+        $this->assertBranchAccess($loan);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return;
+        }
+
+        $originalLoanId = (int) ($loan['topup_of_loan_id'] ?? 0);
+
+        try {
+            TopUpService::reverseChildTopup($id, Auth::user()['id'] ?? null);
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/loans/' . $id);
+            return;
+        }
+
+        Audit::log('Reverse', 'Loans', 'Reversed top-up tranche loan #' . $id . '.');
+        Session::flash('success', 'Top-up reversed. Its disbursement and interest journals have been reversed and the loan marked Cancelled.');
+        $this->redirect('/loans/' . ($originalLoanId ?: $id));
     }
 
     /**
@@ -723,6 +821,15 @@ class LoanController extends Controller
                 // journal behind it, or vice versa.
                 $this->postDisbursementAccounting($id, $loan, $userId, $bankAccount);
 
+                // A flat, non-refundable fee loan earns its interest in full
+                // the moment it's disbursed -- recognize all of it right
+                // now, same transaction, same idempotency/lock coverage as
+                // everything else here. Progressive loans are unaffected --
+                // see InterestAccrualService::recognizeUpfront().
+                if ($loan['interest_recognition_method'] === 'Upfront') {
+                    \App\Services\InterestAccrualService::recognizeUpfront($id, date('Y-m-d'), $userId);
+                }
+
                 $this->loans->updateFields($id, [
                     'loan_status' => 'Active',
                     'released_by' => $userId,
@@ -789,11 +896,13 @@ class LoanController extends Controller
      *       fully booked here, both as what's owed FROM the borrower and
      *       what's owed TO the authority)
      *
-     * Interest is NOT booked here -- unlike principal/levy/stamp, interest
-     * is only earned period by period over the loan's term, so it's
-     * recognized separately, installment by installment, as each one's due
-     * date arrives (or immediately, for an early payment) -- see
-     * InterestAccrualService.
+     * Interest is NOT booked here -- for a Progressive loan it's only
+     * earned period by period over the loan's term, recognized separately
+     * installment by installment as each one's due date arrives (or
+     * immediately, for an early payment). An Upfront loan's full interest
+     * IS recognized at disbursement, but by a separate call right after
+     * this method returns (see release()) -- kept out of this method since
+     * it isn't part of the principal/levy/stamp entry itself.
      */
     private function postDisbursementAccounting(int $loanId, array $loan, ?int $userId, ?array $bankAccount = null): void
     {

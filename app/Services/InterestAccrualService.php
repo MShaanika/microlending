@@ -34,6 +34,14 @@ use App\Models\InterestAccrual;
  * regardless of how much of it this particular payment actually collects,
  * so a later partial payment or the row's real due date arriving can never
  * re-trigger or double-book it.
+ *
+ * recognizeUpfront() is the disbursement-time path for a loan whose
+ * interest_recognition_method is 'Upfront' -- a flat, non-refundable fee
+ * fully earned the moment the loan is disbursed, not progressively. It
+ * recognizes the loan's ENTIRE interest in one journal, dated the
+ * disbursement date, and pre-fills interest_accruals for every schedule row
+ * so accrue()'s daily cron and the manual screen never touch that loan
+ * again. See LoanController's disbursement flow for where it's called.
  */
 class InterestAccrualService
 {
@@ -139,6 +147,89 @@ class InterestAccrualService
         }
 
         return $installments;
+    }
+
+    /**
+     * Recognizes a loan's ENTIRE remaining interest in one shot, dated
+     * $asOfDate (the disbursement date) -- for a loan whose interest is a
+     * flat, non-refundable fee fully earned the moment it's disbursed
+     * (loans.interest_recognition_method = 'Upfront'), rather than earned
+     * progressively as each installment's due date arrives. Called once,
+     * from LoanController's disbursement flow.
+     *
+     * Unlike accrue(), this is NOT gated on due_date <= $asOfDate -- it
+     * takes every one of the loan's schedule rows regardless of how far in
+     * the future their due dates are. Posts ONE journal (Dr 1030 / Cr 4010)
+     * for the loan's full interest total, then inserts one interest_accruals
+     * row per schedule row (each dated $asOfDate, not its own due date) --
+     * this is what makes accruableInstallments()'s NOT EXISTS filter skip
+     * every row of this loan permanently, in both the daily cron and the
+     * manual accrual screen, with no further change needed anywhere else.
+     * No-ops (returns []) if the loan has no schedule rows, no interest, or
+     * has already been recognized (idempotent, same as accrue()).
+     */
+    public static function recognizeUpfront(int $loanId, string $asOfDate, ?int $userId): array
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT ls.id AS schedule_id, ls.loan_id, ls.interest_due, l.borrower_id, l.loan_no
+             FROM loan_schedules ls
+             JOIN loans l ON l.id = ls.loan_id
+             WHERE ls.loan_id = ?
+               AND NOT EXISTS (SELECT 1 FROM interest_accruals ia WHERE ia.schedule_id = ls.id)
+             ORDER BY ls.installment_no"
+        );
+        $stmt->execute([$loanId]);
+        $rows = $stmt->fetchAll();
+
+        foreach ($rows as &$row) {
+            $row['interest_amount'] = round((float) $row['interest_due'], 2);
+        }
+        unset($row);
+        $rows = array_values(array_filter($rows, fn ($r) => $r['interest_amount'] > 0));
+
+        if (empty($rows)) {
+            return [];
+        }
+
+        $total = round(array_sum(array_column($rows, 'interest_amount')), 2);
+        if ($total <= 0) {
+            return [];
+        }
+
+        $accounts = new AccountingAccount();
+        $journal = new AccountingJournal();
+        $accruals = new InterestAccrual();
+
+        $journal->post(
+            'INTEREST_ACCRUAL',
+            'loans',
+            $loanId,
+            generate_reference('IAJ'),
+            'Full interest recognized upfront at disbursement for ' . $rows[0]['loan_no'],
+            [
+                ['account_id' => $accounts->idByCode('1030'), 'debit' => $total, 'credit' => 0],
+                ['account_id' => $accounts->idByCode('4010'), 'debit' => 0, 'credit' => $total],
+            ],
+            $userId,
+            $asOfDate,
+            'Automatic'
+        );
+
+        foreach ($rows as $row) {
+            $accruals->create([
+                'loan_id' => $row['loan_id'],
+                'borrower_id' => $row['borrower_id'],
+                'schedule_id' => $row['schedule_id'],
+                'accrual_no' => generate_reference('IAC'),
+                'accrual_date' => $asOfDate,
+                'amount' => $row['interest_amount'],
+                'status' => 'Accrued',
+                'accrued_by' => $userId,
+            ]);
+        }
+
+        return $rows;
     }
 
     /**

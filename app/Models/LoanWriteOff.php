@@ -54,6 +54,15 @@ class LoanWriteOff extends Model
         return $this->update('loan_write_offs', $data, 'id', $id);
     }
 
+    /** True if this loan already has a write-off that hasn't been reversed -- blocks a second one. */
+    public function hasActiveForLoan(int $loanId): bool
+    {
+        return (bool) $this->scalar(
+            "SELECT 1 FROM loan_write_offs WHERE loan_id = ? AND status != 'Reversed' LIMIT 1",
+            [$loanId]
+        );
+    }
+
     public function totalRecoveredFor(int $writeOffId): float
     {
         return (float) ($this->scalar(

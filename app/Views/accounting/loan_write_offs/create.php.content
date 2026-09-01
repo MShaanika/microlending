@@ -6,33 +6,44 @@
     <p class="text-muted small">Borrower: <?= e($badDebt['borrower_name']) ?> &bull; Bad Debt No. <?= e($badDebt['bad_debt_no']) ?></p>
 
     <div class="row text-center my-3">
-      <div class="col-md-4">
-        <div class="p-3 border rounded">
-          <div class="text-muted small">Outstanding Balance</div>
+      <div class="col-md-6">
+        <div class="p-3 border rounded border-danger">
+          <div class="text-muted small">Outstanding Balance (to be written off)</div>
           <div class="fs-5 fw-bold"><?= e(format_money($outstandingBalance)) ?></div>
         </div>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
         <div class="p-3 border rounded">
-          <div class="text-muted small">Already Provisioned</div>
+          <div class="text-muted small">Available Provision (Allowance)</div>
           <div class="fs-5 fw-bold"><?= e(format_money($provisionAmount)) ?></div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="p-3 border rounded border-danger">
-          <div class="text-muted small">Net Write-Off (hits P&amp;L)</div>
-          <div class="fs-5 fw-bold"><?= e(format_money($netWriteOffAmount)) ?></div>
+          <?php if (!$allowanceEligible): ?>
+            <div class="text-danger small mt-1">Insufficient to cover the outstanding balance -- Allowance is not available for this write-off.</div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
-    <p class="text-muted small">The provisioned portion is drawn down from the existing provision. Only the unprovisioned shortfall above hits Bad Debt Expense directly.</p>
 
     <form method="post" action="<?= url('/accounting/loan-write-offs') ?>">
       <?= csrf_field() ?>
       <input type="hidden" name="bad_debt_id" value="<?= (int) $badDebt['id'] ?>">
-      <input type="hidden" name="outstanding_balance" value="<?= e((string) $outstandingBalance) ?>">
-      <input type="hidden" name="provision_amount" value="<?= e((string) $provisionAmount) ?>">
-      <input type="hidden" name="net_write_off_amount" value="<?= e((string) $netWriteOffAmount) ?>">
+
+      <?php if ($requiresMethodChoice): ?>
+        <div class="mb-3">
+          <label class="form-label">Write-Off Method <span class="text-danger">*</span></label>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="write_off_method" id="wo_method_allowance" value="Allowance" <?= !$allowanceEligible ? 'disabled' : '' ?> <?= ($_POST['write_off_method'] ?? '') === 'Allowance' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="wo_method_allowance">Allowance -- draw the full amount from the existing provision. No new expense today.</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="write_off_method" id="wo_method_direct" value="Direct" <?= ($_POST['write_off_method'] ?? '') === 'Direct' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="wo_method_direct">Direct Write-Off -- recognize the full amount as Bad Debt Expense today.</label>
+          </div>
+          <?php if (isset($errors['write_off_method'])): ?><div class="text-danger small mt-1"><?= e($errors['write_off_method']) ?></div><?php endif; ?>
+        </div>
+      <?php else: ?>
+        <input type="hidden" name="write_off_method" value="<?= $configuredMethod === 'DIRECT' ? 'Direct' : 'Allowance' ?>">
+        <p class="text-muted small">Method: <strong><?= $configuredMethod === 'DIRECT' ? 'Direct Write-Off' : 'Allowance' ?></strong> (set by the Write-Off Accounting Method setting).</p>
+      <?php endif; ?>
 
       <div class="mb-3">
         <label class="form-label">Reason <span class="text-danger">*</span></label>

@@ -140,6 +140,78 @@ class LoanScheduleService
         ];
     }
 
+    /**
+     * Same period-distribution shape as flat(), but for a case where the
+     * total interest is already known (e.g. a top-up tranche's interest is
+     * computed elsewhere as a delta against the original loan's already-
+     * recognized interest) rather than derived here from principal x rate.
+     * Used only for building a top-up child loan's own schedule under the
+     * upfront-recognition model -- see TopUpService.
+     *
+     * @return array{
+     *     rows: array<int, array<string, mixed>>,
+     *     interest_amount: float,
+     *     admin_fee: float,
+     *     total_payable: float,
+     *     installment_amount: float
+     * }
+     */
+    public static function generateForFixedInterest(
+        float $principal,
+        int $termMonths,
+        float $totalInterest,
+        float $adminFee,
+        string $startDate,
+        ?int $paymentDay = null
+    ): array {
+        $termMonths = max(1, $termMonths);
+        $totalInterest = round($totalInterest, 2);
+        $totalPayable = round($principal + $totalInterest + $adminFee, 2);
+
+        $principalPerPeriod = round($principal / $termMonths, 2);
+        $interestPerPeriod = round($totalInterest / $termMonths, 2);
+        $feePerPeriod = round($adminFee / $termMonths, 2);
+
+        $rows = [];
+        $balance = $principal;
+        $date = new \DateTimeImmutable($startDate);
+        $anchorDay = $paymentDay ?? (int) $date->format('j');
+
+        for ($period = 1; $period <= $termMonths; $period++) {
+            $isLast = $period === $termMonths;
+            $due = self::nextDueDate($date, $period, $anchorDay);
+
+            $principalDue = $isLast ? round($balance, 2) : $principalPerPeriod;
+            $interestDue = $isLast ? round($totalInterest - ($interestPerPeriod * ($termMonths - 1)), 2) : $interestPerPeriod;
+            $feeDue = $isLast ? round($adminFee - ($feePerPeriod * ($termMonths - 1)), 2) : $feePerPeriod;
+
+            $opening = round($balance, 2);
+            $balance = round($balance - $principalDue, 2);
+
+            $rows[] = [
+                'installment_no' => $period,
+                'due_date' => $due->format('Y-m-d'),
+                'opening_balance' => $opening,
+                'principal_due' => $principalDue,
+                'interest_due' => $interestDue,
+                'fees_due' => $feeDue,
+                'namfisa_levy_due' => 0,
+                'duty_stamp_due' => 0,
+                'penalty_due' => 0,
+                'total_due' => round($principalDue + $interestDue + $feeDue, 2),
+                'closing_balance' => max($balance, 0),
+            ];
+        }
+
+        return [
+            'rows' => $rows,
+            'interest_amount' => $totalInterest,
+            'admin_fee' => $adminFee,
+            'total_payable' => $totalPayable,
+            'installment_amount' => round($totalPayable / $termMonths, 2),
+        ];
+    }
+
     private static function reducingBalance(
         float $principal,
         int $termMonths,
