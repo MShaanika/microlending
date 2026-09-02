@@ -341,6 +341,18 @@ class AfsExcelExporter
         $cashFromCustomers += $principalCollected;
         $cashToSuppliers = -($cosTotal + $opexTotal) - $principalDisbursed + $provisionMovement;
 
+        // Movable Assets cash movement, from the Fixed Asset Register --
+        // same source as the Balance Sheet's own "Movable Assets" line (see
+        // AfsReportService::nonCurrentAssetsFromRegister()) and the Notes'
+        // PPE table, not the bs_movable_assets GL tag: nothing in the
+        // fixed-asset purchase/disposal workflow posts to that account, so
+        // it always showed zero movement regardless of real purchases.
+        // Purchases (additions, at cost) are a cash outflow; disposals
+        // contribute actual cash proceeds received, not the cost/NBV
+        // removed from the books.
+        $fixedAssetNote = AfsReportService::fixedAssetNote($this->startDate, $this->endDate);
+        $movableAssetsFlow = -$fixedAssetNote['totals']['additions'] + $fixedAssetNote['totals']['disposals_proceeds'];
+
         $row = 5;
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM OPERATING ACTIVITIES');
         $recRow = $row;
@@ -363,7 +375,7 @@ class AfsExcelExporter
 
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM INVESTING ACTIVITIES');
         $movableRow = $row;
-        $this->dataRow($sheet, $row++, 'Sale/(Purchase) of Movable Assets', -$bsMv('bs_movable_assets'));
+        $this->dataRow($sheet, $row++, 'Sale/(Purchase) of Movable Assets', $movableAssetsFlow);
         $investRow = $row;
         $this->dataRow($sheet, $row++, 'Investments made', -$bsMv('cf_investments_made'));
         $netInvestingRow = $row;

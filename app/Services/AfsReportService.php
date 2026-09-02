@@ -377,7 +377,7 @@ class AfsReportService
         $categories = $db->query("SELECT id, category_name FROM asset_categories ORDER BY category_name")->fetchAll();
 
         $rows = [];
-        $totals = ['cost_opening' => 0.0, 'accum_opening' => 0.0, 'additions' => 0.0, 'disposals_cost' => 0.0, 'depreciation' => 0.0, 'cost_closing' => 0.0, 'accum_closing' => 0.0, 'nbv_opening' => 0.0, 'nbv_closing' => 0.0];
+        $totals = ['cost_opening' => 0.0, 'accum_opening' => 0.0, 'additions' => 0.0, 'disposals_cost' => 0.0, 'disposals_proceeds' => 0.0, 'depreciation' => 0.0, 'cost_closing' => 0.0, 'accum_closing' => 0.0, 'nbv_opening' => 0.0, 'nbv_closing' => 0.0];
 
         foreach ($categories as $cat) {
             $assetsStmt = $db->prepare(
@@ -443,6 +443,17 @@ class AfsReportService
             $disposalsAccumStmt->execute([$cat['id'], $startDate, $endDate]);
             $disposalsAccum = (float) $disposalsAccumStmt->fetchColumn();
 
+            // Actual cash received for what was disposed this period -- not
+            // the same as disposals_cost (the cost removed from the books);
+            // used by the Cash Flow Statement, not this note's own table.
+            $disposalsProceedsStmt = $db->prepare(
+                "SELECT COALESCE(SUM(ad.disposal_proceeds),0)
+                 FROM asset_disposals ad JOIN fixed_assets fa ON fa.id = ad.asset_id
+                 WHERE fa.category_id = ? AND ad.disposal_date BETWEEN ? AND ?"
+            );
+            $disposalsProceedsStmt->execute([$cat['id'], $startDate, $endDate]);
+            $disposalsProceeds = (float) $disposalsProceedsStmt->fetchColumn();
+
             $costClosing = $costOpening + $additions - $disposalsCost;
             $accumClosing = $accumOpening + $depreciation - $disposalsAccum;
 
@@ -453,6 +464,7 @@ class AfsReportService
                 'nbv_opening' => round($costOpening - $accumOpening, 2),
                 'additions' => round($additions, 2),
                 'disposals_cost' => round($disposalsCost, 2),
+                'disposals_proceeds' => round($disposalsProceeds, 2),
                 'depreciation' => round($depreciation, 2),
                 'cost_closing' => round($costClosing, 2),
                 'accum_closing' => round($accumClosing, 2),
@@ -464,6 +476,7 @@ class AfsReportService
             $totals['nbv_opening'] += $costOpening - $accumOpening;
             $totals['additions'] += $additions;
             $totals['disposals_cost'] += $disposalsCost;
+            $totals['disposals_proceeds'] += $disposalsProceeds;
             $totals['depreciation'] += $depreciation;
             $totals['cost_closing'] += $costClosing;
             $totals['accum_closing'] += $accumClosing;
