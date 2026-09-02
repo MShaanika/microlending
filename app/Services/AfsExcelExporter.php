@@ -319,14 +319,27 @@ class AfsExcelExporter
         // activity (IAS 7 para 14), so its cash effect belongs in Operating,
         // not Financing -- matches the Balance Sheet folding this same
         // balance (bs_loan_to_members) into "Receivables and prepayments".
-        // Folded into this line (not a separate one) per the client's own
-        // corrected reference. Net of the doubtful-debts provision
-        // movement (a non-cash expense, added back same as depreciation).
-        // Distinct from the rare, manually-tracked actual member loan on
-        // "Loans (granted)/repaid" under Financing below -- see that
-        // line's comment.
-        $loanMovement = -$bsMv('bs_loan_to_members') + $bsMv('bs_provision_doubtful_debts');
-        $cashToSuppliers = -($cosTotal + $opexTotal) + $loanMovement;
+        // Folded into these two lines (not a separate one) per the client's
+        // own corrected reference. Principal disbursed and principal
+        // collected both post to the same Loans Receivable account but are
+        // opposite cash flows, so they're kept apart (debitCreditByCode(),
+        // not the netted bsMv()) rather than shown as one net "loan
+        // movement": disbursed cash is paid OUT to customers (an expense-
+        // like outflow), collected principal is cash received FROM
+        // customers -- netting them previously understated both lines by
+        // whichever side was smaller. Distinct from the rare,
+        // manually-tracked actual member loan on "Loans (granted)/repaid"
+        // under Financing below -- see that line's comment.
+        $loanReceivableFlow = AfsReportService::debitCreditByCode('bs_loan_to_members', $this->startDate, $this->endDate);
+        $principalDisbursed = $loanReceivableFlow['debit'];
+        $principalCollected = $loanReceivableFlow['credit'];
+        // The doubtful-debts provision movement is a non-cash adjustment
+        // (same treatment as depreciation), not part of either principal
+        // side above.
+        $provisionMovement = $bsMv('bs_provision_doubtful_debts');
+
+        $cashFromCustomers += $principalCollected;
+        $cashToSuppliers = -($cosTotal + $opexTotal) - $principalDisbursed + $provisionMovement;
 
         $row = 5;
         $row = $this->sectionHeader($sheet, $row, 'CASH FLOWS FROM OPERATING ACTIVITIES');

@@ -149,6 +149,37 @@ class AfsReportService
     }
 
     /**
+     * Raw (not normal-balance-signed, not netted) debit and credit totals
+     * for a single afs_line_code within [startDate, endDate]. Needed where
+     * the Cash Flow Statement must keep the two sides of one balance sheet
+     * account's movement apart rather than netting them -- loan principal
+     * disbursed and principal collected both post to the same Loans
+     * Receivable account, but are opposite cash flows that belong on
+     * different Cash Flow Statement lines (disbursed is cash paid out,
+     * collected is cash received) -- see AfsExcelExporter::buildCashFlow().
+     */
+    public static function debitCreditByCode(string $code, string $startDate, string $endDate): array
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT
+                COALESCE(SUM(CASE WHEN je.status = 'Posted' AND je.journal_date BETWEEN ? AND ? THEN jl.debit ELSE 0 END),0) AS total_debit,
+                COALESCE(SUM(CASE WHEN je.status = 'Posted' AND je.journal_date BETWEEN ? AND ? THEN jl.credit ELSE 0 END),0) AS total_credit
+             FROM accounting_accounts aa
+             LEFT JOIN accounting_journal_lines jl ON jl.account_id = aa.id
+             LEFT JOIN accounting_journal_entries je ON je.id = jl.journal_id
+             WHERE aa.afs_line_code = ?"
+        );
+        $stmt->execute([$startDate, $endDate, $startDate, $endDate, $code]);
+        $row = $stmt->fetch();
+
+        return [
+            'debit' => round((float) ($row['total_debit'] ?? 0), 2),
+            'credit' => round((float) ($row['total_credit'] ?? 0), 2),
+        ];
+    }
+
+    /**
      * Cumulative balance as of a date (from inception) for the given codes.
      */
     public static function balanceByCode(array $codes, string $asOfDate): array
