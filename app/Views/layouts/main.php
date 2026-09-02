@@ -409,6 +409,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Operational Reports', 'url' => url('/reports/operational'), 'perm' => 'reports.operational'],
                 ['label' => 'Financial Reports', 'url' => url('/reports'), 'perm' => 'reports.financial'],
                 ['label' => 'Regulatory Reports', 'url' => url('/reports/regulatory'), 'perm' => 'reports.regulatory'],
+                ['label' => 'Credit Bureau (CPL) Export', 'url' => url('/reports/cpl-export'), 'perm' => 'reports.cpl_export'],
               ]],
               'Regulatory Compliance' => ['items' => [
                 ['label' => 'NAMFISA Reports', 'url' => url('/compliance/namfisa'), 'perm' => 'compliance.namfisa'],

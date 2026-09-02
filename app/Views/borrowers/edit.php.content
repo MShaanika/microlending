@@ -47,6 +47,16 @@
         </div>
 
         <div class="col-md-4 mb-3">
+          <label class="form-label">Title</label>
+          <select name="title" class="form-select">
+            <option value="">Select</option>
+            <?php foreach (['MR' => 'Mister', 'MRS' => 'Mrs', 'MISS' => 'Miss', 'MS' => 'Miss/Mrs', 'DR' => 'Doctor', 'PROF' => 'Professor', 'REV' => 'Reverend', 'ADV' => 'Advocate', 'JUDGE' => 'Judge'] as $code => $label): ?>
+              <option value="<?= $code ?>" <?= ($borrower['title'] ?? '') === $code ? 'selected' : '' ?>><?= $label ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-4 mb-3">
           <label class="form-label">Date of Birth</label>
           <input type="date" name="date_of_birth" class="form-control" value="<?= e($borrower['date_of_birth']) ?>">
         </div>
@@ -99,14 +109,70 @@
           </select>
         </div>
 
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Physical Address</label>
-          <textarea name="physical_address" class="form-control" rows="2"><?= e($borrower['physical_address']) ?></textarea>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Ownership Type</label>
+          <select name="ownership_type" class="form-select">
+            <?php foreach (['00' => 'Other', '01' => 'Sole Proprietor', '02' => 'Joint Loan'] as $code => $label): ?>
+              <option value="<?= $code ?>" <?= ($borrower['ownership_type'] ?? '00') === $code ? 'selected' : '' ?>><?= $label ?></option>
+            <?php endforeach; ?>
+          </select>
         </div>
+      </div>
 
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Postal Address</label>
-          <textarea name="postal_address" class="form-control" rows="2"><?= e($borrower['postal_address']) ?></textarea>
+      <hr>
+      <div class="fw-semibold mb-2">Residential Address</div>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Owner / Tenant</label>
+          <select name="residential_ownership" class="form-select">
+            <option value="">Select</option>
+            <option value="O" <?= ($borrower['residential_ownership'] ?? '') === 'O' ? 'selected' : '' ?>>Owner</option>
+            <option value="T" <?= ($borrower['residential_ownership'] ?? '') === 'T' ? 'selected' : '' ?>>Tenant</option>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 1</label>
+          <input type="text" name="residential_line1" maxlength="25" class="form-control" value="<?= e($borrower['residential_line1'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 2</label>
+          <input type="text" name="residential_line2" maxlength="25" class="form-control" value="<?= e($borrower['residential_line2'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 3 (Town)</label>
+          <input type="text" name="residential_line3" maxlength="25" class="form-control" value="<?= e($borrower['residential_line3'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 4</label>
+          <input type="text" name="residential_line4" maxlength="25" class="form-control" value="<?= e($borrower['residential_line4'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Postal Code</label>
+          <input type="text" name="residential_postal_code" maxlength="6" class="form-control" value="<?= e($borrower['residential_postal_code'] ?? '') ?>">
+        </div>
+      </div>
+
+      <div class="fw-semibold mb-2">Postal Address</div>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 1</label>
+          <input type="text" name="postal_line1" maxlength="25" class="form-control" value="<?= e($borrower['postal_line1'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 2</label>
+          <input type="text" name="postal_line2" maxlength="25" class="form-control" value="<?= e($borrower['postal_line2'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 3 (Town)</label>
+          <input type="text" name="postal_line3" maxlength="25" class="form-control" value="<?= e($borrower['postal_line3'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Address Line 4</label>
+          <input type="text" name="postal_line4" maxlength="25" class="form-control" value="<?= e($borrower['postal_line4'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Postal Code</label>
+          <input type="text" name="postal_postal_code" maxlength="6" class="form-control" value="<?= e($borrower['postal_postal_code'] ?? '') ?>">
         </div>
       </div>
 

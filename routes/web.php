@@ -121,6 +121,7 @@ use App\Controllers\RecruitmentSettingController;
 use App\Controllers\RecruitmentFrontendController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
+use App\Controllers\CplExportController;
 use App\Controllers\OperationalReportController;
 use App\Controllers\StatutoryChargeSettingController;
 use App\Controllers\NotificationTemplateController;
@@ -1167,6 +1168,8 @@ $router->post('/collections/worklist/{loanId}/ai-call', [CollectionsController::
 $router->get('/reports', [ReportController::class, 'index']);
 $router->get('/reports/operational', [OperationalReportController::class, 'index']);
 $router->get('/reports/regulatory', [RegulatoryReportController::class, 'index']);
+$router->get('/reports/cpl-export', [CplExportController::class, 'index']);
+$router->get('/reports/cpl-export/download/{date}', [CplExportController::class, 'download']);
 
 // Fixed Assets: Depreciation & Amortization
 // Note: routed under /fixed-assets (not /assets) because /assets collides with

@@ -1,0 +1,43 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Credit Bureau (CPL) Export</h4>
+    <p class="text-muted small">
+      Generates the monthly Bank of Namibia CPLv1.1 fixed-width extract (account types M &amp; P only) for
+      submission to the credit bureaus. Until a Supplier Reference Number has been issued by the bureaus,
+      leave that field blank and keep the downloaded file for reference only &mdash; it is not valid for
+      submission without one.
+    </p>
+
+    <form method="get" action="<?= url('/reports/cpl-export/download/PLACEHOLDER') ?>" class="row g-3 mt-2" id="cpl-export-form">
+      <div class="col-md-3">
+        <label class="form-label">Month End Date</label>
+        <input type="date" name="month_end" id="month_end" class="form-control" value="<?= e($lastMonthEnd) ?>" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Supplier Reference Number</label>
+        <input type="text" name="supplier_ref" class="form-control" maxlength="10" placeholder="Issued by the bureaus">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Trading Name</label>
+        <input type="text" name="trading_name" class="form-control" maxlength="60" value="<?= e($tradingName) ?>">
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-info waves-effect waves-light w-100">
+          <i class="mdi mdi-file-download"></i> Download
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('cpl-export-form').addEventListener('submit', function (e) {
+  var monthEnd = document.getElementById('month_end').value;
+  if (!monthEnd) {
+    return;
+  }
+  this.action = this.action.replace('PLACEHOLDER', monthEnd);
+});
+</script>

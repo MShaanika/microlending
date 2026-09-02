@@ -599,6 +599,19 @@ class ApplicationController extends Controller
                 'marital_status' => $extra['marital_status'] ?? null,
                 'status' => 'Pending',
                 'created_by' => $userId,
+                'title' => $extra['title'] ?? null,
+                'ownership_type' => $extra['ownership_type'] ?? '00',
+                'residential_ownership' => $extra['residential_ownership'] ?? null,
+                'residential_line1' => $extra['residential_line1'] ?? null,
+                'residential_line2' => $extra['residential_line2'] ?? null,
+                'residential_line3' => $extra['residential_line3'] ?? null,
+                'residential_line4' => $extra['residential_line4'] ?? null,
+                'residential_postal_code' => $extra['residential_postal_code'] ?? null,
+                'postal_line1' => $extra['postal_line1'] ?? null,
+                'postal_line2' => $extra['postal_line2'] ?? null,
+                'postal_line3' => $extra['postal_line3'] ?? null,
+                'postal_line4' => $extra['postal_line4'] ?? null,
+                'postal_postal_code' => $extra['postal_postal_code'] ?? null,
             ];
 
             $bank = ($application['bank_name'] || $application['bank_account_number']) ? [
@@ -623,6 +636,7 @@ class ApplicationController extends Controller
                 'employer_phone' => $extra['employer_phone'] ?? null,
                 'employer_email' => $extra['employer_email'] ?? null,
                 'employer_address' => $extra['employer_address'] ?? null,
+                'income_frequency' => $extra['income_frequency'] ?? null,
                 'is_current' => 1,
             ] : null;
 

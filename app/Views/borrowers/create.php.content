@@ -158,6 +158,25 @@
               <label class="form-label">Nationality</label>
               <input type="text" name="nationality" class="form-control" value="<?= old('nationality', $old, 'Namibian') ?>">
             </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Title</label>
+              <select name="title" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['MR' => 'Mister', 'MRS' => 'Mrs', 'MISS' => 'Miss', 'MS' => 'Miss/Mrs', 'DR' => 'Doctor', 'PROF' => 'Professor', 'REV' => 'Reverend', 'ADV' => 'Advocate', 'JUDGE' => 'Judge'] as $code => $label): ?>
+                  <option value="<?= $code ?>" <?= (($old['title'] ?? '') === $code) ? 'selected' : '' ?>><?= $label ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Ownership Type</label>
+              <select name="ownership_type" class="form-select">
+                <?php foreach (['00' => 'Other', '01' => 'Sole Proprietor', '02' => 'Joint Loan'] as $code => $label): ?>
+                  <option value="<?= $code ?>" <?= (($old['ownership_type'] ?? '00') === $code) ? 'selected' : '' ?>><?= $label ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -175,14 +194,68 @@
               <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
             </div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Physical Address</label>
-              <textarea name="physical_address" class="form-control" rows="3"><?= old('physical_address', $old) ?></textarea>
-            </div>
+          </div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Postal Address</label>
-              <textarea name="postal_address" class="form-control" rows="3"><?= old('postal_address', $old) ?></textarea>
+          <hr>
+          <div class="fw-semibold mb-2">Residential Address</div>
+          <div class="row">
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Owner / Tenant</label>
+              <select name="residential_ownership" id="residential_ownership" class="form-select">
+                <option value="">Select</option>
+                <option value="O" <?= (($old['residential_ownership'] ?? '') === 'O') ? 'selected' : '' ?>>Owner</option>
+                <option value="T" <?= (($old['residential_ownership'] ?? '') === 'T') ? 'selected' : '' ?>>Tenant</option>
+              </select>
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 1</label>
+              <input type="text" name="residential_line1" id="residential_line1" maxlength="25" class="form-control" value="<?= old('residential_line1', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 2</label>
+              <input type="text" name="residential_line2" id="residential_line2" maxlength="25" class="form-control" value="<?= old('residential_line2', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 3 (Town)</label>
+              <input type="text" name="residential_line3" id="residential_line3" maxlength="25" class="form-control" value="<?= old('residential_line3', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 4</label>
+              <input type="text" name="residential_line4" id="residential_line4" maxlength="25" class="form-control" value="<?= old('residential_line4', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Postal Code</label>
+              <input type="text" name="residential_postal_code" id="residential_postal_code" maxlength="6" class="form-control" value="<?= old('residential_postal_code', $old) ?>">
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Postal Address</div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="postal_same_as_residential" checked>
+              <label class="form-check-label" for="postal_same_as_residential">Same as residential address</label>
+            </div>
+          </div>
+          <div class="row" id="postal-address-wrap" style="display:none;">
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 1</label>
+              <input type="text" name="postal_line1" maxlength="25" class="form-control" value="<?= old('postal_line1', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 2</label>
+              <input type="text" name="postal_line2" maxlength="25" class="form-control" value="<?= old('postal_line2', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 3 (Town)</label>
+              <input type="text" name="postal_line3" maxlength="25" class="form-control" value="<?= old('postal_line3', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Address Line 4</label>
+              <input type="text" name="postal_line4" maxlength="25" class="form-control" value="<?= old('postal_line4', $old) ?>">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Postal Code</label>
+              <input type="text" name="postal_postal_code" maxlength="6" class="form-control" value="<?= old('postal_postal_code', $old) ?>">
             </div>
           </div>
         </div>
@@ -229,6 +302,15 @@
             <div class="col-md-4 mb-3">
               <label class="form-label">Net Salary</label>
               <input type="number" step="0.01" name="net_salary" class="form-control" value="<?= old('net_salary', $old) ?>">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Income Frequency</label>
+              <select name="income_frequency" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['M' => 'Monthly', 'W' => 'Weekly', 'F' => 'Fortnightly', 'Q' => 'Quarterly', 'A' => 'Annually'] as $code => $label): ?>
+                  <option value="<?= $code ?>" <?= (($old['income_frequency'] ?? 'M') === $code) ? 'selected' : '' ?>><?= $label ?></option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Employer Phone</label>
@@ -526,6 +608,39 @@
 
   modeRadios.forEach(function (r) { r.addEventListener('change', syncMode); });
   syncMode();
+})();
+
+(function () {
+  var checkbox = document.getElementById('postal_same_as_residential');
+  var wrap = document.getElementById('postal-address-wrap');
+  if (!checkbox || !wrap) return;
+
+  var pairs = [
+    ['residential_line1', 'postal_line1'],
+    ['residential_line2', 'postal_line2'],
+    ['residential_line3', 'postal_line3'],
+    ['residential_line4', 'postal_line4'],
+    ['residential_postal_code', 'postal_postal_code'],
+  ];
+
+  function syncPostal() {
+    var same = checkbox.checked;
+    wrap.style.display = same ? 'none' : '';
+    if (same) {
+      pairs.forEach(function (pair) {
+        var src = document.getElementById(pair[0]);
+        var dest = document.querySelector('[name="' + pair[1] + '"]');
+        if (src && dest) dest.value = src.value;
+      });
+    }
+  }
+
+  checkbox.addEventListener('change', syncPostal);
+  pairs.forEach(function (pair) {
+    var src = document.getElementById(pair[0]);
+    if (src) src.addEventListener('input', syncPostal);
+  });
+  syncPostal();
 })();
 
 (function () {

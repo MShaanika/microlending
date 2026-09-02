@@ -2981,6 +2981,7 @@ INSERT INTO permissions (permission_key, permission_name, module_name) VALUES
 ('reports.collections', 'View Collection Reports', 'Reports'),
 ('reports.audit', 'View Audit Reports', 'Reports'),
 ('reports.export', 'Export Reports', 'Reports'),
+('reports.cpl_export', 'Export Credit Bureau (CPL) Data', 'Reports'),
 ('notifications.view', 'View Notifications', 'Notifications'),
 ('notifications.send', 'Send Notifications', 'Notifications'),
 ('notifications.templates', 'Manage Notification Templates', 'Notifications'),
