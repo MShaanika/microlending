@@ -1,0 +1,20 @@
+-- Interest Receivable (1030) shared the same afs_line_code
+-- (bs_receivables_prepayments) as Penalty/NAMFISA Levy/Stamp Duty/Staff
+-- Loan Receivable, so the Cash Flow statement's "Cash receipts from
+-- customers" line had no way to isolate how much interest was actually
+-- COLLECTED in cash from how much was merely ACCRUED (recognized as
+-- income but not yet paid) -- it was pulling the raw P&L accrual
+-- movement straight onto the Cash Flow statement, which is only correct
+-- if accrual and collection happen in the same period. That gap was
+-- invisible under the old progressive-interest model (collection
+-- normally followed accrual closely) but became obvious once upfront
+-- interest recognition landed -- a large lump of interest can now accrue
+-- well before any cash is collected.
+--
+-- Giving 1030 its own code lets the Cash Flow statement compute actual
+-- cash collected as (interest income accrued - increase in Interest
+-- Receivable), while the Balance Sheet's "Receivables and prepayments"
+-- total is unaffected -- see AfsExcelExporter.php, which now sums
+-- bs_receivables_prepayments + bs_interest_receivable + bs_loan_to_members
+-- for that one display line.
+UPDATE accounting_accounts SET afs_line_code = 'bs_interest_receivable' WHERE account_code = '1030';

@@ -86,11 +86,14 @@ class AfsExcelExporter
         $bsCodes = array_merge(
             array_column(AfsReportService::balanceSheetCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentLiabilityLines(), 'code'),
-            // bs_loan_to_members is no longer its own displayed Balance
-            // Sheet line (folded into Receivables and prepayments), but
-            // is still needed here for the Cash Flow statement's loan
-            // movement line -- fetch it explicitly.
-            ['bs_members_contributions', 'bs_loan_to_members', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
+            // bs_loan_to_members and bs_interest_receivable are no longer
+            // their own displayed Balance Sheet lines (folded into
+            // Receivables and prepayments -- see buildBalanceSheet()), but
+            // are still needed here: the former for the Cash Flow
+            // statement's loan movement line, the latter so "Cash receipts
+            // from customers" can isolate actual cash collected from
+            // merely-accrued interest -- see buildCashFlow().
+            ['bs_members_contributions', 'bs_loan_to_members', 'bs_interest_receivable', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
         );
         $bsCodes = array_values(array_unique($bsCodes));
         $this->bsBalance = AfsReportService::balanceByCode($bsCodes, $endDate);
@@ -209,12 +212,13 @@ class AfsExcelExporter
         foreach (AfsReportService::balanceSheetCurrentAssetLines() as $line) {
             $amount = $this->bsBalance[$line['code']] ?? 0;
             if ($line['code'] === 'bs_receivables_prepayments') {
-                // Loan principal (net of the doubtful-debts provision) is
-                // presented as part of Receivables and prepayments, not as
-                // its own "Loan to Members" line -- this is display-only,
-                // the underlying bs_receivables_prepayments balance used
-                // by the Tax Computation sheet is untouched.
+                // Loan principal (net of the doubtful-debts provision) and
+                // Interest Receivable are presented as part of Receivables
+                // and prepayments, not as their own separate lines -- this
+                // is display-only, the underlying bs_receivables_prepayments
+                // balance used by the Tax Computation sheet is untouched.
                 $amount += ($this->bsBalance['bs_loan_to_members'] ?? 0) - ($this->bsBalance['bs_provision_doubtful_debts'] ?? 0);
+                $amount += $this->bsBalance['bs_interest_receivable'] ?? 0;
             }
             $this->dataRow($sheet, $row++, $line['label'], $amount);
         }
@@ -292,7 +296,20 @@ class AfsExcelExporter
             return ($this->bsBalance[$code] ?? 0) - ($this->bsOpeningBalance[$code] ?? 0);
         };
 
-        $cashFromCustomers = ($mv('pl_interest_income') ?: 0) + ($mv('pl_interest_investment') ?: 0);
+        // The Cash Flow Statement must show cash actually COLLECTED, not
+        // interest merely ACCRUED (recognized as income the moment it's
+        // earned -- see InterestAccrualService -- regardless of whether
+        // the client has paid anything yet). Actual cash collected =
+        // interest income recognized this period, less whatever portion
+        // of that increased Interest Receivable instead of being paid
+        // (an increase there means less was collected than was earned; a
+        // decrease means more was collected than was earned this period,
+        // e.g. a prior period's accrual being paid off now). Investment
+        // interest has no equivalent receivable/accrual in this system --
+        // it's only ever recognized on actual receipt, so no adjustment
+        // applies to that portion.
+        $cashFromCustomers = (($mv('pl_interest_income') ?: 0) - $bsMv('bs_interest_receivable'))
+            + ($mv('pl_interest_investment') ?: 0);
         $cosTotal = array_sum(array_map(fn ($l) => $mv($l['code']), AfsReportService::costOfSaleLines()));
         $opexTotal = array_sum(array_map(
             fn ($l) => $l['code'] === 'pl_opex_depreciation' ? 0.0 : $mv($l['code']),

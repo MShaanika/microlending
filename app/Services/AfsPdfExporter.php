@@ -65,10 +65,11 @@ class AfsPdfExporter
         $bsCodes = array_merge(
             array_column(AfsReportService::balanceSheetCurrentAssetLines(), 'code'),
             array_column(AfsReportService::balanceSheetCurrentLiabilityLines(), 'code'),
-            // bs_loan_to_members is no longer its own displayed Balance
-            // Sheet line (folded into Receivables and prepayments), but
-            // still needed here to compute that merged display amount.
-            ['bs_members_contributions', 'bs_loan_to_members', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
+            // bs_loan_to_members and bs_interest_receivable are no longer
+            // their own displayed Balance Sheet lines (folded into
+            // Receivables and prepayments), but still needed here to
+            // compute that merged display amount.
+            ['bs_members_contributions', 'bs_loan_to_members', 'bs_interest_receivable', 'bs_interest_bearing_borrowings', 'bs_longterm_borrowings', 'bs_provision_doubtful_debts']
         );
         $bsBalance = AfsReportService::balanceByCode(array_values(array_unique($bsCodes)), $endDate);
         $cashClosing = AfsReportService::cashBalance($endDate);
@@ -109,12 +110,13 @@ class AfsPdfExporter
         $ncaRows = self::row('Movable Assets', $nca['movable'], $e, $money)
             . self::row('Land & Building', $landBuilding, $e, $money);
         $totalNca = $nca['movable'] + $landBuilding;
-        // Loan principal, net of the doubtful-debts provision, is
-        // presented as part of Receivables and prepayments, not as its
-        // own "Loan to Members" line -- display-only, the raw
-        // bs_receivables_prepayments balance the Tax Computation section
-        // uses below is untouched.
-        $netLoanToMembers = ($bsBalance['bs_loan_to_members'] ?? 0) - ($bsBalance['bs_provision_doubtful_debts'] ?? 0);
+        // Loan principal (net of the doubtful-debts provision) and
+        // Interest Receivable are presented as part of Receivables and
+        // prepayments, not as their own separate lines -- display-only,
+        // the raw bs_receivables_prepayments balance the Tax Computation
+        // section uses below is untouched.
+        $netLoanToMembers = ($bsBalance['bs_loan_to_members'] ?? 0) - ($bsBalance['bs_provision_doubtful_debts'] ?? 0)
+            + ($bsBalance['bs_interest_receivable'] ?? 0);
         $caRows = '';
         foreach (AfsReportService::balanceSheetCurrentAssetLines() as $l) {
             $amount = $bsBalance[$l['code']] ?? 0;
