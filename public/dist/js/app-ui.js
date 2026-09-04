@@ -224,6 +224,9 @@
       if (typeof window.initDataTables === 'function') {
         window.initDataTables();
       }
+      if (typeof window.initSelect2 === 'function') {
+        window.initSelect2();
+      }
     });
   };
 

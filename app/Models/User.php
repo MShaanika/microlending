@@ -27,7 +27,7 @@ class User extends Model
             $params[] = $status === 'active' ? 1 : 0;
         }
 
-        $sql .= " ORDER BY u.name";
+        $sql .= " ORDER BY u.id DESC";
 
         return $this->all($sql, $params);
     }

@@ -1,7 +1,5 @@
 <?= flash_messages() ?>
 
-<link href="<?= asset('assets/libs/select2/dist/css/select2.min.css') ?>" rel="stylesheet" />
-<script defer src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>
 
 <?php if (!empty($application_id)): ?>
   <div class="alert alert-info">
@@ -139,6 +137,7 @@
     planSelect.innerHTML = '';
     if (!plans.length) {
       planSelect.innerHTML = '<option value="">No plans for this product</option>';
+      jQuery(planSelect).trigger('change');
       return;
     }
     planSelect.innerHTML = '<option value="">Select plan</option>';
@@ -149,6 +148,8 @@
       if (String(plan.id) === selectedPlanId) opt.selected = true;
       planSelect.appendChild(opt);
     });
+    // Refreshes select2's cached option list after the native rebuild above.
+    jQuery(planSelect).trigger('change');
   }
 
   productSelect.addEventListener('change', renderPlans);
@@ -189,6 +190,7 @@
     if (!loans.length) {
       existingLoanSelect.innerHTML = '<option value="">No active loans for this borrower</option>';
       existingLoanHint.textContent = '';
+      jQuery(existingLoanSelect).trigger('change');
       return;
     }
     existingLoanSelect.innerHTML = '<option value="">Select active loan</option>';
@@ -201,7 +203,8 @@
       if (String(loan.id) === selectedExistingLoanId) opt.selected = true;
       existingLoanSelect.appendChild(opt);
     });
-    updateHint();
+    // Refreshes select2's cached option list after the native rebuild above.
+    jQuery(existingLoanSelect).trigger('change');
   }
 
   function updateModeUI() {

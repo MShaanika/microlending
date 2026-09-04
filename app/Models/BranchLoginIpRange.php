@@ -9,7 +9,7 @@ class BranchLoginIpRange extends Model
     public function forBranch(int $branchId): array
     {
         return $this->query(
-            "SELECT * FROM branch_login_ip_ranges WHERE branch_id = ? ORDER BY id",
+            "SELECT * FROM branch_login_ip_ranges WHERE branch_id = ? ORDER BY id DESC",
             [$branchId]
         )->fetchAll();
     }
@@ -18,7 +18,7 @@ class BranchLoginIpRange extends Model
     public function allBranchesWithRanges(): array
     {
         $branches = $this->query("SELECT * FROM branches WHERE is_active = 1 ORDER BY branch_name")->fetchAll();
-        $ranges = $this->query("SELECT * FROM branch_login_ip_ranges ORDER BY id")->fetchAll();
+        $ranges = $this->query("SELECT * FROM branch_login_ip_ranges ORDER BY id DESC")->fetchAll();
 
         $byBranch = [];
         foreach ($ranges as $range) {

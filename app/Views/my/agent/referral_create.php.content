@@ -453,6 +453,7 @@
       row.remove();
     });
     container.appendChild(row);
+    if (typeof window.initSelect2 === 'function') { window.initSelect2(row); }
     index++;
   }
 

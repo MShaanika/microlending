@@ -27,6 +27,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
   <link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet" />
   <link href="<?= asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') ?>" rel="stylesheet" />
   <link href="<?= asset('assets/extra-libs/datatables-buttons/css/buttons.bootstrap4.min.css') ?>" rel="stylesheet" />
+  <link href="<?= asset('assets/libs/select2/dist/css/select2.min.css') ?>" rel="stylesheet" />
 
   <style>
     .sidebar-nav ul .sidebar-item .sidebar-link { font-size:15px; }
@@ -874,6 +875,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 
 <script>window.APP_BASE_URL = <?= json_encode(url('')) ?>;</script>
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
+<script src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('dist/js/app-ui.js') ?>"></script>
 <script src="<?= asset('dist/js/submit-guard.js') ?>"></script>
@@ -897,6 +899,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 <script src="<?= asset('assets/extra-libs/datatables-buttons/js/buttons.html5.min.js') ?>"></script>
 <script src="<?= asset('assets/extra-libs/datatables-buttons/js/buttons.print.min.js') ?>"></script>
 <script src="<?= asset('dist/js/pages/datatable/app-datatables-init.js') ?>"></script>
+<script src="<?= asset('dist/js/app-select2-init.js') ?>"></script>
 
 <script>
   $('.preloader').fadeOut();

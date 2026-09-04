@@ -1,7 +1,5 @@
 <?= flash_messages() ?>
 
-<link href="<?= asset('assets/libs/select2/dist/css/select2.min.css') ?>" rel="stylesheet" />
-<script defer src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>
 
 <?php if ($error): ?>
   <div class="alert alert-danger"><?= e($error) ?></div>

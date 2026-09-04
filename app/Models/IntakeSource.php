@@ -16,7 +16,7 @@ class IntakeSource extends Model
 
     public function allSources(): array
     {
-        return $this->all("SELECT * FROM intake_sources ORDER BY id");
+        return $this->all("SELECT * FROM intake_sources ORDER BY id DESC");
     }
 
     public function findActiveByCodeAndToken(string $code, string $token): ?array

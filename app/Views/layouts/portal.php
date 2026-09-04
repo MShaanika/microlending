@@ -9,6 +9,7 @@
 
   <link rel="icon" type="image/png" href="<?= asset('assets/images/favicon.png') ?>" />
   <link href="<?= asset('dist/css/style.min.css') ?>" rel="stylesheet" />
+  <link href="<?= asset('assets/libs/select2/dist/css/select2.min.css') ?>" rel="stylesheet" />
   <style>
     .portal-sidebar {
       position: fixed; top: 0; left: 0; bottom: 0; width: 240px; z-index: 1030;
@@ -93,8 +94,10 @@
 </div>
 
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
+<script src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('dist/js/app-ui.js') ?>"></script>
+<script src="<?= asset('dist/js/app-select2-init.js') ?>"></script>
 <script>
   $('.preloader').fadeOut();
 </script>

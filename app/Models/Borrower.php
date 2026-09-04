@@ -150,12 +150,12 @@ class Borrower extends Model
 
     public function contactsFor(int $borrowerId): array
     {
-        return $this->all("SELECT * FROM borrower_contacts WHERE borrower_id = ? ORDER BY id ASC", [$borrowerId]);
+        return $this->all("SELECT * FROM borrower_contacts WHERE borrower_id = ? ORDER BY id DESC", [$borrowerId]);
     }
 
     public function documentsFor(int $borrowerId): array
     {
-        return $this->all("SELECT * FROM borrower_documents WHERE borrower_id = ? ORDER BY id ASC", [$borrowerId]);
+        return $this->all("SELECT * FROM borrower_documents WHERE borrower_id = ? ORDER BY id DESC", [$borrowerId]);
     }
 
     public function addDocument(array $data): int

@@ -54,6 +54,7 @@ class HrmEmployee extends Model
 
     /** Whitelist of sortable columns -- $sort comes from the query string, never interpolate it directly. */
     private const SORTABLE = [
+        'id' => 'e.id',
         'employee_no' => 'e.employee_no',
         'name' => 'e.first_name',
         'department' => 'd.department_name',
@@ -66,7 +67,7 @@ class HrmEmployee extends Model
     /**
      * @return array{rows: array, total: int, totalPages: int}
      */
-    public function paginated(array $filters = [], string $sort = 'name', string $dir = 'asc', int $page = 1, int $perPage = 10): array
+    public function paginated(array $filters = [], string $sort = 'id', string $dir = 'desc', int $page = 1, int $perPage = 10): array
     {
         $where = [];
         $params = [];
