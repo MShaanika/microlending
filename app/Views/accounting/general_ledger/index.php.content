@@ -44,7 +44,7 @@
       <div class="table-responsive">
         <table class="table table-bordered no-datatable">
           <thead class="table-light">
-            <tr><th>Date</th><th>Reference / Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Running Balance</th></tr>
+            <tr><th>Date</th><th>Reference / Description</th><th>Category / Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Running Balance</th></tr>
           </thead>
           <tbody>
             <tr class="table-light">
@@ -52,10 +52,11 @@
               <td><em>Opening Balance</em></td>
               <td></td>
               <td></td>
+              <td></td>
               <td class="text-end fw-bold"><?= format_balance($ledger['opening_balance']) ?></td>
             </tr>
             <?php if (empty($ledger['lines'])): ?>
-              <tr><td colspan="5" class="text-center text-muted py-4">No transactions in this period.</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">No transactions in this period.</td></tr>
             <?php endif; ?>
             <?php foreach ($ledger['lines'] as $line): ?>
               <tr>
@@ -65,6 +66,7 @@
                   <?= $line['reference_no'] ? ' (' . e($line['reference_no']) . ')' : '' ?>
                   <?= $line['description'] ? '<br><span class="text-muted small">' . e($line['description']) . '</span>' : '' ?>
                 </td>
+                <td><?= $line['contra_accounts'] ? e($line['contra_accounts']) : '<span class="text-muted">&mdash;</span>' ?></td>
                 <td class="text-end"><?= $line['debit'] > 0 ? format_money($line['debit']) : '' ?></td>
                 <td class="text-end"><?= $line['credit'] > 0 ? format_money($line['credit']) : '' ?></td>
                 <td class="text-end"><?= format_balance($line['running_balance']) ?></td>
@@ -73,6 +75,7 @@
             <tr class="table-light">
               <td></td>
               <td><em>Closing Balance<?= $ledger['closing_balance'] < 0 ? ' (Overdrawn / Credit Balance)' : '' ?></em></td>
+              <td></td>
               <td></td>
               <td></td>
               <td class="text-end fw-bold"><?= format_balance($ledger['closing_balance']) ?></td>

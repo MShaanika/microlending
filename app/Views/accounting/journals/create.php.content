@@ -1,5 +1,8 @@
 <?= flash_messages() ?>
 
+<link href="<?= asset('assets/libs/select2/dist/css/select2.min.css') ?>" rel="stylesheet" />
+<script defer src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>
+
 <?php if ($error): ?>
   <div class="alert alert-danger"><?= e($error) ?></div>
 <?php endif; ?>
@@ -75,7 +78,7 @@
 </template>
 
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
   var tbody = document.getElementById('lines-body');
   var template = document.getElementById('line-row-template');
   var addBtn = document.getElementById('add-line-btn');
@@ -104,6 +107,15 @@
       input.addEventListener('input', recalc);
     });
     tbody.appendChild(row);
+
+    // Searchable account picker -- the flat account list runs into the
+    // hundreds once every category/sub-account is counted, too long to
+    // scan as a plain <select>.
+    jQuery(row).find('.account-select').select2({
+      width: '100%',
+      placeholder: 'Select account',
+      dropdownAutoWidth: true,
+    });
   }
 
   addBtn.addEventListener('click', addRow);
@@ -113,7 +125,7 @@
   var presetAccountId = <?= (int) ($presetAccountId ?? 0) ?>;
   if (presetAccountId) {
     var firstSelect = tbody.querySelector('.account-select');
-    if (firstSelect) { firstSelect.value = String(presetAccountId); }
+    if (firstSelect) { jQuery(firstSelect).val(String(presetAccountId)).trigger('change'); }
   }
-})();
+});
 </script>

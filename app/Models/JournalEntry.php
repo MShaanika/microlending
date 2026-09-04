@@ -253,7 +253,11 @@ class JournalEntry extends Model
         $lines = $this->all(
             "SELECT jl.id AS journal_line_id, jl.debit, jl.credit, jl.description,
                     je.id AS journal_id, je.journal_no, je.journal_date, je.reference_no, je.source_module, je.journal_type,
-                    br.id AS reconciliation_id
+                    br.id AS reconciliation_id,
+                    (SELECT GROUP_CONCAT(DISTINCT aa2.account_name ORDER BY aa2.account_name SEPARATOR ', ')
+                     FROM accounting_journal_lines jl2
+                     JOIN accounting_accounts aa2 ON aa2.id = jl2.account_id
+                     WHERE jl2.journal_id = je.id AND jl2.id != jl.id) AS contra_accounts
              FROM accounting_journal_lines jl
              JOIN accounting_journal_entries je ON je.id = jl.journal_id
              LEFT JOIN accounting_bank_reconciliation br ON br.journal_line_id = jl.id
