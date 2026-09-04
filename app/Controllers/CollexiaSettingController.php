@@ -17,6 +17,7 @@ class CollexiaSettingController extends Controller
         'collexia_remote_gid',
         'collexia_system_username',
         'collexia_front_end_username',
+        'collexia_client_id',
     ];
 
     private CollexiaSetting $settings;
@@ -36,7 +37,8 @@ class CollexiaSettingController extends Controller
             'configured' => $this->settings->isConfigured(),
             'status' => $this->settings->status(),
             'missingForEnable' => $this->settings->missingForEnable(),
-            'credentialSet' => $this->settings->isCredentialSet(),
+            'passwordSet' => $this->settings->isPasswordSet(),
+            'clientSecretSet' => $this->settings->isClientSecretSet(),
             'signatureSet' => $this->settings->isSignatureSet(),
         ]);
     }
@@ -59,10 +61,11 @@ class CollexiaSettingController extends Controller
         }
 
         // Blank means "leave the stored secret as it is" -- see
-        // CollexiaSetting::setEncrypted(). Neither value is ever logged,
-        // audited, or echoed back; only their presence (isCredentialSet()/
+        // CollexiaSetting::setEncrypted(). Never logged, audited, or
+        // echoed back; only presence (isPasswordSet()/isClientSecretSet()/
         // isSignatureSet()) is used anywhere else in this app.
-        $this->settings->setEncrypted('collexia_credential', $_POST['collexia_credential'] ?? '', $userId);
+        $this->settings->setEncrypted('collexia_password', $_POST['collexia_password'] ?? '', $userId);
+        $this->settings->setEncrypted('collexia_client_secret', $_POST['collexia_client_secret'] ?? '', $userId);
         $this->settings->setEncrypted('collexia_digital_signature_secret', $_POST['collexia_digital_signature_secret'] ?? '', $userId);
 
         $wantsEnabled = !empty($_POST['collexia_enabled']);

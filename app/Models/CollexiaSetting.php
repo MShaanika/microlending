@@ -6,26 +6,25 @@ use App\Core\Encryption;
 use App\Core\Model;
 
 /**
- * Credentials for the Collexia EnDO V3 REST API, editable via
- * /collexia/settings. Plain-text fields (base_url, the GIDs, the two
- * usernames) are stored as-is, same as before; the Authentication
- * Credential and Digital Signature secret are stored encrypted (see
- * App\Core\Encryption) and are never returned to a view in plain text --
- * only isCredentialSet()/isSignatureSet() (presence, not value) and the
- * masked getMaskedCredential()/getMaskedSignature() are.
+ * Collexia EnDO V3 settings, editable via /collexia/settings. Plain fields
+ * (base_url, GIDs, usernames, client_id) are stored as-is; Password and
+ * Client Secret are encrypted (App\Core\Encryption) and never leave this
+ * class in plain text -- only isPasswordSet()/isClientSecretSet() (presence)
+ * and getDecrypted() (for actual API use, not display).
  */
 class CollexiaSetting extends Model
 {
-    /** The values every request to Collexia needs -- see CollexiaEndoApiClient. */
     private const BASE_FIELDS = [
-        'collexia_base_url',
-        'collexia_merchant_gid',
-        'collexia_remote_gid',
-        'collexia_system_username',
-        'collexia_front_end_username',
+        'collexia_base_url' => 'Host / Base URL',
+        'collexia_merchant_gid' => 'Merchant GID',
+        'collexia_remote_gid' => 'Remote GID',
+        'collexia_system_username' => 'System Username',
+        'collexia_front_end_username' => 'Front-End Username',
+        'collexia_client_id' => 'Client ID',
     ];
 
-    private const CREDENTIAL_KEY = 'collexia_credential';
+    private const PASSWORD_KEY = 'collexia_password';
+    private const CLIENT_SECRET_KEY = 'collexia_client_secret';
     private const SIGNATURE_KEY = 'collexia_digital_signature_secret';
 
     public function get(string $key, string $default = ''): string
@@ -54,14 +53,7 @@ class CollexiaSetting extends Model
         );
     }
 
-    /**
-     * Encrypts and stores $plaintext under $key -- unless $plaintext is
-     * null/empty, in which case the existing stored value (if any) is left
-     * untouched. This is what makes the settings form's credential field a
-     * "leave blank to keep, type a new value to replace" control rather
-     * than something that could blank out a saved secret just by
-     * re-submitting the form without re-entering it.
-     */
+    /** Blank $plaintext leaves the stored secret untouched -- "leave blank to keep, type to replace". */
     public function setEncrypted(string $key, ?string $plaintext, ?int $userId): void
     {
         if ($plaintext === null || trim($plaintext) === '') {
@@ -70,16 +62,21 @@ class CollexiaSetting extends Model
         $this->set($key, Encryption::encrypt($plaintext), $userId);
     }
 
-    /** Decrypts a stored secret for actual use (e.g. by the API client once signing is implemented) -- never for display. */
+    /** For actual API use once wired in -- never for display. */
     public function getDecrypted(string $key): ?string
     {
         $stored = $this->get($key);
         return $stored === '' ? null : Encryption::decrypt($stored);
     }
 
-    public function isCredentialSet(): bool
+    public function isPasswordSet(): bool
     {
-        return $this->get(self::CREDENTIAL_KEY) !== '';
+        return $this->get(self::PASSWORD_KEY) !== '';
+    }
+
+    public function isClientSecretSet(): bool
+    {
+        return $this->get(self::CLIENT_SECRET_KEY) !== '';
     }
 
     public function isSignatureSet(): bool
@@ -89,73 +86,50 @@ class CollexiaSetting extends Model
 
     public function isEnabled(): bool
     {
-        // Belt-and-braces: the controller never lets 'on' get written
-        // unless isReadyToEnable() was already true at save time, but this
-        // re-checks live too, so the API client stays blocked even if the
-        // stored flag and the underlying config were ever to drift apart
-        // (e.g. a direct DB edit outside this app).
+        // Re-checks readiness live (not just the stored flag), so the API
+        // client stays blocked even if 'on' and the config ever drifted
+        // apart (e.g. a direct DB edit).
         return $this->get('collexia_enabled') === 'on' && $this->isReadyToEnable();
     }
 
-    /** True once every field the API client needs to make a call has a value -- same definition as before this change. */
     public function isConfigured(): bool
     {
         return empty($this->missingBaseFields($this->allSettings()));
     }
 
-    /** Base fields required before the toggle may be switched on -- credential too, once Collexia confirms auth is mandatory, this system already requires it before "Enabled". */
     public function isReadyToEnable(): bool
     {
-        return $this->isConfigured() && $this->isCredentialSet();
+        return $this->isConfigured() && $this->isPasswordSet() && $this->isClientSecretSet();
     }
 
-    /**
-     * Human-readable labels for whatever's still missing before EnDO could
-     * be switched on -- used both for the status indicator and for the
-     * server-side "you can't enable this yet" rejection message.
-     */
+    /** Labels of whatever's still missing -- drives both the status indicator and the enable rejection message. */
     public function missingForEnable(): array
     {
         $missing = $this->missingBaseFields($this->allSettings());
-        if (!$this->isCredentialSet()) {
-            $missing[] = 'Authentication Credential / Password';
+        if (!$this->isPasswordSet()) {
+            $missing[] = 'Password';
+        }
+        if (!$this->isClientSecretSet()) {
+            $missing[] = 'Client Secret';
         }
         return $missing;
     }
 
     private function missingBaseFields(array $all): array
     {
-        $labels = [
-            'collexia_base_url' => 'Host / Base URL',
-            'collexia_merchant_gid' => 'Merchant GID',
-            'collexia_remote_gid' => 'Remote GID',
-            'collexia_system_username' => 'System Username',
-            'collexia_front_end_username' => 'Front-End Username',
-        ];
         $missing = [];
-        foreach (self::BASE_FIELDS as $key) {
+        foreach (self::BASE_FIELDS as $key => $label) {
             if (trim((string) ($all[$key] ?? '')) === '') {
-                $missing[] = $labels[$key];
+                $missing[] = $label;
             }
         }
         return $missing;
     }
 
     /**
-     * One of: Not Configured, Partially Configured, Awaiting Security
-     * Configuration, Ready for UAT, Enabled, Disabled.
-     *
-     * "Ready for UAT" and "Enabled" both require the Authentication
-     * Credential (mandatory before the toggle can go on -- see
-     * isReadyToEnable()); neither requires the Digital Signature secret,
-     * since Collexia has not yet supplied that specification and this
-     * system deliberately does not invent one. "Disabled" is shown only
-     * once the toggle itself has actually been switched off after being
-     * configured -- e.g. an integration someone paused -- not the same
-     * moment as "Ready for UAT" (never yet turned on). This app doesn't
-     * keep a history table, so it approximates that distinction using
-     * whichever explicit reason CollexiaSettingController last wrote to
-     * 'collexia_enabled_reason' (see update()) rather than guessing.
+     * Not Configured / Partially Configured / Awaiting Security
+     * Configuration / Ready for UAT / Enabled / Disabled.
+     * Digital Signature is never required here -- no spec from Collexia yet.
      */
     public function status(): string
     {
@@ -168,7 +142,7 @@ class CollexiaSetting extends Model
         if ($filledBase < count(self::BASE_FIELDS)) {
             return 'Partially Configured';
         }
-        if (!$this->isCredentialSet()) {
+        if (!$this->isPasswordSet() || !$this->isClientSecretSet()) {
             return 'Awaiting Security Configuration';
         }
 

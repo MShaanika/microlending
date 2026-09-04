@@ -17,8 +17,7 @@ $statusBadge = [
       <span class="badge <?= $statusBadge ?>"><?= e($status) ?></span>
     </div>
     <p class="text-muted small mb-3">
-      Credentials for the mandate placement API (mandate placement, status, and cancellation from a debit order's detail page).
-      This is separate from the existing Excel-based batch export -- while disabled or unconfigured, that older process is unaffected and keeps working exactly as it does today.
+      Mandate placement API credentials. Separate from the Excel-based batch export, which keeps working regardless of this integration's status.
     </p>
 
     <?php if (!empty($missingForEnable)): ?>
@@ -33,18 +32,17 @@ $statusBadge = [
       <div class="form-check form-switch mb-3">
         <input type="checkbox" class="form-check-input" id="collexia_enabled" name="collexia_enabled" <?= $enabled ? 'checked' : '' ?>>
         <label class="form-check-label" for="collexia_enabled">Enable EnDO</label>
-        <div class="form-text">When off, every action that would place or update a mandate is blocked with a clear message -- nothing falls through to a partial or guessed call. Checking this only takes effect if every required field below is filled in; otherwise the save is rejected with a message listing what's missing.</div>
+        <div class="form-text">Requires every field below except Digital Signature. Rejected server-side if anything's missing.</div>
       </div>
 
       <hr>
       <h5 class="mb-1">EnDO &mdash; Enhanced Debit Order</h5>
-      <p class="text-muted small mb-3">Values supplied by Collexia for the EnDO V3 REST API. These map directly to <code>merchantGid</code>, <code>remoteGid</code>, <code>systemUserName</code>, and <code>frontEndUserName</code> in every request this integration sends.</p>
+      <p class="text-muted small mb-3">Maps to <code>merchantGid</code>, <code>remoteGid</code>, <code>systemUserName</code>, <code>frontEndUserName</code>, and the OAuth <code>clientId</code>/<code>clientSecret</code> pair in every request.</p>
 
       <div class="row">
         <div class="col-md-8 mb-3">
           <label class="form-label">Host / Base URL</label>
           <input type="text" name="collexia_base_url" class="form-control" placeholder="https://switch.collexia.co" value="<?= e($settings['collexia_base_url'] ?? '') ?>">
-          <div class="form-text">Just the host -- the <code>/api/coswitchuadsrest/v3/...</code> path is added automatically.</div>
         </div>
       </div>
 
@@ -55,7 +53,7 @@ $statusBadge = [
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">Remote GID</label>
-          <input type="text" name="collexia_remote_gid" class="form-control" value="<?= e($settings['collexia_remote_gid'] ?? '') ?>">
+          <input type="text" name="collexia_remote_gid" class="form-control" placeholder="Not yet provisioned by Collexia" value="<?= e($settings['collexia_remote_gid'] ?? '') ?>">
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">System Username</label>
@@ -68,20 +66,31 @@ $statusBadge = [
       </div>
 
       <div class="row">
-        <div class="col-md-6 mb-3">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Client ID</label>
+          <input type="text" name="collexia_client_id" class="form-control" value="<?= e($settings['collexia_client_id'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
           <label class="form-label">
-            Authentication Credential / Password
-            <?php if ($credentialSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+            Password
+            <?php if ($passwordSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
           </label>
-          <input type="password" name="collexia_credential" class="form-control" autocomplete="new-password" placeholder="<?= $credentialSet ? '••••••••  (leave blank to keep current)' : 'Not yet supplied by Collexia' ?>">
-          <div class="form-text">Stored encrypted, never shown again once saved. Leave blank to keep the current value; type a new one to replace it. Optional for now -- Collexia has not yet confirmed the final authentication requirement, but this is required before EnDO can be enabled.</div>
+          <input type="password" name="collexia_password" class="form-control" autocomplete="new-password" placeholder="<?= $passwordSet ? '••••••••' : 'Not yet supplied' ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">
+            Client Secret
+            <?php if ($clientSecretSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="collexia_client_secret" class="form-control" autocomplete="new-password" placeholder="<?= $clientSecretSet ? '••••••••' : 'Not yet supplied' ?>">
         </div>
       </div>
+      <p class="text-muted small mb-3">Password and Client Secret are encrypted, never shown again after saving. Leave blank to keep the current value.</p>
 
       <hr>
       <h5 class="mb-1">Digital Signature Configuration</h5>
       <div class="alert alert-warning small">
-        <strong>Placeholder only -- not yet implemented.</strong> The EnDO V3 spec added a Digital Signature requirement, but Collexia has withheld the signing algorithm as a separate confidential document. No signature is attached to any request sent by this integration until that document is supplied and a real signing method is built. The field below only reserves encrypted storage for that future secret; it is not used anywhere yet, and its absence does not block enabling EnDO.
+        Placeholder only. Collexia has not yet supplied the signing algorithm (a separate confidential document) -- no signature is sent until that's built. Storage is reserved below; it's unused and doesn't block enabling EnDO.
       </div>
       <div class="row">
         <div class="col-md-6 mb-3">
@@ -89,8 +98,7 @@ $statusBadge = [
             Digital Signature Key / Secret
             <?php if ($signatureSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
           </label>
-          <input type="password" name="collexia_digital_signature_secret" class="form-control" autocomplete="new-password" placeholder="<?= $signatureSet ? '••••••••  (leave blank to keep current)' : 'Awaiting Collexia\'s specification' ?>">
-          <div class="form-text">Stored encrypted, never shown again once saved. Leave blank to keep the current value.</div>
+          <input type="password" name="collexia_digital_signature_secret" class="form-control" autocomplete="new-password" placeholder="<?= $signatureSet ? '••••••••' : 'Awaiting Collexia\'s specification' ?>">
         </div>
       </div>
 
