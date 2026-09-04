@@ -1,30 +1,44 @@
+<?php
+$statusBadge = [
+    'Not Configured' => 'bg-secondary',
+    'Partially Configured' => 'bg-secondary',
+    'Awaiting Security Configuration' => 'bg-warning',
+    'Ready for UAT' => 'bg-info',
+    'Enabled' => 'bg-success',
+    'Disabled' => 'bg-warning',
+][$status] ?? 'bg-secondary';
+?>
 <?= flash_messages() ?>
 
 <div class="card">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
       <h4 class="card-title mb-0">Debit Order API Settings</h4>
-      <?php if (!$configured): ?>
-        <span class="badge bg-secondary">Not configured</span>
-      <?php elseif (!$enabled): ?>
-        <span class="badge bg-warning">Configured, disabled</span>
-      <?php else: ?>
-        <span class="badge bg-success">Enabled</span>
-      <?php endif; ?>
+      <span class="badge <?= $statusBadge ?>"><?= e($status) ?></span>
     </div>
     <p class="text-muted small mb-3">
       Credentials for the mandate placement API (mandate placement, status, and cancellation from a debit order's detail page).
       This is separate from the existing Excel-based batch export -- while disabled or unconfigured, that older process is unaffected and keeps working exactly as it does today.
     </p>
 
+    <?php if (!empty($missingForEnable)): ?>
+      <div class="alert alert-warning small">
+        <strong>Still needed before EnDO can be enabled:</strong> <?= e(implode(', ', $missingForEnable)) ?>.
+      </div>
+    <?php endif; ?>
+
     <form method="post" action="<?= url('/collexia/settings') ?>">
       <?= csrf_field() ?>
 
       <div class="form-check form-switch mb-3">
         <input type="checkbox" class="form-check-input" id="collexia_enabled" name="collexia_enabled" <?= $enabled ? 'checked' : '' ?>>
-        <label class="form-check-label" for="collexia_enabled">Enable the API integration</label>
-        <div class="form-text">When off, every action that would place or update a mandate is blocked with a clear message -- nothing falls through to a partial or guessed call.</div>
+        <label class="form-check-label" for="collexia_enabled">Enable EnDO</label>
+        <div class="form-text">When off, every action that would place or update a mandate is blocked with a clear message -- nothing falls through to a partial or guessed call. Checking this only takes effect if every required field below is filled in; otherwise the save is rejected with a message listing what's missing.</div>
       </div>
+
+      <hr>
+      <h5 class="mb-1">EnDO &mdash; Enhanced Debit Order</h5>
+      <p class="text-muted small mb-3">Values supplied by Collexia for the EnDO V3 REST API. These map directly to <code>merchantGid</code>, <code>remoteGid</code>, <code>systemUserName</code>, and <code>frontEndUserName</code> in every request this integration sends.</p>
 
       <div class="row">
         <div class="col-md-8 mb-3">
@@ -53,8 +67,31 @@
         </div>
       </div>
 
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">
+            Authentication Credential / Password
+            <?php if ($credentialSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="collexia_credential" class="form-control" autocomplete="new-password" placeholder="<?= $credentialSet ? '••••••••  (leave blank to keep current)' : 'Not yet supplied by Collexia' ?>">
+          <div class="form-text">Stored encrypted, never shown again once saved. Leave blank to keep the current value; type a new one to replace it. Optional for now -- Collexia has not yet confirmed the final authentication requirement, but this is required before EnDO can be enabled.</div>
+        </div>
+      </div>
+
+      <hr>
+      <h5 class="mb-1">Digital Signature Configuration</h5>
       <div class="alert alert-warning small">
-        <strong>Still missing:</strong> the Digital Signature algorithm (a recent spec update added this requirement but the signing method itself was withheld pending a separate confidential document). Requests sent from here carry no signature until that's supplied -- confirm with your provider whether that blocks going live before relying on this for real mandates.
+        <strong>Placeholder only -- not yet implemented.</strong> The EnDO V3 spec added a Digital Signature requirement, but Collexia has withheld the signing algorithm as a separate confidential document. No signature is attached to any request sent by this integration until that document is supplied and a real signing method is built. The field below only reserves encrypted storage for that future secret; it is not used anywhere yet, and its absence does not block enabling EnDO.
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">
+            Digital Signature Key / Secret
+            <?php if ($signatureSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="collexia_digital_signature_secret" class="form-control" autocomplete="new-password" placeholder="<?= $signatureSet ? '••••••••  (leave blank to keep current)' : 'Awaiting Collexia\'s specification' ?>">
+          <div class="form-text">Stored encrypted, never shown again once saved. Leave blank to keep the current value.</div>
+        </div>
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
