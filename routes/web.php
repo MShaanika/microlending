@@ -221,6 +221,7 @@ $router->get('/debit-orders/{id}/edit', [DebitOrderController::class, 'edit']);
 $router->post('/debit-orders/{id}', [DebitOrderController::class, 'update']);
 
 $router->get('/collexia/settings', [CollexiaSettingController::class, 'edit']);
+$router->get('/collexia/settings/manage', [CollexiaSettingController::class, 'manage']);
 $router->post('/collexia/settings', [CollexiaSettingController::class, 'update']);
 
 $router->post('/debit-orders/{id}/collexia/place', [DebitOrderCollexiaController::class, 'placeMandate']);

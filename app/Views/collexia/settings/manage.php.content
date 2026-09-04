@@ -1,0 +1,109 @@
+<?php
+$statusBadge = [
+    'Not Configured' => 'bg-secondary',
+    'Partially Configured' => 'bg-secondary',
+    'Awaiting Security Configuration' => 'bg-warning',
+    'Ready for UAT' => 'bg-info',
+    'Enabled' => 'bg-success',
+    'Disabled' => 'bg-warning',
+][$status] ?? 'bg-secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+      <h4 class="card-title mb-0">Manage Collexia EnDO Credentials</h4>
+      <span class="badge <?= $statusBadge ?>"><?= e($status) ?></span>
+    </div>
+    <p class="text-muted small mb-3">
+      Mandate placement API credentials. Separate from the Excel-based batch export, which keeps working regardless of this integration's status.
+      <a href="<?= url('/collexia/settings') ?>">Back to status</a>.
+    </p>
+
+    <?php if (!empty($missingForEnable)): ?>
+      <div class="alert alert-warning small">
+        <strong>Still needed before EnDO can be enabled:</strong> <?= e(implode(', ', $missingForEnable)) ?>.
+      </div>
+    <?php endif; ?>
+
+    <form method="post" action="<?= url('/collexia/settings') ?>">
+      <?= csrf_field() ?>
+
+      <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="collexia_enabled" name="collexia_enabled" <?= $enabled ? 'checked' : '' ?>>
+        <label class="form-check-label" for="collexia_enabled">Enable EnDO</label>
+        <div class="form-text">Requires every field below. Rejected server-side if anything's missing.</div>
+      </div>
+
+      <hr>
+      <h5 class="mb-1">EnDO &mdash; Enhanced Debit Order</h5>
+      <p class="text-muted small mb-3">Maps to <code>merchantGid</code>, <code>remoteGid</code>, <code>systemUserName</code>, and the OAuth <code>clientId</code>/<code>clientSecret</code> pair in every request. <code>Username</code>/<code>Password</code> also authenticate every request via HTTP Basic Auth.</p>
+
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Host / Base URL</label>
+          <input type="text" name="collexia_base_url" class="form-control" placeholder="https://switch.collexia.co" value="<?= e($settings['collexia_base_url'] ?? '') ?>">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Merchant GID</label>
+          <input type="text" name="collexia_merchant_gid" class="form-control" value="<?= e($settings['collexia_merchant_gid'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Remote GID</label>
+          <input type="text" name="collexia_remote_gid" class="form-control" value="<?= e($settings['collexia_remote_gid'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Username</label>
+          <input type="text" name="collexia_system_username" class="form-control" value="<?= e($settings['collexia_system_username'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Client ID</label>
+          <input type="text" name="collexia_client_id" class="form-control" value="<?= e($settings['collexia_client_id'] ?? '') ?>">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">
+            Password
+            <?php if ($passwordSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="collexia_password" class="form-control" autocomplete="new-password" placeholder="<?= $passwordSet ? '••••••••' : 'Not yet supplied' ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">
+            Client Secret
+            <?php if ($clientSecretSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="collexia_client_secret" class="form-control" autocomplete="new-password" placeholder="<?= $clientSecretSet ? '••••••••' : 'Not yet supplied' ?>">
+        </div>
+      </div>
+      <p class="text-muted small mb-3">Password and Client Secret are encrypted, never shown again after saving. Leave blank to keep the current value.</p>
+
+      <hr>
+      <h5 class="mb-1">Digital Signature</h5>
+      <?php if (\App\Models\CollexiaSetting::SIGNING_IMPLEMENTED): ?>
+        <div class="alert alert-success small">Digital Signature: Configured. Every request is signed with HMAC-SHA512, matching Collexia's supplied specification.</div>
+      <?php else: ?>
+        <div class="alert alert-warning small">
+          Digital Signature: not yet implemented. Collexia confirmed HMAC-SHA512 (Base64-encoded) is required on every request, but the exact construction must be reproduced from Collexia's own Postman pre-request script before this can go live -- see <code>CollexiaClient::generateSignature()</code>. Every Collexia API call is blocked until this is done.
+        </div>
+      <?php endif; ?>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">
+            Digital Signature Key / Secret
+            <?php if ($signatureSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="collexia_digital_signature_secret" class="form-control" autocomplete="new-password" placeholder="<?= $signatureSet ? '••••••••' : 'Not yet supplied' ?>">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
+    </form>
+  </div>
+</div>

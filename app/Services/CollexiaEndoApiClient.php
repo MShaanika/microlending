@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\CollexiaSetting;
-
 /**
  * Collexia EnDO JSON REST API client, per "CO JSON REST API Interface
  * Specification V3.0" (15 April 2025). Covers all 8 endpoints under
@@ -16,45 +14,32 @@ use App\Models\CollexiaSetting;
  * this client is not wired into that flow. See CollexiaV3Codes for this
  * spec's numeric code tables (distinct from CollexiaCodes' v1.0 codes).
  *
- * NOT YET IMPLEMENTED: the spec's Digital Signature requirement (added in
- * v3.0 -- see the version-control changelog and section 1's "Scope").
- * Neither the JSON structures nor the prose in this document specify the
- * signing algorithm, what gets signed, or where the signature is attached
- * (body field vs. HTTP header) -- the EnCr companion spec explicitly says
- * "this information will be shared in a separate document, due to the
- * confidential nature." Until Collexia supplies that document, requests
- * sent by this client carry no signature. digitalSignature() is a named
- * stub marking exactly where that needs to be wired in.
+ * HTTP transport, Basic Auth, and the CX_SWITCH_* signing headers all live
+ * in CollexiaClient -- every method below just builds a JSON body and
+ * calls $this->client->post(), never curl directly. frontEndUserName is
+ * read from settings and passed through as-is, never invented or defaulted
+ * to systemUserName -- it's currently optional/unconfigured per Collexia's
+ * UAT credential set, so it goes out blank unless a value has actually
+ * been stored.
  *
- * Credentials and the enabled/disabled toggle are read from CollexiaSetting
- * (DB-backed, editable at /collexia/settings), not a config file -- so
- * staff can enter Collexia's values through the interface once supplied,
- * without a code deploy.
+ * Credentials and the enabled/disabled toggle are read (via CollexiaClient)
+ * from CollexiaSetting (DB-backed, editable at /collexia/settings/manage),
+ * not a config file -- so staff can enter Collexia's values through the
+ * interface once supplied, without a code deploy.
  */
 class CollexiaEndoApiClient
 {
-    private const BASE_PATH = '/api/coswitchuadsrest/v3';
-
-    private array $config;
-    private bool $enabled;
+    private CollexiaClient $client;
 
     public function __construct()
     {
-        $settings = new CollexiaSetting();
-        $this->enabled = $settings->isEnabled();
-        $this->config = [
-            'base_url' => $settings->get('collexia_base_url'),
-            'merchant_gid' => $settings->get('collexia_merchant_gid') ?: null,
-            'remote_gid' => $settings->get('collexia_remote_gid') ?: null,
-            'system_username' => $settings->get('collexia_system_username'),
-            'front_end_username' => $settings->get('collexia_front_end_username'),
-        ];
+        $this->client = new CollexiaClient();
     }
 
     /** 6.1 Request for Mandate Load -- POST /mandates/load. $mandate keys per spec 9.3. */
     public function loadMandate(array $mandate, ?string $frontEndUserName = null): array
     {
-        return $this->post('/mandates/load', [
+        return $this->client->post('/mandates/load', [
             'messageInfo' => $this->messageInfo($frontEndUserName),
             'mandate' => $mandate,
         ]);
@@ -63,11 +48,11 @@ class CollexiaEndoApiClient
     /** 6.2 Request Final Fate for Mandate Load -- POST /mandates/finalfate. */
     public function requestFinalFate(string $contractReference, ?string $frontEndUserName = null): array
     {
-        return $this->post('/mandates/finalfate', [
+        return $this->client->post('/mandates/finalfate', [
             'contractReference' => $contractReference,
-            'merchantGid' => $this->config['merchant_gid'],
-            'frontEndUserName' => $frontEndUserName ?? $this->config['front_end_username'],
-            'remoteGid' => $this->config['remote_gid'],
+            'merchantGid' => $this->client->config('merchant_gid'),
+            'frontEndUserName' => $frontEndUserName ?? $this->client->config('front_end_username'),
+            'remoteGid' => $this->client->config('remote_gid'),
         ]);
     }
 
@@ -78,20 +63,20 @@ class CollexiaEndoApiClient
      */
     public function mandateEnquiry(array $filters = []): array
     {
-        return $this->post('/mandates/batch/mandateenquiry', array_merge([
-            'merchantGid' => $this->config['merchant_gid'],
-            'remoteGid' => $this->config['remote_gid'],
+        return $this->client->post('/mandates/batch/mandateenquiry', array_merge([
+            'merchantGid' => $this->client->config('merchant_gid'),
+            'remoteGid' => $this->client->config('remote_gid'),
         ], $filters));
     }
 
     /** 6.4 Cancel of Mandate -- POST /mandates/cancel. */
     public function cancelMandate(string $contractReference, ?string $frontEndUserName = null): array
     {
-        return $this->post('/mandates/cancel', [
+        return $this->client->post('/mandates/cancel', [
             'contractReference' => $contractReference,
-            'frontEndUserName' => $frontEndUserName ?? $this->config['front_end_username'],
-            'remoteGid' => $this->config['remote_gid'],
-            'merchantGid' => $this->config['merchant_gid'],
+            'frontEndUserName' => $frontEndUserName ?? $this->client->config('front_end_username'),
+            'remoteGid' => $this->client->config('remote_gid'),
+            'merchantGid' => $this->client->config('merchant_gid'),
         ]);
     }
 
@@ -101,10 +86,10 @@ class CollexiaEndoApiClient
      */
     public function installmentRequest(string $contractReference): array
     {
-        return $this->post('/installments/batch/installment', [
-            'merchantGid' => $this->config['merchant_gid'],
+        return $this->client->post('/installments/batch/installment', [
+            'merchantGid' => $this->client->config('merchant_gid'),
             'contractReference' => $contractReference,
-            'remoteGid' => $this->config['remote_gid'],
+            'remoteGid' => $this->client->config('remote_gid'),
         ]);
     }
 
@@ -115,7 +100,7 @@ class CollexiaEndoApiClient
      */
     public function updateInstallment(array $installments, ?string $frontEndUserName = null): array
     {
-        return $this->post('/installments/batch/update', [
+        return $this->client->post('/installments/batch/update', [
             'messageInfo' => $this->messageInfo($frontEndUserName),
             'installment' => $installments,
         ]);
@@ -124,23 +109,23 @@ class CollexiaEndoApiClient
     /** 7.3 Cancel Installment using Contract Reference and Installment No -- POST /installments/cancel. */
     public function cancelInstallment(string $contractReference, int $installmentNo, ?string $frontEndUserName = null): array
     {
-        return $this->post('/installments/cancel', [
+        return $this->client->post('/installments/cancel', [
             'contractReference' => $contractReference,
             'installmentNo' => $installmentNo,
             'action' => 'C',
-            'frontEndUserName' => $frontEndUserName ?? $this->config['front_end_username'],
-            'remoteGid' => $this->config['remote_gid'],
-            'merchantGid' => $this->config['merchant_gid'],
+            'frontEndUserName' => $frontEndUserName ?? $this->client->config('front_end_username'),
+            'remoteGid' => $this->client->config('remote_gid'),
+            'merchantGid' => $this->client->config('merchant_gid'),
         ]);
     }
 
     /** 7.4 Request for Download of Payments -- POST /paymenthistory/download. Recommended times: 06:00/10:00/15:00/20:00. */
     public function downloadPayments(?string $frontEndUserName = null): array
     {
-        return $this->post('/paymenthistory/download', [
-            'merchantGid' => $this->config['merchant_gid'],
-            'frontEndUserName' => $frontEndUserName ?? $this->config['front_end_username'],
-            'remoteGid' => $this->config['remote_gid'],
+        return $this->client->post('/paymenthistory/download', [
+            'merchantGid' => $this->client->config('merchant_gid'),
+            'frontEndUserName' => $frontEndUserName ?? $this->client->config('front_end_username'),
+            'remoteGid' => $this->client->config('remote_gid'),
         ]);
     }
 
@@ -148,65 +133,12 @@ class CollexiaEndoApiClient
     private function messageInfo(?string $frontEndUserName = null): array
     {
         return [
-            'merchantGid' => $this->config['merchant_gid'],
-            'remoteGid' => $this->config['remote_gid'],
+            'merchantGid' => $this->client->config('merchant_gid'),
+            'remoteGid' => $this->client->config('remote_gid'),
             'messageDate' => date('Ymd'),
             'messageTime' => date('His'),
-            'systemUserName' => $this->config['system_username'],
-            'frontEndUserName' => $frontEndUserName ?? $this->config['front_end_username'],
+            'systemUserName' => $this->client->config('system_username'),
+            'frontEndUserName' => $frontEndUserName ?? $this->client->config('front_end_username'),
         ];
-    }
-
-    /** See class docblock -- not implemented, no signing algorithm has been supplied by Collexia yet. */
-    private function digitalSignature(array $payload): ?string
-    {
-        return null;
-    }
-
-    private function post(string $path, array $body): array
-    {
-        if (!$this->enabled) {
-            throw new \RuntimeException('The mandate placement API integration is disabled (Collections > Debit Order API Settings).');
-        }
-
-        $baseUrl = rtrim((string) ($this->config['base_url'] ?? ''), '/');
-        if ($baseUrl === '') {
-            throw new \RuntimeException('The mandate placement API is not configured yet -- fill in the host and credentials under Collections > Debit Order API Settings.');
-        }
-
-        $ch = curl_init($baseUrl . self::BASE_PATH . $path);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Accept: application/json',
-            ],
-            CURLOPT_POSTFIELDS => json_encode($body),
-            CURLOPT_TIMEOUT => 30,
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            throw new \RuntimeException('Failed to reach the mandate placement API: ' . $error);
-        }
-
-        $data = json_decode((string) $response, true);
-        if (!is_array($data)) {
-            $data = [];
-        }
-
-        if (isset($data['errors']) || $httpCode >= 400) {
-            throw new CollexiaApiException(
-                $data['errors'] ?? [],
-                $data['status'] ?? $httpCode,
-                $data['summary'] ?? null,
-            );
-        }
-
-        return $data;
     }
 }

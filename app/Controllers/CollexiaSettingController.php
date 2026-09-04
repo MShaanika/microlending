@@ -11,12 +11,12 @@ use App\Models\CollexiaSetting;
 
 class CollexiaSettingController extends Controller
 {
+    /** Plain (non-secret) fields the manage form can write -- collexia_front_end_username is deliberately absent: removed from the UI, never written, existing stored value (if any) untouched. */
     private const KEYS = [
         'collexia_base_url',
         'collexia_merchant_gid',
         'collexia_remote_gid',
         'collexia_system_username',
-        'collexia_front_end_username',
         'collexia_client_id',
     ];
 
@@ -27,14 +27,26 @@ class CollexiaSettingController extends Controller
         $this->settings = new CollexiaSetting();
     }
 
+    /** Read-only integration status -- no credential values, no editable fields. Same base permission as before. */
     public function edit(): void
     {
         Auth::authorize('collections.debit_orders');
         $this->view('collexia/settings/edit', [
             'title' => 'Debit Order API Settings',
+            'status' => $this->settings->status(),
+            'enabled' => $this->settings->isEnabled(),
+            'canManage' => Auth::can('admin.system_settings'),
+        ]);
+    }
+
+    /** The actual editable credential form -- restricted to a higher permission than day-to-day debit order staff. */
+    public function manage(): void
+    {
+        Auth::authorize('admin.system_settings');
+        $this->view('collexia/settings/manage', [
+            'title' => 'Manage Collexia EnDO Credentials',
             'settings' => $this->settings->allSettings(),
             'enabled' => $this->settings->isEnabled(),
-            'configured' => $this->settings->isConfigured(),
             'status' => $this->settings->status(),
             'missingForEnable' => $this->settings->missingForEnable(),
             'passwordSet' => $this->settings->isPasswordSet(),
@@ -45,19 +57,25 @@ class CollexiaSettingController extends Controller
 
     public function update(): void
     {
-        Auth::authorize('collections.debit_orders');
+        Auth::authorize('admin.system_settings');
 
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
             Session::flash('error', 'Security token expired. Please try again.');
-            $this->redirect('/collexia/settings');
+            $this->redirect('/collexia/settings/manage');
             return;
         }
 
         $userId = Auth::user()['id'] ?? null;
         $wasEnabled = $this->settings->get('collexia_enabled') === 'on';
 
+        // Only a field actually present in the submitted form is touched --
+        // a field that isn't rendered (e.g. a removed one) is never sent by
+        // the browser at all, so array_key_exists correctly leaves its
+        // stored value exactly as it was rather than nulling it out.
         foreach (self::KEYS as $key) {
-            $this->settings->set($key, trim($_POST[$key] ?? '') ?: null, $userId);
+            if (array_key_exists($key, $_POST)) {
+                $this->settings->set($key, trim((string) $_POST[$key]) ?: null, $userId);
+            }
         }
 
         // Blank means "leave the stored secret as it is" -- see
@@ -80,7 +98,7 @@ class CollexiaSettingController extends Controller
                 $this->settings->set('collexia_enabled', 'off', $userId);
                 Audit::log('Update', 'Debit Orders', 'Updated Collexia API settings (enable blocked -- incomplete configuration)');
                 Session::flash('error', 'Could not enable EnDO -- still missing: ' . implode(', ', $missing) . '.');
-                $this->redirect('/collexia/settings');
+                $this->redirect('/collexia/settings/manage');
                 return;
             }
             $this->settings->set('collexia_enabled', 'on', $userId);
@@ -98,6 +116,6 @@ class CollexiaSettingController extends Controller
 
         Audit::log('Update', 'Debit Orders', 'Updated Collexia API settings');
         Session::flash('success', 'API settings saved.');
-        $this->redirect('/collexia/settings');
+        $this->redirect('/collexia/settings/manage');
     }
 }

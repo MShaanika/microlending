@@ -18,14 +18,21 @@ class CollexiaSetting extends Model
         'collexia_base_url' => 'Host / Base URL',
         'collexia_merchant_gid' => 'Merchant GID',
         'collexia_remote_gid' => 'Remote GID',
-        'collexia_system_username' => 'System Username',
-        'collexia_front_end_username' => 'Front-End Username',
+        'collexia_system_username' => 'Username',
         'collexia_client_id' => 'Client ID',
     ];
 
     private const PASSWORD_KEY = 'collexia_password';
     private const CLIENT_SECRET_KEY = 'collexia_client_secret';
     private const SIGNATURE_KEY = 'collexia_digital_signature_secret';
+
+    /**
+     * Flip to true only once CollexiaClient::generateSignature() actually
+     * reproduces Collexia's Postman pre-request script -- gates both
+     * isReadyToEnable() and the "Digital Signature: Configured" status line
+     * so neither claims the signing requirement is met before it is.
+     */
+    public const SIGNING_IMPLEMENTED = false;
 
     public function get(string $key, string $default = ''): string
     {
@@ -99,7 +106,7 @@ class CollexiaSetting extends Model
 
     public function isReadyToEnable(): bool
     {
-        return $this->isConfigured() && $this->isPasswordSet() && $this->isClientSecretSet();
+        return $this->isConfigured() && $this->isPasswordSet() && $this->isClientSecretSet() && self::SIGNING_IMPLEMENTED;
     }
 
     /** Labels of whatever's still missing -- drives both the status indicator and the enable rejection message. */
@@ -111,6 +118,9 @@ class CollexiaSetting extends Model
         }
         if (!$this->isClientSecretSet()) {
             $missing[] = 'Client Secret';
+        }
+        if (!self::SIGNING_IMPLEMENTED) {
+            $missing[] = 'Digital Signature (HMAC-SHA512) implementation';
         }
         return $missing;
     }
@@ -129,7 +139,6 @@ class CollexiaSetting extends Model
     /**
      * Not Configured / Partially Configured / Awaiting Security
      * Configuration / Ready for UAT / Enabled / Disabled.
-     * Digital Signature is never required here -- no spec from Collexia yet.
      */
     public function status(): string
     {
@@ -142,7 +151,7 @@ class CollexiaSetting extends Model
         if ($filledBase < count(self::BASE_FIELDS)) {
             return 'Partially Configured';
         }
-        if (!$this->isPasswordSet() || !$this->isClientSecretSet()) {
+        if (!$this->isPasswordSet() || !$this->isClientSecretSet() || !self::SIGNING_IMPLEMENTED) {
             return 'Awaiting Security Configuration';
         }
 
