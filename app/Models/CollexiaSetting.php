@@ -24,15 +24,15 @@ class CollexiaSetting extends Model
 
     private const PASSWORD_KEY = 'collexia_password';
     private const CLIENT_SECRET_KEY = 'collexia_client_secret';
-    private const SIGNATURE_KEY = 'collexia_digital_signature_secret';
 
     /**
-     * Flip to true only once CollexiaClient::generateSignature() actually
-     * reproduces Collexia's Postman pre-request script -- gates both
-     * isReadyToEnable() and the "Digital Signature: Configured" status line
-     * so neither claims the signing requirement is met before it is.
+     * True since 2026-09-05: CollexiaClient::generateSignature() reproduces
+     * Collexia's Postman pre-request script exactly (HMAC-SHA512 keyed by
+     * Client Secret, Base64-encoded -- see tests/Unit/CollexiaClientTest.php,
+     * all passing). Gates both isReadyToEnable() and the "Digital
+     * Signature: Configured" status line.
      */
-    public const SIGNING_IMPLEMENTED = false;
+    public const SIGNING_IMPLEMENTED = true;
 
     public function get(string $key, string $default = ''): string
     {
@@ -84,11 +84,6 @@ class CollexiaSetting extends Model
     public function isClientSecretSet(): bool
     {
         return $this->get(self::CLIENT_SECRET_KEY) !== '';
-    }
-
-    public function isSignatureSet(): bool
-    {
-        return $this->get(self::SIGNATURE_KEY) !== '';
     }
 
     public function isEnabled(): bool

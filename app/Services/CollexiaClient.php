@@ -12,16 +12,11 @@ use App\Models\CollexiaSetting;
  * authentication or signing itself. CollexiaEndoApiClient (the EnDO V3
  * business endpoints) calls send() here rather than curl'ing directly.
  *
- * generateSignature() is a deliberate stub: Collexia confirmed HMAC-SHA512
- * + Base64 is required and that the clientId and DTS are involved, but the
- * exact key/concatenation/separator/encoding must come from Collexia's own
- * Postman pre-request script (the authoritative source) -- inventing that
- * construction would produce a signature that looks plausible but is
- * simply wrong, and Collexia would reject every request silently for the
- * wrong reason. Every send() call fails closed (throws) until that script
- * has been inspected and this method reproduces it exactly -- see
- * CollexiaSetting::SIGNING_IMPLEMENTED, which gates readiness on the same
- * fact so the UI never claims "Digital Signature: Configured" prematurely.
+ * Signature construction is reproduced exactly from Collexia's own
+ * Postman pre-request script (DigitalSignatureScript.txt, supplied
+ * 2026-09-05) -- not invented. See computeSignature() for the byte-for-byte
+ * match: stringToSign = clientId . dts (no separator), HMAC-SHA512 keyed
+ * by the Client Secret, Base64-encoded.
  */
 class CollexiaClient
 {
@@ -48,37 +43,135 @@ class CollexiaClient
     }
 
     /**
-     * yyyy-MM-dd HH:mm:ss.SSS in SAST (UTC+2), generated fresh for this
-     * exact call -- never cached or reused, per Collexia's 60-second clock
-     * tolerance. Built from gettimeofday() (not DateTime) so millisecond
-     * precision is exact rather than rounded.
+     * SAST (UTC+2) date/time parts for one instant, each zero-padded to
+     * the script's exact widths -- the single source both buildTimestamp()
+     * and buildContractReference()/buildUserReference() draw from, so a
+     * mandate placed right on a second boundary can't see the DTS and the
+     * contractReference disagree about what second it is.
+     *
+     * millis uses floor(), not round(): the Postman script reads
+     * milliseconds straight off a native JS Date, which never produces
+     * 1000 -- rounding gettimeofday()'s microseconds could, which would
+     * silently break the fixed-width format. Floor matches JS exactly.
      */
-    public function buildTimestamp(): string
+    public static function sastComponentsFromEpoch(int $epochSeconds, int $microseconds): array
     {
-        $micro = gettimeofday();
-        $sastSeconds = $micro['sec'] + self::SAST_OFFSET_SECONDS;
-        $millis = (int) round($micro['usec'] / 1000);
-        if ($millis >= 1000) {
-            $millis -= 1000;
-            $sastSeconds += 1;
-        }
+        $sastSeconds = $epochSeconds + self::SAST_OFFSET_SECONDS;
+        $millis = (int) floor($microseconds / 1000);
 
-        return gmdate('Y-m-d H:i:s', $sastSeconds) . '.' . str_pad((string) $millis, 3, '0', STR_PAD_LEFT);
+        return [
+            'year' => gmdate('Y', $sastSeconds),
+            'month' => gmdate('m', $sastSeconds),
+            'day' => gmdate('d', $sastSeconds),
+            'hours' => gmdate('H', $sastSeconds),
+            'minutes' => gmdate('i', $sastSeconds),
+            'seconds' => gmdate('s', $sastSeconds),
+            'millis' => str_pad((string) $millis, 3, '0', STR_PAD_LEFT),
+        ];
     }
 
-    /** @throws \RuntimeException always, until the real construction is confirmed against Collexia's Postman script -- see class docblock. */
+    private static function sastNow(): array
+    {
+        $now = gettimeofday();
+        return self::sastComponentsFromEpoch($now['sec'], $now['usec']);
+    }
+
+    /**
+     * yyyy-MM-dd HH:mm:ss.SSS in SAST -- generated fresh for this exact
+     * call, never cached or reused, per Collexia's 60-second clock
+     * tolerance.
+     */
+    public static function buildTimestamp(): string
+    {
+        $c = self::sastNow();
+        return self::formatTimestamp($c);
+    }
+
+    public static function formatTimestamp(array $c): string
+    {
+        return "{$c['year']}-{$c['month']}-{$c['day']} {$c['hours']}:{$c['minutes']}:{$c['seconds']}.{$c['millis']}";
+    }
+
+    /**
+     * 14 chars: Merchant GID in hex (4, uppercase, zero-padded) + MMDD (4)
+     * + HHmmss (6) -- per the Postman script. Unique across calls made in
+     * different seconds; NOT unique for two calls in the same second (the
+     * script itself only claims "unique every second"). Safe for a single
+     * mandate placement (one contractReference generated once). Split
+     * mandate placement calls this several times in a tight loop and is
+     * NOT yet switched to this method for that reason -- see
+     * DebitOrderCollexiaController::placeSplitMandate() and the
+     * implementation report for the flagged conflict.
+     */
+    public static function contractReferenceFromParts(int $merchantGid, array $c): string
+    {
+        $gid = strtoupper(str_pad(dechex($merchantGid), 4, '0', STR_PAD_LEFT));
+        return $gid . $c['month'] . $c['day'] . $c['hours'] . $c['minutes'] . $c['seconds'];
+    }
+
+    public function buildContractReference(): string
+    {
+        $merchantGid = (int) ($this->config('merchant_gid') ?? 0);
+        return self::contractReferenceFromParts($merchantGid, self::sastNow());
+    }
+
+    /**
+     * Per the Postman script: (seconds . millis), last 6 chars, + 4 random
+     * alphanumeric chars. seconds is always 2 digits and millis always 3,
+     * so seconds.millis is only 5 characters -- JS's slice(-6) on a
+     * 5-char string returns the whole string (out-of-range negative start
+     * clamps to 0), not 6. The script's own comment claims "10 chars
+     * total"; the actual math it performs produces 9. Reproduced exactly
+     * as the script behaves, not as its comment claims -- see the
+     * implementation report.
+     */
+    public static function userReferenceFromParts(array $c, string $randomPart): string
+    {
+        $timeAnchor = substr($c['seconds'] . $c['millis'], -6);
+        return $timeAnchor . $randomPart;
+    }
+
+    public static function randomAlphanumeric(int $length): string
+    {
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $rand = '';
+        for ($i = 0; $i < $length; $i++) {
+            $rand .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+        return $rand;
+    }
+
+    public function buildUserReference(): string
+    {
+        return self::userReferenceFromParts(self::sastNow(), self::randomAlphanumeric(4));
+    }
+
+    /**
+     * The pure signature math, isolated from settings/DB so it's directly
+     * unit-testable with fixed inputs -- see tests/Unit/CollexiaClientTest.php.
+     * stringToSign = clientId . dts, no separator; HMAC-SHA512 keyed by
+     * $clientSecret; Base64 of the raw digest. Exactly the Postman script's
+     * steps 4-5.
+     */
+    public static function computeSignature(string $clientId, string $dts, string $clientSecret): string
+    {
+        return base64_encode(hash_hmac('sha512', $clientId . $dts, $clientSecret, true));
+    }
+
     private function generateSignature(string $clientId, string $dts): string
     {
-        throw new \RuntimeException(
-            'Collexia digital signature not implemented yet -- HMAC-SHA512 construction must be reproduced exactly '
-            . 'from Collexia\'s Postman pre-request script before any request can be signed. See CollexiaClient::generateSignature().'
-        );
+        $clientSecret = $this->settings->getDecrypted('collexia_client_secret');
+        if ($clientSecret === null || $clientSecret === '') {
+            throw new \RuntimeException('Collexia Client Secret is not configured -- cannot sign requests.');
+        }
+
+        return self::computeSignature($clientId, $dts, $clientSecret);
     }
 
     private function buildSecurityHeaders(): array
     {
         $clientId = $this->config('client_id') ?? '';
-        $dts = $this->buildTimestamp();
+        $dts = self::buildTimestamp();
         $signature = $this->generateSignature($clientId, $dts);
 
         return [

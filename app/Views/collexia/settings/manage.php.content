@@ -87,21 +87,10 @@ $statusBadge = [
       <hr>
       <h5 class="mb-1">Digital Signature</h5>
       <?php if (\App\Models\CollexiaSetting::SIGNING_IMPLEMENTED): ?>
-        <div class="alert alert-success small">Digital Signature: Configured. Every request is signed with HMAC-SHA512, matching Collexia's supplied specification.</div>
+        <div class="alert alert-success small">Digital Signature: Configured. Every request is signed with HMAC-SHA512 (Client Secret as the key), Base64-encoded, per Collexia's supplied specification -- no separate signature secret needed.</div>
       <?php else: ?>
-        <div class="alert alert-warning small">
-          Digital Signature: not yet implemented. Collexia confirmed HMAC-SHA512 (Base64-encoded) is required on every request, but the exact construction must be reproduced from Collexia's own Postman pre-request script before this can go live -- see <code>CollexiaClient::generateSignature()</code>. Every Collexia API call is blocked until this is done.
-        </div>
+        <div class="alert alert-warning small">Digital Signature: not yet implemented. Every Collexia API call is blocked until this is done.</div>
       <?php endif; ?>
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label class="form-label">
-            Digital Signature Key / Secret
-            <?php if ($signatureSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
-          </label>
-          <input type="password" name="collexia_digital_signature_secret" class="form-control" autocomplete="new-password" placeholder="<?= $signatureSet ? '••••••••' : 'Not yet supplied' ?>">
-        </div>
-      </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
     </form>

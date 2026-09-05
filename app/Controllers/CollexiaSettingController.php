@@ -51,7 +51,6 @@ class CollexiaSettingController extends Controller
             'missingForEnable' => $this->settings->missingForEnable(),
             'passwordSet' => $this->settings->isPasswordSet(),
             'clientSecretSet' => $this->settings->isClientSecretSet(),
-            'signatureSet' => $this->settings->isSignatureSet(),
         ]);
     }
 
@@ -80,11 +79,12 @@ class CollexiaSettingController extends Controller
 
         // Blank means "leave the stored secret as it is" -- see
         // CollexiaSetting::setEncrypted(). Never logged, audited, or
-        // echoed back; only presence (isPasswordSet()/isClientSecretSet()/
-        // isSignatureSet()) is used anywhere else in this app.
+        // echoed back; only presence (isPasswordSet()/isClientSecretSet())
+        // is used anywhere else in this app. There is no separate Digital
+        // Signature secret field: the script confirmed Client Secret
+        // itself is the HMAC-SHA512 key (CollexiaClient::generateSignature()).
         $this->settings->setEncrypted('collexia_password', $_POST['collexia_password'] ?? '', $userId);
         $this->settings->setEncrypted('collexia_client_secret', $_POST['collexia_client_secret'] ?? '', $userId);
-        $this->settings->setEncrypted('collexia_digital_signature_secret', $_POST['collexia_digital_signature_secret'] ?? '', $userId);
 
         $wantsEnabled = !empty($_POST['collexia_enabled']);
 
