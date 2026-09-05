@@ -352,9 +352,16 @@ class AfsExcelExporter
         // *movement* in the asset, not the raw payment, or the drawn-down
         // portion would be counted twice.
         $receivablesPrepaymentsMovement = $bsMv('bs_receivables_prepayments');
+        // The mirror case: an increase in Accounts Payable is an operating
+        // cost recognized (already inside cosTotal/opexTotal above) that
+        // has NOT yet been paid in cash -- e.g. a NAMFISA/duty stamp amount
+        // withheld from a customer but not yet remitted -- so it must be
+        // added back, or that unpaid amount would be counted as a cash
+        // outflow when no cash actually left yet.
+        $payablesMovement = $bsMv('bs_accounts_payable');
 
         $cashFromCustomers += $principalCollected;
-        $cashToSuppliers = -($cosTotal + $opexTotal) - $principalDisbursed + $provisionMovement - $receivablesPrepaymentsMovement;
+        $cashToSuppliers = -($cosTotal + $opexTotal) - $principalDisbursed + $provisionMovement - $receivablesPrepaymentsMovement + $payablesMovement;
 
         // Movable Assets cash movement, from the Fixed Asset Register --
         // same source as the Balance Sheet's own "Movable Assets" line (see
@@ -424,8 +431,14 @@ class AfsExcelExporter
         $this->dataRow($sheet, $row++, 'Proceeds from long-term borrowings', $ltbFlow['credit']);
         $repaymentRow = $row;
         $this->dataRow($sheet, $row++, 'Payment of capital elements of long-term borrowings', -$ltbFlow['debit']);
+        // A bank overdraft draw lands straight in the same cash/bank
+        // account cashClosing/cashOpening already sum, so without this line
+        // the rollforward from opening to closing cash has no source for
+        // that inflow and "Check to actual closing cash" never reconciles.
+        $overdraftRow = $row;
+        $this->dataRow($sheet, $row++, 'Increase/(decrease) in Bank Overdrafts', $bsMv('bs_bank_overdrafts'));
         $netFinancingRow = $row;
-        $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$repaymentRow})", true);
+        $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$overdraftRow})", true);
         $row++;
 
         $netMovementRow = $row;
