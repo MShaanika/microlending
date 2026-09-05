@@ -43,6 +43,20 @@ class CollexiaClient
     }
 
     /**
+     * merchantGid/remoteGid are typed `integer` in the spec (9.2, 9.4, 9.6,
+     * 9.10, 9.12, 9.16, 9.18) -- settings are stored as strings, and
+     * json_encode() on a PHP string produces a JSON string ("12666"), not
+     * a JSON number (12666). Collexia's own validator rejects that
+     * mismatch (confirmed live: error 9406 "Unexpected format for value
+     * of field" on a Mandate Enquiry call before this fix).
+     */
+    public function configInt(string $key): ?int
+    {
+        $value = $this->config($key);
+        return $value === null ? null : (int) $value;
+    }
+
+    /**
      * SAST (UTC+2) date/time parts for one instant, each zero-padded to
      * the script's exact widths -- the single source both buildTimestamp()
      * and buildContractReference()/buildUserReference() draw from, so a

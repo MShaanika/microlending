@@ -60,9 +60,9 @@ class CollexiaEndoApiClient
     {
         return $this->client->post('/mandates/finalfate', [
             'contractReference' => $contractReference,
-            'merchantGid' => $this->client->config('merchant_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
             'frontEndUserName' => $frontEndUserName,
-            'remoteGid' => $this->client->config('remote_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
         ]);
     }
 
@@ -75,8 +75,8 @@ class CollexiaEndoApiClient
     public function mandateEnquiry(array $filters = []): array
     {
         return $this->client->post('/mandates/batch/mandateenquiry', array_merge([
-            'merchantGid' => $this->client->config('merchant_gid'),
-            'remoteGid' => $this->client->config('remote_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
         ], $filters));
     }
 
@@ -86,8 +86,8 @@ class CollexiaEndoApiClient
         return $this->client->post('/mandates/cancel', [
             'contractReference' => $contractReference,
             'frontEndUserName' => $frontEndUserName,
-            'remoteGid' => $this->client->config('remote_gid'),
-            'merchantGid' => $this->client->config('merchant_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
         ]);
     }
 
@@ -99,9 +99,9 @@ class CollexiaEndoApiClient
     public function installmentRequest(string $contractReference): array
     {
         return $this->client->post('/installments/batch/installment', [
-            'merchantGid' => $this->client->config('merchant_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
             'contractReference' => $contractReference,
-            'remoteGid' => $this->client->config('remote_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
         ]);
     }
 
@@ -126,8 +126,8 @@ class CollexiaEndoApiClient
             'installmentNo' => $installmentNo,
             'action' => 'C',
             'frontEndUserName' => $frontEndUserName,
-            'remoteGid' => $this->client->config('remote_gid'),
-            'merchantGid' => $this->client->config('merchant_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
         ]);
     }
 
@@ -141,9 +141,9 @@ class CollexiaEndoApiClient
     public function downloadPayments(): array
     {
         return $this->client->post('/paymenthistory/download', [
-            'merchantGid' => $this->client->config('merchant_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
             'frontEndUserName' => $this->client->config('system_username'),
-            'remoteGid' => $this->client->config('remote_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
         ]);
     }
 
@@ -151,8 +151,8 @@ class CollexiaEndoApiClient
     private function messageInfo(string $frontEndUserName): array
     {
         return [
-            'merchantGid' => $this->client->config('merchant_gid'),
-            'remoteGid' => $this->client->config('remote_gid'),
+            'merchantGid' => $this->client->configInt('merchant_gid'),
+            'remoteGid' => $this->client->configInt('remote_gid'),
             'messageDate' => date('Ymd'),
             'messageTime' => date('His'),
             'systemUserName' => $this->client->config('system_username'),
