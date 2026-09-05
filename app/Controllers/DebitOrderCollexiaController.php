@@ -102,17 +102,34 @@ class DebitOrderCollexiaController extends Controller
         $collexiaClient = new CollexiaClient();
         $contractReference = $collexiaClient->buildContractReference();
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
-        // The staff-recognised DesertLedger reference (e.g. "SDLOAN0003") --
-        // NOT a system-generated value. Sent as userReference (spec 9.3,
-        // up to 10 chars, alphanumeric) so a Collexia mandate can always be
-        // traced back to the loan a staff member actually placed it from;
-        // contractReference stays Collexia's own separately-generated
-        // 14-char match key and must never be conflated with this.
-        $clientNoBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
-        $userReference = substr((string) $clientNoBase, 0, 10);
+        // clientNo (spec 9.3: "Alphanumeric number for your client") is the
+        // CLIENT's own identifier -- borrowers.borrower_no, the
+        // system-generated reference every borrower always has, not the
+        // staff-entered loan_ref_no (which was originally documented for
+        // this purpose in borrowers_loan_ref_no.sql, but is now used for
+        // userReference below per instruction -- reusing it for both would
+        // send the same value under two different spec concepts).
+        $clientNo = substr((string) $debitOrder['borrower_no'], 0, 15);
+        // userReference (spec 9.3: "Alphanumeric reference for the
+        // mandate") -- the staff-recognised DesertLedger reference (e.g.
+        // "SDLOAN0003"), NOT a system-generated value, so a Collexia
+        // mandate can always be traced back to the loan a staff member
+        // actually placed it from. contractReference stays Collexia's own
+        // separately-generated 14-char match key and must never be
+        // conflated with this.
+        $userReferenceBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
+        $userReference = substr((string) $userReferenceBase, 0, 10);
+
+        // Recorded before the API call is even made (not only on success)
+        // so the attempted contractReference/userReference are always on
+        // file for traceability, even if Collexia rejects the request.
+        $this->debitOrders->updateCollexiaApiState($id, [
+            'collexia_api_contract_reference' => $contractReference,
+            'collexia_user_reference' => $userReference,
+        ]);
 
         $mandate = [
-            'clientNo' => substr((string) $clientNoBase, 0, 15),
+            'clientNo' => $clientNo,
             'userReference' => $userReference,
             'frequencyCode' => 4, // Monthly -- this app's debit orders are always monthly (debit_day is a day-of-month)
             'installmentAmount' => (float) $debitOrder['debit_amount'],
@@ -137,8 +154,6 @@ class DebitOrderCollexiaController extends Controller
             $client->loadMandate($mandate, $this->frontEndUserName());
 
             $this->debitOrders->updateCollexiaApiState($id, [
-                'collexia_api_contract_reference' => $contractReference,
-                'collexia_user_reference' => $userReference,
                 'collexia_api_status' => 'Load Pending',
                 'collexia_api_last_response' => 'Mandate submitted. Call "Check Final Fate" to confirm registration.',
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -163,7 +178,6 @@ class DebitOrderCollexiaController extends Controller
             // must use "Check Final Fate" to reconcile before assuming
             // either outcome.
             $this->debitOrders->updateCollexiaApiState($id, [
-                'collexia_api_contract_reference' => $contractReference,
                 'collexia_api_status' => 'Uncertain',
                 'collexia_api_last_response' => 'Network error, outcome unknown: ' . $e->getMessage(),
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -197,7 +211,11 @@ class DebitOrderCollexiaController extends Controller
     {
         $id = (int) $debitOrder['id'];
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
-        $clientNoBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
+        // See placeSingleMandate() -- clientNo is the client's own borrower_no,
+        // userReference is the staff-recognised loan reference. Kept separate
+        // here too rather than reusing one value for both spec concepts.
+        $clientNoBase = $debitOrder['borrower_no'];
+        $userReferenceBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
 
         $pending = array_values(array_filter(
             $this->splitLegs->activeForDebitOrder($id),
@@ -225,11 +243,11 @@ class DebitOrderCollexiaController extends Controller
             $mandate = [
                 'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
                 // Same DesertLedger loan reference as the single-mandate
-                // path (not debit_order_no) -- see placeSingleMandate()'s
-                // comment. Suffixed per split leg the same way clientNo
-                // already is, to stay within the field's 10-char limit
-                // while keeping each split traceable to its parent loan.
-                'userReference' => substr((string) $clientNoBase, 0, 9) . $suffix,
+                // path -- see placeSingleMandate()'s comment. Suffixed per
+                // split leg the same way clientNo already is, to stay
+                // within the field's 10-char limit while keeping each
+                // split traceable to its parent loan.
+                'userReference' => substr((string) $userReferenceBase, 0, 9) . $suffix,
                 'frequencyCode' => 4,
                 'installmentAmount' => $amount,
                 'noOfInstallments' => $noOfInstallments,
