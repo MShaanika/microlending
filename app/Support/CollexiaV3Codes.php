@@ -17,32 +17,57 @@ class CollexiaV3Codes
     /** magId: product identifier sent on every mandate. */
     public const MAG_ID_ENDO = 46;
 
-    /** debtorBanId / toBanId -- Appendix C of both V3 specs. */
+    /**
+     * debtorBanId / toBanId -- per Collexia's own "ValidValues" sheet
+     * (confirmed 2026-09-05), NOT the earlier PDF spec's Appendix C, which
+     * listed a 69 = Bank of Namibia this sheet does not have and omitted
+     * 81 = Nampost Ltd, which it does.
+     */
     public const BANK_IDS = [
         64 => 'Bank Windhoek',
         65 => 'FNB Namibia',
         66 => 'TrustCo Bank',
         67 => 'Bank Atlántico',
         68 => 'BankBIC',
-        69 => 'Bank of Namibia',
         70 => 'Letshego Bank Namibia',
         71 => 'Nedbank Namibia',
         72 => 'Standard Bank Namibia',
+        81 => 'Nampost Ltd',
     ];
 
-    /** debtorIdentificationType (EnDO mandate). */
+    /**
+     * debtorIdentificationType (EnDO mandate) -- per Collexia's ValidValues
+     * sheet (confirmed 2026-09-05). Note this differs from the earlier PDF
+     * spec's own table (which had only 4 values: 1=Namibian ID, 2=Passport,
+     * 3=Temp ID, 4=Business) -- that table is superseded by this one.
+     *
+     * OPEN QUESTION not yet resolved with Collexia: for this business's own
+     * clients (all hold a Namibian national ID), is the correct code 1
+     * ("IDNumber", a generic label) or 5 ("Namibia ID", the specific one)?
+     * DebitOrderCollexiaController currently sends 1 -- every Load Mandate
+     * call so far has been accepted with no field-level rejection on this
+     * value, but that isn't the same as Collexia having confirmed it's the
+     * intended code. Flag to Collexia before relying on this for a real
+     * (non-UAT) mandate.
+     */
     public const ID_TYPES = [
-        1 => 'Namibian ID',
+        1 => 'IDNumber',
         2 => 'Passport',
-        3 => 'Temp ID',
-        4 => 'Business',
+        3 => 'Temporary Resident ID',
+        4 => 'Date of Birth',
+        5 => 'Namibia ID',
     ];
 
-    /** debtorAccountType / fromAccountType / toAccountType. */
+    /**
+     * debtorAccountType / fromAccountType / toAccountType -- per Collexia's
+     * ValidValues sheet. Only 1 and 2 exist; the earlier PDF spec's
+     * documented 3 = Transmission is not a real value. Not reachable from
+     * this app's own debit order form anyway -- CollexiaCodes::ACCOUNT_TYPES
+     * (the form's own dropdown) already only ever offers 1 or 2.
+     */
     public const ACCOUNT_TYPES = [
-        1 => 'Current',
+        1 => 'Tjek (Cheque / Current)',
         2 => 'Savings',
-        3 => 'Transmission',
     ];
 
     /** frequencyCode (EnDO mandate). */
@@ -128,7 +153,7 @@ class CollexiaV3Codes
     {
         return [
             'BW' => 64, 'FN' => 65, 'TB' => 66, 'AB' => 67,
-            'BB' => 68, 'LB' => 70, 'NB' => 71, 'SB' => 72,
+            'BB' => 68, 'LB' => 70, 'NB' => 71, 'SB' => 72, 'NM' => 81,
         ][$legacyCode] ?? null;
     }
 }

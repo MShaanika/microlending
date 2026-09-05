@@ -18,6 +18,7 @@ class CollexiaCodes
         'LB' => 'Letshego Bank Namibia',
         'NB' => 'Nedbank Namibia',
         'SB' => 'Standard Bank Namibia',
+        'NM' => 'Nampost Ltd',
     ];
 
     public const ID_TYPES = [

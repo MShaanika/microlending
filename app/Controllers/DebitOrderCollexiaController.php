@@ -82,7 +82,18 @@ class DebitOrderCollexiaController extends Controller
 
         $banId = $debitOrder['bank_code'] ? CollexiaV3Codes::fromLegacyBankCode($debitOrder['bank_code']) : null;
         if (!$banId) {
-            Session::flash('error', 'This debit order\'s bank has no known bank ID for this integration -- cannot place the mandate.');
+            Session::flash('error', 'This debit order\'s bank has no known Collexia bank ID -- cannot place the mandate. Confirm the correct bank and re-save the debit order first.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        // Defensive, not expected to ever fire in normal use -- the debit
+        // order form's own account_type dropdown (CollexiaCodes::ACCOUNT_TYPES)
+        // only ever offers 1 or 2, matching Collexia's ValidValues exactly.
+        // Guards against stale/legacy rows rather than silently sending an
+        // unconfirmed value if one ever existed.
+        if (!isset(CollexiaV3Codes::ACCOUNT_TYPES[(int) $debitOrder['account_type']])) {
+            Session::flash('error', 'This debit order\'s account type is not a value Collexia recognises -- cannot place the mandate. Confirm the correct account type and re-save the debit order first.');
             $this->redirect('/debit-orders/' . $id);
             return;
         }
