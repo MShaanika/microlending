@@ -90,8 +90,11 @@
       </p>
     <?php endif; ?>
 
+    <?php if (!empty($debitOrder['collexia_user_reference'])): ?>
+      <p class="mb-1 small"><strong>DesertLedger Loan Reference / User Reference:</strong> <?= e($debitOrder['collexia_user_reference']) ?></p>
+    <?php endif; ?>
     <?php if ($debitOrder['collexia_api_contract_reference']): ?>
-      <p class="mb-1 small"><strong>API Contract Reference:</strong> <?= e($debitOrder['collexia_api_contract_reference']) ?></p>
+      <p class="mb-1 small"><strong>Collexia Contract Reference:</strong> <?= e($debitOrder['collexia_api_contract_reference']) ?></p>
     <?php endif; ?>
     <?php if ($debitOrder['collexia_api_synced_at']): ?>
       <p class="mb-2 small text-muted">Last synced <?= e(date('d M Y H:i', strtotime($debitOrder['collexia_api_synced_at']))) ?></p>

@@ -102,11 +102,18 @@ class DebitOrderCollexiaController extends Controller
         $collexiaClient = new CollexiaClient();
         $contractReference = $collexiaClient->buildContractReference();
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
+        // The staff-recognised DesertLedger reference (e.g. "SDLOAN0003") --
+        // NOT a system-generated value. Sent as userReference (spec 9.3,
+        // up to 10 chars, alphanumeric) so a Collexia mandate can always be
+        // traced back to the loan a staff member actually placed it from;
+        // contractReference stays Collexia's own separately-generated
+        // 14-char match key and must never be conflated with this.
         $clientNoBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
+        $userReference = substr((string) $clientNoBase, 0, 10);
 
         $mandate = [
             'clientNo' => substr((string) $clientNoBase, 0, 15),
-            'userReference' => $collexiaClient->buildUserReference(),
+            'userReference' => $userReference,
             'frequencyCode' => 4, // Monthly -- this app's debit orders are always monthly (debit_day is a day-of-month)
             'installmentAmount' => (float) $debitOrder['debit_amount'],
             'noOfInstallments' => $noOfInstallments,
@@ -131,13 +138,14 @@ class DebitOrderCollexiaController extends Controller
 
             $this->debitOrders->updateCollexiaApiState($id, [
                 'collexia_api_contract_reference' => $contractReference,
+                'collexia_user_reference' => $userReference,
                 'collexia_api_status' => 'Load Pending',
                 'collexia_api_last_response' => 'Mandate submitted. Call "Check Final Fate" to confirm registration.',
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
             ]);
 
-            Audit::log('Update', 'Debit Orders', 'Placed Collexia API mandate for debit order #' . $id . ' (' . $contractReference . ')');
-            Session::flash('success', 'Mandate submitted (' . $contractReference . '). Use "Check Final Fate" to confirm it registered.');
+            Audit::log('Update', 'Debit Orders', 'Placed Collexia API mandate for debit order #' . $id . ' (' . $contractReference . ', loan ref ' . $userReference . ')');
+            Session::flash('success', 'Mandate submitted (' . $contractReference . ', loan ref ' . $userReference . '). Use "Check Final Fate" to confirm it registered.');
         } catch (CollexiaApiException $e) {
             $this->debitOrders->updateCollexiaApiState($id, [
                 'collexia_api_status' => 'Load Failed',
@@ -216,7 +224,12 @@ class DebitOrderCollexiaController extends Controller
 
             $mandate = [
                 'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
-                'userReference' => substr((string) $debitOrder['debit_order_no'], 0, 9) . $suffix,
+                // Same DesertLedger loan reference as the single-mandate
+                // path (not debit_order_no) -- see placeSingleMandate()'s
+                // comment. Suffixed per split leg the same way clientNo
+                // already is, to stay within the field's 10-char limit
+                // while keeping each split traceable to its parent loan.
+                'userReference' => substr((string) $clientNoBase, 0, 9) . $suffix,
                 'frequencyCode' => 4,
                 'installmentAmount' => $amount,
                 'noOfInstallments' => $noOfInstallments,
