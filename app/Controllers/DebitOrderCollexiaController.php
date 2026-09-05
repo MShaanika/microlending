@@ -127,7 +127,7 @@ class DebitOrderCollexiaController extends Controller
 
         try {
             $client = new CollexiaEndoApiClient();
-            $client->loadMandate($mandate);
+            $client->loadMandate($mandate, $this->frontEndUserName());
 
             $this->debitOrders->updateCollexiaApiState($id, [
                 'collexia_api_contract_reference' => $contractReference,
@@ -237,7 +237,7 @@ class DebitOrderCollexiaController extends Controller
 
             try {
                 $client = new CollexiaEndoApiClient();
-                $client->loadMandate($mandate);
+                $client->loadMandate($mandate, $this->frontEndUserName());
 
                 $this->splitLegs->updateState($id, $splitNo, [
                     'collexia_api_contract_reference' => $contractReference,
@@ -299,7 +299,7 @@ class DebitOrderCollexiaController extends Controller
 
         try {
             $client = new CollexiaEndoApiClient();
-            $result = $client->requestFinalFate((string) $debitOrder['collexia_api_contract_reference']);
+            $result = $client->requestFinalFate((string) $debitOrder['collexia_api_contract_reference'], $this->frontEndUserName());
 
             $loaded = !empty($result['mandateLoaded']);
             $this->debitOrders->updateCollexiaApiState((int) $id, [
@@ -334,7 +334,7 @@ class DebitOrderCollexiaController extends Controller
 
             try {
                 $client = new CollexiaEndoApiClient();
-                $result = $client->requestFinalFate((string) $split['collexia_api_contract_reference']);
+                $result = $client->requestFinalFate((string) $split['collexia_api_contract_reference'], $this->frontEndUserName());
                 $loaded = !empty($result['mandateLoaded']);
 
                 $this->splitLegs->updateState($id, (int) $split['split_no'], [
@@ -462,7 +462,7 @@ class DebitOrderCollexiaController extends Controller
 
         try {
             $client = new CollexiaEndoApiClient();
-            $result = $client->cancelMandate((string) $debitOrder['collexia_api_contract_reference']);
+            $result = $client->cancelMandate((string) $debitOrder['collexia_api_contract_reference'], $this->frontEndUserName());
 
             $this->debitOrders->updateCollexiaApiState((int) $id, [
                 'collexia_api_status' => 'Cancelled',
@@ -493,7 +493,7 @@ class DebitOrderCollexiaController extends Controller
 
             try {
                 $client = new CollexiaEndoApiClient();
-                $result = $client->cancelMandate((string) $split['collexia_api_contract_reference']);
+                $result = $client->cancelMandate((string) $split['collexia_api_contract_reference'], $this->frontEndUserName());
 
                 $this->splitLegs->updateState($id, (int) $split['split_no'], [
                     'collexia_api_status' => 'Cancelled',
@@ -617,7 +617,7 @@ class DebitOrderCollexiaController extends Controller
                 'numberOfTrackingDays' => (int) $debitOrder['no_of_days_tracking'],
                 'installmentAmount' => $installmentAmount,
                 'collectionDay' => CollexiaV3Codes::collectionDay((int) date('j', strtotime($scheduledDate))),
-            ]]);
+            ]], $this->frontEndUserName());
 
             $this->debitOrders->updateCollexiaApiState((int) $id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
             Audit::log('Update', 'Debit Orders', 'Rescheduled Collexia installment ' . $intId . ' for debit order #' . $id);
@@ -665,7 +665,7 @@ class DebitOrderCollexiaController extends Controller
 
         try {
             $client = new CollexiaEndoApiClient();
-            $client->cancelInstallment((string) $debitOrder['collexia_api_contract_reference'], $installmentNo);
+            $client->cancelInstallment((string) $debitOrder['collexia_api_contract_reference'], $installmentNo, $this->frontEndUserName());
 
             $this->debitOrders->updateCollexiaApiState((int) $id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
             Audit::log('Update', 'Debit Orders', 'Cancelled Collexia installment #' . $installmentNo . ' for debit order #' . $id);
@@ -696,6 +696,19 @@ class DebitOrderCollexiaController extends Controller
             return false;
         }
         return true;
+    }
+
+    /**
+     * Collexia's frontEndUserName -- "the user on your system requesting"
+     * an action (spec 9.4/9.10/9.16, Required; 9.2 Message Info,
+     * Conditional) -- not a Collexia-provisioned credential, the actual
+     * DesertLedger user who triggered this request. Every action method
+     * here runs behind Auth::authorize() first, so a logged-in user is
+     * always present.
+     */
+    private function frontEndUserName(): string
+    {
+        return (string) (Auth::user()['username'] ?? '');
     }
 
     /**
@@ -865,7 +878,7 @@ class DebitOrderCollexiaController extends Controller
             try {
                 $client = new CollexiaEndoApiClient();
                 foreach ($toCancelAtCollexia as $s) {
-                    $cancelResponses[$s['id']] = $client->cancelMandate((string) $s['collexia_api_contract_reference']);
+                    $cancelResponses[$s['id']] = $client->cancelMandate((string) $s['collexia_api_contract_reference'], $this->frontEndUserName());
                 }
             } catch (\RuntimeException $e) {
                 Session::flash('error', 'Could not cancel one of the selected transactions at Collexia, so the merge was not applied: ' . $e->getMessage());
