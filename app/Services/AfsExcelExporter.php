@@ -244,7 +244,13 @@ class AfsExcelExporter
 
         $row = $this->sectionHeader($sheet, $row, 'NON-CURRENT LIABILITIES');
         $nclRow = $row;
-        $this->dataRow($sheet, $row++, 'Interest Bearing Borrowings', $this->bsBalance['bs_interest_bearing_borrowings'] ?? 0);
+        // Interest Bearing Borrowings is the sum of two distinct tagged
+        // accounts -- loans from a member (bs_interest_bearing_borrowings)
+        // and long-term institutional borrowings (bs_longterm_borrowings) --
+        // matching the Cash Flow Statement below, which already keeps these
+        // two apart (member-loan movement vs. proceeds/repayment split).
+        $interestBearingBorrowings = ($this->bsBalance['bs_interest_bearing_borrowings'] ?? 0) + ($this->bsBalance['bs_longterm_borrowings'] ?? 0);
+        $this->dataRow($sheet, $row++, 'Interest Bearing Borrowings', $interestBearingBorrowings);
         $totalNclRow = $row;
         $this->totalRow($sheet, $row++, 'Total Non-current Liabilities', "C{$nclRow}");
         $row++;
@@ -338,8 +344,17 @@ class AfsExcelExporter
         // side above.
         $provisionMovement = $bsMv('bs_provision_doubtful_debts');
 
+        // An increase in Receivables and prepayments (e.g. an insurance
+        // premium paid upfront) is cash paid out this period that never
+        // touches the P&L until the prepaid asset is later drawn down --
+        // opexTotal above already counts that later drawdown (the expense
+        // recognized when it's used), so this adjustment must be the
+        // *movement* in the asset, not the raw payment, or the drawn-down
+        // portion would be counted twice.
+        $receivablesPrepaymentsMovement = $bsMv('bs_receivables_prepayments');
+
         $cashFromCustomers += $principalCollected;
-        $cashToSuppliers = -($cosTotal + $opexTotal) - $principalDisbursed + $provisionMovement;
+        $cashToSuppliers = -($cosTotal + $opexTotal) - $principalDisbursed + $provisionMovement - $receivablesPrepaymentsMovement;
 
         // Movable Assets cash movement, from the Fixed Asset Register --
         // same source as the Balance Sheet's own "Movable Assets" line (see
@@ -362,7 +377,11 @@ class AfsExcelExporter
         $genRow = $row;
         $this->totalRow($sheet, $row++, 'Cash generated from operations', "C{$recRow}+C{$paidRow}");
         $intPaidRow = $row;
-        $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
+        // Always 0 here, not -mv('pl_opex_interest_paid') -- interest paid
+        // is one of operatingExpenseLines() and is therefore already
+        // folded into $opexTotal above (part of "Cash paid to suppliers
+        // and employees"). Showing it again here would double-count it.
+        $this->dataRow($sheet, $row++, 'Interest paid', 0.0);
         $financeRow = $row;
         $this->dataRow($sheet, $row++, 'Finance charges', -$mv('pl_finance_cost'));
         $distRow = $row;
@@ -395,11 +414,16 @@ class AfsExcelExporter
         $this->dataRow($sheet, $row++, 'Loans (granted)/repaid', 0);
         $loansMemberRow = $row;
         $this->dataRow($sheet, $row++, 'Decrease/(Increase) in loans from member', $bsMv('bs_interest_bearing_borrowings'));
-        $ltbMovement = $bsMv('bs_longterm_borrowings');
+        // Gross draw and gross repayment, not the net period movement --
+        // both can happen within the same period (e.g. a draw and a
+        // capital repayment in the same year), and netting them would
+        // understate whichever side is smaller, same reasoning as
+        // $loanReceivableFlow above for bs_loan_to_members.
+        $ltbFlow = AfsReportService::debitCreditByCode('bs_longterm_borrowings', $this->startDate, $this->endDate);
         $proceedsRow = $row;
-        $this->dataRow($sheet, $row++, 'Proceeds from long-term borrowings', max($ltbMovement, 0));
+        $this->dataRow($sheet, $row++, 'Proceeds from long-term borrowings', $ltbFlow['credit']);
         $repaymentRow = $row;
-        $this->dataRow($sheet, $row++, 'Payment of capital elements of long-term borrowings', min($ltbMovement, 0));
+        $this->dataRow($sheet, $row++, 'Payment of capital elements of long-term borrowings', -$ltbFlow['debit']);
         $netFinancingRow = $row;
         $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$repaymentRow})", true);
         $row++;
@@ -621,7 +645,7 @@ class AfsExcelExporter
             $row++;
             $anyBorrowing = true;
         }
-        $glBorrowings = $this->bsBalance['bs_interest_bearing_borrowings'] ?? 0.0;
+        $glBorrowings = ($this->bsBalance['bs_interest_bearing_borrowings'] ?? 0.0) + ($this->bsBalance['bs_longterm_borrowings'] ?? 0.0);
         $this->totalRow($sheet, $row++, 'Interest Bearing Borrowings total (per ledger)', $this->numericLiteral($glBorrowings));
         if (!$anyBorrowing) {
             $sheet->setCellValue("B{$row}", 'No narrative recorded -- see AFS Manual Figures.');

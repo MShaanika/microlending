@@ -135,7 +135,9 @@ class AfsPdfExporter
             $clRows .= self::row($l['label'], $bsBalance[$l['code']] ?? 0, $e, $money);
         }
         $totalCl = array_sum(array_map(fn ($l) => $bsBalance[$l['code']] ?? 0, AfsReportService::balanceSheetCurrentLiabilityLines()));
-        $totalNcl = $bsBalance['bs_interest_bearing_borrowings'] ?? 0;
+        // Sum of both tagged accounts -- loans from a member and long-term
+        // institutional borrowings -- see AfsExcelExporter::buildBalanceSheet().
+        $totalNcl = ($bsBalance['bs_interest_bearing_borrowings'] ?? 0) + ($bsBalance['bs_longterm_borrowings'] ?? 0);
         $totalCap = ($bsBalance['bs_members_contributions'] ?? 0) + $netBeforeTax;
 
         // ---- Statement of Changes in Equity ----
@@ -214,7 +216,7 @@ class AfsPdfExporter
         if ($borrowingRows === '') {
             $borrowingRows = '<tr><td colspan="2"><em>No narrative recorded.</em></td></tr>';
         }
-        $borrowingRows .= self::totalRow('Interest Bearing Borrowings total (per ledger)', $bsBalance['bs_interest_bearing_borrowings'] ?? 0, $money);
+        $borrowingRows .= self::totalRow('Interest Bearing Borrowings total (per ledger)', $totalNcl, $money);
 
         $ownerRows = '';
         foreach ([1, 2, 3] as $i) {
