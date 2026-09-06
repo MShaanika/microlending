@@ -97,12 +97,6 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
                         </button>
                     </div>
 
-                    <div class="form-group mb-0 mt-4">
-                        <div class="col-sm-12 justify-content-center d-flex">
-                            <p class="small text-muted">Demo: nestor@kodecamp.org / Admin@123</p>
-                        </div>
-                    </div>
-
                 </form>
             </div>
 
