@@ -317,8 +317,12 @@ class AfsExcelExporter
         $cashFromCustomers = (($mv('pl_interest_income') ?: 0) - $bsMv('bs_interest_receivable'))
             + ($mv('pl_interest_investment') ?: 0);
         $cosTotal = array_sum(array_map(fn ($l) => $mv($l['code']), AfsReportService::costOfSaleLines()));
+        // Interest paid is excluded here (not just depreciation) -- per the
+        // client's corrected reference, interest paid belongs entirely
+        // under Financing Activities as its own line, not folded into
+        // operating cash paid to suppliers.
         $opexTotal = array_sum(array_map(
-            fn ($l) => $l['code'] === 'pl_opex_depreciation' ? 0.0 : $mv($l['code']),
+            fn ($l) => in_array($l['code'], ['pl_opex_depreciation', 'pl_opex_interest_paid'], true) ? 0.0 : $mv($l['code']),
             AfsReportService::operatingExpenseLines()
         ));
         // Ordinary customer lending is this entity's main revenue-producing
@@ -384,10 +388,10 @@ class AfsExcelExporter
         $genRow = $row;
         $this->totalRow($sheet, $row++, 'Cash generated from operations', "C{$recRow}+C{$paidRow}");
         $intPaidRow = $row;
-        // Always 0 here, not -mv('pl_opex_interest_paid') -- interest paid
-        // is one of operatingExpenseLines() and is therefore already
-        // folded into $opexTotal above (part of "Cash paid to suppliers
-        // and employees"). Showing it again here would double-count it.
+        // Always 0 here -- interest paid is shown under Financing
+        // Activities instead (see $interestPaidFinancingRow below), per
+        // the client's corrected reference. Kept as its own template row
+        // rather than removed, matching that reference's layout.
         $this->dataRow($sheet, $row++, 'Interest paid', 0.0);
         $financeRow = $row;
         $this->dataRow($sheet, $row++, 'Finance charges', -$mv('pl_finance_cost'));
@@ -437,8 +441,13 @@ class AfsExcelExporter
         // that inflow and "Check to actual closing cash" never reconciles.
         $overdraftRow = $row;
         $this->dataRow($sheet, $row++, 'Increase/(decrease) in Bank Overdrafts', $bsMv('bs_bank_overdrafts'));
+        // Interest paid on borrowings -- excluded from opexTotal above so it
+        // isn't folded into "Cash paid to suppliers and employees"; shown
+        // here instead per the client's corrected reference.
+        $interestPaidFinancingRow = $row;
+        $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
         $netFinancingRow = $row;
-        $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$overdraftRow})", true);
+        $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$interestPaidFinancingRow})", true);
         $row++;
 
         $netMovementRow = $row;
