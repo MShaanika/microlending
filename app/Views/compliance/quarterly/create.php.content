@@ -58,7 +58,13 @@
 </div>
 
 <script>
-(function () {
+// Deferred to DOMContentLoaded -- jQuery itself isn't loaded yet at the
+// point this page's own content is rendered (it's included at the very
+// bottom of the layout), and the change listener below needs it: select2
+// (applied sitewide to every <select>) notifies of a value change via
+// jQuery's own .trigger('change'), which a native addEventListener never
+// sees.
+document.addEventListener('DOMContentLoaded', function () {
   var typeSelect = document.getElementById('mlsReportTypeSelect');
   var quarterField = document.getElementById('mlsQuarterField');
   var monthField = document.getElementById('mlsMonthField');
@@ -77,10 +83,7 @@
     yearHelp.classList.toggle('d-none', !isAfs);
   }
 
-  // jQuery's .on(), not native addEventListener -- select2 (applied
-  // sitewide to every <select>) notifies of a value change via jQuery's
-  // own .trigger('change'), which a native addEventListener never sees.
   jQuery(typeSelect).on('change', toggle);
   toggle();
-})();
+});
 </script>

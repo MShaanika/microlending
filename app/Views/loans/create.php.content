@@ -152,10 +152,12 @@
     jQuery(planSelect).trigger('change');
   }
 
-  // jQuery's .on(), not native addEventListener -- select2 (applied
-  // sitewide to every <select>) notifies of a value change via jQuery's
-  // own .trigger('change'), which a native addEventListener never sees.
-  jQuery(productSelect).on('change', renderPlans);
+  // The jQuery-bound listener this needs (select2 notifies of a value
+  // change via jQuery's own .trigger('change'), which no native
+  // addEventListener('change', ...) ever sees) is registered further
+  // down inside the DOMContentLoaded block -- jQuery itself hasn't
+  // loaded yet at this point in the page (it's included at the very
+  // bottom of the layout), so a jQuery(...) call here would throw.
   if (productSelect.value) renderPlans();
 
   // Top-up mode: existing active loan picker cascaded from the borrower
@@ -218,11 +220,11 @@
     amountLabel.textContent = isTopup ? 'Top-up Amount' : 'Principal Amount';
   }
 
-  // jQuery's .on(), not native addEventListener -- see the productSelect
-  // listener above for why. loanModeRadios are plain radio inputs (not
-  // select2-wrapped), so those stay native.
-  jQuery(borrowerSelect).on('change', renderExistingLoans);
-  jQuery(existingLoanSelect).on('change', updateHint);
+  // renderExistingLoans() is bound to borrowerSelect further down, inside
+  // the DOMContentLoaded block (jQuery isn't loaded yet at this point --
+  // see the comment above renderPlans()'s call site). existingLoanSelect's
+  // jQuery-bound listener is registered there too. loanModeRadios are
+  // plain radio inputs (not select2-wrapped), so those stay native.
   loanModeRadios.forEach(function (r) { r.addEventListener('change', updateModeUI); });
 
   updateModeUI();
@@ -259,7 +261,7 @@
     }
   }
 
-  jQuery(borrowerSelect).on('change', renderLoanRefNo);
+  // Bound to borrowerSelect inside the DOMContentLoaded block below.
   if (borrowerSelect.value) renderLoanRefNo();
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -277,6 +279,11 @@
       renderExistingLoans();
       renderLoanRefNo();
     });
+    // Same reasoning for product -> plan and the existing-loan hint --
+    // both need a jQuery-bound listener now that every <select> sitewide
+    // is wrapped in select2 (app-select2-init.js).
+    jQuery(productSelect).on('change', renderPlans);
+    jQuery(existingLoanSelect).on('change', updateHint);
   });
 })();
 </script>

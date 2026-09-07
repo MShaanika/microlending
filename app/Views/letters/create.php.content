@@ -74,7 +74,13 @@
 </div>
 
 <script>
-(function () {
+// Deferred to DOMContentLoaded -- jQuery itself isn't loaded yet at the
+// point this page's own content is rendered (it's included at the very
+// bottom of the layout), and the typeSelect listener below needs it: select2
+// (applied sitewide to every <select>) notifies of a value change via
+// jQuery's own .trigger('change'), which a native addEventListener never
+// sees.
+document.addEventListener('DOMContentLoaded', function () {
   var typeSelect = document.getElementById('letter_type');
   var completionWrap = document.getElementById('completion-wrap');
   var consolidationWrap = document.getElementById('consolidation-wrap');
@@ -94,9 +100,6 @@
     consolidationBorrowerWrap.style.display = scopeAll.checked ? '' : 'none';
   }
 
-  // jQuery's .on(), not native addEventListener -- select2 (applied
-  // sitewide to every <select>) notifies of a value change via jQuery's
-  // own .trigger('change'), which a native addEventListener never sees.
   // scopeOne/scopeAll are plain radio inputs (not select2-wrapped), so
   // those stay native.
   jQuery(typeSelect).on('change', syncType);
@@ -104,5 +107,5 @@
   scopeAll.addEventListener('change', syncScope);
   syncType();
   syncScope();
-})();
+});
 </script>

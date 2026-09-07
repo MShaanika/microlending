@@ -112,16 +112,19 @@
 </div>
 
 <script>
-(function () {
+// Deferred to DOMContentLoaded -- jQuery itself isn't loaded yet at the
+// point this page's own content is rendered (it's included at the very
+// bottom of the layout), and the change listener below needs it: select2
+// (applied sitewide to every <select>) notifies of a value change via
+// jQuery's own .trigger('change'), which a native addEventListener never
+// sees.
+document.addEventListener('DOMContentLoaded', function () {
   var categories = <?= json_encode(array_column($categories, null, 'id')) ?>;
   var categorySelect = document.getElementById('category_id');
   var usefulLife = document.getElementById('useful_life_months');
   var method = document.getElementById('depreciation_method');
   var rbRate = document.getElementById('reducing_balance_rate');
 
-  // jQuery's .on(), not native addEventListener -- select2 (applied
-  // sitewide to every <select>) notifies of a value change via jQuery's
-  // own .trigger('change'), which a native addEventListener never sees.
   jQuery(categorySelect).on('change', function () {
     var cat = categories[this.value];
     if (!cat) return;
@@ -129,5 +132,5 @@
     method.value = cat.depreciation_method;
     rbRate.value = cat.default_reducing_balance_rate || '';
   });
-})();
+});
 </script>

@@ -53,16 +53,21 @@
 </div>
 
 <script>
-// jQuery's .on(), not native addEventListener -- select2 (applied
-// sitewide to every <select>) notifies of a value change via jQuery's
-// own .trigger('change'), which a native addEventListener never sees.
-jQuery('#fiscal_year_id').on('change', function () {
-  var opt = this.options[this.selectedIndex];
-  var start = opt.getAttribute('data-start');
-  var end = opt.getAttribute('data-end');
-  if (start && end) {
-    document.getElementById('start_date').value = start;
-    document.getElementById('end_date').value = end;
-  }
+document.addEventListener('DOMContentLoaded', function () {
+  // jQuery's .on(), not native addEventListener -- select2 (applied
+  // sitewide to every <select>) notifies of a value change via jQuery's
+  // own .trigger('change'), which a native addEventListener never sees.
+  // Deferred to DOMContentLoaded since jQuery itself isn't loaded yet at
+  // the point this page's own content is rendered (it's included at the
+  // very bottom of the layout).
+  jQuery('#fiscal_year_id').on('change', function () {
+    var opt = this.options[this.selectedIndex];
+    var start = opt.getAttribute('data-start');
+    var end = opt.getAttribute('data-end');
+    if (start && end) {
+      document.getElementById('start_date').value = start;
+      document.getElementById('end_date').value = end;
+    }
+  });
 });
 </script>

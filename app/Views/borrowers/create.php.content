@@ -660,7 +660,13 @@
   syncBankStatement();
 })();
 
-(function () {
+// Deferred to DOMContentLoaded -- jQuery itself isn't loaded yet at the
+// point this page's own content is rendered (it's included at the very
+// bottom of the layout), and the change listener below needs it: select2
+// (applied sitewide to every <select>) notifies of a value change via
+// jQuery's own .trigger('change'), which no native addEventListener ever
+// sees, even via bubbling to a delegated form-level listener.
+document.addEventListener('DOMContentLoaded', function () {
   // Keeps Save disabled until every currently-relevant required field has a
   // value -- checked directly by value rather than relying on native
   // constraint validation, since Bootstrap's tab panes are display:none
@@ -689,10 +695,6 @@
   }
 
   form.addEventListener('input', updateSubmitState);
-  // jQuery's .on(), not native addEventListener -- select2 (applied
-  // sitewide to every <select>) notifies of a value change via jQuery's
-  // own .trigger('change'), which a native addEventListener never sees,
-  // even via bubbling to this delegated form-level listener.
   jQuery(form).on('change', updateSubmitState);
   // client_mode_toggle radios live outside <form> (they switch which fields
   // even render inside it), so they need their own listener.
@@ -700,5 +702,5 @@
     r.addEventListener('change', updateSubmitState);
   });
   updateSubmitState();
-})();
+});
 </script>

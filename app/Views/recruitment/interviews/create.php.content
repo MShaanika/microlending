@@ -74,25 +74,30 @@
 </div>
 
 <script>
-// jQuery's .on(), not native addEventListener -- select2 (applied
-// sitewide to every <select>) notifies of a value change via jQuery's
-// own .trigger('change'), which a native addEventListener never sees.
-jQuery('#candidate_id').on('change', function () {
-  var roundSelect = document.getElementById('round_id');
-  roundSelect.innerHTML = '<option value="">— None —</option>';
-  jQuery(roundSelect).trigger('change');
-  if (!this.value) { return; }
-  fetch('<?= url('/recruitment/candidates') ?>/' + this.value + '/rounds.json')
-    .then(function (r) { return r.json(); })
-    .then(function (rounds) {
-      rounds.forEach(function (r) {
-        var opt = document.createElement('option');
-        opt.value = r.id;
-        opt.textContent = r.name;
-        roundSelect.appendChild(opt);
+// Deferred to DOMContentLoaded -- jQuery itself isn't loaded yet at the
+// point this page's own content is rendered (it's included at the very
+// bottom of the layout), and the listener below needs it: select2
+// (applied sitewide to every <select>) notifies of a value change via
+// jQuery's own .trigger('change'), which a native addEventListener never
+// sees.
+document.addEventListener('DOMContentLoaded', function () {
+  jQuery('#candidate_id').on('change', function () {
+    var roundSelect = document.getElementById('round_id');
+    roundSelect.innerHTML = '<option value="">— None —</option>';
+    jQuery(roundSelect).trigger('change');
+    if (!this.value) { return; }
+    fetch('<?= url('/recruitment/candidates') ?>/' + this.value + '/rounds.json')
+      .then(function (r) { return r.json(); })
+      .then(function (rounds) {
+        rounds.forEach(function (r) {
+          var opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = r.name;
+          roundSelect.appendChild(opt);
+        });
+        // Refreshes select2's cached option list after the native rebuild above.
+        jQuery(roundSelect).trigger('change');
       });
-      // Refreshes select2's cached option list after the native rebuild above.
-      jQuery(roundSelect).trigger('change');
-    });
+  });
 });
 </script>
