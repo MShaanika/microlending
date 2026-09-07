@@ -46,6 +46,12 @@ class CollexiaEndoApiClient
         $this->client = new CollexiaClient();
     }
 
+    /** Request/response of the most recent call, for browser-console debug output during UAT testing -- see CollexiaClient::lastDebug(). */
+    public function lastDebug(): ?array
+    {
+        return $this->client->lastDebug();
+    }
+
     /** 6.1 Request for Mandate Load -- POST /mandates/load. $mandate keys per spec 9.3. */
     public function loadMandate(array $mandate, string $frontEndUserName): array
     {

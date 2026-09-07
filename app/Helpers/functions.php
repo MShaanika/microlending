@@ -162,5 +162,17 @@ function flash_messages(): string
     if ($error) {
         $html .= '<div class="js-flash-toast d-none" data-toast-type="danger" data-toast-message="' . e($error) . '"></div>';
     }
+
+    // UAT testing aid: DebitOrderCollexiaController flashes the exact
+    // request/response of the last Collexia API call (never credentials --
+    // see CollexiaClient::lastDebug()) as JSON here, printed to the browser
+    // console so staff can inspect it without SSH access. Not a permanent
+    // audit trail -- Audit::log() already covers that separately.
+    $collexiaDebug = \App\Core\Session::flash('collexia_debug');
+    if ($collexiaDebug) {
+        $html .= '<script>console.log("%cCollexia API — " + ' . json_encode(json_decode($collexiaDebug, true)['action'] ?? '')
+            . ', "font-weight:bold;color:#25a9e0;", ' . $collexiaDebug . ');</script>';
+    }
+
     return $html;
 }

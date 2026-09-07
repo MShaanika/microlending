@@ -27,9 +27,25 @@ class CollexiaClient
 
     private CollexiaSetting $settings;
 
+    /**
+     * Request/response of the most recent post() call, for surfacing to
+     * the browser console during UAT testing (DebitOrderCollexiaController
+     * flashes this alongside the usual success/error message) -- never
+     * includes the Basic Auth password or the HMAC signature, only the
+     * path, JSON body sent, and the exact HTTP status/body received.
+     *
+     * @var array{path: string, requestBody: array, httpCode: int, responseRaw: string}|null
+     */
+    private ?array $lastDebug = null;
+
     public function __construct()
     {
         $this->settings = new CollexiaSetting();
+    }
+
+    public function lastDebug(): ?array
+    {
+        return $this->lastDebug;
     }
 
     public function isEnabled(): bool
@@ -249,8 +265,11 @@ class CollexiaClient
         curl_close($ch);
 
         if ($response === false) {
+            $this->lastDebug = ['path' => $path, 'requestBody' => $body, 'httpCode' => 0, 'responseRaw' => '(no response -- ' . $error . ')'];
             throw new \RuntimeException('Failed to reach the Collexia API: ' . $error);
         }
+
+        $this->lastDebug = ['path' => $path, 'requestBody' => $body, 'httpCode' => $httpCode, 'responseRaw' => (string) $response];
 
         $data = json_decode((string) $response, true);
         if (!is_array($data)) {

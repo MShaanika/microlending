@@ -69,6 +69,21 @@ class DebitOrderCollexiaController extends Controller
         $this->settings = new CollexiaSetting();
     }
 
+    /**
+     * Flashes the last Collexia API call's exact request/response (no
+     * credentials, see CollexiaClient::lastDebug()) so the next page load
+     * can print it to the browser console -- UAT testing aid, not a
+     * permanent audit trail (that's Audit::log(), unaffected by this).
+     */
+    private function flashCollexiaDebug(CollexiaEndoApiClient $client, string $action): void
+    {
+        $debug = $client->lastDebug();
+        if ($debug === null) {
+            return;
+        }
+        Session::flash('collexia_debug', json_encode(array_merge(['action' => $action], $debug)));
+    }
+
     public function placeMandate(string $id): void
     {
         Auth::authorize('collections.debit_orders');
@@ -163,6 +178,7 @@ class DebitOrderCollexiaController extends Controller
         try {
             $client = new CollexiaEndoApiClient();
             $client->loadMandate($mandate, $this->frontEndUserName());
+            $this->flashCollexiaDebug($client, 'Mandate Load');
 
             $this->debitOrders->updateCollexiaApiState($id, [
                 'collexia_api_status' => 'Load Pending',
@@ -173,6 +189,9 @@ class DebitOrderCollexiaController extends Controller
             Audit::log('Update', 'Debit Orders', 'Placed Collexia API mandate for debit order #' . $id . ' (' . $contractReference . ', loan ref ' . $userReference . ')');
             Session::flash('success', 'Mandate submitted (' . $contractReference . ', loan ref ' . $userReference . '). Use "Check Final Fate" to confirm it registered.');
         } catch (CollexiaApiException $e) {
+            if (isset($client)) {
+                $this->flashCollexiaDebug($client, 'Mandate Load');
+            }
             $this->debitOrders->updateCollexiaApiState($id, [
                 'collexia_api_status' => 'Load Failed',
                 'collexia_api_last_response' => $e->getMessage(),
@@ -188,6 +207,9 @@ class DebitOrderCollexiaController extends Controller
             // "never attempted" and could tempt a blind resubmit). Staff
             // must use "Check Final Fate" to reconcile before assuming
             // either outcome.
+            if (isset($client)) {
+                $this->flashCollexiaDebug($client, 'Mandate Load');
+            }
             $this->debitOrders->updateCollexiaApiState($id, [
                 'collexia_api_status' => 'Uncertain',
                 'collexia_api_last_response' => 'Network error, outcome unknown: ' . $e->getMessage(),
@@ -342,6 +364,7 @@ class DebitOrderCollexiaController extends Controller
         try {
             $client = new CollexiaEndoApiClient();
             $result = $client->requestFinalFate((string) $debitOrder['collexia_api_contract_reference'], $this->frontEndUserName());
+            $this->flashCollexiaDebug($client, 'Final Fate');
 
             $loaded = !empty($result['mandateLoaded']);
             $this->debitOrders->updateCollexiaApiState((int) $id, [
@@ -355,6 +378,9 @@ class DebitOrderCollexiaController extends Controller
                 ? 'Mandate confirmed registered.'
                 : 'The mandate did not register (code ' . ($result['mandateLoadedResponseCode'] ?? '?') . ').');
         } catch (\RuntimeException $e) {
+            if (isset($client)) {
+                $this->flashCollexiaDebug($client, 'Final Fate');
+            }
             Session::flash('error', $e->getMessage());
         }
 
