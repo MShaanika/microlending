@@ -77,7 +77,10 @@
     yearHelp.classList.toggle('d-none', !isAfs);
   }
 
-  typeSelect.addEventListener('change', toggle);
+  // jQuery's .on(), not native addEventListener -- select2 (applied
+  // sitewide to every <select>) notifies of a value change via jQuery's
+  // own .trigger('change'), which a native addEventListener never sees.
+  jQuery(typeSelect).on('change', toggle);
   toggle();
 })();
 </script>

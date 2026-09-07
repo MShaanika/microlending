@@ -152,7 +152,10 @@
     jQuery(planSelect).trigger('change');
   }
 
-  productSelect.addEventListener('change', renderPlans);
+  // jQuery's .on(), not native addEventListener -- select2 (applied
+  // sitewide to every <select>) notifies of a value change via jQuery's
+  // own .trigger('change'), which a native addEventListener never sees.
+  jQuery(productSelect).on('change', renderPlans);
   if (productSelect.value) renderPlans();
 
   // Top-up mode: existing active loan picker cascaded from the borrower
@@ -215,8 +218,11 @@
     amountLabel.textContent = isTopup ? 'Top-up Amount' : 'Principal Amount';
   }
 
-  borrowerSelect.addEventListener('change', renderExistingLoans);
-  existingLoanSelect.addEventListener('change', updateHint);
+  // jQuery's .on(), not native addEventListener -- see the productSelect
+  // listener above for why. loanModeRadios are plain radio inputs (not
+  // select2-wrapped), so those stay native.
+  jQuery(borrowerSelect).on('change', renderExistingLoans);
+  jQuery(existingLoanSelect).on('change', updateHint);
   loanModeRadios.forEach(function (r) { r.addEventListener('change', updateModeUI); });
 
   updateModeUI();
@@ -253,7 +259,7 @@
     }
   }
 
-  borrowerSelect.addEventListener('change', renderLoanRefNo);
+  jQuery(borrowerSelect).on('change', renderLoanRefNo);
   if (borrowerSelect.value) renderLoanRefNo();
 
   document.addEventListener('DOMContentLoaded', function () {

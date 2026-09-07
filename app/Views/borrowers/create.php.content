@@ -689,7 +689,11 @@
   }
 
   form.addEventListener('input', updateSubmitState);
-  form.addEventListener('change', updateSubmitState);
+  // jQuery's .on(), not native addEventListener -- select2 (applied
+  // sitewide to every <select>) notifies of a value change via jQuery's
+  // own .trigger('change'), which a native addEventListener never sees,
+  // even via bubbling to this delegated form-level listener.
+  jQuery(form).on('change', updateSubmitState);
   // client_mode_toggle radios live outside <form> (they switch which fields
   // even render inside it), so they need their own listener.
   document.querySelectorAll('input[name="client_mode_toggle"]').forEach(function (r) {

@@ -82,7 +82,12 @@
     consolidationLoanWrap.style.display = scopeAll.checked ? 'none' : '';
   }
 
-  typeSelect.addEventListener('change', syncType);
+  // jQuery's .on(), not native addEventListener -- select2 (applied
+  // sitewide to every <select>) notifies of a value change via jQuery's
+  // own .trigger('change'), which a native addEventListener never sees.
+  // scopeOne/scopeAll are plain radio inputs (not select2-wrapped), so
+  // those stay native.
+  jQuery(typeSelect).on('change', syncType);
   scopeOne.addEventListener('change', syncScope);
   scopeAll.addEventListener('change', syncScope);
   syncType();

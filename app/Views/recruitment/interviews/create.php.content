@@ -74,7 +74,10 @@
 </div>
 
 <script>
-document.getElementById('candidate_id').addEventListener('change', function () {
+// jQuery's .on(), not native addEventListener -- select2 (applied
+// sitewide to every <select>) notifies of a value change via jQuery's
+// own .trigger('change'), which a native addEventListener never sees.
+jQuery('#candidate_id').on('change', function () {
   var roundSelect = document.getElementById('round_id');
   roundSelect.innerHTML = '<option value="">— None —</option>';
   jQuery(roundSelect).trigger('change');

@@ -119,7 +119,10 @@
   var method = document.getElementById('depreciation_method');
   var rbRate = document.getElementById('reducing_balance_rate');
 
-  categorySelect.addEventListener('change', function () {
+  // jQuery's .on(), not native addEventListener -- select2 (applied
+  // sitewide to every <select>) notifies of a value change via jQuery's
+  // own .trigger('change'), which a native addEventListener never sees.
+  jQuery(categorySelect).on('change', function () {
     var cat = categories[this.value];
     if (!cat) return;
     usefulLife.value = cat.default_useful_life_months;

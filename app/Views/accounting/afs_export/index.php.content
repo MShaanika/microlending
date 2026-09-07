@@ -53,7 +53,10 @@
 </div>
 
 <script>
-document.getElementById('fiscal_year_id').addEventListener('change', function () {
+// jQuery's .on(), not native addEventListener -- select2 (applied
+// sitewide to every <select>) notifies of a value change via jQuery's
+// own .trigger('change'), which a native addEventListener never sees.
+jQuery('#fiscal_year_id').on('change', function () {
   var opt = this.options[this.selectedIndex];
   var start = opt.getAttribute('data-start');
   var end = opt.getAttribute('data-end');
