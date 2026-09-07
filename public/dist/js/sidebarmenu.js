@@ -50,11 +50,15 @@ $(function () {
     e.preventDefault();
   });
 
-  // Auto scroll to the active nav
-  if ($(window).width() > 768 || window.Touch) {
+  // Auto scroll to the active nav -- only when a sidebar item is actually
+  // marked selected (e.g. a detail page like /debit-orders/30 has no exact
+  // sidebar link match, so .offset() would be called on an empty set and
+  // return undefined).
+  var $selectedNavItem = $("#sidebarnav .sidebar-item.selected");
+  if (($(window).width() > 768 || window.Touch) && $selectedNavItem.length) {
     $(".scroll-sidebar").animate(
       {
-        scrollTop: $("#sidebarnav .sidebar-item.selected").offset().top - 250,
+        scrollTop: $selectedNavItem.offset().top - 250,
       },
       500
     );

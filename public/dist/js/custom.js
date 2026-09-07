@@ -130,27 +130,6 @@ $(function () {
     e.stopPropagation();
   });
   // ==============================================================
-  // Last month earning
-  // ==============================================================
-  $("#monthchart").sparkline([5, 6, 2, 9, 4, 7, 10, 12], {
-    type: "bar",
-    height: "35",
-    barWidth: "4",
-    resize: true,
-    barSpacing: "4",
-    barColor: "#1e88e5",
-  });
-  $("#lastmonthchart").sparkline([5, 6, 2, 9, 4, 7, 10, 12], {
-    type: "bar",
-    height: "35",
-    barWidth: "4",
-    resize: true,
-    barSpacing: "4",
-    barColor: "#7460ee",
-  });
-  var sparkResize;
-
-  // ==============================================================
   // This is for the innerleft sidebar
   // ==============================================================
   $(".show-left-part").on("click", function () {
