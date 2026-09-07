@@ -147,14 +147,22 @@ class CollexiaEndoApiClient
         ]);
     }
 
-    /** 9.2 Message Info, common to Load Mandate and Update Installment. */
+    /**
+     * 9.2 Message Info, common to Load Mandate and Update Installment.
+     * messageDate/messageTime must be SAST, same as the CX_SWITCH_DTS
+     * header signed onto this same request -- see CollexiaClient::
+     * sastDateTimeParts() for why the server's own (UTC) clock can't be
+     * used here directly.
+     */
     private function messageInfo(string $frontEndUserName): array
     {
+        $sast = CollexiaClient::sastDateTimeParts();
+
         return [
             'merchantGid' => $this->client->configInt('merchant_gid'),
             'remoteGid' => $this->client->configInt('remote_gid'),
-            'messageDate' => date('Ymd'),
-            'messageTime' => date('His'),
+            'messageDate' => $sast['date'],
+            'messageTime' => $sast['time'],
             'systemUserName' => $this->client->config('system_username'),
             'frontEndUserName' => $frontEndUserName,
         ];

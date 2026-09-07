@@ -77,6 +77,35 @@ class CollexiaClientTest extends TestCase
         $this->assertSame('2026-09-04 16:45:23.417', CollexiaClient::formatTimestamp($c));
     }
 
+    public function testSastDateTimePartsFormatMatchesSpec92(): void
+    {
+        $parts = CollexiaClient::sastDateTimeParts();
+        $this->assertMatchesRegularExpression('/^\d{8}$/', $parts['date']);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $parts['time']);
+    }
+
+    /**
+     * The server this test suite runs under is configured for UTC (PHP's
+     * default timezone, confirmed on production too) -- messageDate/
+     * messageTime must reflect SAST (UTC+2), not that server-local clock,
+     * or they'd disagree by two hours with the CX_SWITCH_DTS header signed
+     * onto the very same request. Regression test for the bug where
+     * messageInfo() built these fields with bare date('Ymd')/date('His').
+     */
+    public function testSastDateTimePartsAreTwoHoursAheadOfServerUtcClock(): void
+    {
+        date_default_timezone_set('UTC');
+        $epoch = strtotime('2026-09-07 10:23:43 UTC');
+
+        $c = CollexiaClient::sastComponentsFromEpoch($epoch, 0);
+        $date = "{$c['year']}{$c['month']}{$c['day']}";
+        $time = "{$c['hours']}{$c['minutes']}{$c['seconds']}";
+
+        $this->assertSame('20260907', $date);
+        $this->assertSame('122343', $time, 'SAST (UTC+2) must be two hours ahead of the UTC epoch used to derive it.');
+        $this->assertNotSame(gmdate('His', $epoch), $time, 'Must not equal the bare UTC time -- that was the bug.');
+    }
+
     // --- Signature: clientId + dts concatenation, HMAC-SHA512 keyed by Client Secret, Base64 ---
 
     /**

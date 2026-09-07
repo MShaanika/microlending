@@ -107,6 +107,25 @@ class CollexiaClient
     }
 
     /**
+     * SAST Ymd/His date/time strings for spec 9.2 Message Info's
+     * messageDate/messageTime fields -- these must agree with the
+     * CX_SWITCH_DTS header and the contractReference (both SAST), not the
+     * server's own default timezone. Using PHP's bare date('Ymd')/date('His')
+     * here (as this used to) picks up the server's configured timezone --
+     * production runs PHP with date_default_timezone_get() = 'UTC', two
+     * hours behind SAST, so every messageInfo sent understated its own
+     * date/time relative to the signed DTS header on the same request.
+     */
+    public static function sastDateTimeParts(): array
+    {
+        $c = self::sastNow();
+        return [
+            'date' => "{$c['year']}{$c['month']}{$c['day']}",
+            'time' => "{$c['hours']}{$c['minutes']}{$c['seconds']}",
+        ];
+    }
+
+    /**
      * 14 chars: Merchant GID in hex (4, uppercase, zero-padded) + MMDD (4)
      * + HHmmss (6) -- per the Postman script. Unique across calls made in
      * different seconds; NOT unique for two calls in the same second (the
