@@ -1,0 +1,118 @@
+<?php $search = $state['search'] ?? null; $report = $state['report'] ?? null; $pdf = $state['pdf'] ?? null; ?>
+<?= flash_messages() ?>
+
+<div class="alert alert-warning">
+  <strong>UAT-only diagnostic tool.</strong> Runs only against the three Creditinfo-supplied test National IDs below -- never a real applicant. Not reachable while the Creditinfo environment is set to Production. Nothing here is saved as a real credit check (no loan application, consent, or retention record is touched); every step is logged as safe diagnostic evidence only.
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h4 class="card-title">Creditinfo UAT Test Centre</h4>
+      <a href="<?= url('/creditinfo/settings') ?>" class="btn btn-outline-secondary btn-sm">Back to Settings</a>
+    </div>
+
+    <h5 class="mt-3">Step 1 &mdash; Smart Individual Search</h5>
+    <form method="post" action="<?= url('/creditinfo/uat-test-centre/run') ?>" onsubmit="return confirm('Run a UAT Smart Search against the selected test National ID?');">
+      <?= csrf_field() ?>
+      <div class="d-flex gap-2 flex-wrap align-items-end mb-2">
+        <div>
+          <label class="form-label small mb-1">Test National ID</label>
+          <select name="test_id" class="form-select form-select-sm" style="min-width: 220px;">
+            <?php foreach ($testIds as $tid): ?>
+              <option value="<?= e($tid) ?>"><?= e($tid) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-magnify-scan"></i> Run UAT Inquiry</button>
+      </div>
+    </form>
+
+    <?php if ($search): ?>
+      <table class="table table-sm" style="max-width: 560px;">
+        <tbody>
+          <tr><td class="text-muted">Outcome</td><td><?= e($search['outcome'] ?? '—') ?></td></tr>
+          <tr><td class="text-muted">Workflow Reference</td><td><?= e($search['workflowId'] ?? '—') ?></td></tr>
+          <tr><td class="text-muted">Request Reference</td><td><?= e($search['requestId'] ?? '—') ?></td></tr>
+          <tr><td class="text-muted">subjectToken present</td><td><?= !empty($search['subjectToken']) ? 'YES' : 'NO' ?></td></tr>
+          <tr><td class="text-muted">creditinfoId present</td><td><?= !empty($search['creditinfoId']) ? 'YES' : 'NO' ?></td></tr>
+        </tbody>
+      </table>
+    <?php endif; ?>
+
+    <hr>
+    <h5>Step 2 &mdash; CreditinfoReportPlus Request</h5>
+    <?php if (!$search || ($search['outcome'] ?? null) !== 'SubjectFound'): ?>
+      <p class="text-muted small">Run a search with a <code>SubjectFound</code> outcome first.</p>
+    <?php else: ?>
+      <form method="post" action="<?= url('/creditinfo/uat-test-centre/report') ?>" onsubmit="return confirm('Request the CreditinfoReportPlus report for this test subject?');">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-file-search-outline"></i> Request Report</button>
+      </form>
+      <?php if ($report): ?>
+        <table class="table table-sm mt-2" style="max-width: 560px;">
+          <tbody>
+            <tr><td class="text-muted">Status</td><td><?= e($report['requestStatus']) ?> <?php if (in_array($report['requestStatus'], ['New', 'InProgress'], true)): ?><span class="badge bg-info">Processing, not a failure</span><?php endif; ?></td></tr>
+            <tr><td class="text-muted">reportToken present</td><td><?= !empty($report['reportToken']) ? 'YES' : 'NO' ?></td></tr>
+            <tr><td class="text-muted">Sections returned</td><td><?= !empty($report['sectionsPresent']) ? e(implode(', ', $report['sectionsPresent'])) : '—' ?></td></tr>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    <?php endif; ?>
+
+    <hr>
+    <h5>Step 3 &mdash; PDF (only requested when needed)</h5>
+    <?php if (!$report || empty($report['reportToken'])): ?>
+      <p class="text-muted small">Request the report first.</p>
+    <?php else: ?>
+      <form method="post" action="<?= url('/creditinfo/uat-test-centre/pdf') ?>" onsubmit="return confirm('Request a PDF for this test report?');">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box"></i> Generate/View PDF</button>
+      </form>
+      <?php if ($pdf): ?>
+        <table class="table table-sm mt-2" style="max-width: 560px;">
+          <tbody>
+            <tr><td class="text-muted">Status</td><td><?= e($pdf['status']) ?></td></tr>
+            <tr><td class="text-muted">Content received</td><td><?= $pdf['hasContent'] ? 'YES' : 'NO (async -- poll again shortly)' ?></td></tr>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    <?php endif; ?>
+
+    <hr>
+    <form method="post" action="<?= url('/creditinfo/uat-test-centre/reset') ?>">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Clear Test Centre State</button>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h4 class="card-title">Recent Diagnostic Evidence</h4>
+    <p class="text-muted small mb-2">Never includes the Client Secret, access token, Authorization header, a complete National ID, or report content.</p>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead>
+          <tr><th>Time</th><th>Source</th><th>Endpoint</th><th>HTTP</th><th>Outcome</th><th>Subject Token</th><th>Report Token</th><th>National ID</th><th>Duration</th><th>Error</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($recentDiagnostics as $d): ?>
+            <tr>
+              <td class="small"><?= e(date('d M H:i:s', strtotime($d['created_at']))) ?></td>
+              <td class="small"><?= e($d['source']) ?></td>
+              <td class="small"><?= e($d['endpoint']) ?></td>
+              <td class="small"><?= e($d['http_status'] ?? '—') ?></td>
+              <td class="small"><?= e($d['outcome_status'] ?? '—') ?></td>
+              <td class="small"><?= $d['subject_token_present'] ? 'YES' : 'NO' ?></td>
+              <td class="small"><?= $d['report_token_present'] ? 'YES' : 'NO' ?></td>
+              <td class="small"><?= e($d['national_id_masked'] ?? '—') ?></td>
+              <td class="small"><?= e($d['duration_ms'] !== null ? $d['duration_ms'] . 'ms' : '—') ?></td>
+              <td class="small text-danger"><?= e($d['error_message'] ?? '') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

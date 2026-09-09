@@ -285,6 +285,79 @@
       </div>
     <?php endif; ?>
 
+    <?php
+      $creditCheckBadge = [
+        'Not Checked' => 'secondary', 'Pending' => 'warning', 'Completed' => 'success', 'Error' => 'danger',
+      ][$application['credit_check_status'] ?? 'Not Checked'] ?? 'secondary';
+    ?>
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+          <h4 class="card-title"><i class="mdi mdi-bank-outline me-1"></i> Credit Bureau Assessment</h4>
+          <span class="badge bg-<?= $creditCheckBadge ?>"><?= e($application['credit_check_status'] ?? 'Not Checked') ?></span>
+        </div>
+
+        <div class="row mb-2">
+          <div class="col-md-4">
+            <p class="mb-1 text-muted small">Consent</p>
+            <p class="mb-0"><strong><?= $creditBureauConsent ? 'Confirmed (' . e($creditBureauConsent['consent_method']) . ')' : 'Not recorded' ?></strong></p>
+          </div>
+          <div class="col-md-4">
+            <p class="mb-1 text-muted small">Last Enquiry</p>
+            <p class="mb-0"><strong><?= !empty($application['credit_checked_at']) ? e(date('d M Y H:i', strtotime($application['credit_checked_at']))) : '—' ?></strong></p>
+            <?php if (!empty($application['credit_checked_by_name'])): ?><p class="mb-0 text-muted small">by <?= e($application['credit_checked_by_name']) ?></p><?php endif; ?>
+          </div>
+          <div class="col-md-4">
+            <p class="mb-1 text-muted small">Inquiry Reference</p>
+            <p class="mb-0"><strong><?= e($application['credit_bureau_reference'] ?? '—') ?></strong></p>
+          </div>
+        </div>
+
+        <?php if (($application['credit_check_status'] ?? 'Not Checked') !== 'Not Checked'): ?>
+          <a href="<?= url('/applications/' . $application['id'] . '/creditinfo/assessment') ?>" class="btn btn-outline-secondary btn-sm mb-2"><i class="mdi mdi-file-search-outline"></i> View Assessment</a>
+        <?php endif; ?>
+
+        <?php if (!$creditBureauConsent): ?>
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/creditinfo/consent') ?>" class="border rounded p-2 mb-2">
+            <?= csrf_field() ?>
+            <label class="form-label small mb-1">Record Credit Bureau Consent</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <select name="consent_method" class="form-select form-select-sm" style="max-width: 260px;">
+                <option value="Signed Application Form">Signed Application Form</option>
+                <option value="Verbal - Recorded">Verbal - Recorded</option>
+                <option value="Electronic Consent">Electronic Consent</option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-primary">Record Consent</button>
+            </div>
+          </form>
+        <?php endif; ?>
+
+        <?php if ($creditBureauConsentUnconsumed && $creditinfoEnabled): ?>
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/creditinfo/run') ?>" onsubmit="return confirm('Run a Creditinfo credit bureau check for this applicant?');">
+            <?= csrf_field() ?>
+            <?php if ($creditinfoEnvironment === 'uat'): ?>
+              <div class="alert alert-warning py-2 px-2 small mb-2">
+                <strong>UAT Test Centre</strong> — run against vendor-supplied test data instead of the applicant's real ID.
+                <select name="uat_test_id" class="form-select form-select-sm mt-1" style="max-width: 260px;">
+                  <option value="">Use applicant's real ID</option>
+                  <option value="77082851070">77082851070</option>
+                  <option value="8005041272341">8005041272341</option>
+                  <option value="74082851070">74082851070</option>
+                </select>
+              </div>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-magnify-scan"></i> Run Credit Check</button>
+          </form>
+        <?php elseif (!$creditinfoEnabled): ?>
+          <p class="text-muted small mb-0">Creditinfo is not enabled -- see Settings &gt; Integrations &gt; Creditinfo.</p>
+        <?php elseif (!$creditBureauConsentUnconsumed && $creditBureauConsent): ?>
+          <p class="text-muted small mb-0">This consent has already been used for a check. Record fresh consent to run another.</p>
+        <?php endif; ?>
+
+        <p class="text-muted small mt-2 mb-0">This panel only ever displays Creditinfo data -- it never auto-approves or auto-rejects the application.</p>
+      </div>
+    </div>
+
     <?php if ($bankAnalysis): ?>
       <div class="card">
         <div class="card-body">

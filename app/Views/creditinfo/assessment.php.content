@@ -1,0 +1,70 @@
+<?php
+$statusBadge = [
+    'Pending' => 'Unknown', 'New' => 'secondary', 'InProgress' => 'warning', 'Finished' => 'success',
+    'Error' => 'danger', 'Rejected' => 'danger', 'Timeout' => 'danger',
+][$cache['report_status'] ?? 'Unknown'] ?? 'secondary';
+?>
+<?= flash_messages() ?>
+
+<?php if (!empty($cache['is_uat_test_id'])): ?>
+  <div class="alert alert-warning"><strong>UAT TEST DATA</strong> — this result was generated against a Creditinfo-supplied UAT test National ID, not the applicant's real ID.</div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h4 class="card-title">Credit Bureau Assessment</h4>
+      <a href="<?= url('/applications/' . $application['id']) ?>" class="btn btn-outline-secondary btn-sm">Back to Application</a>
+    </div>
+
+    <table class="table table-borderless" style="max-width: 640px;">
+      <tbody>
+        <tr><td class="text-muted">Outcome</td><td><?= e($cache['search_outcome']) ?></td></tr>
+        <tr><td class="text-muted">Report Status</td><td><span class="badge bg-<?= $statusBadge ?>"><?= e($cache['report_status']) ?></span></td></tr>
+        <tr><td class="text-muted">Workflow Reference</td><td><?= e($cache['workflow_id'] ?? '—') ?></td></tr>
+        <tr><td class="text-muted">Request Reference</td><td><?= e($cache['request_id'] ?? '—') ?></td></tr>
+        <tr><td class="text-muted">National ID Used</td><td><?= e(substr((string) $cache['national_id_used'], 0, 4)) ?>••••••<?php if (!empty($cache['is_uat_test_id'])): ?> <span class="badge bg-warning-subtle text-warning">UAT test ID</span><?php endif; ?></td></tr>
+        <tr><td class="text-muted">Enquiry Date</td><td><?= e(date('d M Y H:i', strtotime($cache['created_at']))) ?></td></tr>
+      </tbody>
+    </table>
+
+    <?php if ($hasPdf): ?>
+      <a href="<?= url('/applications/' . $application['id'] . '/creditinfo/pdf') ?>" class="btn btn-info btn-sm mb-3"><i class="mdi mdi-file-pdf-box"></i> Download PDF</a>
+    <?php elseif (!empty($hasReportToken) && ($cache['report_status'] ?? '') === 'Finished'): ?>
+      <form method="post" action="<?= url('/applications/' . $application['id'] . '/creditinfo/pdf/generate') ?>" class="d-inline mb-3">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box"></i> Generate/View PDF</button>
+      </form>
+    <?php endif; ?>
+
+    <p class="text-muted small mb-3">
+      <?php if ($retentionActive): ?>
+        Creditinfo Report Retention: <?= (int) $retentionDays ?> days after decision.
+      <?php else: ?>
+        Creditinfo Report Retention: <strong>Awaiting Compliance Configuration</strong> -- report content is kept indefinitely until an approved retention period is configured and activated.
+      <?php endif; ?>
+    </p>
+
+    <?php if ($purged): ?>
+      <div class="alert alert-secondary small">Report content has been purged under the data retention policy. Enquiry reference, date, and outcome remain on record above.</div>
+    <?php elseif ($reportData): ?>
+      <hr>
+      <h5>Report Sections</h5>
+      <p class="text-muted small">Raw <code>CreditinfoReportPlus</code> sections as returned by Creditinfo.</p>
+      <?php foreach ($reportData['report'] ?? $reportData as $section => $value): ?>
+        <?php if (is_array($value) && !empty($value)): ?>
+          <div class="mb-3">
+            <h6 class="mb-1"><?= e(ucfirst((string) $section)) ?></h6>
+            <pre class="bg-light p-2 small" style="max-height: 300px; overflow: auto;"><?= e(json_encode($value, JSON_PRETTY_PRINT)) ?></pre>
+          </div>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    <?php elseif (($cache['search_outcome'] ?? '') === 'SubjectNotFound'): ?>
+      <div class="alert alert-secondary small">No record found for this subject at Creditinfo (NIL report) -- a legitimate result, not an error.</div>
+    <?php elseif (in_array($cache['report_status'] ?? '', ['New', 'InProgress'], true)): ?>
+      <div class="alert alert-info small">Report is still processing. Check back shortly.</div>
+    <?php else: ?>
+      <p class="text-muted small mb-0">No report content available.</p>
+    <?php endif; ?>
+  </div>
+</div>

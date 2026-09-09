@@ -588,6 +588,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               ]],
               'Integrations' => ['items' => [
                 ['label' => 'Debit Order API Settings', 'url' => url('/collexia/settings'), 'perm' => 'collections.debit_orders'],
+                ['label' => 'Credit Bureau API Settings', 'url' => url('/creditinfo/settings'), 'perm' => 'applications.screen'],
               ]],
             ]],
             'Support' => ['icon' => 'mdi-ticket', 'groups' => [

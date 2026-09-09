@@ -48,7 +48,8 @@ class LoanApplication extends Model
     {
         return $this->one(
             "SELECT a.*, s.source_name, s.source_code, b.borrower_no, br.branch_name,
-                    su.name AS screened_by_name, au.name AS approved_by_name, ru.name AS rejected_by_name
+                    su.name AS screened_by_name, au.name AS approved_by_name, ru.name AS rejected_by_name,
+                    cu.name AS credit_checked_by_name
              FROM loan_applications a
              LEFT JOIN intake_sources s ON s.id = a.intake_source_id
              LEFT JOIN borrowers b ON b.id = a.borrower_id
@@ -56,6 +57,7 @@ class LoanApplication extends Model
              LEFT JOIN users su ON su.id = a.screened_by
              LEFT JOIN users au ON au.id = a.approved_by
              LEFT JOIN users ru ON ru.id = a.rejected_by
+             LEFT JOIN users cu ON cu.id = a.credit_checked_by
              WHERE a.id = ?",
             [$id]
         );

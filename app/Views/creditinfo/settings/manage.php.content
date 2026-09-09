@@ -1,0 +1,159 @@
+<?php
+$statusBadge = [
+    'Not Configured' => 'bg-secondary',
+    'Partially Configured' => 'bg-secondary',
+    'Awaiting Security Configuration' => 'bg-warning',
+    'Ready for UAT' => 'bg-info',
+    'Enabled' => 'bg-success',
+    'Disabled' => 'bg-warning',
+][$status] ?? 'bg-secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+      <h4 class="card-title mb-0">Manage Creditinfo Credentials</h4>
+      <span class="badge <?= $statusBadge ?>"><?= e($status) ?></span>
+    </div>
+    <p class="text-muted small mb-3">
+      Credit bureau check credentials (Creditinfo Namibia CBS REST API).
+      <a href="<?= url('/creditinfo/settings') ?>">Back to status</a>.
+    </p>
+
+    <?php if (!empty($missingForEnable)): ?>
+      <div class="alert alert-warning small">
+        <strong>Still needed before Creditinfo can be enabled:</strong> <?= e(implode(', ', $missingForEnable)) ?>.
+      </div>
+    <?php endif; ?>
+
+    <form method="post" action="<?= url('/creditinfo/settings') ?>">
+      <?= csrf_field() ?>
+
+      <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="creditinfo_enabled" name="creditinfo_enabled" <?= $enabled ? 'checked' : '' ?>>
+        <label class="form-check-label" for="creditinfo_enabled">Enable Creditinfo</label>
+        <div class="form-text">Requires every field below. Rejected server-side if anything's missing.</div>
+      </div>
+
+      <hr>
+      <h5 class="mb-1">Connection</h5>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Environment</label>
+          <select name="creditinfo_environment" class="form-select">
+            <option value="uat" <?= ($settings['creditinfo_environment'] ?? 'uat') === 'uat' ? 'selected' : '' ?>>UAT</option>
+            <option value="production" <?= ($settings['creditinfo_environment'] ?? '') === 'production' ? 'selected' : '' ?>>Production</option>
+          </select>
+          <div class="form-text">Every actual call stays in UAT until this is deliberately switched.</div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">API Version</label>
+          <input type="text" name="creditinfo_api_version" class="form-control" placeholder="5.53" value="<?= e($settings['creditinfo_api_version'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Scope</label>
+          <input type="text" name="creditinfo_scope" class="form-control" placeholder="cb5webservices" value="<?= e($settings['creditinfo_scope'] ?? '') ?>">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Authentication URL</label>
+          <input type="text" name="creditinfo_auth_url" class="form-control" placeholder="https://auth-uat.creditinfo.com.na/connect/token" value="<?= e($settings['creditinfo_auth_url'] ?? '') ?>">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">API Base URL</label>
+          <input type="text" name="creditinfo_api_base_url" class="form-control" placeholder="https://json-uat.creditinfo.com.na" value="<?= e($settings['creditinfo_api_base_url'] ?? '') ?>">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Client ID</label>
+          <input type="text" name="creditinfo_client_id" class="form-control" value="<?= e($settings['creditinfo_client_id'] ?? '') ?>">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">
+            Client Secret
+            <?php if ($clientSecretSet): ?><span class="badge bg-success-subtle text-success">Set</span><?php else: ?><span class="badge bg-secondary-subtle text-secondary">Not set</span><?php endif; ?>
+          </label>
+          <input type="password" name="creditinfo_client_secret" class="form-control" autocomplete="new-password" placeholder="<?= $clientSecretSet ? '••••••••' : 'Not yet supplied' ?>">
+        </div>
+      </div>
+      <p class="text-muted small mb-3">Client Secret is encrypted, never shown again after saving. Leave blank to keep the current value.</p>
+
+      <hr>
+      <h5 class="mb-1">Inquiry Reason Mapping <span class="badge bg-warning-subtle text-warning">Pending Creditinfo confirmation</span></h5>
+      <p class="text-muted small mb-2">
+        Neither value below is independently confirmed by Creditinfo -- <code>search</code>'s value is our best contextual reading of the manual's 5 valid reasons; <code>reports/custom</code>'s value is taken verbatim from the vendor's own working Postman example (<code>36</code>), whose meaning isn't documented anywhere supplied to us. Both are safe to use as-is for UAT and can be corrected here the moment Creditinfo confirms them -- no code change needed.
+      </p>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Inquiry Reason (Search)</label>
+          <select name="creditinfo_inquiry_reason_search" class="form-select">
+            <?php foreach ([
+                'ApplicationForCreditOrAmendmentOfCreditTerms' => 'ApplicationForCreditOrAmendmentOfCreditTerms (Credit Assessment) -- recommended for a new loan application',
+                'CreditRenewal' => 'CreditRenewal (Affordability Assessment)',
+                'CustomerInquiry' => 'CustomerInquiry (Consumer Enquiry) -- the vendor Postman sample value',
+                'InsuranceApplication' => 'InsuranceApplication',
+                'Other' => 'Other',
+            ] as $value => $label): ?>
+              <option value="<?= e($value) ?>" <?= ($settings['creditinfo_inquiry_reason_search'] ?? 'ApplicationForCreditOrAmendmentOfCreditTerms') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Inquiry Reason (Report)</label>
+          <input type="text" name="creditinfo_inquiry_reason_report" class="form-control" placeholder="36" value="<?= e($settings['creditinfo_inquiry_reason_report'] ?? '36') ?>">
+          <div class="form-text">Numeric code sent verbatim on <code>reports/custom</code> -- from the vendor's own working example, not independently decoded.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="creditinfo_inquiry_reason_search_confirmed" name="creditinfo_inquiry_reason_search_confirmed" <?= ($settings['creditinfo_inquiry_reason_search_confirmed'] ?? 'off') === 'on' ? 'checked' : '' ?>>
+            <label class="form-check-label small" for="creditinfo_inquiry_reason_search_confirmed">Creditinfo has confirmed this search inquiry reason in writing</label>
+          </div>
+        </div>
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="creditinfo_inquiry_reason_report_confirmed" name="creditinfo_inquiry_reason_report_confirmed" <?= ($settings['creditinfo_inquiry_reason_report_confirmed'] ?? 'off') === 'on' ? 'checked' : '' ?>>
+            <label class="form-check-label small" for="creditinfo_inquiry_reason_report_confirmed">Creditinfo has confirmed report code 36 in writing</label>
+          </div>
+        </div>
+      </div>
+      <p class="text-muted small mb-3">Leaving these unchecked keeps both values marked <strong>Provisional</strong> on the UAT Readiness panel below -- safe to use for UAT testing, never presented as vendor-approved.</p>
+
+      <hr>
+      <h5 class="mb-1">Gender Code Mapping <span class="badge bg-warning-subtle text-warning">Pending Creditinfo confirmation</span></h5>
+      <p class="text-muted small mb-2">
+        The vendor's Postman example sends <code>"gender": 1</code> with no definition anywhere in the supplied 35-page manual of what 1 (or 2) means. Leave both fields below blank until Creditinfo confirms the codes -- a credit check is blocked for any applicant while either is unset, rather than guessing.
+      </p>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Code for Male</label>
+          <input type="number" name="creditinfo_gender_code_male" class="form-control" value="<?= e($settings['creditinfo_gender_code_male'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Code for Female</label>
+          <input type="number" name="creditinfo_gender_code_female" class="form-control" value="<?= e($settings['creditinfo_gender_code_female'] ?? '') ?>">
+        </div>
+        <div class="col-md-6 mb-3 d-flex align-items-end">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="creditinfo_gender_mapping_confirmed" name="creditinfo_gender_mapping_confirmed" <?= ($settings['creditinfo_gender_mapping_confirmed'] ?? 'off') === 'on' ? 'checked' : '' ?>>
+            <label class="form-check-label small" for="creditinfo_gender_mapping_confirmed">Creditinfo has confirmed both codes in writing</label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
+    </form>
+
+    <hr>
+    <form method="post" action="<?= url('/creditinfo/settings/test') ?>" class="d-inline">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-connection"></i> Test Connection</button>
+      <span class="text-muted small ms-2">Requests a live token from the UAT authentication endpoint only -- does not run a credit check.</span>
+    </form>
+  </div>
+</div>

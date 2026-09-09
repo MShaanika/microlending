@@ -1,0 +1,152 @@
+<?php
+$statusBadge = [
+    'Not Configured' => 'bg-secondary',
+    'Partially Configured' => 'bg-secondary',
+    'Awaiting Security Configuration' => 'bg-warning',
+    'Ready for UAT' => 'bg-info',
+    'Enabled' => 'bg-success',
+    'Disabled' => 'bg-warning',
+][$status] ?? 'bg-secondary';
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h4 class="card-title mb-0">Creditinfo</h4>
+      <?php if ($canManage): ?>
+        <div>
+          <a href="<?= url('/creditinfo/settings/manage') ?>" class="btn btn-outline-secondary btn-sm">
+            <i class="mdi mdi-key-variant"></i> Manage / Update Credentials
+          </a>
+          <?php if (($settings['creditinfo_environment'] ?? 'uat') === 'uat'): ?>
+            <a href="<?= url('/creditinfo/uat-test-centre') ?>" class="btn btn-outline-info btn-sm">
+              <i class="mdi mdi-flask-outline"></i> UAT Test Centre
+            </a>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+
+    <table class="table table-borderless mb-0" style="max-width: 480px;">
+      <tbody>
+        <tr>
+          <td class="text-muted">Connection Status</td>
+          <td><span class="badge <?= $statusBadge ?>"><?= e($status) ?></span></td>
+        </tr>
+        <tr>
+          <td class="text-muted">Environment</td>
+          <td><?= e(strtoupper($settings['creditinfo_environment'] ?? 'uat')) ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted">Auth URL</td>
+          <td><?= e($settings['creditinfo_auth_url'] ?? '—') ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted">API Base URL</td>
+          <td><?= e($settings['creditinfo_api_base_url'] ?? '—') ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted">API Version</td>
+          <td><?= e($settings['creditinfo_api_version'] ?? '—') ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted">Client ID</td>
+          <td><?= e($settings['creditinfo_client_id'] ?? '—') ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted">Last Successful Connection</td>
+          <td><?= !empty($settings['creditinfo_last_successful_connection_at']) ? e(date('d M Y H:i', strtotime($settings['creditinfo_last_successful_connection_at']))) : 'Never' ?></td>
+        </tr>
+        <tr>
+          <td class="text-muted">Integration</td>
+          <td><?= $enabled ? 'Enabled' : 'Disabled' ?></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="text-muted small mt-3 mb-0">
+      The Client Secret is configured separately and never shown here.
+      <?php if (!$canManage): ?>Contact a system administrator to change it.<?php endif; ?>
+    </p>
+  </div>
+</div>
+
+<?php
+$statusIcon = [
+    'pass' => '<span class="text-success">✓</span>',
+    'confirmed' => '<span class="text-success">✓ Confirmed</span>',
+    'provisional' => '<span class="text-warning">Provisional</span>',
+    'not_configured' => '<span class="text-danger">✗ Not Configured</span>',
+    'fail' => '<span class="text-danger">✗</span>',
+    'awaiting_compliance' => '<span class="text-warning">Awaiting Compliance Configuration</span>',
+    'pending' => '<span class="text-muted">Pending</span>',
+];
+?>
+<div class="card mt-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+      <h4 class="card-title mb-0">Creditinfo UAT Readiness</h4>
+      <?php if ($isUatReady): ?>
+        <span class="badge bg-success">READY FOR UAT</span>
+      <?php else: ?>
+        <span class="badge bg-danger">NOT READY FOR UAT</span>
+      <?php endif; ?>
+    </div>
+    <p class="text-muted small mb-3">
+      Configuration values marked <strong>Provisional</strong> are safe to use for UAT testing but are never presented as vendor-approved. Rows marked "not yet tested" are expected to read that way until the first authorized UAT call runs -- they do not block readiness on their own.
+    </p>
+
+    <table class="table table-sm mb-3">
+      <tbody>
+        <?php foreach ($checklist as $item): ?>
+          <tr>
+            <td style="width: 260px;"><?= e($item['label']) ?></td>
+            <td style="width: 160px;"><?= $statusIcon[$item['status']] ?? e($item['status']) ?></td>
+            <td class="text-muted small"><?= e($item['detail']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <?php if (!$isUatReady && !empty($blockers)): ?>
+      <div class="alert alert-danger small mb-0">
+        <strong>Blocking UAT:</strong>
+        <ul class="mb-0">
+          <?php foreach ($blockers as $b): ?><li><?= e($b) ?></li><?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<?php if (!empty($recentDiagnostics)): ?>
+  <div class="card mt-3">
+    <div class="card-body">
+      <h4 class="card-title">Recent UAT Diagnostic Evidence</h4>
+      <p class="text-muted small mb-2">Never includes the Client Secret, access token, Authorization header, a complete National ID, or report content -- see CreditinfoDiagnosticLog.</p>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr><th>Time</th><th>Source</th><th>Endpoint</th><th>HTTP</th><th>Outcome</th><th>Subject Token</th><th>Report Token</th><th>Duration</th><th>Error</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach ($recentDiagnostics as $d): ?>
+              <tr>
+                <td class="small"><?= e(date('d M H:i:s', strtotime($d['created_at']))) ?></td>
+                <td class="small"><?= e($d['source']) ?></td>
+                <td class="small"><?= e($d['endpoint']) ?></td>
+                <td class="small"><?= e($d['http_status'] ?? '—') ?></td>
+                <td class="small"><?= e($d['outcome_status'] ?? '—') ?></td>
+                <td class="small"><?= $d['subject_token_present'] ? 'YES' : 'NO' ?></td>
+                <td class="small"><?= $d['report_token_present'] ? 'YES' : 'NO' ?></td>
+                <td class="small"><?= e($d['duration_ms'] !== null ? $d['duration_ms'] . 'ms' : '—') ?></td>
+                <td class="small text-danger"><?= e($d['error_message'] ?? '') ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<?php endif; ?>

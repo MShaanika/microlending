@@ -145,6 +145,9 @@ use App\Controllers\DebitOrderRunController;
 use App\Controllers\DebitOrderCollectionController;
 use App\Controllers\DebitOrderCollexiaController;
 use App\Controllers\CollexiaSettingController;
+use App\Controllers\CreditinfoSettingController;
+use App\Controllers\CreditinfoAssessmentController;
+use App\Controllers\CreditinfoUatTestCentreController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ExpenseCategoryController;
 use App\Controllers\AiSettingController;
@@ -224,6 +227,17 @@ $router->get('/collexia/settings', [CollexiaSettingController::class, 'edit']);
 $router->get('/collexia/settings/manage', [CollexiaSettingController::class, 'manage']);
 $router->post('/collexia/settings', [CollexiaSettingController::class, 'update']);
 
+$router->get('/creditinfo/settings', [CreditinfoSettingController::class, 'edit']);
+$router->get('/creditinfo/settings/manage', [CreditinfoSettingController::class, 'manage']);
+$router->post('/creditinfo/settings', [CreditinfoSettingController::class, 'update']);
+$router->post('/creditinfo/settings/test', [CreditinfoSettingController::class, 'test']);
+
+$router->get('/creditinfo/uat-test-centre', [CreditinfoUatTestCentreController::class, 'index']);
+$router->post('/creditinfo/uat-test-centre/run', [CreditinfoUatTestCentreController::class, 'runInquiry']);
+$router->post('/creditinfo/uat-test-centre/report', [CreditinfoUatTestCentreController::class, 'requestReport']);
+$router->post('/creditinfo/uat-test-centre/pdf', [CreditinfoUatTestCentreController::class, 'requestPdf']);
+$router->post('/creditinfo/uat-test-centre/reset', [CreditinfoUatTestCentreController::class, 'reset']);
+
 $router->post('/debit-orders/{id}/collexia/place', [DebitOrderCollexiaController::class, 'placeMandate']);
 $router->post('/debit-orders/{id}/collexia/final-fate', [DebitOrderCollexiaController::class, 'checkFinalFate']);
 $router->post('/debit-orders/{id}/collexia/sync', [DebitOrderCollexiaController::class, 'syncStatus']);
@@ -293,6 +307,11 @@ $router->get('/loan-requests/{id}/documents/{documentId}', [LoanRequestControlle
 $router->get('/applications', [ApplicationController::class, 'index']);
 $router->get('/applications/{id}', [ApplicationController::class, 'show']);
 $router->post('/applications/{id}/screen', [ApplicationController::class, 'screen']);
+$router->post('/applications/{id}/creditinfo/consent', [CreditinfoAssessmentController::class, 'recordConsent']);
+$router->post('/applications/{id}/creditinfo/run', [CreditinfoAssessmentController::class, 'runCheck']);
+$router->get('/applications/{id}/creditinfo/assessment', [CreditinfoAssessmentController::class, 'viewAssessment']);
+$router->get('/applications/{id}/creditinfo/pdf', [CreditinfoAssessmentController::class, 'downloadPdf']);
+$router->post('/applications/{id}/creditinfo/pdf/generate', [CreditinfoAssessmentController::class, 'requestPdf']);
 $router->post('/applications/{id}/upload-bank-statement', [ApplicationController::class, 'uploadBankStatement']);
 $router->post('/applications/{id}/analyze-bank-statements', [ApplicationController::class, 'analyzeBankStatements']);
 $router->post('/applications/{id}/approve', [ApplicationController::class, 'approve']);

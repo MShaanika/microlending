@@ -82,7 +82,7 @@ class RetentionService
     /** Table names only ever come from retention_policies.resource_table, an admin-entered value -- allowlisted here rather than trusted blindly, since it's interpolated into raw SQL. */
     private static function assertKnownTable(string $table): string
     {
-        $allowed = ['idempotency_keys', 'form_drafts'];
+        $allowed = ['idempotency_keys', 'form_drafts', 'creditinfo_report_content'];
         if (!in_array($table, $allowed, true)) {
             throw new \RuntimeException("Retention execution is not enabled for table '$table' -- add it to RetentionService's allowlist only after confirming it has no child rows or files that need matching cleanup.");
         }

@@ -112,6 +112,9 @@ class ApplicationController extends Controller
         }
         $this->assertBranchAccess($application);
 
+        $creditinfoSettings = new \App\Models\CreditinfoSetting();
+        $consents = new \App\Models\CreditBureauConsent();
+
         $this->view('applications/show', [
             'title' => 'Application ' . $application['application_no'],
             'application' => $application,
@@ -121,6 +124,10 @@ class ApplicationController extends Controller
             'history' => $this->applications->statusHistory((int) $id),
             'extra' => $application['extra_data'] ? json_decode($application['extra_data'], true) : [],
             'branches' => $this->scopedBranches($this->scopeBranchId()),
+            'creditinfoEnabled' => $creditinfoSettings->isEnabled(),
+            'creditinfoEnvironment' => $creditinfoSettings->get('creditinfo_environment', 'uat'),
+            'creditBureauConsent' => $consents->latestForApplication((int) $id),
+            'creditBureauConsentUnconsumed' => $consents->latestUnconsumedForApplication((int) $id),
         ]);
     }
 
@@ -460,6 +467,7 @@ class ApplicationController extends Controller
             'approved_at' => date('Y-m-d H:i:s'),
         ]);
         $this->applications->addStatusHistory($id, $application['status'], 'Approved', $userId, trim($_POST['notes'] ?? '') ?: null);
+        (new \App\Models\CreditinfoReportCache())->stampDecision($id);
 
         $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
         $smsResult = TemplatedSmsService::send(
@@ -517,6 +525,7 @@ class ApplicationController extends Controller
             'rejected_by' => $userId,
         ]);
         $this->applications->addStatusHistory($id, $application['status'], 'Rejected', $userId, $reason);
+        (new \App\Models\CreditinfoReportCache())->stampDecision($id);
 
         $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
         $smsResult = TemplatedSmsService::send(
