@@ -148,6 +148,10 @@ use App\Controllers\CollexiaSettingController;
 use App\Controllers\CreditinfoSettingController;
 use App\Controllers\CreditinfoAssessmentController;
 use App\Controllers\CreditinfoUatTestCentreController;
+use App\Controllers\CreditinfoPublicDefaultController;
+use App\Controllers\CreditinfoPublicDefaultSettingController;
+use App\Controllers\CreditinfoDisputeController;
+use App\Controllers\CreditinfoConsentRegisterController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ExpenseCategoryController;
 use App\Controllers\AiSettingController;
@@ -237,6 +241,45 @@ $router->post('/creditinfo/uat-test-centre/run', [CreditinfoUatTestCentreControl
 $router->post('/creditinfo/uat-test-centre/report', [CreditinfoUatTestCentreController::class, 'requestReport']);
 $router->post('/creditinfo/uat-test-centre/pdf', [CreditinfoUatTestCentreController::class, 'requestPdf']);
 $router->post('/creditinfo/uat-test-centre/reset', [CreditinfoUatTestCentreController::class, 'reset']);
+
+// Public Defaults -- architecturally separate from the CBS routes above.
+// Static paths are registered ahead of the trailing {id} routes for
+// readability; App\Core\Router resolves an exact static path before ever
+// trying a dynamic pattern, so registration order does not affect matching.
+$router->get('/creditinfo/public-defaults', [CreditinfoPublicDefaultController::class, 'dashboard']);
+$router->get('/creditinfo/public-defaults/compliance', [CreditinfoPublicDefaultController::class, 'compliance']);
+$router->get('/creditinfo/public-defaults/eligibility', [CreditinfoPublicDefaultController::class, 'eligibilitySearch']);
+$router->get('/creditinfo/public-defaults/eligibility/{loanId}', [CreditinfoPublicDefaultController::class, 'eligibility']);
+$router->get('/creditinfo/public-defaults/listings', [CreditinfoPublicDefaultController::class, 'listingIndex']);
+$router->get('/creditinfo/public-defaults/listings/create/{loanId}', [CreditinfoPublicDefaultController::class, 'listingCreate']);
+$router->post('/creditinfo/public-defaults/listings', [CreditinfoPublicDefaultController::class, 'listingStore']);
+$router->get('/creditinfo/public-defaults/removals', [CreditinfoPublicDefaultController::class, 'removalIndex']);
+$router->get('/creditinfo/public-defaults/register', [CreditinfoPublicDefaultController::class, 'register']);
+$router->get('/creditinfo/public-defaults/register/export', [CreditinfoPublicDefaultController::class, 'registerExport']);
+$router->get('/creditinfo/public-defaults/history', [CreditinfoPublicDefaultController::class, 'history']);
+$router->get('/creditinfo/public-defaults/history/export', [CreditinfoPublicDefaultController::class, 'historyExport']);
+$router->get('/creditinfo/public-defaults/settings', [CreditinfoPublicDefaultSettingController::class, 'edit']);
+$router->post('/creditinfo/public-defaults/settings', [CreditinfoPublicDefaultSettingController::class, 'update']);
+
+$router->get('/creditinfo/public-defaults/{id}', [CreditinfoPublicDefaultController::class, 'show']);
+$router->post('/creditinfo/public-defaults/{id}/listing/submit-for-review', [CreditinfoPublicDefaultController::class, 'listingSubmitForReview']);
+$router->post('/creditinfo/public-defaults/{id}/listing/approve', [CreditinfoPublicDefaultController::class, 'listingApprove']);
+$router->post('/creditinfo/public-defaults/{id}/listing/reject', [CreditinfoPublicDefaultController::class, 'listingReject']);
+$router->post('/creditinfo/public-defaults/{id}/listing/submit', [CreditinfoPublicDefaultController::class, 'listingSubmit']);
+$router->post('/creditinfo/public-defaults/{id}/cancel', [CreditinfoPublicDefaultController::class, 'listingCancel']);
+$router->get('/creditinfo/public-defaults/{id}/removal/create', [CreditinfoPublicDefaultController::class, 'removalCreate']);
+$router->post('/creditinfo/public-defaults/{id}/removal', [CreditinfoPublicDefaultController::class, 'removalStore']);
+$router->post('/creditinfo/public-defaults/{id}/removal/approve', [CreditinfoPublicDefaultController::class, 'removalApprove']);
+$router->post('/creditinfo/public-defaults/{id}/removal/reject', [CreditinfoPublicDefaultController::class, 'removalReject']);
+$router->post('/creditinfo/public-defaults/{id}/removal/submit', [CreditinfoPublicDefaultController::class, 'removalSubmit']);
+$router->post('/creditinfo/public-defaults/{id}/notice', [CreditinfoPublicDefaultController::class, 'recordNotice']);
+$router->get('/creditinfo/public-defaults/{id}/notices/{noticeId}/download', [CreditinfoPublicDefaultController::class, 'downloadNoticeDocument']);
+
+$router->get('/creditinfo/disputes', [CreditinfoDisputeController::class, 'index']);
+$router->post('/creditinfo/disputes', [CreditinfoDisputeController::class, 'store']);
+$router->post('/creditinfo/disputes/{id}/resolve', [CreditinfoDisputeController::class, 'resolve']);
+
+$router->get('/creditinfo/consent-register', [CreditinfoConsentRegisterController::class, 'index']);
 
 $router->post('/debit-orders/{id}/collexia/place', [DebitOrderCollexiaController::class, 'placeMandate']);
 $router->post('/debit-orders/{id}/collexia/final-fate', [DebitOrderCollexiaController::class, 'checkFinalFate']);

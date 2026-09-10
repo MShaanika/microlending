@@ -1,0 +1,110 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Public Defaults Settings</h4>
+
+    <div class="alert alert-<?= $canEnable ? 'success' : 'warning' ?>">
+      <?php if ($canEnable): ?>
+        Vendor documentation and mapping are both confirmed -- Public Defaults can be enabled.
+      <?php else: ?>
+        <strong>Public Defaults cannot be enabled</strong> until both <em>Vendor Documentation Received</em> and <em>Vendor Mapping Confirmed</em> are set to YES below.
+      <?php endif; ?>
+    </div>
+
+    <form method="post" action="<?= url('/creditinfo/public-defaults/settings') ?>">
+      <?= csrf_field() ?>
+
+      <h5>Integration Status</h5>
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="form-check form-switch">
+            <input type="checkbox" class="form-check-input" id="public_defaults_enabled" name="public_defaults_enabled" <?= ($settings['public_defaults_enabled'] ?? 'off') === 'on' ? 'checked' : '' ?> <?= !$canEnable ? 'disabled' : '' ?>>
+            <label class="form-check-label" for="public_defaults_enabled">Public Defaults Enabled</label>
+          </div>
+          <?php if (!$canEnable): ?><input type="hidden" name="public_defaults_enabled_disabled_notice" value="1"><small class="text-muted">Blocked until vendor confirmation below.</small><?php endif; ?>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">API Status</label>
+          <input type="text" name="api_status" class="form-control form-control-sm" value="<?= e($settings['api_status'] ?? 'Documentation Required') ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">API Version</label>
+          <input type="text" name="api_version" class="form-control form-control-sm" value="<?= e($settings['api_version'] ?? '') ?>" placeholder="Unknown until vendor spec arrives">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small">Listing Endpoint <span class="badge bg-secondary">Unknown</span></label>
+          <input type="text" name="listing_endpoint" class="form-control form-control-sm" value="<?= e($settings['listing_endpoint'] ?? '') ?>" placeholder="Not documented by Creditinfo yet">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small">Removal Endpoint <span class="badge bg-secondary">Unknown</span></label>
+          <input type="text" name="removal_endpoint" class="form-control form-control-sm" value="<?= e($settings['removal_endpoint'] ?? '') ?>" placeholder="Not documented by Creditinfo yet">
+        </div>
+        <div class="col-md-6">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="vendor_documentation_received" name="vendor_documentation_received" <?= ($settings['vendor_documentation_received'] ?? 'no') === 'yes' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="vendor_documentation_received">Vendor Documentation Received</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="vendor_mapping_confirmed" name="vendor_mapping_confirmed" <?= ($settings['vendor_mapping_confirmed'] ?? 'no') === 'yes' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="vendor_mapping_confirmed">Vendor Mapping Confirmed</label>
+          </div>
+        </div>
+      </div>
+
+      <h5>Eligibility Configuration <span class="badge bg-warning text-dark">Requires Compliance Confirmation</span></h5>
+      <p class="text-muted small">Leave blank until Compliance confirms the exact business rule -- a blank threshold is never treated as "no minimum."</p>
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label small">Minimum Days in Arrears</label>
+          <input type="number" name="minimum_days_in_arrears" class="form-control form-control-sm" value="<?= e($settings['minimum_days_in_arrears'] ?? '') ?>" placeholder="Not confirmed">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Minimum Outstanding Balance (N$)</label>
+          <input type="number" step="0.01" name="minimum_outstanding_balance" class="form-control form-control-sm" value="<?= e($settings['minimum_outstanding_balance'] ?? '') ?>" placeholder="Not confirmed">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Notice Waiting Period (days)</label>
+          <input type="number" name="notice_waiting_period_days" class="form-control form-control-sm" value="<?= e($settings['notice_waiting_period_days'] ?? '') ?>" placeholder="Not confirmed">
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="borrower_notice_required" name="borrower_notice_required" <?= ($settings['borrower_notice_required'] ?? 'yes') !== 'no' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="borrower_notice_required">Borrower Notice Required</label>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small">Listing During an Open Dispute</label>
+          <input type="text" class="form-control form-control-sm" value="Always Blocked -- no compliance override process exists yet" disabled>
+        </div>
+      </div>
+
+      <h5>Tariff (Signed Creditinfo Statement of Work)</h5>
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <label class="form-label small">Listing Fee (N$, excl. VAT)</label>
+          <input type="number" step="0.01" name="listing_fee" class="form-control form-control-sm" value="<?= e($settings['listing_fee'] ?? '') ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Removal Fee (N$, excl. VAT)</label>
+          <input type="number" step="0.01" name="removal_fee" class="form-control form-control-sm" value="<?= e($settings['removal_fee'] ?? '') ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">VAT Rate (%)</label>
+          <input type="number" step="0.01" name="vat_rate" class="form-control form-control-sm" value="<?= e($settings['vat_rate'] ?? '') ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Tariff Effective Date</label>
+          <input type="date" name="tariff_effective_date" class="form-control form-control-sm" value="<?= e($settings['tariff_effective_date'] ?? '') ?>">
+        </div>
+      </div>
+
+      <h5>Public Defaults / Status</h5>
+      <p class="text-muted small">API Documentation Required -- absent from any document supplied so far. Nothing above wires to a real Creditinfo endpoint; see App\Services\CreditinfoPublicDefaultsClient.</p>
+
+      <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+  </div>
+</div>

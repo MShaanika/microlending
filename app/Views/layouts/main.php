@@ -361,6 +361,23 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Debit Order Cancellations', 'url' => url('/debit-order-cancellations'), 'perm' => 'collections.debit_orders'],
                 ['label' => 'Refund Claims', 'url' => url('/refund-claims'), 'perm' => 'refunds.view'],
               ]],
+              // CBS Assessments/Credit Bureau API Settings continue to live
+              // under System & Platform > Integrations (unchanged, per "do
+              // not disturb CBS") -- the two links below are convenience
+              // pointers into that same existing screen, not new routes.
+              'Creditinfo' => ['items' => [
+                ['label' => 'Public Defaults Dashboard', 'url' => url('/creditinfo/public-defaults'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Public Default Listing Requests', 'url' => url('/creditinfo/public-defaults/listings'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Public Default Removal Requests', 'url' => url('/creditinfo/public-defaults/removals'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Active Public Defaults', 'url' => url('/creditinfo/public-defaults/register'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Public Defaults History', 'url' => url('/creditinfo/public-defaults/history'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Public Defaults Settings', 'url' => url('/creditinfo/public-defaults/settings'), 'perm' => 'creditinfo.public_defaults.settings'],
+                ['label' => 'Public Defaults Compliance', 'url' => url('/creditinfo/public-defaults/compliance'), 'perm' => 'creditinfo.public_defaults.view_audit'],
+                ['label' => 'Creditinfo Disputes', 'url' => url('/creditinfo/disputes'), 'perm' => 'creditinfo.disputes.manage'],
+                ['label' => 'Creditinfo Consent Register', 'url' => url('/creditinfo/consent-register'), 'perm' => 'applications.credit_check'],
+                ['label' => 'CBS Assessments (Settings)', 'url' => url('/creditinfo/settings'), 'perm' => 'applications.screen'],
+                ['label' => 'Creditinfo UAT Test Centre', 'url' => url('/creditinfo/uat-test-centre'), 'perm' => 'admin.system_settings'],
+              ]],
             ]],
             'Accounting & Finance' => ['icon' => 'mdi-calculator', 'groups' => [
               'General Accounting' => ['items' => [

@@ -1,0 +1,33 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Public Default Eligibility Review</h4>
+    <p class="text-muted small">Find the loan you want to review for a possible Public Default listing. A loan already carrying an in-progress or active listing cannot be selected again.</p>
+
+    <form method="get" action="<?= url('/creditinfo/public-defaults/eligibility') ?>" class="d-flex gap-2 mb-3" style="max-width: 480px;">
+      <input type="text" name="q" class="form-control" placeholder="Loan number or borrower name" value="<?= old('q', ['q' => $query]) ?>">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Loan No</th><th>Borrower</th><th>Status</th><th>Principal</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach ($results as $loan): ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['borrower_name']) ?></td>
+              <td><span class="badge bg-secondary"><?= e($loan['loan_status']) ?></span> <?php if (!empty($loan['is_in_arrears'])): ?><span class="badge bg-danger">In Arrears</span><?php endif; ?></td>
+              <td>N$<?= number_format((float) $loan['principal_amount'], 2) ?></td>
+              <td><a href="<?= url('/creditinfo/public-defaults/eligibility/' . $loan['id']) ?>" class="btn btn-sm btn-outline-primary">Review</a></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($results)): ?>
+            <tr><td colspan="5" class="text-muted small">No matching loans. <?= $query === '' ? 'Showing loans currently in arrears by default -- search to find a specific loan.' : '' ?></td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

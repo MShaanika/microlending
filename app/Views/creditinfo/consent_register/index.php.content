@@ -1,0 +1,38 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Creditinfo Consent Register</h4>
+    <p class="text-muted small">CBS credit check consent only, recorded from the application screen. Read-only. Public Defaults does not write here -- its own borrower notice/evidence is recorded per default on that record's own detail screen instead.</p>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Application</th><th>Borrower</th><th>Method</th><th>Reference</th><th>Recorded By</th><th>Recorded At</th><th>Consumed by CBS Check</th></tr></thead>
+        <tbody>
+          <?php foreach ($result['rows'] as $c): ?>
+            <tr>
+              <td><a href="<?= url('/applications/' . $c['application_id']) ?>">#<?= (int) $c['application_id'] ?></a></td>
+              <td><?= e($c['borrower_name'] ?? '—') ?></td>
+              <td><?= e($c['consent_method']) ?></td>
+              <td class="small"><?= e($c['consent_reference'] ?? '—') ?></td>
+              <td class="small"><?= e($c['recorded_by_name'] ?? '—') ?></td>
+              <td class="small"><?= e(date('d M Y H:i', strtotime($c['recorded_at']))) ?></td>
+              <td><?= ((int) $c['consumed_by_cbs_check']) > 0 ? '<span class="badge bg-secondary">Yes</span>' : '<span class="badge bg-light text-dark">No</span>' ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($result['rows'])): ?>
+            <tr><td colspan="7" class="text-muted small">No consent records yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php if ($result['totalPages'] > 1): ?>
+      <nav><ul class="pagination pagination-sm">
+        <?php for ($p = 1; $p <= $result['totalPages']; $p++): ?>
+          <li class="page-item <?= $p == $page ? 'active' : '' ?>"><a class="page-link" href="?page=<?= $p ?>"><?= $p ?></a></li>
+        <?php endfor; ?>
+      </ul></nav>
+    <?php endif; ?>
+  </div>
+</div>

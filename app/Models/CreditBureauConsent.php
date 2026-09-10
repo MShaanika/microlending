@@ -40,4 +40,24 @@ class CreditBureauConsent extends Model
             [$applicationId]
         );
     }
+
+    /** Read-only register across every consent capture (CBS and Public Defaults share this same table) -- see CreditinfoConsentRegisterController. */
+    public function paginated(int $page = 1, int $perPage = 25): array
+    {
+        $perPage = max(1, $perPage);
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $total = (int) $this->scalar("SELECT COUNT(*) FROM credit_bureau_consents");
+        $rows = $this->all(
+            "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.borrower_no,
+                    u.name AS recorded_by_name,
+                    (SELECT COUNT(*) FROM creditinfo_report_cache r WHERE r.consent_id = c.id) AS consumed_by_cbs_check
+             FROM credit_bureau_consents c
+             LEFT JOIN borrowers b ON b.id = c.borrower_id
+             LEFT JOIN users u ON u.id = c.recorded_by
+             ORDER BY c.id DESC LIMIT $perPage OFFSET $offset"
+        );
+
+        return ['rows' => $rows, 'total' => $total, 'totalPages' => max(1, (int) ceil($total / $perPage))];
+    }
 }

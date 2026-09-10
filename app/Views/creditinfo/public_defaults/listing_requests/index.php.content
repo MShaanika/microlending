@@ -1,0 +1,50 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h4 class="card-title">Public Default Listing Requests</h4>
+      <a href="<?= url('/creditinfo/public-defaults/eligibility') ?>" class="btn btn-primary btn-sm">Start Eligibility Review</a>
+    </div>
+
+    <form method="get" class="d-flex gap-2 mb-3">
+      <select name="status" class="form-select form-select-sm" style="max-width:260px;" onchange="this.form.submit()">
+        <option value="">All open statuses</option>
+        <?php foreach (['Draft','Pending Review','Approved','Awaiting API Submission','Submitted','Rejected','Failed','Cancelled'] as $s): ?>
+          <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Reference</th><th>Borrower</th><th>Loan</th><th>Outstanding</th><th>Status</th><th>Requested By</th><th>Requested At</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach ($result['rows'] as $r): ?>
+            <tr>
+              <td><a href="<?= url('/creditinfo/public-defaults/' . $r['id']) ?>"><?= e($r['listing_reference']) ?></a></td>
+              <td><?= e($r['borrower_name']) ?></td>
+              <td><?= e($r['loan_no']) ?></td>
+              <td>N$<?= number_format((float) $r['outstanding_amount'], 2) ?></td>
+              <td><span class="badge bg-secondary"><?= e($r['status']) ?></span></td>
+              <td><?= e($r['listing_requested_by_name'] ?? '—') ?></td>
+              <td class="small"><?= e(date('d M Y', strtotime($r['listing_requested_at']))) ?></td>
+              <td><a href="<?= url('/creditinfo/public-defaults/' . $r['id']) ?>" class="btn btn-sm btn-outline-secondary">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($result['rows'])): ?>
+            <tr><td colspan="8" class="text-muted small">No listing requests found.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php if ($result['totalPages'] > 1): ?>
+      <nav><ul class="pagination pagination-sm">
+        <?php for ($p = 1; $p <= $result['totalPages']; $p++): ?>
+          <li class="page-item <?= $p == ($_GET['page'] ?? 1) ? 'active' : '' ?>"><a class="page-link" href="?page=<?= $p ?>&status=<?= urlencode($status) ?>"><?= $p ?></a></li>
+        <?php endfor; ?>
+      </ul></nav>
+    <?php endif; ?>
+  </div>
+</div>

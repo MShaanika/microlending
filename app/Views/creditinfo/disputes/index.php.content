@@ -1,0 +1,49 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title">Record a New Dispute</h4>
+    <p class="text-muted small">Recording an open dispute here immediately blocks any new Public Default listing for this borrower (item 6's hard control), until it is resolved.</p>
+    <form method="post" action="<?= url('/creditinfo/disputes') ?>" class="row g-2">
+      <?= csrf_field() ?>
+      <div class="col-md-3"><input type="number" name="borrower_id" class="form-control form-control-sm" placeholder="Borrower ID" required></div>
+      <div class="col-md-3"><input type="text" name="reference" class="form-control form-control-sm" placeholder="Dispute reference (optional)"></div>
+      <div class="col-md-4"><input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes"></div>
+      <div class="col-md-2"><button type="submit" class="btn btn-sm btn-danger w-100">Open Dispute</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Creditinfo Disputes</h4>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Borrower</th><th>Reference</th><th>Status</th><th>Opened</th><th>Resolved</th><th>Recorded By</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach ($disputes as $d): ?>
+            <tr>
+              <td><?= e($d['borrower_name']) ?> (<?= e($d['borrower_no']) ?>)</td>
+              <td class="small"><?= e($d['reference'] ?? '—') ?></td>
+              <td><span class="badge bg-<?= $d['status'] === 'Open' ? 'danger' : 'success' ?>"><?= e($d['status']) ?></span></td>
+              <td class="small"><?= e(date('d M Y', strtotime($d['opened_at']))) ?></td>
+              <td class="small"><?= $d['resolved_at'] ? e(date('d M Y', strtotime($d['resolved_at']))) : '—' ?></td>
+              <td class="small"><?= e($d['recorded_by_name'] ?? '—') ?></td>
+              <td>
+                <?php if ($d['status'] === 'Open'): ?>
+                  <form method="post" action="<?= url('/creditinfo/disputes/' . $d['id'] . '/resolve') ?>">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-success">Resolve</button>
+                  </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($disputes)): ?>
+            <tr><td colspan="7" class="text-muted small">No disputes on record.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

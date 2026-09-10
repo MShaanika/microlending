@@ -1,0 +1,42 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Create Public Default Removal Request</h4>
+
+    <table class="table table-borderless" style="max-width: 560px;">
+      <tbody>
+        <tr><td class="text-muted" style="width:200px;">Reference</td><td><?= e($pd['listing_reference']) ?></td></tr>
+        <tr><td class="text-muted">Borrower</td><td><?= e($pd['borrower_name']) ?></td></tr>
+        <tr><td class="text-muted">Loan</td><td><?= e($pd['loan_no']) ?></td></tr>
+        <tr><td class="text-muted">Current Status</td><td><span class="badge bg-secondary"><?= e($pd['status']) ?></span></td></tr>
+      </tbody>
+    </table>
+
+    <?php if ($pd['status'] === 'Removal Required'): ?>
+      <div class="alert alert-info small">This default was automatically flagged Removal Required because loan <?= e($pd['loan_no']) ?> is now fully settled. The "Loan fully settled" category below is pre-selected.</div>
+    <?php endif; ?>
+
+    <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal') ?>">
+      <?= csrf_field() ?>
+
+      <div class="mb-3">
+        <label class="form-label">Removal Reason Category <span class="text-danger">*</span></label>
+        <select name="removal_reason_category" class="form-select" required>
+          <option value="">— Select —</option>
+          <?php foreach (['Loan fully settled','Written settlement agreement completed','Listing made in error','Duplicate listing','Dispute resolved in borrower favour','Compliance instruction','Creditinfo instruction','Other authorised reason'] as $cat): ?>
+            <option value="<?= e($cat) ?>" <?= $pd['status'] === 'Removal Required' && $cat === 'Loan fully settled' ? 'selected' : '' ?>><?= e($cat) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Removal Reason / Details <span class="text-danger">*</span></label>
+        <textarea name="removal_reason" class="form-control" rows="3" required></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Request Removal</button>
+      <a href="<?= url('/creditinfo/public-defaults/' . $pd['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

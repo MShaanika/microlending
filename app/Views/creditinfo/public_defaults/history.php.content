@@ -1,0 +1,55 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h4 class="card-title">Public Defaults History</h4>
+      <a href="<?= url('/creditinfo/public-defaults/history/export?' . http_build_query($filters)) ?>" class="btn btn-outline-secondary btn-sm">Export CSV</a>
+    </div>
+    <p class="text-muted small">Completed lifecycles -- Removed, Rejected, Failed, or Cancelled. Internal operational records only.</p>
+
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-auto">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All terminal statuses</option>
+          <?php foreach (['Rejected','Failed','Cancelled','Removed','Removal Rejected','Removal Failed'] as $s): ?>
+            <option value="<?= e($s) ?>" <?= ($filters['status'] ?? '') === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-auto"><input type="date" name="removed_from" class="form-control form-control-sm" value="<?= e($filters['removed_from'] ?? '') ?>"></div>
+      <div class="col-auto"><input type="date" name="removed_to" class="form-control form-control-sm" value="<?= e($filters['removed_to'] ?? '') ?>"></div>
+      <div class="col-auto"><button type="submit" class="btn btn-sm btn-outline-primary">Filter</button></div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Reference</th><th>Borrower</th><th>Loan</th><th>Outstanding</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach ($result['rows'] as $r): ?>
+            <tr>
+              <td><a href="<?= url('/creditinfo/public-defaults/' . $r['id']) ?>"><?= e($r['listing_reference']) ?></a></td>
+              <td><?= e($r['borrower_name']) ?></td>
+              <td><?= e($r['loan_no']) ?></td>
+              <td>N$<?= number_format((float) $r['outstanding_amount'], 2) ?></td>
+              <td><span class="badge bg-secondary"><?= e($r['status']) ?></span></td>
+              <td class="small"><?= e(date('d M Y', strtotime($r['updated_at']))) ?></td>
+              <td><a href="<?= url('/creditinfo/public-defaults/' . $r['id']) ?>" class="btn btn-sm btn-outline-secondary">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($result['rows'])): ?>
+            <tr><td colspan="7" class="text-muted small">No history yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php if ($result['totalPages'] > 1): ?>
+      <nav><ul class="pagination pagination-sm">
+        <?php for ($p = 1; $p <= $result['totalPages']; $p++): ?>
+          <li class="page-item <?= $p == ($_GET['page'] ?? 1) ? 'active' : '' ?>"><a class="page-link" href="?page=<?= $p ?>&<?= http_build_query($filters) ?>"><?= $p ?></a></li>
+        <?php endfor; ?>
+      </ul></nav>
+    <?php endif; ?>
+  </div>
+</div>

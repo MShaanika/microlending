@@ -1,0 +1,209 @@
+<?php
+$statusBadge = match (true) {
+    in_array($pd['status'], ['Listed'], true) => 'success',
+    in_array($pd['status'], ['Rejected', 'Failed', 'Cancelled', 'Removal Rejected', 'Removal Failed'], true) => 'danger',
+    in_array($pd['status'], ['Removed'], true) => 'dark',
+    in_array($pd['status'], ['Removal Required'], true) => 'warning',
+    default => 'secondary',
+};
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">PUBLIC DEFAULT</h4>
+        <p class="text-muted small mb-0">Reference: <strong><?= e($pd['listing_reference']) ?></strong></p>
+      </div>
+      <span class="badge fs-6 bg-<?= $statusBadge ?>"><?= e($pd['status']) ?></span>
+    </div>
+
+    <table class="table table-borderless mt-3" style="max-width: 640px;">
+      <tbody>
+        <tr><td class="text-muted" style="width:200px;">Borrower</td><td><?= e($pd['borrower_name']) ?> (<?= e($pd['borrower_no']) ?>)</td></tr>
+        <tr><td class="text-muted">Loan</td><td><?= e($pd['loan_no']) ?></td></tr>
+        <tr><td class="text-muted">Original Amount</td><td>N$<?= number_format((float) $pd['original_amount'], 2) ?></td></tr>
+        <tr><td class="text-muted">Outstanding Amount</td><td>N$<?= number_format((float) $pd['outstanding_amount'], 2) ?></td></tr>
+        <tr><td class="text-muted">Default Date</td><td><?= e(date('d M Y', strtotime($pd['default_date']))) ?></td></tr>
+        <tr><td class="text-muted">Days in Arrears (at listing)</td><td><?= (int) $pd['days_in_arrears_at_listing'] ?></td></tr>
+      </tbody>
+    </table>
+
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <?php if ($pd['status'] === 'Draft'): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/submit-for-review') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-primary">Submit for Review</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($pd['status'] === 'Pending Review'): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/approve') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success">Approve Listing</button>
+        </form>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/reject') ?>" onsubmit="var r = prompt('Reason for rejecting this listing:'); if (!r) { return false; } this.querySelector('[name=comments]').value = r; return true;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="comments" value="">
+          <button type="submit" class="btn btn-outline-danger">Reject Listing</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if (in_array($pd['status'], ['Approved', 'Failed'], true)): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/submit') ?>" onsubmit="return confirm('Submit this listing to Creditinfo? (The API is not yet configured -- this will record a blocked attempt.)');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-warning text-dark">Submit to Creditinfo</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if (in_array($pd['status'], ['Removal Approved', 'Removal Failed'], true)): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/submit') ?>" onsubmit="return confirm('Submit this removal to Creditinfo? (The API is not yet configured -- this will record a blocked attempt.)');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-warning text-dark">Submit Removal to Creditinfo</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if ($pd['status'] === 'Removal Pending Review'): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/approve') ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success">Approve Removal</button>
+        </form>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/reject') ?>" onsubmit="var r = prompt('Reason for rejecting this removal:'); if (!r) { return false; } this.querySelector('[name=comments]').value = r; return true;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="comments" value="">
+          <button type="submit" class="btn btn-outline-danger">Reject Removal</button>
+        </form>
+      <?php endif; ?>
+
+      <?php if (in_array($pd['status'], ['Listed', 'Removal Required', 'Removal Rejected'], true)): ?>
+        <a href="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/create') ?>" class="btn btn-outline-warning">Create Removal Request</a>
+      <?php endif; ?>
+
+      <?php if (!in_array($pd['status'], ['Listed', 'Removed', 'Cancelled'], true) && !str_starts_with((string) $pd['status'], 'Removal')): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/cancel') ?>" onsubmit="var r = prompt('Reason for cancelling this listing:'); if (r === null) { return false; } this.querySelector('[name=reason]').value = r; return true;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="reason" value="">
+          <button type="submit" class="btn btn-outline-secondary">Cancel Listing</button>
+        </form>
+      <?php endif; ?>
+
+      <a href="<?= url('/creditinfo/public-defaults') ?>" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <?php if (!empty($pd['api_last_error'])): ?>
+      <div class="alert alert-danger small">Last API attempt was blocked: <?= e($pd['api_last_error']) ?></div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="row mt-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">LISTING</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><td class="text-muted">Requested By</td><td><?= e($pd['listing_requested_by_name'] ?? '—') ?></td></tr>
+            <tr><td class="text-muted">Requested At</td><td><?= e(date('d M Y H:i', strtotime($pd['listing_requested_at']))) ?></td></tr>
+            <tr><td class="text-muted">Approved By</td><td><?= e($pd['listing_approved_by_name'] ?? '—') ?></td></tr>
+            <tr><td class="text-muted">Approved At</td><td><?= $pd['listing_approved_at'] ? e(date('d M Y H:i', strtotime($pd['listing_approved_at']))) : '—' ?></td></tr>
+            <tr><td class="text-muted">Reason</td><td><?= e($pd['listing_reason']) ?></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">CREDITINFO</h5>
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><td class="text-muted">Submission Status</td><td><?= e($pd['api_status'] ?? 'Not submitted') ?></td></tr>
+            <tr><td class="text-muted">Creditinfo Reference</td><td><?= e($pd['creditinfo_reference'] ?? '—') ?></td></tr>
+            <tr><td class="text-muted">Submitted At</td><td><?= $pd['listed_at'] ? e(date('d M Y H:i', strtotime($pd['listed_at']))) : '—' ?></td></tr>
+          </tbody>
+        </table>
+        <p class="text-muted small mt-2 mb-0">⚠ Public Defaults API documentation still required -- no field above can be populated by a real Creditinfo response yet.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 class="card-title">REMOVAL</h5>
+    <table class="table table-sm table-borderless mb-0" style="max-width: 640px;">
+      <tbody>
+        <tr><td class="text-muted" style="width:200px;">Removal Requested</td><td><?= $pd['removal_requested_at'] ? e(date('d M Y H:i', strtotime($pd['removal_requested_at']))) . ' by ' . e($pd['removal_requested_by_name'] ?? '—') : '—' ?></td></tr>
+        <tr><td class="text-muted">Reason Category</td><td><?= e($pd['removal_reason_category'] ?? '—') ?></td></tr>
+        <tr><td class="text-muted">Reason</td><td><?= e($pd['removal_reason'] ?? '—') ?></td></tr>
+        <tr><td class="text-muted">Approved By</td><td><?= e($pd['removal_approved_by_name'] ?? '—') ?></td></tr>
+        <tr><td class="text-muted">Removed At</td><td><?= $pd['removed_at'] ? e(date('d M Y H:i', strtotime($pd['removed_at']))) : '—' ?></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 class="card-title">Borrower Notice / Evidence</h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Sent By</th><th>Document</th></tr></thead>
+        <tbody>
+          <?php foreach ($notices as $n): ?>
+            <tr>
+              <td class="small"><?= $n['notice_date'] ? e(date('d M Y', strtotime($n['notice_date']))) : '—' ?></td>
+              <td class="small"><?= e($n['notice_method'] ?? '—') ?></td>
+              <td class="small"><?= e($n['notice_reference'] ?? '—') ?></td>
+              <td class="small"><?= e($n['notice_sent_by_name'] ?? '—') ?></td>
+              <td class="small"><?php if (!empty($n['notice_document'])): ?><a href="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/notices/' . $n['id'] . '/download') ?>">Download</a><?php else: ?>—<?php endif; ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($notices)): ?>
+            <tr><td colspan="5" class="text-muted small">No notice recorded yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/notice') ?>" enctype="multipart/form-data" class="row g-2 mt-2">
+      <?= csrf_field() ?>
+      <div class="col-md-3">
+        <select name="notice_method" class="form-select form-select-sm">
+          <option value="">— Method —</option>
+          <?php foreach (['SMS','Email','Letter','WhatsApp','Hand Delivered','Other'] as $m): ?>
+            <option value="<?= e($m) ?>"><?= e($m) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2"><input type="date" name="notice_date" class="form-control form-control-sm"></div>
+      <div class="col-md-3"><input type="text" name="notice_reference" class="form-control form-control-sm" placeholder="Reference"></div>
+      <div class="col-md-2"><input type="file" name="notice_document" class="form-control form-control-sm"></div>
+      <div class="col-md-2"><button type="submit" class="btn btn-sm btn-outline-primary w-100">Record Notice</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 class="card-title">AUDIT TRAIL</h5>
+    <ul class="list-unstyled mb-0">
+      <?php foreach ($timeline as $t): ?>
+        <li class="mb-2 pb-2 border-bottom">
+          <strong><?= e($t['action']) ?></strong>
+          <?php if ($t['old_status'] || $t['new_status']): ?><span class="text-muted small">(<?= e($t['old_status'] ?? '—') ?> → <?= e($t['new_status'] ?? '—') ?>)</span><?php endif; ?>
+          <br>
+          <span class="text-muted small"><?= e($t['actor_name'] ?? 'System') ?> &mdash; <?= e(date('d M Y H:i', strtotime($t['created_at']))) ?></span>
+          <?php if ($t['reason']): ?><br><span class="small"><?= e($t['reason']) ?></span><?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+      <?php if (empty($timeline)): ?>
+        <li class="text-muted small">No actions recorded yet.</li>
+      <?php endif; ?>
+    </ul>
+  </div>
+</div>

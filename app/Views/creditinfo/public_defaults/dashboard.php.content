@@ -1,0 +1,69 @@
+<?= flash_messages() ?>
+
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div><strong>⚠ Public Defaults API documentation still required.</strong> No listing or removal can reach Creditinfo until the vendor specification is supplied.</div>
+  <a href="<?= url('/creditinfo/public-defaults/settings') ?>" class="btn btn-sm btn-outline-dark">Settings</a>
+</div>
+
+<?php if (!empty($removalRequired)): ?>
+  <div class="card border-warning mb-3">
+    <div class="card-body">
+      <h5 class="card-title text-warning-emphasis">Removal Required</h5>
+      <?php foreach ($removalRequired as $r): ?>
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2 flex-wrap gap-2">
+          <div>
+            Client has settled the outstanding loan.<br>
+            Public Default: <strong><?= e($r['listing_reference']) ?></strong> (<?= e($r['borrower_name']) ?>, loan <?= e($r['loan_no']) ?>)
+          </div>
+          <a href="<?= url('/creditinfo/public-defaults/' . $r['id'] . '/removal/create') ?>" class="btn btn-sm btn-warning">Create Removal Request</a>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+<?php endif; ?>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Public Defaults Overview</h4>
+        <div class="row text-center g-3">
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['draft'] ?></div><div class="text-muted small">Draft</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['pending_approval'] ?></div><div class="text-muted small">Pending Approval</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['approved_awaiting_submission'] ?></div><div class="text-muted small">Approved / Awaiting Submission</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['active_defaults'] ?></div><div class="text-muted small">Active Defaults</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_required'] ?></div><div class="text-muted small">Removal Required</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_pending'] ?></div><div class="text-muted small">Removal Pending</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0 text-danger"><?= (int) $counts['api_failures'] ?></div><div class="text-muted small">API Failures (Blocked)</div></div></div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2 flex-wrap">
+          <a href="<?= url('/creditinfo/public-defaults/eligibility') ?>" class="btn btn-primary btn-sm">Start Eligibility Review</a>
+          <a href="<?= url('/creditinfo/public-defaults/listings') ?>" class="btn btn-outline-secondary btn-sm">Listing Requests</a>
+          <a href="<?= url('/creditinfo/public-defaults/removals') ?>" class="btn btn-outline-secondary btn-sm">Removal Requests</a>
+          <a href="<?= url('/creditinfo/public-defaults/register') ?>" class="btn btn-outline-secondary btn-sm">Active Register</a>
+          <a href="<?= url('/creditinfo/public-defaults/history') ?>" class="btn btn-outline-secondary btn-sm">History</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Public Default Usage <span class="text-muted small">(this month)</span></h4>
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><td>Listings This Month</td><td class="text-end"><?= (int) $usage['listings_count'] ?></td></tr>
+            <tr><td class="text-muted small">Estimated Cost</td><td class="text-end text-muted small">N$<?= number_format($usage['listings_cost'], 2) ?></td></tr>
+            <tr><td>Removals This Month</td><td class="text-end"><?= (int) $usage['removals_count'] ?></td></tr>
+            <tr><td class="text-muted small">Estimated Cost</td><td class="text-end text-muted small">N$<?= number_format($usage['removals_cost'], 2) ?></td></tr>
+            <tr class="border-top"><td><strong>Total Transactions</strong></td><td class="text-end"><strong><?= (int) $usage['total_transactions'] ?></strong></td></tr>
+            <tr><td><strong>Estimated Excl. VAT</strong></td><td class="text-end"><strong>N$<?= number_format($usage['total_cost_excl_vat'], 2) ?></strong></td></tr>
+          </tbody>
+        </table>
+        <p class="text-muted small mt-2 mb-0">Tariff: N$<?= number_format($usage['listing_fee'], 2) ?> listing / N$<?= number_format($usage['removal_fee'], 2) ?> removal (excl. <?= number_format($usage['vat_rate'], 0) ?>% VAT) -- per the signed Creditinfo Statement of Work, editable in Settings.</p>
+      </div>
+    </div>
+  </div>
+</div>

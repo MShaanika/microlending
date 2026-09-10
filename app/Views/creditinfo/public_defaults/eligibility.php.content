@@ -1,0 +1,55 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h4 class="card-title">PUBLIC DEFAULT ELIGIBILITY</h4>
+      <a href="<?= url('/creditinfo/public-defaults/eligibility') ?>" class="btn btn-outline-secondary btn-sm">Back to Search</a>
+    </div>
+
+    <table class="table table-borderless" style="max-width: 640px;">
+      <tbody>
+        <tr><td class="text-muted" style="width:220px;">Borrower</td><td><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?> (<?= e($borrower['borrower_no']) ?>)</td></tr>
+        <tr><td class="text-muted">Loan</td><td><?= e($loan['loan_no']) ?></td></tr>
+        <tr><td class="text-muted">Original Loan Amount</td><td>N$<?= number_format((float) $loan['principal_amount'], 2) ?></td></tr>
+        <tr><td class="text-muted">Outstanding Balance</td><td>N$<?= number_format($result['outstanding_balance'], 2) ?></td></tr>
+        <tr><td class="text-muted">Days in Arrears</td><td><?= (int) $result['days_in_arrears'] ?></td></tr>
+        <tr><td class="text-muted">Last Payment</td><td><?= $result['last_payment_date'] ? e(date('d M Y', strtotime($result['last_payment_date']))) : 'No payment on record' ?></td></tr>
+        <tr><td class="text-muted">Collection Attempts</td><td><?= (int) $result['collection_attempts'] ?></td></tr>
+        <tr><td class="text-muted">Existing Dispute</td><td><?= $result['has_dispute'] ? '<span class="badge bg-danger">Open Dispute</span>' : '<span class="badge bg-success">None</span>' ?></td></tr>
+        <tr><td class="text-muted">Consent / Notice Status</td><td><?= e($result['notice_status']) ?></td></tr>
+        <tr>
+          <td class="text-muted">Eligibility Status</td>
+          <td>
+            <?php if ($result['eligibility_status'] === 'Eligible'): ?>
+              <span class="badge bg-success">Eligible</span>
+            <?php elseif ($result['eligibility_status'] === 'Blocked'): ?>
+              <span class="badge bg-danger">Blocked</span>
+            <?php else: ?>
+              <span class="badge bg-warning text-dark">Provisional — Requires Compliance Confirmation</span>
+            <?php endif; ?>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <?php if ($result['eligibility_status'] === 'Blocked'): ?>
+      <div class="alert alert-danger">
+        <strong>PUBLIC DEFAULT LISTING BLOCKED</strong>
+        <ul class="mb-0">
+          <?php foreach ($result['blocking_reasons'] as $reason): ?><li><?= e($reason) ?></li><?php endforeach; ?>
+        </ul>
+      </div>
+    <?php else: ?>
+      <?php if (!empty($result['provisional_reasons'])): ?>
+        <div class="alert alert-warning">
+          <strong>Requires Compliance Confirmation before this rule can be treated as final:</strong>
+          <ul class="mb-0">
+            <?php foreach ($result['provisional_reasons'] as $reason): ?><li><?= e($reason) ?></li><?php endforeach; ?>
+          </ul>
+        </div>
+      <?php endif; ?>
+      <a href="<?= url('/creditinfo/public-defaults/listings/create/' . $loan['id']) ?>" class="btn btn-primary">Create Listing Request</a>
+    <?php endif; ?>
+  </div>
+</div>

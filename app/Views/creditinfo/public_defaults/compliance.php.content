@@ -1,0 +1,46 @@
+<?= flash_messages() ?>
+
+<div class="alert alert-warning"><strong>⚠ Public Defaults API documentation still required.</strong> <?= (int) $apiLogCount ?> submission attempt(s) have been blocked for this reason so far.</div>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Public Default Compliance</h4>
+    <div class="row text-center g-3">
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['draft'] ?></div><div class="text-muted small">Draft Requests</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['pending_approval'] ?></div><div class="text-muted small">Pending Approval</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['approved_awaiting_submission'] ?></div><div class="text-muted small">Approved Awaiting Submission</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['active_defaults'] ?></div><div class="text-muted small">Active Defaults</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_required'] ?></div><div class="text-muted small">Removal Required</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_pending'] ?></div><div class="text-muted small">Removal Requests Pending</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0 text-danger"><?= (int) $counts['api_failures'] ?></div><div class="text-muted small">API Failures</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $disputesBlocking ?></div><div class="text-muted small">Active Disputes</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h4 class="card-title">Recent Blocked API Attempts</h4>
+    <p class="text-muted small mb-2">Every row here is a submission that was blocked before any network call was made -- the gateway is a placeholder until Creditinfo supplies the Public Defaults API specification. Never a real Creditinfo request/response.</p>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Time</th><th>Reference</th><th>Action</th><th>Environment</th><th>Triggered By</th><th>Reason</th></tr></thead>
+        <tbody>
+          <?php foreach ($recentApiLogs as $l): ?>
+            <tr>
+              <td class="small"><?= e(date('d M H:i', strtotime($l['created_at']))) ?></td>
+              <td class="small"><?= e($l['listing_reference'] ?? '—') ?></td>
+              <td class="small"><?= e($l['action_attempted']) ?></td>
+              <td class="small"><?= e(strtoupper($l['environment'])) ?></td>
+              <td class="small"><?= e($l['triggered_by_name'] ?? '—') ?></td>
+              <td class="small text-danger"><?= e($l['blocked_reason']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($recentApiLogs)): ?>
+            <tr><td colspan="6" class="text-muted small">No submission attempts have been made yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
