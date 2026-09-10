@@ -560,7 +560,14 @@ class AfsExcelExporter
             $sheet,
             $row++,
             'Estimated taxable income for the year',
-            "C{$profitRow}+C{$deprecRow}+C{$investRow}-C{$caTotalRow}+C{$recvRow}+C{$insRow}",
+            // C{$caTotalRow} (Total Capital Allowances) already holds a
+            // negative value -- each row feeding its SUM() was entered as
+            // -$r['amount'] above, same as C{$recvRow}/C{$insRow}. Adding
+            // it (not subtracting) correctly nets it off; subtracting an
+            // already-negative cell double-flips the sign and was silently
+            // ADDING Capital Allowances back into taxable income instead of
+            // deducting them.
+            "C{$profitRow}+C{$deprecRow}+C{$investRow}+C{$caTotalRow}+C{$recvRow}+C{$insRow}",
             true
         );
 
