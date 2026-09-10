@@ -160,7 +160,8 @@ class DebitOrderCollexiaController extends Controller
             'frequencyCode' => 4, // Monthly -- this app's debit orders are always monthly (debit_day is a day-of-month)
             'installmentAmount' => (float) $debitOrder['debit_amount'],
             'noOfInstallments' => $noOfInstallments,
-            'origin' => 0,
+            // Always the merchant's own GID, never 0 -- confirmed by Collexia.
+            'origin' => (int) $this->settings->get('collexia_merchant_gid'),
             'contractReference' => $contractReference,
             'magId' => CollexiaV3Codes::MAG_ID_ENDO,
             'initialAmount' => 0,
@@ -284,7 +285,8 @@ class DebitOrderCollexiaController extends Controller
                 'frequencyCode' => 4,
                 'installmentAmount' => $amount,
                 'noOfInstallments' => $noOfInstallments,
-                'origin' => 0,
+                // Always the merchant's own GID, never 0 -- confirmed by Collexia.
+                'origin' => (int) $this->settings->get('collexia_merchant_gid'),
                 'contractReference' => $contractReference,
                 'magId' => CollexiaV3Codes::MAG_ID_ENDO,
                 'initialAmount' => 0,
