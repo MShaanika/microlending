@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DesertLedger</title>
+<meta name="description" content="DesertLedger — the lending operations platform built for Namibia's regulatory environment.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    /* Dark-first: this IS the primary identity -- dusk over the Namib dunes. */
+    --ground: #14121f;
+    --ground-deep: #1c1830;
+    --card: #201c33;
+    --ink: #f3ecdf;
+    --ink-dim: #c9c0d6;
+    --ink-faint: #8a80a0;
+    --accent: #e8933f;
+    --accent-deep: #c46a2c;
+    --accent-ink: #1a1224;
+    --line: #362f4d;
+    --star: #f3ecdf;
+    --hero-1: #2a2348;
+    --hero-2: #1c1732;
+    --hero-3: #241a33;
+    --dune-1: #231a38;
+    --dune-2: #1a1428;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground: #faf5eb;
+      --ground-deep: #f1e7d5;
+      --card: #ffffff;
+      --ink: #241c30;
+      --ink-dim: #52465f;
+      --ink-faint: #8c7f96;
+      --accent: #c96a2c;
+      --accent-deep: #a3521f;
+      --accent-ink: #fffaf2;
+      --line: #e3d6bf;
+      --star: #c96a2c;
+      --hero-1: #f6e2c4;
+      --hero-2: #f1d4ab;
+      --hero-3: #ecc999;
+      --dune-1: #e0a96b;
+      --dune-2: #c9884a;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #faf5eb;
+    --ground-deep: #f1e7d5;
+    --card: #ffffff;
+    --ink: #241c30;
+    --ink-dim: #52465f;
+    --ink-faint: #8c7f96;
+    --accent: #c96a2c;
+    --accent-deep: #a3521f;
+    --accent-ink: #fffaf2;
+    --line: #e3d6bf;
+    --star: #c96a2c;
+    --hero-1: #f6e2c4;
+    --hero-2: #f1d4ab;
+    --hero-3: #ecc999;
+    --dune-1: #e0a96b;
+    --dune-2: #c9884a;
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #14121f;
+    --ground-deep: #1c1830;
+    --card: #201c33;
+    --ink: #f3ecdf;
+    --ink-dim: #c9c0d6;
+    --ink-faint: #8a80a0;
+    --accent: #e8933f;
+    --accent-deep: #c46a2c;
+    --accent-ink: #1a1224;
+    --line: #362f4d;
+    --star: #f3ecdf;
+    --hero-1: #2a2348;
+    --hero-2: #1c1732;
+    --hero-3: #241a33;
+    --dune-1: #231a38;
+    --dune-2: #1a1428;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, .display {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .eyebrow {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  a { color: inherit; }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 56px);
+  }
+
+  /* ---------------- Hero ---------------- */
+
+  .hero {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 90% 60% at 50% -10%, var(--hero-1) 0%, transparent 60%),
+      linear-gradient(180deg, var(--ground) 0%, var(--hero-2) 55%, var(--hero-3) 100%);
+    padding-top: clamp(52px, 9vw, 96px);
+    padding-bottom: 0;
+  }
+
+  .hero-stars {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.9;
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    text-align: left;
+  }
+
+  .brandmark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: clamp(28px, 6vw, 52px);
+  }
+
+  .brandmark svg { flex: none; }
+
+  .brand-name {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .hero h1 {
+    font-size: clamp(2.6rem, 7.2vw, 4.6rem);
+    line-height: 1.02;
+    color: var(--ink);
+    max-width: 14ch;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    margin-top: 22px;
+    max-width: 46ch;
+    font-size: clamp(1.02rem, 2vw, 1.2rem);
+    color: var(--ink-dim);
+  }
+
+  .hero-cta {
+    margin-top: 34px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 13px 24px;
+    border-radius: 3px;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-cta .note {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+
+  .dunes {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: clamp(40px, 8vw, 72px);
+  }
+
+  /* ---------------- Credentials strip ---------------- */
+
+  .credentials {
+    background: var(--ground-deep);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .credentials .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px 40px;
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+
+  .credentials-label {
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+
+  .cred-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 30px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cred-list li {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .cred-list li span {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--ink-faint);
+    white-space: normal;
+  }
+
+  /* ---------------- Feature section ---------------- */
+
+  .features {
+    padding: clamp(56px, 9vw, 96px) 0 clamp(40px, 7vw, 72px);
+  }
+
+  .section-head {
+    max-width: 56ch;
+    margin-bottom: clamp(32px, 6vw, 52px);
+  }
+
+  .section-head h2 {
+    font-size: clamp(1.8rem, 3.6vw, 2.5rem);
+    color: var(--ink);
+    margin-top: 10px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .card {
+    background: var(--card);
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 3px;
+    background: var(--ground-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+
+  .card h3 {
+    font-size: 1.18rem;
+    color: var(--ink);
+  }
+
+  .card p {
+    margin: 0;
+    font-size: 0.94rem;
+    color: var(--ink-dim);
+    max-width: 34ch;
+  }
+
+  /* ---------------- Pull line ---------------- */
+
+  .pull {
+    background: var(--ground-deep);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: clamp(44px, 8vw, 80px) 0;
+  }
+
+  .pull-inner {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+
+  .pull blockquote {
+    margin: 0;
+    font-family: 'Fraunces', serif;
+    font-size: clamp(1.15rem, 2.4vw, 1.5rem);
+    font-weight: 500;
+    line-height: 1.28;
+    color: var(--ink);
+  }
+
+  .pull blockquote::before { content: open-quote; color: var(--accent); }
+  .pull blockquote::after { content: close-quote; color: var(--accent); }
+
+  /* ---------------- Footer / CTA ---------------- */
+
+  .closer {
+    padding: clamp(56px, 10vw, 100px) 0 clamp(40px, 6vw, 64px);
+    text-align: center;
+  }
+
+  .closer h2 {
+    font-size: clamp(1.9rem, 4.5vw, 3rem);
+    color: var(--ink);
+    max-width: 18ch;
+    margin: 0 auto;
+  }
+
+  .closer h2 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .closer-sub {
+    margin: 18px auto 0;
+    max-width: 42ch;
+    color: var(--ink-dim);
+    font-size: 1.02rem;
+  }
+
+  .closer .btn { margin-top: 30px; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 24px 0 36px;
+    text-align: center;
+  }
+
+  footer p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+  }
+
+  /* ---------------- Responsive ---------------- */
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    .pull-inner { grid-template-columns: 1fr; gap: 30px; }
+    .credentials .wrap { flex-direction: column; align-items: flex-start; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .twinkle { animation: twinkle 5s ease-in-out infinite; }
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <svg class="hero-stars" viewBox="0 0 1080 520" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
+    <circle class="twinkle" cx="80" cy="60" r="1.4" fill="var(--star)" style="animation-delay:0s"/>
+    <circle class="twinkle" cx="180" cy="130" r="1" fill="var(--star)" style="animation-delay:1.1s"/>
+    <circle class="twinkle" cx="300" cy="50" r="1.6" fill="var(--star)" style="animation-delay:2s"/>
+    <circle class="twinkle" cx="420" cy="110" r="1" fill="var(--star)" style="animation-delay:0.6s"/>
+    <circle class="twinkle" cx="520" cy="40" r="1.2" fill="var(--star)" style="animation-delay:2.6s"/>
+    <circle class="twinkle" cx="640" cy="90" r="1.6" fill="var(--star)" style="animation-delay:1.6s"/>
+    <circle class="twinkle" cx="740" cy="35" r="1" fill="var(--star)" style="animation-delay:3.1s"/>
+    <circle class="twinkle" cx="860" cy="120" r="1.3" fill="var(--star)" style="animation-delay:0.3s"/>
+    <circle class="twinkle" cx="960" cy="60" r="1" fill="var(--star)" style="animation-delay:2.3s"/>
+    <circle class="twinkle" cx="1020" cy="140" r="1.5" fill="var(--star)" style="animation-delay:1.4s"/>
+    <circle class="twinkle" cx="140" cy="220" r="1" fill="var(--star)" style="animation-delay:0.9s"/>
+    <circle class="twinkle" cx="260" cy="190" r="1.3" fill="var(--star)" style="animation-delay:3.4s"/>
+    <circle class="twinkle" cx="600" cy="200" r="1" fill="var(--star)" style="animation-delay:1.9s"/>
+    <circle class="twinkle" cx="900" cy="210" r="1.2" fill="var(--star)" style="animation-delay:2.8s"/>
+    <circle class="twinkle" cx="1000" cy="250" r="1" fill="var(--star)" style="animation-delay:0.2s"/>
+  </svg>
+
+  <div class="wrap hero-inner">
+    <div class="brandmark">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <path d="M2 20 L9 9 L14 15 L18 6 L24 20 Z" fill="var(--accent)"/>
+      </svg>
+      <span class="brand-name">DesertLedger</span>
+    </div>
+
+    <h1>The lending platform built for <em>Namibia's</em> rules, not around them.</h1>
+    <p class="hero-sub">One system for the full loan lifecycle — application to AFS, collections to credit bureau, compliance to payroll. No spreadsheets stitched together after the fact.</p>
+
+    <div class="hero-cta">
+      <a class="btn" href="#features">See what runs inside <span aria-hidden="true">&rarr;</span></a>
+      <span class="note">Live NAMFISA · Collexia · Creditinfo integrations</span>
+    </div>
+  </div>
+
+  <svg class="dunes" viewBox="0 0 1080 200" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,140 C120,90 220,170 360,120 C480,80 560,150 680,110 C800,75 900,130 1080,95 L1080,200 L0,200 Z" fill="var(--dune-1)"/>
+    <path d="M0,170 C160,120 300,190 460,150 C600,115 720,175 860,140 C950,120 1010,150 1080,135 L1080,200 L0,200 Z" fill="var(--dune-2)"/>
+  </svg>
+</div>
+
+<div class="credentials">
+  <div class="wrap">
+    <span class="credentials-label">Compliance and integrations, built in from day one</span>
+    <ul class="cred-list">
+      <li>NAMFISA<span>Regulatory reporting &amp; levies</span></li>
+      <li>Collexia EnDO<span>Bank debit order network</span></li>
+      <li>Creditinfo Namibia<span>Credit bureau &amp; public defaults</span></li>
+    </ul>
+  </div>
+</div>
+
+<div class="wrap features" id="features">
+  <div class="section-head">
+    <p class="eyebrow">What's inside</p>
+    <h2>Eight systems most lenders run separately. Here, they're one.</h2>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+      </div>
+      <h3>End-to-end loan lifecycle</h3>
+      <p>Public and agent-assisted applications, scoring, approval, disbursement, and repayment scheduling — one record from first click to final installment.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="1.5"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+      </div>
+      <h3>Collections that run themselves</h3>
+      <p>Debit orders placed, tracked, rescheduled and cancelled directly on Collexia's EnDO network — no manual bank runs, no chasing a spreadsheet.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3.5v5c0 5-3.4 8.4-8 9.5-4.6-1.1-8-4.5-8-9.5v-5z"/><path d="M9 12l2 2 4-4.5"/></svg>
+      </div>
+      <h3>Credit bureau, at the point of decision</h3>
+      <p>Live Creditinfo Namibia checks during assessment, plus a full dual-control workflow for listing and removing public defaults — every step logged.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>
+      </div>
+      <h3>Full accounting, not a side ledger</h3>
+      <p>Double-entry general ledger, bank reconciliation and fixed assets, with Balance Sheet, P&amp;L, Cash Flow and Tax Computation generated live from real transactions — not rebuilt in a spreadsheet every quarter.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>
+      </div>
+      <h3>NAMFISA, not an afterthought</h3>
+      <p>Levy and duty stamp handling built into every disbursement, with retention and reporting rules that match the Act — not bolted on later.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M4 20c0-3 2.5-5 5-5s5 2 5 5M12 20c0-3 2.5-5 5-5s5 2 5 5"/></svg>
+      </div>
+      <h3>Governance you can prove</h3>
+      <p>Maker-checker approval on every sensitive action — write-offs, bureau submissions, and more — with a complete, unbroken audit trail behind each one.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 16l2.5-5 3 3L18 8"/></svg>
+      </div>
+      <h3>Bank statements read for you</h3>
+      <p>Upload a statement and the system parses income and spending, then calculates Debt-to-Income on the spot — a consistent, defensible affordability read on every application.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v11z"/><path d="M4 13h16"/></svg>
+      </div>
+      <h3>HR and payroll, not a side system</h3>
+      <p>Recruitment, leave, promotions, staff loans and payroll — run the people side of the business next to the loan book, not in a separate package.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="pull">
+  <div class="wrap pull-inner">
+    <blockquote>From application to AFS — one platform, one source of truth.</blockquote>
+    <blockquote>Compliance isn't a module you add later. It's how DesertLedger is built.</blockquote>
+    <blockquote>Collections that run themselves. Books that close themselves.</blockquote>
+  </div>
+</div>
+
+<div class="wrap closer">
+  <p class="eyebrow">Ready when you are</p>
+  <h2>Run your loan book on <em>one</em> ledger.</h2>
+  <p class="closer-sub">See DesertLedger against your own portfolio — application intake through Annual Financial Statements, in one working demo.</p>
+  <a class="btn" href="#">Book a walkthrough <span aria-hidden="true">&rarr;</span></a>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p>DesertLedger — a lending operations platform for the Namibian market.</p>
+  </div>
+</footer>
+
+</body>
+</html>
