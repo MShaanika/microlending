@@ -56,8 +56,13 @@
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Start Date <span class="text-danger">*</span></label>
-          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
+          <input type="date" id="start_date" name="start_date" data-first-due="<?= e($firstDueDate ?? '') ?>" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
           <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+          <?php if ($firstDueDate): ?>
+            <div class="form-text">Loan's first installment is due <?= e(date('d M Y', strtotime($firstDueDate))) ?> &mdash; Collexia rounds this to the nearest matching Debit Day, so a mismatched Start Date silently shifts the first collection off-schedule.</div>
+          <?php else: ?>
+            <div class="form-text text-warning">No repayment schedule found for this loan yet -- confirm this date manually.</div>
+          <?php endif; ?>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Tracking Days (1-14)</label>
@@ -157,6 +162,28 @@
 
   if (enabledCheckbox.checked) {
     togglePanel();
+  }
+
+  // Warn (don't block) if Start Date is being overridden away from the
+  // loan's actual first installment due date -- Collexia rounds an
+  // off-schedule start_date to the nearest matching Debit Day rather than
+  // rejecting it, so a mismatch here silently registers a mandate that
+  // collects on the wrong cycle. See app/Controllers/DebitOrderController.php.
+  var startDateInput = document.getElementById('start_date');
+  var form = startDateInput ? startDateInput.closest('form') : null;
+  if (form && startDateInput && startDateInput.dataset.firstDue) {
+    form.addEventListener('submit', function (e) {
+      if (startDateInput.value !== startDateInput.dataset.firstDue) {
+        var ok = confirm(
+          'This Start Date (' + startDateInput.value + ') does not match the loan\'s first installment due date (' +
+          startDateInput.dataset.firstDue + ').\n\nCollexia will round this to the nearest matching Debit Day, ' +
+          'which can register the mandate a full cycle off-schedule.\n\nRegister anyway?'
+        );
+        if (!ok) {
+          e.preventDefault();
+        }
+      }
+    });
   }
 })();
 </script>

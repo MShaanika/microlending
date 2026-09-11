@@ -108,10 +108,22 @@ class DebitOrderController extends Controller
             return;
         }
 
+        $firstDueDate = $this->loans->firstScheduleDueDate((int) $loanId);
+        $old = $this->prefillFromBankDetails((int) $loan['borrower_id']);
+        if ($firstDueDate) {
+            // Default Start Date to when the loan's first installment is
+            // actually due, not today -- a mandate registered a day (or a
+            // week) after disbursement previously defaulted to "today" here,
+            // which Collexia then rounds to the nearest matching debit_day,
+            // silently landing a full cycle earlier than the real schedule.
+            $old['start_date'] = $firstDueDate;
+        }
+
         $this->view('debit_orders/create', [
             'title' => 'Register Debit Order - ' . $loan['loan_no'],
             'loan' => $loan,
-            'old' => $this->prefillFromBankDetails((int) $loan['borrower_id']),
+            'old' => $old,
+            'firstDueDate' => $firstDueDate,
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
             'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
@@ -221,6 +233,7 @@ class DebitOrderController extends Controller
                 'title' => 'Register Debit Order - ' . $loan['loan_no'],
                 'loan' => $loan,
                 'old' => $_POST,
+                'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
                 'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
