@@ -212,6 +212,11 @@ class CreditinfoClient
 
         $data = $responseData['data'] ?? [];
         $nationalId = $body['parameters']['idNumbersList'][0]['idNumber'] ?? null;
+        // /reports/pdf has its own response shape (data.report base64 if
+        // immediate, or data.token if async) -- computed only for that
+        // endpoint so it never gets confused with reports/custom's
+        // reportToken below.
+        $isPdfEndpoint = str_starts_with($path, '/reports/pdf');
 
         try {
             (new \App\Models\CreditinfoDiagnosticLog())->record([
@@ -224,7 +229,8 @@ class CreditinfoClient
                 'workflow_id' => $data['workflowId'] ?? null,
                 'outcome_status' => $data['status'] ?? $data['requestStatus'] ?? null,
                 'subject_token_present' => !empty($data['individualRecords'][0]['subjectToken']) ? 1 : 0,
-                'report_token_present' => (!empty($data['report']['reportInfo']['reportToken']) || !empty($data['token'])) ? 1 : 0,
+                'report_token_present' => !$isPdfEndpoint && (!empty($data['report']['reportInfo']['reportToken']) || !empty($data['token'])) ? 1 : 0,
+                'pdf_result_present' => $isPdfEndpoint && (!empty($data['report']) || !empty($data['token'])) ? 1 : 0,
                 'national_id_used' => $nationalId,
                 'duration_ms' => $durationMs,
                 'error_code' => $errorCode,

@@ -124,6 +124,7 @@ use App\Controllers\ReportController;
 use App\Controllers\CplBatchController;
 use App\Controllers\CplExportController;
 use App\Controllers\CplSettingController;
+use App\Controllers\CplUatTestController;
 use App\Controllers\OperationalReportController;
 use App\Controllers\StatutoryChargeSettingController;
 use App\Controllers\NotificationTemplateController;
@@ -1247,6 +1248,12 @@ $router->post('/reports/cpl-export/batches/{id}/submit-for-approval', [CplBatchC
 $router->post('/reports/cpl-export/batches/{id}/approve', [CplBatchController::class, 'approve']);
 $router->post('/reports/cpl-export/batches/{id}/reject', [CplBatchController::class, 'reject']);
 $router->get('/reports/cpl-export/batches/{id}/download', [CplBatchController::class, 'download']);
+$router->get('/reports/cpl-export/uat-signoff', [CplUatTestController::class, 'index']);
+$router->post('/reports/cpl-export/uat-signoff/generate-daily', [CplUatTestController::class, 'generateDaily']);
+$router->post('/reports/cpl-export/uat-signoff/generate-monthly', [CplUatTestController::class, 'generateMonthly']);
+$router->get('/reports/cpl-export/uat-signoff/{id}', [CplUatTestController::class, 'show']);
+$router->get('/reports/cpl-export/uat-signoff/{id}/download', [CplUatTestController::class, 'download']);
+$router->post('/reports/cpl-export/uat-signoff/{id}/record-outcome', [CplUatTestController::class, 'recordOutcome']);
 
 // Fixed Assets: Depreciation & Amortization
 // Note: routed under /fixed-assets (not /assets) because /assets collides with

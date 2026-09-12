@@ -155,4 +155,25 @@ class CplRecordBuilder
         $line = 'T' . str_pad((string) $recordCount, 9, '0', STR_PAD_LEFT);
         return str_pad($line, self::RECORD_LENGTH, ' ', STR_PAD_RIGHT);
     }
+
+    /**
+     * Daily Layout (CPLv1-1.pdf pp.19-20): identical to the Monthly record
+     * (fields 1-56, positions 1-700) plus two extra fields appended --
+     * Supplier Reference Number (701-710, A10, right-aligned per the same
+     * exception as the header's own supplier reference) and Transaction
+     * Date (711-718, N8, CCYYMMDD) -- making every daily record 718
+     * characters, not 700. The Daily Layout has no header or trailer record
+     * at all (the spec: "adjusted to note the required fields per row to
+     * allow Credit Bureaus to batch loads and speed up processing").
+     *
+     * $values['data'] must be 'R' (new registration) or 'C' (closure) here,
+     * never 'D' -- that indicator is Monthly-only.
+     */
+    public function dailyRecord(array $values, string $supplierRef, string $transactionDate): string
+    {
+        $line = $this->record($values);
+        $line .= $this->pad($supplierRef, 10, 'AR');
+        $line .= $this->date($transactionDate);
+        return $line;
+    }
 }

@@ -119,4 +119,20 @@ class CplRecordBuilderTest extends TestCase
         // Position 2-10: NUMBER OF RECORDS, N9, zero-filled.
         $this->assertSame('000000123', substr($trailer, 1, 9));
     }
+
+    public function testDailyRecordIs718CharactersWithNoHeaderOrTrailerConcept(): void
+    {
+        $line = $this->builder->dailyRecord(['data' => 'R', 'surname' => 'Nangolo'], 'AA0101', '2026-09-15');
+
+        // CPLv1-1.pdf pp.19-20: Daily = Monthly's 700 chars + 10 (Supplier
+        // Reference Number) + 8 (Transaction Date) = 718 total.
+        $this->assertSame(718, strlen($line));
+        $this->assertSame('R', substr($line, 0, 1));
+        // The first 700 characters are built by the exact same field map as a Monthly record.
+        $this->assertSame(str_pad('Nangolo', 25, ' ', STR_PAD_RIGHT), substr($line, 76, 25));
+        // Position 701-710: SUPPLIER REFERENCE NUMBER, A10, right-aligned.
+        $this->assertSame('    AA0101', substr($line, 700, 10));
+        // Position 711-718: TRANSACTION DATE, N8, CCYYMMDD.
+        $this->assertSame('20260915', substr($line, 710, 8));
+    }
 }
