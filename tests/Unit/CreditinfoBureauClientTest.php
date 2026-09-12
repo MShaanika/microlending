@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\CreditinfoBureauClient;
+use App\Support\CreditinfoV3Codes;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,14 +23,15 @@ class CreditinfoBureauClientTest extends TestCase
     {
         $body = CreditinfoBureauClient::buildSearchBody(
             ['idNumber' => '74082851070', 'gender' => 1, 'firstName' => 'Spacey', 'presentSurname' => 'McSpaceface', 'dateOfBirth' => '1976-07-16T00:00:00', 'mobilePhone' => '840488810'],
-            'CustomerInquiry',
+            CreditinfoV3Codes::INQUIRY_REASON_CUSTOMER_INQUIRY,
             true,
             false,
             null
         );
 
         $this->assertSame(true, $body['consent'], 'consent must be present and true for a non-interactive search.');
-        $this->assertSame('CustomerInquiry', $body['inquiryReason']);
+        $this->assertSame(36, $body['inquiryReason']);
+        $this->assertIsInt($body['inquiryReason'], 'inquiryReason is one shared integer enum on both search and report endpoints -- vendor-confirmed, not the string enum the manual originally implied.');
         $this->assertNull($body['inquiryReasonText']);
         $this->assertSame(5, $body['timeOut']);
         $this->assertFalse($body['interactiveSearch']);
@@ -45,7 +47,7 @@ class CreditinfoBureauClientTest extends TestCase
     {
         $body = CreditinfoBureauClient::buildSearchBody(
             ['idNumber' => '74082851070', 'gender' => 1, 'firstName' => 'Spacey', 'presentSurname' => 'McSpaceface', 'dateOfBirth' => '1976-07-16T00:00:00', 'mobilePhone' => '840488810'],
-            'CustomerInquiry',
+            CreditinfoV3Codes::INQUIRY_REASON_CUSTOMER_INQUIRY,
             true, // even when the caller passes consent=true, it must not appear
             true
         );
@@ -56,15 +58,31 @@ class CreditinfoBureauClientTest extends TestCase
 
     public function testGenderIsAlwaysCastToInt(): void
     {
-        $body = CreditinfoBureauClient::buildSearchBody(['idNumber' => '1', 'gender' => '2'], 'Other', true);
+        $body = CreditinfoBureauClient::buildSearchBody(['idNumber' => '1', 'gender' => '2'], CreditinfoV3Codes::INQUIRY_REASON_ANOTHER_REASON, true);
         $this->assertSame(2, $body['parameters']['gender']);
         $this->assertIsInt($body['parameters']['gender']);
     }
 
     public function testIdNumberTypeIsAlwaysNationalId(): void
     {
-        $body = CreditinfoBureauClient::buildSearchBody(['idNumber' => '77082851070'], 'Other', true);
+        $body = CreditinfoBureauClient::buildSearchBody(['idNumber' => '77082851070'], CreditinfoV3Codes::INQUIRY_REASON_ANOTHER_REASON, true);
         $this->assertSame('NationalID', $body['parameters']['idNumbersList'][0]['idNumberType']);
+    }
+
+    /** gender=1/2 (Male/Female) and the shared inquiryReason enum are now vendor-confirmed in writing -- CreditinfoV3Codes is the fixed table, never re-guessed here. */
+    public function testVendorConfirmedCodeTablesMatchCreditinfosWrittenClarification(): void
+    {
+        $this->assertSame(1, CreditinfoV3Codes::GENDER_MALE);
+        $this->assertSame(2, CreditinfoV3Codes::GENDER_FEMALE);
+        $this->assertSame([
+            0 => 'NotSpecified',
+            1 => 'ApplicationForCreditOrAmendmentOfCreditTerms',
+            9 => 'AnotherReason',
+            17 => 'CreditRenewal',
+            36 => 'CustomerInquiry',
+            41 => 'InsuranceApplication',
+        ], CreditinfoV3Codes::INQUIRY_REASONS);
+        $this->assertSame(1, CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON, 'A normal new loan application / affordability assessment defaults to ApplicationForCreditOrAmendmentOfCreditTerms.');
     }
 
     // --- Report body shape (POST /reports/custom) ---

@@ -10,17 +10,29 @@ use App\Core\Session;
 use App\Models\CreditinfoPublicDefaultSetting;
 
 /**
- * Item 14's Public Default Settings + item 5's eligibility configuration +
- * item 15's tariff configuration -- one screen, since all three are plain
- * admin-editable values on the same creditinfo_public_default_settings
- * table. Item 14's hard rule is enforced here, not just displayed:
- * public_defaults_enabled can never be turned "on" while
- * vendor_documentation_received or vendor_mapping_confirmed is still "no".
+ * Item 14's Public Default Settings (submission architecture) + item 5's
+ * eligibility configuration + item 15's tariff configuration -- one
+ * screen, since all three are plain admin-editable values on the same
+ * creditinfo_public_default_settings table.
+ *
+ * Creditinfo has confirmed in writing there is no REST API for Public
+ * Defaults -- only their own User Interface (fully supported by this
+ * module) and SFTP (not yet specified). public_defaults_enabled can
+ * therefore be freely toggled -- the manual workflow is real and complete
+ * -- there is nothing left to gate it on. sftp_enabled is a placeholder
+ * toggle only: nothing in this codebase branches on it yet, since there
+ * is no SFTP client to enable (item 4).
  */
 class CreditinfoPublicDefaultSettingController extends Controller
 {
-    private const BOOLEAN_FIELDS = [
-        'vendor_documentation_received', 'vendor_mapping_confirmed', 'borrower_notice_required',
+    private const BOOLEAN_FIELDS = ['borrower_notice_required', 'sftp_enabled'];
+
+    private const TEXT_FIELDS = [
+        'minimum_days_in_arrears', 'minimum_outstanding_balance', 'notice_waiting_period_days',
+        'listing_fee', 'removal_fee', 'vat_rate', 'tariff_effective_date',
+        'sftp_host', 'sftp_port', 'sftp_username', 'sftp_auth_method',
+        'sftp_outbound_directory', 'sftp_inbound_directory', 'sftp_archive_directory',
+        'sftp_file_format', 'sftp_file_naming_convention', 'sftp_submission_schedule',
     ];
 
     private CreditinfoPublicDefaultSetting $settings;
@@ -38,7 +50,7 @@ class CreditinfoPublicDefaultSettingController extends Controller
         $this->view('creditinfo/public_defaults/settings', [
             'title' => 'Public Defaults Settings',
             'settings' => $all,
-            'canEnable' => $this->settings->isReadyForProductionSubmission(),
+            'sftpSecretSet' => $this->settings->isSftpSecretSet(),
         ]);
     }
 
@@ -53,38 +65,24 @@ class CreditinfoPublicDefaultSettingController extends Controller
 
         $userId = Auth::user()['id'] ?? null;
 
-        // Item 14: production submission is gated here, not just on the
-        // readiness panel -- an admin cannot flip public_defaults_enabled
-        // to "on" while either vendor confirmation flag is still "no",
-        // regardless of what they submit in the form.
-        $vendorDocsReceived = !empty($_POST['vendor_documentation_received']) ? 'yes' : 'no';
-        $vendorMappingConfirmed = !empty($_POST['vendor_mapping_confirmed']) ? 'yes' : 'no';
-        $requestedEnabled = !empty($_POST['public_defaults_enabled']);
+        $this->settings->set('public_defaults_enabled', !empty($_POST['public_defaults_enabled']) ? 'on' : 'off', $userId);
 
-        if ($requestedEnabled && ($vendorDocsReceived !== 'yes' || $vendorMappingConfirmed !== 'yes')) {
-            Session::flash('error', 'Public Defaults cannot be enabled until Vendor Documentation Received AND Vendor Mapping Confirmed are both YES.');
-            $this->redirect('/creditinfo/public-defaults/settings');
-            return;
+        foreach (self::BOOLEAN_FIELDS as $key) {
+            $this->settings->set($key, !empty($_POST[$key]) ? ($key === 'borrower_notice_required' ? 'yes' : 'on') : ($key === 'borrower_notice_required' ? 'no' : 'off'), $userId);
         }
 
-        $this->settings->set('vendor_documentation_received', $vendorDocsReceived, $userId);
-        $this->settings->set('vendor_mapping_confirmed', $vendorMappingConfirmed, $userId);
-        $this->settings->set('public_defaults_enabled', $requestedEnabled ? 'on' : 'off', $userId);
-        $this->settings->set('borrower_notice_required', !empty($_POST['borrower_notice_required']) ? 'yes' : 'no', $userId);
-
-        foreach (['api_status', 'listing_endpoint', 'removal_endpoint', 'api_version',
-                  'minimum_days_in_arrears', 'minimum_outstanding_balance', 'notice_waiting_period_days',
-                  'listing_fee', 'removal_fee', 'vat_rate', 'tariff_effective_date'] as $key) {
+        foreach (self::TEXT_FIELDS as $key) {
             if (array_key_exists($key, $_POST)) {
                 $this->settings->set($key, trim((string) $_POST[$key]), $userId);
             }
         }
 
-        Audit::log('Update', 'Creditinfo', 'Updated Public Defaults settings', [
-            'public_defaults_enabled' => $requestedEnabled ? 'on' : 'off',
-            'vendor_documentation_received' => $vendorDocsReceived,
-            'vendor_mapping_confirmed' => $vendorMappingConfirmed,
-        ]);
+        // Blank means "leave the stored secret as it is" -- see
+        // CreditinfoPublicDefaultSetting::setEncryptedSftpSecret(). Never
+        // logged, audited, or echoed back.
+        $this->settings->setEncryptedSftpSecret($_POST['sftp_secret'] ?? '', $userId);
+
+        Audit::log('Update', 'Creditinfo', 'Updated Public Defaults settings');
 
         Session::flash('success', 'Settings saved.');
         $this->redirect('/creditinfo/public-defaults/settings');

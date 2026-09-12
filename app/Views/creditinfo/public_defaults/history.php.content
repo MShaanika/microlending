@@ -6,13 +6,13 @@
       <h4 class="card-title">Public Defaults History</h4>
       <a href="<?= url('/creditinfo/public-defaults/history/export?' . http_build_query($filters)) ?>" class="btn btn-outline-secondary btn-sm">Export CSV</a>
     </div>
-    <p class="text-muted small">Completed lifecycles -- Removed, Rejected, Failed, or Cancelled. Internal operational records only.</p>
+    <p class="text-muted small">Completed lifecycles -- Removed, Rejected, or Cancelled. Internal operational records only.</p>
 
     <form method="get" class="row g-2 mb-3">
       <div class="col-auto">
         <select name="status" class="form-select form-select-sm">
           <option value="">All terminal statuses</option>
-          <?php foreach (['Rejected','Failed','Cancelled','Removed','Removal Rejected','Removal Failed'] as $s): ?>
+          <?php foreach (['Rejected','Cancelled','Removed','Removal Rejected'] as $s): ?>
             <option value="<?= e($s) ?>" <?= ($filters['status'] ?? '') === $s ? 'selected' : '' ?>><?= e($s) ?></option>
           <?php endforeach; ?>
         </select>

@@ -265,15 +265,18 @@ $router->get('/creditinfo/public-defaults/{id}', [CreditinfoPublicDefaultControl
 $router->post('/creditinfo/public-defaults/{id}/listing/submit-for-review', [CreditinfoPublicDefaultController::class, 'listingSubmitForReview']);
 $router->post('/creditinfo/public-defaults/{id}/listing/approve', [CreditinfoPublicDefaultController::class, 'listingApprove']);
 $router->post('/creditinfo/public-defaults/{id}/listing/reject', [CreditinfoPublicDefaultController::class, 'listingReject']);
-$router->post('/creditinfo/public-defaults/{id}/listing/submit', [CreditinfoPublicDefaultController::class, 'listingSubmit']);
+$router->post('/creditinfo/public-defaults/{id}/listing/record-submission', [CreditinfoPublicDefaultController::class, 'recordListingSubmission']);
+$router->post('/creditinfo/public-defaults/{id}/listing/confirm-listed', [CreditinfoPublicDefaultController::class, 'confirmListed']);
 $router->post('/creditinfo/public-defaults/{id}/cancel', [CreditinfoPublicDefaultController::class, 'listingCancel']);
 $router->get('/creditinfo/public-defaults/{id}/removal/create', [CreditinfoPublicDefaultController::class, 'removalCreate']);
 $router->post('/creditinfo/public-defaults/{id}/removal', [CreditinfoPublicDefaultController::class, 'removalStore']);
 $router->post('/creditinfo/public-defaults/{id}/removal/approve', [CreditinfoPublicDefaultController::class, 'removalApprove']);
 $router->post('/creditinfo/public-defaults/{id}/removal/reject', [CreditinfoPublicDefaultController::class, 'removalReject']);
-$router->post('/creditinfo/public-defaults/{id}/removal/submit', [CreditinfoPublicDefaultController::class, 'removalSubmit']);
+$router->post('/creditinfo/public-defaults/{id}/removal/record-submission', [CreditinfoPublicDefaultController::class, 'recordRemovalSubmission']);
+$router->post('/creditinfo/public-defaults/{id}/removal/confirm-removed', [CreditinfoPublicDefaultController::class, 'confirmRemoved']);
 $router->post('/creditinfo/public-defaults/{id}/notice', [CreditinfoPublicDefaultController::class, 'recordNotice']);
 $router->get('/creditinfo/public-defaults/{id}/notices/{noticeId}/download', [CreditinfoPublicDefaultController::class, 'downloadNoticeDocument']);
+$router->get('/creditinfo/public-defaults/{id}/submissions/{submissionId}/download', [CreditinfoPublicDefaultController::class, 'downloadSubmissionDocument']);
 
 $router->get('/creditinfo/disputes', [CreditinfoDisputeController::class, 'index']);
 $router->post('/creditinfo/disputes', [CreditinfoDisputeController::class, 'store']);

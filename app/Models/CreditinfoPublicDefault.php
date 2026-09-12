@@ -6,28 +6,32 @@ use App\Core\Model;
 
 /**
  * One record per default's full lifecycle (listing, then later removal) --
- * see database/creditinfo_public_defaults_module.sql for the merged status
- * vocabulary. Every field here is an internal DesertLedger field; none of
- * it should be treated as a Creditinfo API field until the vendor
- * specification arrives (see App\Services\CreditinfoPublicDefaultsClient).
+ * see database/creditinfo_public_defaults_manual_submission.sql for the
+ * status vocabulary. Every field here is an internal DesertLedger field.
+ * Creditinfo has confirmed in writing there is no REST API for Public
+ * Defaults -- only their own User Interface and, in future, SFTP -- so
+ * this status vocabulary reflects a human manually submitting through
+ * that UI (App\Controllers\CreditinfoPublicDefaultController::
+ * recordListingSubmission()/confirmListed(), and the removal equivalents),
+ * never an automated call this class or its controller makes itself.
  */
 class CreditinfoPublicDefault extends Model
 {
     private const LISTING_ACTIVE_STATUSES = [
-        'Draft', 'Pending Review', 'Approved', 'Awaiting API Submission', 'Submitted',
+        'Draft', 'Pending Review', 'Awaiting Manual Submission', 'Submitted via Creditinfo UI',
     ];
 
     private const ACTIVE_STATUSES = [
-        'Listed', 'Removal Required', 'Removal Pending Review', 'Removal Approved',
-        'Awaiting API Removal', 'Removal Submitted',
+        'Listed', 'Removal Required', 'Removal Pending Review',
+        'Awaiting Manual Removal Submission', 'Removal Submitted via Creditinfo UI',
     ];
 
     private const HISTORY_STATUSES = [
-        'Rejected', 'Failed', 'Cancelled', 'Removed', 'Removal Rejected', 'Removal Failed',
+        'Rejected', 'Cancelled', 'Removed', 'Removal Rejected',
     ];
 
     private const REMOVAL_QUEUE_STATUSES = [
-        'Removal Pending Review', 'Removal Approved', 'Awaiting API Removal', 'Removal Submitted',
+        'Removal Pending Review', 'Awaiting Manual Removal Submission', 'Removal Submitted via Creditinfo UI',
     ];
 
     public function create(array $data): int
@@ -195,13 +199,17 @@ class CreditinfoPublicDefault extends Model
         $statusGroups = [
             'draft' => ['Draft'],
             'pending_approval' => ['Pending Review'],
-            'approved_awaiting_submission' => ['Approved', 'Awaiting API Submission'],
+            'approved_awaiting_submission' => ['Awaiting Manual Submission'],
+            // Genuinely useful now that submission is a two-step human
+            // process (record submission, then confirm Listed once it's
+            // actually live) -- these are items waiting on that second,
+            // separate confirmation step, not a failure of any kind.
+            'awaiting_confirmation' => ['Submitted via Creditinfo UI', 'Removal Submitted via Creditinfo UI'],
             'active_defaults' => self::ACTIVE_STATUSES,
             'removal_required' => ['Removal Required'],
             // Derived from the same constant removalQueue() itself uses --
             // never a manually retyped subset, so the two can't drift apart.
             'removal_pending' => self::REMOVAL_QUEUE_STATUSES,
-            'api_failures' => ['Failed', 'Removal Failed'],
         ];
         foreach ($statusGroups as $key => $statuses) {
             $placeholders = implode(',', array_fill(0, count($statuses), '?'));

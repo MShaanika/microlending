@@ -5,9 +5,6 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
-use App\Core\Idempotency;
-use App\Core\IdempotencyBusyException;
-use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\ApprovalRequest;
@@ -15,12 +12,10 @@ use App\Models\Borrower;
 use App\Models\CreditinfoDispute;
 use App\Models\CreditinfoPublicDefault;
 use App\Models\CreditinfoPublicDefaultAction;
-use App\Models\CreditinfoPublicDefaultApiLog;
 use App\Models\CreditinfoPublicDefaultNotice;
+use App\Models\CreditinfoPublicDefaultSubmission;
 use App\Models\Loan;
 use App\Services\ApprovalService;
-use App\Services\CreditinfoPublicDefaultsClient;
-use App\Services\CreditinfoPublicDefaultsNotConfiguredException;
 use App\Services\CreditinfoPublicDefaultService;
 
 /**
@@ -29,9 +24,16 @@ use App\Services\CreditinfoPublicDefaultService;
  * existing CBS module: never touches creditinfo_settings, CreditinfoClient,
  * or CreditinfoBureauClient. Maker-checker is enforced by the existing
  * generic Approval Engine (ApprovalService) -- see
- * database/creditinfo_public_defaults_module.sql's header comment on the
- * approval_policies seed for why that policy is treated as mandatory here,
- * unlike the optional write-off policy.
+ * database/creditinfo_public_defaults_manual_submission.sql's header
+ * comment on the approval_policies seed for why that policy is treated as
+ * mandatory here, unlike the optional write-off policy.
+ *
+ * Submission boundary: Creditinfo has confirmed in writing there is no
+ * REST API for Public Defaults, only their own User Interface and (not
+ * yet specified) SFTP. There is therefore no gateway class here making an
+ * automated call -- recordListingSubmission()/confirmListed() (and the
+ * removal equivalents) capture EVIDENCE of a human staff member
+ * submitting through Creditinfo's own UI, via CreditinfoPublicDefaultSubmission.
  */
 class CreditinfoPublicDefaultController extends Controller
 {
@@ -39,13 +41,23 @@ class CreditinfoPublicDefaultController extends Controller
     private const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
 
     private const REMOVABLE_STATUSES = ['Listed', 'Removal Required', 'Removal Rejected'];
-    private const RESUBMITTABLE_LISTING_STATUSES = ['Approved', 'Failed'];
-    private const RESUBMITTABLE_REMOVAL_STATUSES = ['Removal Approved', 'Removal Failed'];
+    // Explicit allowlist, not "status doesn't start with 'Removal'" -- that
+    // prefix check would miss 'Awaiting Manual Removal Submission', which
+    // is a removal-phase status but doesn't start with the word "Removal".
+    // Deliberately stops at 'Awaiting Manual Submission' -- once a listing
+    // reaches 'Submitted via Creditinfo UI', it has already been submitted
+    // to a real, external system; DesertLedger cancelling its own record
+    // at that point would misrepresent what actually happened at Creditinfo.
+    private const CANCELLABLE_LISTING_STATUSES = ['Draft', 'Pending Review', 'Awaiting Manual Submission'];
+    private const RECORDABLE_LISTING_SUBMISSION_STATUSES = ['Awaiting Manual Submission'];
+    private const CONFIRMABLE_LISTED_STATUSES = ['Submitted via Creditinfo UI'];
+    private const RECORDABLE_REMOVAL_SUBMISSION_STATUSES = ['Awaiting Manual Removal Submission'];
+    private const CONFIRMABLE_REMOVED_STATUSES = ['Removal Submitted via Creditinfo UI'];
 
     private CreditinfoPublicDefault $defaults;
     private CreditinfoPublicDefaultAction $actions;
     private CreditinfoPublicDefaultNotice $notices;
-    private CreditinfoPublicDefaultApiLog $apiLogs;
+    private CreditinfoPublicDefaultSubmission $submissions;
     private CreditinfoPublicDefaultService $service;
     private Loan $loans;
     private Borrower $borrowers;
@@ -55,7 +67,7 @@ class CreditinfoPublicDefaultController extends Controller
         $this->defaults = new CreditinfoPublicDefault();
         $this->actions = new CreditinfoPublicDefaultAction();
         $this->notices = new CreditinfoPublicDefaultNotice();
-        $this->apiLogs = new CreditinfoPublicDefaultApiLog();
+        $this->submissions = new CreditinfoPublicDefaultSubmission();
         $this->service = new CreditinfoPublicDefaultService();
         $this->loans = new Loan();
         $this->borrowers = new Borrower();
@@ -100,7 +112,7 @@ class CreditinfoPublicDefaultController extends Controller
             'counts' => $this->defaults->complianceCounts(),
             'usage' => $this->service->usageThisMonth(),
             'removalRequired' => $this->defaults->removalRequired(),
-            'apiDocumentationRequired' => true,
+            'sftpSpecificationAwaited' => true,
         ]);
     }
 
@@ -114,8 +126,7 @@ class CreditinfoPublicDefaultController extends Controller
             'title' => 'Public Default Compliance',
             'counts' => $counts,
             'disputesBlocking' => (new CreditinfoDispute())->countOpen(),
-            'recentApiLogs' => $this->apiLogs->recent(20),
-            'apiLogCount' => $this->apiLogs->count(),
+            'recentSubmissions' => $this->submissions->recent(20),
         ]);
     }
 
@@ -402,13 +413,13 @@ class CreditinfoPublicDefaultController extends Controller
 
         if ($approve) {
             $this->defaults->updateFields($id, [
-                'status' => 'Approved',
+                'status' => 'Awaiting Manual Submission',
                 'listing_approved_by' => $userId,
                 'listing_approved_at' => date('Y-m-d H:i:s'),
             ]);
-            $this->actions->log($id, 'PUBLIC_DEFAULT_LISTING_APPROVED', $userId, 'Pending Review', 'Approved', $comments ?: null);
+            $this->actions->log($id, 'PUBLIC_DEFAULT_LISTING_APPROVED', $userId, 'Pending Review', 'Awaiting Manual Submission', $comments ?: null);
             Audit::log('Approve', 'Creditinfo', 'Approved Public Default listing ' . $pd['listing_reference'], [], $pd['listing_reference']);
-            Session::flash('success', 'Listing approved. It can now be submitted to Creditinfo once the API is configured.');
+            Session::flash('success', 'Listing approved. Submit it via Creditinfo\'s User Interface (SFTP not yet available), then record the submission below.');
         } else {
             $this->defaults->updateFields($id, ['status' => 'Rejected']);
             $this->actions->log($id, 'PUBLIC_DEFAULT_LISTING_REJECTED', $userId, 'Pending Review', 'Rejected', $comments);
@@ -419,7 +430,17 @@ class CreditinfoPublicDefaultController extends Controller
         $this->redirect('/creditinfo/public-defaults/' . $id);
     }
 
-    public function listingSubmit(string $id): void
+    /**
+     * Item 5: records that a staff member manually submitted this listing
+     * via Creditinfo's own User Interface -- there is no REST call here.
+     * Captures submitted_by/submitted_at (both automatic), an optional
+     * Creditinfo reference, optional supporting evidence, and notes, per
+     * the vendor's confirmed manual workflow. Does NOT itself mean the
+     * default is live -- confirmListed() is the separate, deliberate
+     * confirmation step once staff has verified it actually appears on
+     * Creditinfo.
+     */
+    public function recordListingSubmission(string $id): void
     {
         Auth::authorize('creditinfo.public_defaults.submit');
         $id = (int) $id;
@@ -431,71 +452,66 @@ class CreditinfoPublicDefaultController extends Controller
         }
 
         $pd = $this->defaults->find($id);
-        if (!$pd || !in_array($pd['status'], self::RESUBMITTABLE_LISTING_STATUSES, true)) {
-            Session::flash('error', 'Only an Approved (or previously Failed) listing can be submitted.');
+        if (!$pd || !in_array($pd['status'], self::RECORDABLE_LISTING_SUBMISSION_STATUSES, true)) {
+            Session::flash('error', 'Only a listing Awaiting Manual Submission can be recorded as submitted.');
             $this->redirect('/creditinfo/public-defaults/' . $id);
             return;
         }
         $this->assertBranchAccess($pd);
 
         $userId = (int) (Auth::user()['id'] ?? 0);
-        $key = $this->idempotencyKey();
-        $listingReference = $pd['listing_reference'];
+        $creditinfoReference = trim((string) ($_POST['creditinfo_reference'] ?? '')) ?: null;
+        $notes = trim((string) ($_POST['notes'] ?? '')) ?: null;
+        $evidencePath = $this->storeSubmissionEvidence($id);
 
-        try {
-            $flash = $this->defaults->transaction(function () use ($id, $userId, $key, $listingReference) {
-                Idempotency::begin($key, 'public_default.listing_submit', $userId);
+        $this->submissions->create([
+            'public_default_id' => $id,
+            'direction' => 'listing',
+            'method' => 'manual_ui',
+            'submitted_by' => $userId,
+            'submitted_at' => date('Y-m-d H:i:s'),
+            'creditinfo_reference' => $creditinfoReference,
+            'evidence_document' => $evidencePath,
+            'notes' => $notes,
+        ]);
 
-                // Re-verify status under a row lock, not the stale pre-transaction
-                // read above -- closes the double-submit race two concurrent
-                // clicks would otherwise both pass.
-                $locked = $this->defaults->findForUpdate($id);
-                if (!$locked || !in_array($locked['status'], self::RESUBMITTABLE_LISTING_STATUSES, true)) {
-                    throw new \RuntimeException('This listing is no longer in a submittable state.');
-                }
+        $this->defaults->updateFields($id, [
+            'status' => 'Submitted via Creditinfo UI',
+            'creditinfo_reference' => $creditinfoReference,
+        ]);
+        $this->actions->log($id, 'PUBLIC_DEFAULT_SUBMITTED', $userId, 'Awaiting Manual Submission', 'Submitted via Creditinfo UI', $notes, $creditinfoReference);
+        Audit::log('Update', 'Creditinfo', 'Recorded manual Creditinfo UI submission for Public Default ' . $pd['listing_reference'], [], $pd['listing_reference']);
 
-                $this->defaults->updateFields($id, ['status' => 'Awaiting API Submission']);
-                $this->actions->log($id, 'PUBLIC_DEFAULT_SUBMITTED', $userId, $locked['status'], 'Awaiting API Submission');
+        Session::flash('success', 'Submission recorded. Confirm Listed once it actually appears live on Creditinfo.');
+        $this->redirect('/creditinfo/public-defaults/' . $id);
+    }
 
-                try {
-                    (new CreditinfoPublicDefaultsClient())->listIndividual([]);
-                    // Unreachable while the gateway is a placeholder -- left in
-                    // for when a real implementation exists (item 13).
-                    $this->defaults->updateFields($id, ['status' => 'Listed', 'listed_at' => date('Y-m-d H:i:s')]);
-                    $this->actions->log($id, 'PUBLIC_DEFAULT_LISTED', $userId, 'Awaiting API Submission', 'Listed');
-                    $flashResult = ['type' => 'success', 'message' => 'Listing submitted and confirmed Listed by Creditinfo.'];
-                } catch (CreditinfoPublicDefaultsNotConfiguredException $e) {
-                    $this->defaults->updateFields($id, ['status' => 'Failed', 'api_last_error' => $e->getMessage()]);
-                    $this->actions->log($id, 'PUBLIC_DEFAULT_SUBMISSION_FAILED', $userId, 'Awaiting API Submission', 'Failed', $e->getMessage());
-                    $this->apiLogs->record($userId, 'list_individual', 'uat', $e->getMessage(), $id);
-                    Audit::log('Uncertain', 'Creditinfo', 'Public Default listing submission blocked for ' . $listingReference . ': API not configured', [], $listingReference);
-                    $flashResult = ['type' => 'error', 'message' => 'Public Defaults API is not yet configured. Creditinfo API documentation is required.'];
-                }
+    /** The separate, deliberate confirmation that a recorded submission is actually live on Creditinfo -- never inferred automatically from recordListingSubmission() alone. */
+    public function confirmListed(string $id): void
+    {
+        Auth::authorize('creditinfo.public_defaults.submit');
+        $id = (int) $id;
 
-                Idempotency::complete($key, 'public_default.listing_submit', 'REDIRECT', [
-                    'flash_type' => $flashResult['type'],
-                    'flash_message' => $flashResult['message'],
-                    'redirect' => '/creditinfo/public-defaults/' . $id,
-                ]);
-
-                return $flashResult;
-            });
-        } catch (IdempotencyReplayException $e) {
-            $this->replayIdempotent($e);
-            return;
-        } catch (IdempotencyBusyException $e) {
-            $this->busyIdempotent($e, '/creditinfo/public-defaults/' . $id);
-            return;
-        } catch (\RuntimeException $e) {
-            Session::flash('error', $e->getMessage());
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/creditinfo/public-defaults/' . $id);
             return;
         }
 
-        // Flashed here, on the initiating request -- the payload stored in
-        // Idempotency::complete() above is only ever read back by
-        // replayIdempotent() on a *duplicate* submission, never this one.
-        Session::flash($flash['type'], $flash['message']);
+        $pd = $this->defaults->find($id);
+        if (!$pd || !in_array($pd['status'], self::CONFIRMABLE_LISTED_STATUSES, true)) {
+            Session::flash('error', 'Only a listing Submitted via Creditinfo UI can be confirmed Listed.');
+            $this->redirect('/creditinfo/public-defaults/' . $id);
+            return;
+        }
+        $this->assertBranchAccess($pd);
+
+        $userId = (int) (Auth::user()['id'] ?? 0);
+        $this->defaults->updateFields($id, ['status' => 'Listed', 'listed_at' => date('Y-m-d H:i:s')]);
+        $this->actions->log($id, 'PUBLIC_DEFAULT_LISTED', $userId, 'Submitted via Creditinfo UI', 'Listed');
+        Audit::log('Update', 'Creditinfo', 'Confirmed Public Default ' . $pd['listing_reference'] . ' Listed', [], $pd['listing_reference']);
+
+        Session::flash('success', 'Confirmed Listed.');
         $this->redirect('/creditinfo/public-defaults/' . $id);
     }
 
@@ -510,7 +526,7 @@ class CreditinfoPublicDefaultController extends Controller
         }
 
         $pd = $this->defaults->find($id);
-        if (!$pd || in_array($pd['status'], ['Listed', 'Removed', 'Cancelled'], true) || str_starts_with((string) $pd['status'], 'Removal')) {
+        if (!$pd || !in_array($pd['status'], self::CANCELLABLE_LISTING_STATUSES, true)) {
             Session::flash('error', 'This listing cannot be cancelled from its current status.');
             $this->redirect('/creditinfo/public-defaults/' . $id);
             return;
@@ -685,13 +701,13 @@ class CreditinfoPublicDefaultController extends Controller
 
         if ($approve) {
             $this->defaults->updateFields($id, [
-                'status' => 'Removal Approved',
+                'status' => 'Awaiting Manual Removal Submission',
                 'removal_approved_by' => $userId,
                 'removal_approved_at' => date('Y-m-d H:i:s'),
             ]);
-            $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVAL_APPROVED', $userId, 'Removal Pending Review', 'Removal Approved', $comments ?: null);
+            $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVAL_APPROVED', $userId, 'Removal Pending Review', 'Awaiting Manual Removal Submission', $comments ?: null);
             Audit::log('Approve', 'Creditinfo', 'Approved removal of Public Default ' . $pd['listing_reference'], [], $pd['listing_reference']);
-            Session::flash('success', 'Removal approved. It can now be submitted to Creditinfo once the API is configured.');
+            Session::flash('success', 'Removal approved. Submit it via Creditinfo\'s User Interface (SFTP not yet available), then record the submission below.');
         } else {
             $this->defaults->updateFields($id, ['status' => 'Removal Rejected']);
             $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVAL_REJECTED', $userId, 'Removal Pending Review', 'Removal Rejected', $comments);
@@ -702,7 +718,8 @@ class CreditinfoPublicDefaultController extends Controller
         $this->redirect('/creditinfo/public-defaults/' . $id);
     }
 
-    public function removalSubmit(string $id): void
+    /** Removal equivalent of recordListingSubmission() -- see its docblock. */
+    public function recordRemovalSubmission(string $id): void
     {
         Auth::authorize('creditinfo.public_defaults.submit');
         $id = (int) $id;
@@ -714,65 +731,63 @@ class CreditinfoPublicDefaultController extends Controller
         }
 
         $pd = $this->defaults->find($id);
-        if (!$pd || !in_array($pd['status'], self::RESUBMITTABLE_REMOVAL_STATUSES, true)) {
-            Session::flash('error', 'Only an Approved (or previously Failed) removal can be submitted.');
+        if (!$pd || !in_array($pd['status'], self::RECORDABLE_REMOVAL_SUBMISSION_STATUSES, true)) {
+            Session::flash('error', 'Only a removal Awaiting Manual Removal Submission can be recorded as submitted.');
             $this->redirect('/creditinfo/public-defaults/' . $id);
             return;
         }
         $this->assertBranchAccess($pd);
 
         $userId = (int) (Auth::user()['id'] ?? 0);
-        $key = $this->idempotencyKey();
-        $listingReference = $pd['listing_reference'];
+        $creditinfoReference = trim((string) ($_POST['creditinfo_reference'] ?? '')) ?: null;
+        $notes = trim((string) ($_POST['notes'] ?? '')) ?: null;
+        $evidencePath = $this->storeSubmissionEvidence($id);
 
-        try {
-            $flash = $this->defaults->transaction(function () use ($id, $userId, $key, $listingReference) {
-                Idempotency::begin($key, 'public_default.removal_submit', $userId);
+        $this->submissions->create([
+            'public_default_id' => $id,
+            'direction' => 'removal',
+            'method' => 'manual_ui',
+            'submitted_by' => $userId,
+            'submitted_at' => date('Y-m-d H:i:s'),
+            'creditinfo_reference' => $creditinfoReference,
+            'evidence_document' => $evidencePath,
+            'notes' => $notes,
+        ]);
 
-                // Re-verify status under a row lock -- see listingSubmit()'s
-                // identical comment for why the pre-transaction read isn't enough.
-                $locked = $this->defaults->findForUpdate($id);
-                if (!$locked || !in_array($locked['status'], self::RESUBMITTABLE_REMOVAL_STATUSES, true)) {
-                    throw new \RuntimeException('This removal is no longer in a submittable state.');
-                }
+        $this->defaults->updateFields($id, ['status' => 'Removal Submitted via Creditinfo UI']);
+        $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVAL_SUBMITTED', $userId, 'Awaiting Manual Removal Submission', 'Removal Submitted via Creditinfo UI', $notes, $creditinfoReference);
+        Audit::log('Update', 'Creditinfo', 'Recorded manual Creditinfo UI removal submission for Public Default ' . $pd['listing_reference'], [], $pd['listing_reference']);
 
-                $this->defaults->updateFields($id, ['status' => 'Awaiting API Removal']);
-                $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVAL_SUBMITTED', $userId, $locked['status'], 'Awaiting API Removal');
+        Session::flash('success', 'Removal submission recorded. Confirm Removed once it actually disappears from Creditinfo.');
+        $this->redirect('/creditinfo/public-defaults/' . $id);
+    }
 
-                try {
-                    (new CreditinfoPublicDefaultsClient())->removeIndividual([]);
-                    $this->defaults->updateFields($id, ['status' => 'Removed', 'removed_at' => date('Y-m-d H:i:s')]);
-                    $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVED', $userId, 'Awaiting API Removal', 'Removed');
-                    $flashResult = ['type' => 'success', 'message' => 'Removal submitted and confirmed by Creditinfo.'];
-                } catch (CreditinfoPublicDefaultsNotConfiguredException $e) {
-                    $this->defaults->updateFields($id, ['status' => 'Removal Failed', 'api_last_error' => $e->getMessage()]);
-                    $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVAL_FAILED', $userId, 'Awaiting API Removal', 'Removal Failed', $e->getMessage());
-                    $this->apiLogs->record($userId, 'remove_individual', 'uat', $e->getMessage(), $id);
-                    Audit::log('Uncertain', 'Creditinfo', 'Public Default removal submission blocked for ' . $listingReference . ': API not configured', [], $listingReference);
-                    $flashResult = ['type' => 'error', 'message' => 'Public Defaults API is not yet configured. Creditinfo API documentation is required.'];
-                }
+    /** Removal equivalent of confirmListed() -- see its docblock. */
+    public function confirmRemoved(string $id): void
+    {
+        Auth::authorize('creditinfo.public_defaults.submit');
+        $id = (int) $id;
 
-                Idempotency::complete($key, 'public_default.removal_submit', 'REDIRECT', [
-                    'flash_type' => $flashResult['type'],
-                    'flash_message' => $flashResult['message'],
-                    'redirect' => '/creditinfo/public-defaults/' . $id,
-                ]);
-
-                return $flashResult;
-            });
-        } catch (IdempotencyReplayException $e) {
-            $this->replayIdempotent($e);
-            return;
-        } catch (IdempotencyBusyException $e) {
-            $this->busyIdempotent($e, '/creditinfo/public-defaults/' . $id);
-            return;
-        } catch (\RuntimeException $e) {
-            Session::flash('error', $e->getMessage());
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/creditinfo/public-defaults/' . $id);
             return;
         }
 
-        Session::flash($flash['type'], $flash['message']);
+        $pd = $this->defaults->find($id);
+        if (!$pd || !in_array($pd['status'], self::CONFIRMABLE_REMOVED_STATUSES, true)) {
+            Session::flash('error', 'Only a removal Submitted via Creditinfo UI can be confirmed Removed.');
+            $this->redirect('/creditinfo/public-defaults/' . $id);
+            return;
+        }
+        $this->assertBranchAccess($pd);
+
+        $userId = (int) (Auth::user()['id'] ?? 0);
+        $this->defaults->updateFields($id, ['status' => 'Removed', 'removed_at' => date('Y-m-d H:i:s')]);
+        $this->actions->log($id, 'PUBLIC_DEFAULT_REMOVED', $userId, 'Removal Submitted via Creditinfo UI', 'Removed');
+        Audit::log('Update', 'Creditinfo', 'Confirmed removal of Public Default ' . $pd['listing_reference'], [], $pd['listing_reference']);
+
+        Session::flash('success', 'Confirmed Removed.');
         $this->redirect('/creditinfo/public-defaults/' . $id);
     }
 
@@ -870,6 +885,7 @@ class CreditinfoPublicDefaultController extends Controller
             'title' => 'Public Default ' . $pd['listing_reference'],
             'pd' => $pd,
             'notices' => $this->notices->forPublicDefault((int) $id),
+            'submissions' => $this->submissions->forPublicDefault((int) $id),
             'timeline' => $this->actions->timeline((int) $id),
             'reasonCategories' => self::REMOVAL_REASON_CATEGORIES,
         ]);
@@ -957,6 +973,33 @@ class CreditinfoPublicDefaultController extends Controller
         return 'uploads/public_defaults/' . $publicDefaultId . '/' . $storedName;
     }
 
+    /** Optional supporting evidence for a manual Creditinfo UI submission (e.g. a screenshot) -- same upload discipline as storeNoticeDocument(), never required. */
+    private function storeSubmissionEvidence(int $publicDefaultId): ?string
+    {
+        $file = $_FILES['evidence_document'] ?? null;
+        if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] > self::MAX_DOCUMENT_SIZE) {
+            return null;
+        }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, self::ALLOWED_DOCUMENT_EXTENSIONS, true)) {
+            return null;
+        }
+
+        $targetDir = STORAGE_PATH . '/uploads/public_defaults/' . $publicDefaultId . '/submissions';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+        $storedName = bin2hex(random_bytes(8)) . '.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $targetDir . '/' . $storedName)) {
+            return null;
+        }
+
+        return 'uploads/public_defaults/' . $publicDefaultId . '/submissions/' . $storedName;
+    }
+
     public function downloadNoticeDocument(string $id, string $noticeId): void
     {
         Auth::authorize('creditinfo.public_defaults.view');
@@ -984,6 +1027,46 @@ class CreditinfoPublicDefaultController extends Controller
         }
 
         $fullPath = STORAGE_PATH . '/' . $notice['notice_document'];
+        if (!is_file($fullPath)) {
+            Session::flash('error', 'File is missing from storage.');
+            $this->redirect('/creditinfo/public-defaults/' . $id);
+            return;
+        }
+
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . basename($fullPath) . '"');
+        header('Content-Length: ' . filesize($fullPath));
+        readfile($fullPath);
+        exit;
+    }
+
+    public function downloadSubmissionDocument(string $id, string $submissionId): void
+    {
+        Auth::authorize('creditinfo.public_defaults.view');
+        $pd = $this->defaults->find((int) $id);
+        if (!$pd) {
+            Session::flash('error', 'Public default record not found.');
+            $this->redirect('/creditinfo/public-defaults');
+            return;
+        }
+        $this->assertBranchAccess($pd);
+
+        $submissions = $this->submissions->forPublicDefault((int) $id);
+        $submission = null;
+        foreach ($submissions as $s) {
+            if ((int) $s['id'] === (int) $submissionId) {
+                $submission = $s;
+                break;
+            }
+        }
+
+        if (!$submission || empty($submission['evidence_document'])) {
+            Session::flash('error', 'Submission evidence document not found.');
+            $this->redirect('/creditinfo/public-defaults/' . $id);
+            return;
+        }
+
+        $fullPath = STORAGE_PATH . '/' . $submission['evidence_document'];
         if (!is_file($fullPath)) {
             Session::flash('error', 'File is missing from storage.');
             $this->redirect('/creditinfo/public-defaults/' . $id);

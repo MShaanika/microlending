@@ -11,6 +11,7 @@ use App\Models\CreditinfoDiagnosticLog;
 use App\Models\CreditinfoSetting;
 use App\Services\CreditinfoApiException;
 use App\Services\CreditinfoBureauClient;
+use App\Support\CreditinfoV3Codes;
 
 /**
  * A UAT-only diagnostic screen, entirely separate from the real loan
@@ -85,7 +86,7 @@ class CreditinfoUatTestCentreController extends Controller
         }
 
         $genderCode = (int) ($this->settings->genderCode('Male') ?? $this->settings->genderCode('Female') ?? 0);
-        $inquiryReason = $this->settings->get('creditinfo_inquiry_reason_search', 'ApplicationForCreditOrAmendmentOfCreditTerms');
+        $inquiryReason = (int) $this->settings->get('creditinfo_inquiry_reason_search', (string) CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON);
 
         try {
             $bureau = new CreditinfoBureauClient();
@@ -129,7 +130,7 @@ class CreditinfoUatTestCentreController extends Controller
             return;
         }
 
-        $inquiryReasonReport = $this->settings->get('creditinfo_inquiry_reason_report', '36');
+        $inquiryReasonReport = $this->settings->get('creditinfo_inquiry_reason_report', (string) CreditinfoV3Codes::INQUIRY_REASON_CUSTOMER_INQUIRY);
 
         try {
             $bureau = new CreditinfoBureauClient();

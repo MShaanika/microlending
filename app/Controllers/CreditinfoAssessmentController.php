@@ -19,6 +19,7 @@ use App\Models\LoanApplication;
 use App\Models\RetentionPolicy;
 use App\Services\CreditinfoApiException;
 use App\Services\CreditinfoBureauClient;
+use App\Support\CreditinfoV3Codes;
 
 /**
  * Wires the Creditinfo credit bureau check into the loan application
@@ -202,19 +203,19 @@ class CreditinfoAssessmentController extends Controller
             return;
         }
 
-        // Gender code: explicit, admin-configured mapping only -- see
-        // CreditinfoBureauClient's class docblock for why 1/2 is never
-        // guessed here. Blocked for 'Other' too, since neither code has a
-        // confirmed meaning to fall back to.
+        // Gender code: vendor-confirmed (1=Male, 2=Female, CreditinfoV3Codes)
+        // but still read from CreditinfoSetting, not hardcoded here, so a
+        // future vendor correction stays a settings change. Blocked for
+        // 'Other' too -- there is no vendor-confirmed code for it.
         $genderCode = $application['applicant_gender'] ? $this->settings->genderCode((string) $application['applicant_gender']) : null;
         if ($genderCode === null) {
-            Session::flash('error', 'Gender code mapping is not yet confirmed with Creditinfo (Settings > Integrations > Creditinfo) -- cannot run a search for this applicant.');
+            Session::flash('error', 'Gender code mapping is not configured (Settings > Integrations > Creditinfo) -- cannot run a search for this applicant.');
             $this->redirect('/applications/' . $id);
             return;
         }
 
-        $inquiryReasonSearch = $this->settings->get('creditinfo_inquiry_reason_search', 'ApplicationForCreditOrAmendmentOfCreditTerms');
-        $inquiryReasonReport = $this->settings->get('creditinfo_inquiry_reason_report', '36');
+        $inquiryReasonSearch = (int) $this->settings->get('creditinfo_inquiry_reason_search', (string) CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON);
+        $inquiryReasonReport = $this->settings->get('creditinfo_inquiry_reason_report', (string) CreditinfoV3Codes::INQUIRY_REASON_CUSTOMER_INQUIRY);
         $userId = Auth::user()['id'] ?? null;
         $key = $this->idempotencyKey();
         // Resolved from borrowers.date_of_birth (once linked) or

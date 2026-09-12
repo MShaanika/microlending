@@ -83,66 +83,48 @@ $statusBadge = [
       <p class="text-muted small mb-3">Client Secret is encrypted, never shown again after saving. Leave blank to keep the current value.</p>
 
       <hr>
-      <h5 class="mb-1">Inquiry Reason Mapping <span class="badge bg-warning-subtle text-warning">Pending Creditinfo confirmation</span></h5>
+      <h5 class="mb-1">Inquiry Reason Mapping <span class="badge bg-success-subtle text-success">Vendor Confirmed</span></h5>
       <p class="text-muted small mb-2">
-        Neither value below is independently confirmed by Creditinfo -- <code>search</code>'s value is our best contextual reading of the manual's 5 valid reasons; <code>reports/custom</code>'s value is taken verbatim from the vendor's own working Postman example (<code>36</code>), whose meaning isn't documented anywhere supplied to us. Both are safe to use as-is for UAT and can be corrected here the moment Creditinfo confirms them -- no code change needed.
+        Creditinfo has confirmed both the code table below AND that <code>search/smart/individual</code> and <code>reports/custom</code> share ONE integer enum (superseding the manual's original, incorrect implication that search took a string enum). Which code DesertLedger sends for a given scenario is still our own business choice, editable below -- for a normal new loan application / affordability assessment, Creditinfo-confirmed code <strong>1</strong> (ApplicationForCreditOrAmendmentOfCreditTerms) is the recommended default.
       </p>
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Inquiry Reason (Search)</label>
           <select name="creditinfo_inquiry_reason_search" class="form-select">
-            <?php foreach ([
-                'ApplicationForCreditOrAmendmentOfCreditTerms' => 'ApplicationForCreditOrAmendmentOfCreditTerms (Credit Assessment) -- recommended for a new loan application',
-                'CreditRenewal' => 'CreditRenewal (Affordability Assessment)',
-                'CustomerInquiry' => 'CustomerInquiry (Consumer Enquiry) -- the vendor Postman sample value',
-                'InsuranceApplication' => 'InsuranceApplication',
-                'Other' => 'Other',
-            ] as $value => $label): ?>
-              <option value="<?= e($value) ?>" <?= ($settings['creditinfo_inquiry_reason_search'] ?? 'ApplicationForCreditOrAmendmentOfCreditTerms') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php foreach (\App\Support\CreditinfoV3Codes::INQUIRY_REASONS as $code => $label): ?>
+              <option value="<?= (int) $code ?>" <?= (int) ($settings['creditinfo_inquiry_reason_search'] ?? \App\Support\CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON) === $code ? 'selected' : '' ?>>
+                <?= (int) $code ?> = <?= e($label) ?><?= $code === \App\Support\CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON ? ' -- recommended for a new loan application' : '' ?>
+              </option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-6 mb-3">
           <label class="form-label">Inquiry Reason (Report)</label>
-          <input type="text" name="creditinfo_inquiry_reason_report" class="form-control" placeholder="36" value="<?= e($settings['creditinfo_inquiry_reason_report'] ?? '36') ?>">
-          <div class="form-text">Numeric code sent verbatim on <code>reports/custom</code> -- from the vendor's own working example, not independently decoded.</div>
+          <select name="creditinfo_inquiry_reason_report" class="form-select">
+            <?php foreach (\App\Support\CreditinfoV3Codes::INQUIRY_REASONS as $code => $label): ?>
+              <option value="<?= (int) $code ?>" <?= (int) ($settings['creditinfo_inquiry_reason_report'] ?? \App\Support\CreditinfoV3Codes::INQUIRY_REASON_CUSTOMER_INQUIRY) === $code ? 'selected' : '' ?>>
+                <?= (int) $code ?> = <?= e($label) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text">Sent verbatim on <code>reports/custom</code>. Code 36 (CustomerInquiry) is the vendor's own working example and the current default.</div>
         </div>
       </div>
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="creditinfo_inquiry_reason_search_confirmed" name="creditinfo_inquiry_reason_search_confirmed" <?= ($settings['creditinfo_inquiry_reason_search_confirmed'] ?? 'off') === 'on' ? 'checked' : '' ?>>
-            <label class="form-check-label small" for="creditinfo_inquiry_reason_search_confirmed">Creditinfo has confirmed this search inquiry reason in writing</label>
-          </div>
-        </div>
-        <div class="col-md-6 mb-3">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="creditinfo_inquiry_reason_report_confirmed" name="creditinfo_inquiry_reason_report_confirmed" <?= ($settings['creditinfo_inquiry_reason_report_confirmed'] ?? 'off') === 'on' ? 'checked' : '' ?>>
-            <label class="form-check-label small" for="creditinfo_inquiry_reason_report_confirmed">Creditinfo has confirmed report code 36 in writing</label>
-          </div>
-        </div>
-      </div>
-      <p class="text-muted small mb-3">Leaving these unchecked keeps both values marked <strong>Provisional</strong> on the UAT Readiness panel below -- safe to use for UAT testing, never presented as vendor-approved.</p>
+      <p class="text-muted small mb-3">Both values above use the same Creditinfo-confirmed code table (<code>App\Support\CreditinfoV3Codes</code>) -- there is nothing left to independently confirm about what a given code means, only which one fits a given business scenario.</p>
 
       <hr>
-      <h5 class="mb-1">Gender Code Mapping <span class="badge bg-warning-subtle text-warning">Pending Creditinfo confirmation</span></h5>
+      <h5 class="mb-1">Gender Code Mapping <span class="badge bg-success-subtle text-success">Vendor Confirmed</span></h5>
       <p class="text-muted small mb-2">
-        The vendor's Postman example sends <code>"gender": 1</code> with no definition anywhere in the supplied 35-page manual of what 1 (or 2) means. Leave both fields below blank until Creditinfo confirms the codes -- a credit check is blocked for any applicant while either is unset, rather than guessing.
+        Creditinfo has confirmed in writing: <strong>1 = Male</strong>, <strong>2 = Female</strong> (<code>App\Support\CreditinfoV3Codes</code>). Still read from settings rather than hardcoded, so a future vendor correction is a settings change, not a deploy. A credit check remains blocked for any applicant while either field is unset.
       </p>
       <div class="row">
         <div class="col-md-3 mb-3">
           <label class="form-label">Code for Male</label>
-          <input type="number" name="creditinfo_gender_code_male" class="form-control" value="<?= e($settings['creditinfo_gender_code_male'] ?? '') ?>">
+          <input type="number" name="creditinfo_gender_code_male" class="form-control" value="<?= e($settings['creditinfo_gender_code_male'] ?? (string) \App\Support\CreditinfoV3Codes::GENDER_MALE) ?>">
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">Code for Female</label>
-          <input type="number" name="creditinfo_gender_code_female" class="form-control" value="<?= e($settings['creditinfo_gender_code_female'] ?? '') ?>">
-        </div>
-        <div class="col-md-6 mb-3 d-flex align-items-end">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="creditinfo_gender_mapping_confirmed" name="creditinfo_gender_mapping_confirmed" <?= ($settings['creditinfo_gender_mapping_confirmed'] ?? 'off') === 'on' ? 'checked' : '' ?>>
-            <label class="form-check-label small" for="creditinfo_gender_mapping_confirmed">Creditinfo has confirmed both codes in writing</label>
-          </div>
+          <input type="number" name="creditinfo_gender_code_female" class="form-control" value="<?= e($settings['creditinfo_gender_code_female'] ?? (string) \App\Support\CreditinfoV3Codes::GENDER_FEMALE) ?>">
         </div>
       </div>
 

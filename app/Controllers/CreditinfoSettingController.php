@@ -29,19 +29,6 @@ class CreditinfoSettingController extends Controller
         'creditinfo_gender_code_female',
     ];
 
-    /**
-     * Checkboxes: an admin explicitly asserting Creditinfo has confirmed
-     * this value in writing -- distinct from merely having entered a
-     * value (Provisional). Never set automatically; see
-     * CreditinfoUatReadinessService for how these three states (Not
-     * Configured / Provisional / Confirmed) are computed and displayed.
-     */
-    private const CONFIRMATION_FLAGS = [
-        'creditinfo_gender_mapping_confirmed',
-        'creditinfo_inquiry_reason_search_confirmed',
-        'creditinfo_inquiry_reason_report_confirmed',
-    ];
-
     private CreditinfoSetting $settings;
 
     public function __construct()
@@ -100,16 +87,6 @@ class CreditinfoSettingController extends Controller
             if (array_key_exists($key, $_POST)) {
                 $this->settings->set($key, trim((string) $_POST[$key]) ?: null, $userId);
             }
-        }
-
-        // Confirmation checkboxes: unlike KEYS above, these must be
-        // explicitly set to 'off' when unchecked (a checkbox submits
-        // nothing at all when unchecked, so array_key_exists alone can't
-        // distinguish "never rendered" from "unchecked") -- an admin
-        // un-confirming a value must actually downgrade it back to
-        // Provisional, not silently leave a stale "Confirmed" flag.
-        foreach (self::CONFIRMATION_FLAGS as $flagKey) {
-            $this->settings->set($flagKey, !empty($_POST[$flagKey]) ? 'on' : 'off', $userId);
         }
 
         // Blank means "leave the stored secret as it is" -- see

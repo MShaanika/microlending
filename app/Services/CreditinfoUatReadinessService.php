@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CreditinfoDiagnosticLog;
 use App\Models\CreditinfoSetting;
+use App\Support\CreditinfoV3Codes;
 
 /**
  * Computes the "CREDITINFO UAT READINESS" checklist shown on Settings >
@@ -19,14 +20,14 @@ use App\Models\CreditinfoSetting;
  *
  * What DOES block:
  *  - Configuration items (API Credentials, Gender Mapping, Search/Report
- *    Inquiry Reason) block only when genuinely Not Configured -- a
- *    Provisional value (present but not vendor-confirmed) does NOT block,
- *    since UAT testing is exactly how a provisional value gets confirmed
- *    or corrected. Confirmed status requires an admin to have explicitly
- *    ticked the matching "Creditinfo has confirmed this" checkbox
- *    (CreditinfoSettingController::CONFIRMATION_FLAGS) -- a value simply
- *    being entered is Provisional, never silently treated as
- *    vendor-approved.
+ *    Inquiry Reason) block only when genuinely Not Configured. Gender
+ *    Mapping and both Inquiry Reason items are vendor-confirmed code
+ *    tables now (App\Support\CreditinfoV3Codes, received in writing from
+ *    Creditinfo) -- the settings UI only offers values from that
+ *    confirmed table, so a value simply being SET is now enough to mark
+ *    the item Confirmed; there is no separate "provisional, not yet
+ *    confirmed" state left for these three (the earlier manual
+ *    confirmation checkbox was removed once the vendor table replaced it).
  *  - Consent Controls blocks only if the enforcement mechanism itself is
  *    missing (it isn't -- always Pass once this code is deployed).
  *  - Retention Policy and Public Defaults never block UAT -- retention is
@@ -74,31 +75,25 @@ class CreditinfoUatReadinessService
                 'At least one successful Smart Search call has been logged.',
                 'Not yet tested -- expected before the first authorized UAT call.'
             ),
-            $this->threeStateItem(
+            $this->vendorConfirmedItem(
                 'gender_mapping',
                 'Gender Mapping',
                 !empty($all['creditinfo_gender_code_male']) && !empty($all['creditinfo_gender_code_female']),
-                ($all['creditinfo_gender_mapping_confirmed'] ?? 'off') === 'on',
-                'Both codes set, marked Creditinfo-confirmed.',
-                'Both codes set, but NOT yet confirmed by Creditinfo -- treated as a best-guess only, safe for UAT testing, not for production.',
+                'Vendor confirmed (1=Male, 2=Female, App\Support\CreditinfoV3Codes) and both codes are set.',
                 'Not configured -- every credit check is blocked at runtime until this is set (see CreditinfoAssessmentController::runCheck()).'
             ),
-            $this->threeStateItem(
+            $this->vendorConfirmedItem(
                 'search_inquiry_reason',
                 'Search Inquiry Reason',
-                !empty($all['creditinfo_inquiry_reason_search']),
-                ($all['creditinfo_inquiry_reason_search_confirmed'] ?? 'off') === 'on',
-                'Value set, marked Creditinfo-confirmed.',
-                'Value set (' . ($all['creditinfo_inquiry_reason_search'] ?? '') . '), but NOT yet confirmed by Creditinfo.',
+                isset($all['creditinfo_inquiry_reason_search']) && $all['creditinfo_inquiry_reason_search'] !== '',
+                'Vendor-confirmed code table; value set to ' . ($all['creditinfo_inquiry_reason_search'] ?? '') . ' (' . (CreditinfoV3Codes::INQUIRY_REASONS[(int) ($all['creditinfo_inquiry_reason_search'] ?? -1)] ?? 'unknown') . ').',
                 'Not configured.'
             ),
-            $this->threeStateItem(
+            $this->vendorConfirmedItem(
                 'report_inquiry_reason',
                 'Report Inquiry Reason',
-                !empty($all['creditinfo_inquiry_reason_report']),
-                ($all['creditinfo_inquiry_reason_report_confirmed'] ?? 'off') === 'on',
-                'Value set, marked Creditinfo-confirmed.',
-                'Value set (' . ($all['creditinfo_inquiry_reason_report'] ?? '') . ', taken from the vendor\'s own Postman example), but its meaning is NOT independently confirmed.',
+                isset($all['creditinfo_inquiry_reason_report']) && $all['creditinfo_inquiry_reason_report'] !== '',
+                'Vendor-confirmed code table; value set to ' . ($all['creditinfo_inquiry_reason_report'] ?? '') . ' (' . (CreditinfoV3Codes::INQUIRY_REASONS[(int) ($all['creditinfo_inquiry_reason_report'] ?? -1)] ?? 'unknown') . ').',
                 'Not configured.'
             ),
             $this->evidenceItem(
@@ -179,19 +174,16 @@ class CreditinfoUatReadinessService
         return ['key' => $key, 'label' => $label, 'status' => $hasEvidence ? 'pass' : 'fail', 'detail' => $hasEvidence ? $passDetail : $failDetail, 'blocking' => false];
     }
 
-    private function threeStateItem(string $key, string $label, bool $valueSet, bool $confirmed, string $confirmedDetail, string $provisionalDetail, string $notConfiguredDetail): array
+    /** Gender Mapping and both Inquiry Reason items: the code table itself is vendor-confirmed (CreditinfoV3Codes), so a value simply being set is Confirmed -- no separate provisional state. */
+    private function vendorConfirmedItem(string $key, string $label, bool $valueSet, string $confirmedDetail, string $notConfiguredDetail): array
     {
-        if (!$valueSet) {
-            $status = 'not_configured';
-            $detail = $notConfiguredDetail;
-        } elseif ($confirmed) {
-            $status = 'confirmed';
-            $detail = $confirmedDetail;
-        } else {
-            $status = 'provisional';
-            $detail = $provisionalDetail;
-        }
-        return ['key' => $key, 'label' => $label, 'status' => $status, 'detail' => $detail, 'blocking' => true];
+        return [
+            'key' => $key,
+            'label' => $label,
+            'status' => $valueSet ? 'confirmed' : 'not_configured',
+            'detail' => $valueSet ? $confirmedDetail : $notConfiguredDetail,
+            'blocking' => true,
+        ];
     }
 
     private function hasSuccessfulEvidence(string $endpointContains): bool

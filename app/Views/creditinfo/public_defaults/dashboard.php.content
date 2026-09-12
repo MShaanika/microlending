@@ -1,7 +1,7 @@
 <?= flash_messages() ?>
 
-<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <div><strong>⚠ Public Defaults API documentation still required.</strong> No listing or removal can reach Creditinfo until the vendor specification is supplied.</div>
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div><strong>Submission Method: Creditinfo User Interface (Manual).</strong> Creditinfo has confirmed there is no REST API for Public Defaults -- listings and removals are submitted via Creditinfo's own UI and recorded here. <?php if ($sftpSpecificationAwaited): ?>SFTP is prepared for but awaiting Creditinfo's technical specification.<?php endif; ?></div>
   <a href="<?= url('/creditinfo/public-defaults/settings') ?>" class="btn btn-sm btn-outline-dark">Settings</a>
 </div>
 
@@ -34,7 +34,7 @@
           <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['active_defaults'] ?></div><div class="text-muted small">Active Defaults</div></div></div>
           <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_required'] ?></div><div class="text-muted small">Removal Required</div></div></div>
           <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_pending'] ?></div><div class="text-muted small">Removal Pending</div></div></div>
-          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0 text-danger"><?= (int) $counts['api_failures'] ?></div><div class="text-muted small">API Failures (Blocked)</div></div></div>
+          <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0 text-warning-emphasis"><?= (int) $counts['awaiting_confirmation'] ?></div><div class="text-muted small">Awaiting Confirmation</div></div></div>
         </div>
 
         <div class="mt-4 d-flex gap-2 flex-wrap">

@@ -1,7 +1,7 @@
 <?php
 $statusBadge = match (true) {
     in_array($pd['status'], ['Listed'], true) => 'success',
-    in_array($pd['status'], ['Rejected', 'Failed', 'Cancelled', 'Removal Rejected', 'Removal Failed'], true) => 'danger',
+    in_array($pd['status'], ['Rejected', 'Cancelled', 'Removal Rejected'], true) => 'danger',
     in_array($pd['status'], ['Removed'], true) => 'dark',
     in_array($pd['status'], ['Removal Required'], true) => 'warning',
     default => 'secondary',
@@ -50,17 +50,10 @@ $statusBadge = match (true) {
         </form>
       <?php endif; ?>
 
-      <?php if (in_array($pd['status'], ['Approved', 'Failed'], true)): ?>
-        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/submit') ?>" onsubmit="return confirm('Submit this listing to Creditinfo? (The API is not yet configured -- this will record a blocked attempt.)');">
+      <?php if ($pd['status'] === 'Submitted via Creditinfo UI'): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/confirm-listed') ?>" onsubmit="return confirm('Confirm this default now actually appears live on Creditinfo?');">
           <?= csrf_field() ?>
-          <button type="submit" class="btn btn-warning text-dark">Submit to Creditinfo</button>
-        </form>
-      <?php endif; ?>
-
-      <?php if (in_array($pd['status'], ['Removal Approved', 'Removal Failed'], true)): ?>
-        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/submit') ?>" onsubmit="return confirm('Submit this removal to Creditinfo? (The API is not yet configured -- this will record a blocked attempt.)');">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-warning text-dark">Submit Removal to Creditinfo</button>
+          <button type="submit" class="btn btn-success">Confirm Listed</button>
         </form>
       <?php endif; ?>
 
@@ -76,11 +69,18 @@ $statusBadge = match (true) {
         </form>
       <?php endif; ?>
 
+      <?php if ($pd['status'] === 'Removal Submitted via Creditinfo UI'): ?>
+        <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/confirm-removed') ?>" onsubmit="return confirm('Confirm this default no longer appears on Creditinfo?');">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-success">Confirm Removed</button>
+        </form>
+      <?php endif; ?>
+
       <?php if (in_array($pd['status'], ['Listed', 'Removal Required', 'Removal Rejected'], true)): ?>
         <a href="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/create') ?>" class="btn btn-outline-warning">Create Removal Request</a>
       <?php endif; ?>
 
-      <?php if (!in_array($pd['status'], ['Listed', 'Removed', 'Cancelled'], true) && !str_starts_with((string) $pd['status'], 'Removal')): ?>
+      <?php if (in_array($pd['status'], ['Draft', 'Pending Review', 'Awaiting Manual Submission'], true)): ?>
         <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/cancel') ?>" onsubmit="var r = prompt('Reason for cancelling this listing:'); if (r === null) { return false; } this.querySelector('[name=reason]').value = r; return true;">
           <?= csrf_field() ?>
           <input type="hidden" name="reason" value="">
@@ -91,8 +91,30 @@ $statusBadge = match (true) {
       <a href="<?= url('/creditinfo/public-defaults') ?>" class="btn btn-outline-secondary">Back to Dashboard</a>
     </div>
 
-    <?php if (!empty($pd['api_last_error'])): ?>
-      <div class="alert alert-danger small">Last API attempt was blocked: <?= e($pd['api_last_error']) ?></div>
+    <?php if ($pd['status'] === 'Awaiting Manual Submission'): ?>
+      <div class="alert alert-warning">
+        <strong>Awaiting Manual Submission</strong> -- log into Creditinfo's own User Interface and submit this listing there, then record the submission below. There is no automated API call for this (Creditinfo has confirmed none exists for Public Defaults).
+      </div>
+      <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/listing/record-submission') ?>" enctype="multipart/form-data" class="row g-2 mb-3">
+        <?= csrf_field() ?>
+        <div class="col-md-3"><input type="text" name="creditinfo_reference" class="form-control form-control-sm" placeholder="Creditinfo reference (if available)"></div>
+        <div class="col-md-4"><input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes"></div>
+        <div class="col-md-3"><input type="file" name="evidence_document" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><button type="submit" class="btn btn-sm btn-warning text-dark w-100">Record Submission</button></div>
+      </form>
+    <?php endif; ?>
+
+    <?php if ($pd['status'] === 'Awaiting Manual Removal Submission'): ?>
+      <div class="alert alert-warning">
+        <strong>Awaiting Manual Removal Submission</strong> -- submit the removal via Creditinfo's own User Interface, then record it below.
+      </div>
+      <form method="post" action="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/removal/record-submission') ?>" enctype="multipart/form-data" class="row g-2 mb-3">
+        <?= csrf_field() ?>
+        <div class="col-md-3"><input type="text" name="creditinfo_reference" class="form-control form-control-sm" placeholder="Creditinfo reference (if available)"></div>
+        <div class="col-md-4"><input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes"></div>
+        <div class="col-md-3"><input type="file" name="evidence_document" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><button type="submit" class="btn btn-sm btn-warning text-dark w-100">Record Submission</button></div>
+      </form>
     <?php endif; ?>
   </div>
 </div>
@@ -121,12 +143,12 @@ $statusBadge = match (true) {
         <h5 class="card-title">CREDITINFO</h5>
         <table class="table table-sm table-borderless mb-0">
           <tbody>
-            <tr><td class="text-muted">Submission Status</td><td><?= e($pd['api_status'] ?? 'Not submitted') ?></td></tr>
+            <tr><td class="text-muted">Status</td><td><?= e($pd['status']) ?></td></tr>
             <tr><td class="text-muted">Creditinfo Reference</td><td><?= e($pd['creditinfo_reference'] ?? '—') ?></td></tr>
-            <tr><td class="text-muted">Submitted At</td><td><?= $pd['listed_at'] ? e(date('d M Y H:i', strtotime($pd['listed_at']))) : '—' ?></td></tr>
+            <tr><td class="text-muted">Confirmed Listed At</td><td><?= $pd['listed_at'] ? e(date('d M Y H:i', strtotime($pd['listed_at']))) : '—' ?></td></tr>
           </tbody>
         </table>
-        <p class="text-muted small mt-2 mb-0">⚠ Public Defaults API documentation still required -- no field above can be populated by a real Creditinfo response yet.</p>
+        <p class="text-muted small mt-2 mb-0">Submitted via Creditinfo's own User Interface -- no REST API exists for Public Defaults (vendor-confirmed). SFTP: Specification Awaiting Creditinfo Documentation.</p>
       </div>
     </div>
   </div>
@@ -144,6 +166,34 @@ $statusBadge = match (true) {
         <tr><td class="text-muted">Removed At</td><td><?= $pd['removed_at'] ? e(date('d M Y H:i', strtotime($pd['removed_at']))) : '—' ?></td></tr>
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 class="card-title">Creditinfo Submissions</h5>
+    <p class="text-muted small">Evidence of every manual (or, once built, SFTP) submission to Creditinfo -- who, when, what reference, and any supporting document.</p>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Date</th><th>Direction</th><th>Method</th><th>Reference</th><th>Submitted By</th><th>Notes</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <?php foreach ($submissions as $s): ?>
+            <tr>
+              <td class="small"><?= e(date('d M Y H:i', strtotime($s['submitted_at']))) ?></td>
+              <td class="small"><?= e(ucfirst($s['direction'])) ?></td>
+              <td class="small"><?= $s['method'] === 'sftp' ? 'SFTP' : 'Creditinfo UI' ?></td>
+              <td class="small"><?= e($s['creditinfo_reference'] ?? '—') ?></td>
+              <td class="small"><?= e($s['submitted_by_name'] ?? '—') ?></td>
+              <td class="small"><?= e($s['notes'] ?? '—') ?></td>
+              <td class="small"><?php if (!empty($s['evidence_document'])): ?><a href="<?= url('/creditinfo/public-defaults/' . $pd['id'] . '/submissions/' . $s['id'] . '/download') ?>">Download</a><?php else: ?>—<?php endif; ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($submissions)): ?>
+            <tr><td colspan="7" class="text-muted small">No submission recorded yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

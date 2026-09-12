@@ -21,25 +21,19 @@ namespace App\Services;
  *
  * Gender code and inquiry reason are ALWAYS passed in by the caller
  * (resolved from CreditinfoSetting), never computed or defaulted inside
- * this class:
- *   - "gender": 1 appears in the vendor's own Postman example with no
- *     definition anywhere in the 35-page manual of what 1 (or 2) means.
- *     Guessing Male=1/Female=2 (or the reverse) risks silently mismatching
- *     an applicant's actual gender against Creditinfo's records --
- *     CreditinfoSetting::genderCode() returns null until an admin
- *     explicitly configures both codes, and the caller must refuse to
- *     search rather than fall back to a guess.
- *   - inquiryReason on search/smart/individual is a STRING enum (5 valid
- *     values per the manual: CreditRenewal, CustomerInquiry,
- *     ApplicationForCreditOrAmendmentOfCreditTerms, InsuranceApplication,
- *     Other) -- the Postman sample uses CustomerInquiry, but that's
- *     generic sample data, not necessarily correct for a new loan
- *     application's credit check. inquiryReason on reports/custom is a
- *     completely different convention -- a bare NUMBER (36 in the
- *     Postman example), undefined anywhere in the manual. Both are
- *     configurable settings (creditinfo_inquiry_reason_search/_report),
- *     not hardcoded here, so a vendor-confirmed correction is a settings
- *     change, not a deploy.
+ * this class. Both code tables are now vendor-confirmed in writing by
+ * Creditinfo -- see App\Support\CreditinfoV3Codes for the fixed tables --
+ * but the actual VALUE used for a given call stays a CreditinfoSetting-driven,
+ * admin-editable business choice (creditinfo_inquiry_reason_search/_report),
+ * not hardcoded here, so a future vendor correction is still a settings
+ * change, not a deploy:
+ *   - gender: 1 = Male, 2 = Female (CreditinfoV3Codes::GENDER_CODES).
+ *   - inquiryReason is ONE shared integer enum used on both
+ *     search/smart/individual and reports/custom (CreditinfoV3Codes::
+ *     INQUIRY_REASONS) -- confirmed by Creditinfo to supersede the manual's
+ *     original (and incorrect) implication that search took a string enum.
+ *     Sent as an integer on both endpoints; DesertLedger's own default for
+ *     a normal new loan application is 1 (ApplicationForCreditOrAmendmentOfCreditTerms).
  *
  * Company search (search/smart/company) exists in the vendor's Postman
  * collection but is deliberately NOT implemented here -- DesertLedger only
@@ -74,7 +68,7 @@ class CreditinfoBureauClient
      * and SubjectNotFound (NIL report) are both legitimate results per the
      * manual (4.1) -- neither is an exception.
      */
-    public function searchIndividual(array $parameters, string $inquiryReason, bool $consent, bool $interactive = false, ?string $inquiryReasonText = null, string $source = 'application_check'): array
+    public function searchIndividual(array $parameters, int $inquiryReason, bool $consent, bool $interactive = false, ?string $inquiryReasonText = null, string $source = 'application_check'): array
     {
         $body = self::buildSearchBody($parameters, $inquiryReason, $consent, $interactive, $inquiryReasonText);
         $result = $this->client->post('/search/smart/individual', $body, $source);
@@ -90,7 +84,7 @@ class CreditinfoBureauClient
      * CreditinfoClient can be exercised in a plain PHPUnit Unit test here;
      * see tests/Unit/CreditinfoBureauClientTest.php).
      */
-    public static function buildSearchBody(array $parameters, string $inquiryReason, bool $consent, bool $interactive = false, ?string $inquiryReasonText = null): array
+    public static function buildSearchBody(array $parameters, int $inquiryReason, bool $consent, bool $interactive = false, ?string $inquiryReasonText = null): array
     {
         $body = [
             'inquiryReasonText' => $inquiryReasonText,
@@ -155,10 +149,10 @@ class CreditinfoBureauClient
     }
 
     /**
-     * POST /reports/custom. $inquiryReason is the report-side value
-     * (creditinfo_inquiry_reason_report, e.g. "36") -- cast to int only
-     * here, at the JSON-encode boundary, matching the vendor's own Postman
-     * example where it's a bare number, not a string.
+     * POST /reports/custom. $inquiryReason (creditinfo_inquiry_reason_report,
+     * default 36 = CustomerInquiry per CreditinfoV3Codes -- vendor-confirmed)
+     * -- cast to int only here, at the JSON-encode boundary, matching the
+     * vendor's own Postman example where it's a bare number, not a string.
      *
      * Returns the raw decoded response -- data.requestStatus is 'Finished'
      * (report ready immediately) or 'New'/'InProgress' (async -- see

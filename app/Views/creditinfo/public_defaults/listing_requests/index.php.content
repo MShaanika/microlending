@@ -10,7 +10,7 @@
     <form method="get" class="d-flex gap-2 mb-3">
       <select name="status" class="form-select form-select-sm" style="max-width:260px;" onchange="this.form.submit()">
         <option value="">All open statuses</option>
-        <?php foreach (['Draft','Pending Review','Approved','Awaiting API Submission','Submitted','Rejected','Failed','Cancelled'] as $s): ?>
+        <?php foreach (['Draft','Pending Review','Awaiting Manual Submission','Submitted via Creditinfo UI','Listed','Rejected','Cancelled'] as $s): ?>
           <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
         <?php endforeach; ?>
       </select>

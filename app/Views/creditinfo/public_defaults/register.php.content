@@ -12,7 +12,7 @@
       <div class="col-auto">
         <select name="status" class="form-select form-select-sm">
           <option value="">All active statuses</option>
-          <?php foreach (['Listed','Removal Required','Removal Pending Review','Removal Approved','Awaiting API Removal','Removal Submitted'] as $s): ?>
+          <?php foreach (['Listed','Removal Required','Removal Pending Review','Awaiting Manual Removal Submission','Removal Submitted via Creditinfo UI'] as $s): ?>
             <option value="<?= e($s) ?>" <?= ($filters['status'] ?? '') === $s ? 'selected' : '' ?>><?= e($s) ?></option>
           <?php endforeach; ?>
         </select>

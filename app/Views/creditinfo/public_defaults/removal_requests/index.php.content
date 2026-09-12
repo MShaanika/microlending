@@ -7,7 +7,7 @@
     <form method="get" class="d-flex gap-2 mb-3">
       <select name="status" class="form-select form-select-sm" style="max-width:260px;" onchange="this.form.submit()">
         <option value="">All removal statuses</option>
-        <?php foreach (['Removal Pending Review','Removal Approved','Awaiting API Removal','Removal Submitted','Removed','Removal Rejected','Removal Failed'] as $s): ?>
+        <?php foreach (['Removal Required','Removal Pending Review','Awaiting Manual Removal Submission','Removal Submitted via Creditinfo UI','Removed','Removal Rejected'] as $s): ?>
           <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
         <?php endforeach; ?>
       </select>

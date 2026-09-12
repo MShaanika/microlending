@@ -1,6 +1,6 @@
 <?= flash_messages() ?>
 
-<div class="alert alert-warning"><strong>⚠ Public Defaults API documentation still required.</strong> <?= (int) $apiLogCount ?> submission attempt(s) have been blocked for this reason so far.</div>
+<div class="alert alert-info"><strong>Submission Method: Creditinfo User Interface (Manual).</strong> Creditinfo has confirmed in writing there is no REST API for Public Defaults -- every submission below was recorded by a staff member after submitting via Creditinfo's own UI.</div>
 
 <div class="card">
   <div class="card-body">
@@ -12,7 +12,7 @@
       <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['active_defaults'] ?></div><div class="text-muted small">Active Defaults</div></div></div>
       <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_required'] ?></div><div class="text-muted small">Removal Required</div></div></div>
       <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $counts['removal_pending'] ?></div><div class="text-muted small">Removal Requests Pending</div></div></div>
-      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0 text-danger"><?= (int) $counts['api_failures'] ?></div><div class="text-muted small">API Failures</div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0 text-warning-emphasis"><?= (int) $counts['awaiting_confirmation'] ?></div><div class="text-muted small">Awaiting Confirmation</div></div></div>
       <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="h3 mb-0"><?= (int) $disputesBlocking ?></div><div class="text-muted small">Active Disputes</div></div></div>
     </div>
   </div>
@@ -20,24 +20,25 @@
 
 <div class="card mt-3">
   <div class="card-body">
-    <h4 class="card-title">Recent Blocked API Attempts</h4>
-    <p class="text-muted small mb-2">Every row here is a submission that was blocked before any network call was made -- the gateway is a placeholder until Creditinfo supplies the Public Defaults API specification. Never a real Creditinfo request/response.</p>
+    <h4 class="card-title">Recent Creditinfo Submissions</h4>
+    <p class="text-muted small mb-2">Every row here is a manual submission event a staff member recorded after actually submitting via Creditinfo's own User Interface -- evidence, not an automated API call.</p>
     <div class="table-responsive">
       <table class="table table-sm">
-        <thead><tr><th>Time</th><th>Reference</th><th>Action</th><th>Environment</th><th>Triggered By</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Time</th><th>Reference</th><th>Direction</th><th>Method</th><th>Creditinfo Reference</th><th>Submitted By</th><th>Evidence</th></tr></thead>
         <tbody>
-          <?php foreach ($recentApiLogs as $l): ?>
+          <?php foreach ($recentSubmissions as $s): ?>
             <tr>
-              <td class="small"><?= e(date('d M H:i', strtotime($l['created_at']))) ?></td>
-              <td class="small"><?= e($l['listing_reference'] ?? '—') ?></td>
-              <td class="small"><?= e($l['action_attempted']) ?></td>
-              <td class="small"><?= e(strtoupper($l['environment'])) ?></td>
-              <td class="small"><?= e($l['triggered_by_name'] ?? '—') ?></td>
-              <td class="small text-danger"><?= e($l['blocked_reason']) ?></td>
+              <td class="small"><?= e(date('d M H:i', strtotime($s['submitted_at']))) ?></td>
+              <td class="small"><?= e($s['listing_reference'] ?? '—') ?></td>
+              <td class="small"><?= e(ucfirst($s['direction'])) ?></td>
+              <td class="small"><?= $s['method'] === 'sftp' ? 'SFTP' : 'Creditinfo UI' ?></td>
+              <td class="small"><?= e($s['creditinfo_reference'] ?? '—') ?></td>
+              <td class="small"><?= e($s['submitted_by_name'] ?? '—') ?></td>
+              <td class="small"><?= !empty($s['evidence_document']) ? 'Yes' : '—' ?></td>
             </tr>
           <?php endforeach; ?>
-          <?php if (empty($recentApiLogs)): ?>
-            <tr><td colspan="6" class="text-muted small">No submission attempts have been made yet.</td></tr>
+          <?php if (empty($recentSubmissions)): ?>
+            <tr><td colspan="7" class="text-muted small">No submissions recorded yet.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
