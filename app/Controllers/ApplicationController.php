@@ -114,8 +114,10 @@ class ApplicationController extends Controller
 
         $creditinfoSettings = new \App\Models\CreditinfoSetting();
         $consents = new \App\Models\CreditBureauConsent();
+        $cplReadiness = (new \App\Services\CplReadinessService())->assess($application);
 
         $this->view('applications/show', [
+            'cplReadiness' => $cplReadiness,
             'title' => 'Application ' . $application['application_no'],
             'application' => $application,
             'documents' => $this->applications->documents((int) $id),
@@ -602,6 +604,7 @@ class ApplicationController extends Controller
                 'id_number' => $application['applicant_id_number'] ?: null,
                 'passport_no' => $extra['passport_no'] ?? null,
                 'phone' => $application['applicant_phone'] ?: null,
+                'home_telephone' => $extra['home_telephone'] ?? null,
                 'email' => $application['applicant_email'] ?: null,
                 'physical_address' => $application['applicant_address'] ?: null,
                 'postal_address' => $extra['postal_address'] ?? null,

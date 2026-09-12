@@ -1,13 +1,22 @@
 <?= flash_messages() ?>
 
+<?php if (!$accountTypeMappingConfirmed): ?>
+  <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><strong>Account Type mapping (M/P) is pending bureau confirmation.</strong> The export applies the documented default (1-month loan = M, all other terms = P) but this has not yet been confirmed in writing with Creditinfo/the supplier.</div>
+    <a href="<?= url('/reports/cpl-export/settings') ?>" class="btn btn-sm btn-outline-dark">Settings</a>
+  </div>
+<?php endif; ?>
+
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-1">Credit Bureau (CPL) Export</h4>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h4 class="card-title mb-1">Credit Bureau (CPL) Export</h4>
+      <a href="<?= url('/reports/cpl-export/settings') ?>" class="btn btn-sm btn-outline-secondary">Settings</a>
+    </div>
     <p class="text-muted small">
       Generates the monthly Bank of Namibia CPLv1.1 fixed-width extract (account types M &amp; P only) for
       submission to the credit bureaus. Until a Supplier Reference Number has been issued by the bureaus,
-      leave that field blank and keep the downloaded file for reference only &mdash; it is not valid for
-      submission without one.
+      the file is not valid for submission -- set it once in Settings above.
     </p>
 
     <form method="get" action="<?= url('/reports/cpl-export/download/PLACEHOLDER') ?>" class="row g-3 mt-2" id="cpl-export-form">
@@ -17,7 +26,7 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">Supplier Reference Number</label>
-        <input type="text" name="supplier_ref" class="form-control" maxlength="10" placeholder="Issued by the bureaus">
+        <input type="text" name="supplier_ref" class="form-control" maxlength="10" value="<?= e($supplierRef) ?>" placeholder="From Settings">
       </div>
       <div class="col-md-4">
         <label class="form-label">Trading Name</label>

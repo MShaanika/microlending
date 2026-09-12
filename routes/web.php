@@ -121,7 +121,9 @@ use App\Controllers\RecruitmentSettingController;
 use App\Controllers\RecruitmentFrontendController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
+use App\Controllers\CplBatchController;
 use App\Controllers\CplExportController;
+use App\Controllers\CplSettingController;
 use App\Controllers\OperationalReportController;
 use App\Controllers\StatutoryChargeSettingController;
 use App\Controllers\NotificationTemplateController;
@@ -1236,6 +1238,15 @@ $router->get('/reports/operational', [OperationalReportController::class, 'index
 $router->get('/reports/regulatory', [RegulatoryReportController::class, 'index']);
 $router->get('/reports/cpl-export', [CplExportController::class, 'index']);
 $router->get('/reports/cpl-export/download/{date}', [CplExportController::class, 'download']);
+$router->get('/reports/cpl-export/settings', [CplSettingController::class, 'edit']);
+$router->post('/reports/cpl-export/settings', [CplSettingController::class, 'update']);
+$router->get('/reports/cpl-export/batches', [CplBatchController::class, 'index']);
+$router->post('/reports/cpl-export/batches/generate', [CplBatchController::class, 'generate']);
+$router->get('/reports/cpl-export/batches/{id}', [CplBatchController::class, 'show']);
+$router->post('/reports/cpl-export/batches/{id}/submit-for-approval', [CplBatchController::class, 'submitForApproval']);
+$router->post('/reports/cpl-export/batches/{id}/approve', [CplBatchController::class, 'approve']);
+$router->post('/reports/cpl-export/batches/{id}/reject', [CplBatchController::class, 'reject']);
+$router->get('/reports/cpl-export/batches/{id}/download', [CplBatchController::class, 'download']);
 
 // Fixed Assets: Depreciation & Amortization
 // Note: routed under /fixed-assets (not /assets) because /assets collides with

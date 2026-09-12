@@ -174,6 +174,7 @@ class BorrowerController extends Controller
         $extra = array_filter([
             'dob' => trim($_POST['date_of_birth'] ?? ''),
             'passport_no' => trim($_POST['passport_no'] ?? ''),
+            'home_telephone' => trim($_POST['home_telephone'] ?? ''),
             'marital_status' => $_POST['marital_status'] ?? '',
             'job_title' => trim($_POST['job_title'] ?? ''),
             'employment_type' => $_POST['employment_type'] ?? '',
@@ -884,6 +885,7 @@ class BorrowerController extends Controller
             'date_of_birth' => $_POST['date_of_birth'] ?: null,
             'id_number' => trim($_POST['id_number'] ?? '') ?: null,
             'phone' => trim($_POST['phone'] ?? '') ?: null,
+            'home_telephone' => trim($_POST['home_telephone'] ?? '') ?: null,
             'email' => trim($_POST['email'] ?? '') ?: null,
             'marital_status' => $_POST['marital_status'] ?: null,
             'nationality' => trim($_POST['nationality'] ?? '') ?: 'Namibian',

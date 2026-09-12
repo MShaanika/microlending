@@ -290,6 +290,48 @@
         'Not Checked' => 'secondary', 'Pending' => 'warning', 'Completed' => 'success', 'Error' => 'danger',
       ][$application['credit_check_status'] ?? 'Not Checked'] ?? 'secondary';
     ?>
+    <?php
+      $readinessRow = function (string $label, bool $ok) {
+        echo '<div class="d-flex justify-content-between align-items-center py-1">'
+            . '<span class="small">' . e($label) . '</span>'
+            . '<span class="badge bg-' . ($ok ? 'success' : 'secondary') . '">' . ($ok ? 'Complete' : 'Missing') . '</span>'
+            . '</div>';
+      };
+    ?>
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title"><i class="mdi mdi-clipboard-check-outline me-1"></i> Credit Bureau &amp; CPL Readiness</h4>
+        <?php
+          $readinessRow('Applicant Identity', $cplReadiness['identity']);
+          $readinessRow('Date of Birth', $cplReadiness['date_of_birth']);
+          $readinessRow('Contact Information', $cplReadiness['contact']);
+          $readinessRow('Residential Address', $cplReadiness['address']);
+          $readinessRow('Employment', $cplReadiness['employment']);
+          $readinessRow('Income', $cplReadiness['income']);
+        ?>
+        <div class="d-flex justify-content-between align-items-center py-1 border-top mt-1 pt-2">
+          <span class="small fw-bold">CPL Data Readiness</span>
+          <span class="badge bg-<?= $cplReadiness['cpl_ready'] ? 'success' : 'warning text-dark' ?>"><?= $cplReadiness['cpl_ready'] ? 'Ready' : 'Incomplete' ?></span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center py-1">
+          <span class="small">Credit Enquiry</span>
+          <span class="badge bg-<?= ($application['credit_check_status'] ?? 'Not Checked') === 'Completed' ? 'success' : 'secondary' ?>"><?= ($application['credit_check_status'] ?? 'Not Checked') === 'Completed' ? 'Completed' : 'Not Performed' ?></span>
+        </div>
+
+        <?php if (!$cplReadiness['cpl_ready']): ?>
+          <div class="alert alert-warning small mt-2 mb-0">
+            <strong>CPL Data Incomplete</strong>
+            <div class="mt-1">Missing:</div>
+            <ul class="mb-0">
+              <?php foreach ($cplReadiness['missing'] as $m): ?><li><?= e($m) ?></li><?php endforeach; ?>
+            </ul>
+          </div>
+        <?php endif; ?>
+
+        <p class="text-muted small mt-2 mb-0">CPL readiness reflects data completeness for the monthly credit bureau report. It is separate from, and does not affect, the Credit Bureau Enquiry below.</p>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">

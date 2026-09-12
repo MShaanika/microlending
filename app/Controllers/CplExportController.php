@@ -5,21 +5,28 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Session;
-use App\Services\AfsReportService;
+use App\Models\CplSetting;
 use App\Services\CplExporter;
 
 class CplExportController extends Controller
 {
+    private CplSetting $settings;
+
+    public function __construct()
+    {
+        $this->settings = new CplSetting();
+    }
+
     public function index(): void
     {
         Auth::authorize('reports.cpl_export');
 
-        $company = AfsReportService::companyInfo();
-
         $this->view('reports/cpl_export/index', [
             'title' => 'Credit Bureau (CPL) Export',
-            'tradingName' => $company['company_name'] ?? 'Solid Desert Cash Loan',
+            'supplierRef' => $this->settings->supplierReferenceNumber(),
+            'tradingName' => $this->settings->tradingName(),
             'lastMonthEnd' => date('Y-m-d', strtotime('last day of previous month')),
+            'accountTypeMappingConfirmed' => $this->settings->isAccountTypeMappingConfirmed(),
         ]);
     }
 
@@ -33,14 +40,18 @@ class CplExportController extends Controller
             return;
         }
 
-        $supplierRef = trim((string) ($_GET['supplier_ref'] ?? ''));
-        $tradingName = trim((string) ($_GET['trading_name'] ?? '')) ?: 'Solid Desert Cash Loan';
+        // Blank GET overrides fall back to the persisted CPL settings --
+        // see CplExporter::buildMonthly()'s own null-coalescing defaults.
+        $supplierRef = trim((string) ($_GET['supplier_ref'] ?? '')) ?: null;
+        $tradingName = trim((string) ($_GET['trading_name'] ?? '')) ?: null;
 
         $exporter = new CplExporter();
         $content = $exporter->buildMonthly($date, $supplierRef, $tradingName);
 
-        $safeSupplierRef = preg_replace('/[^A-Za-z0-9_-]/', '_', $supplierRef ?: 'PENDING');
-        $filename = $safeSupplierRef . '_ALL_T702_M_' . str_replace('-', '', $date) . '_1_1.txt';
+        $effectiveSupplierRef = $supplierRef ?? $this->settings->supplierReferenceNumber();
+        $fileType = $this->settings->isProductionEnvironment() ? 'L702' : 'T702';
+        $safeSupplierRef = preg_replace('/[^A-Za-z0-9_-]/', '_', $effectiveSupplierRef ?: 'PENDING');
+        $filename = $safeSupplierRef . '_' . $this->settings->recipient() . '_' . $fileType . '_M_' . str_replace('-', '', $date) . '_1_1.txt';
 
         while (ob_get_level() > 0) {
             ob_end_clean();

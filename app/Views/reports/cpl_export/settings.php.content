@@ -1,0 +1,80 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">CPL Settings</h4>
+    <p class="text-muted small">
+      Configuration for the Bank of Namibia CPLv1.1 credit bureau extract. Every value below is editable
+      here rather than hardcoded, so a correction from Creditinfo never requires a deploy.
+    </p>
+
+    <form method="post" action="<?= url('/reports/cpl-export/settings') ?>">
+      <?= csrf_field() ?>
+
+      <h5>Bureau Identification</h5>
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <label class="form-label small">Supplier Reference Number</label>
+          <input type="text" name="supplier_reference_number" class="form-control form-control-sm" maxlength="10" value="<?= e($settings['supplier_reference_number'] ?? '') ?>" placeholder="Issued by the bureaus">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small">Trading Name</label>
+          <input type="text" name="trading_name" class="form-control form-control-sm" maxlength="60" value="<?= e($settings['trading_name'] ?? '') ?>">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Recipient</label>
+          <input type="text" name="recipient" class="form-control form-control-sm" maxlength="7" value="<?= e($settings['recipient'] ?? 'ALL') ?>">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">CPL Version</label>
+          <input type="text" name="cpl_version" class="form-control form-control-sm" maxlength="2" value="<?= e($settings['cpl_version'] ?? '06') ?>">
+        </div>
+      </div>
+
+      <h5>Submission</h5>
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <label class="form-label small">Submission Environment</label>
+          <select name="submission_environment" class="form-select form-select-sm">
+            <option value="uat" <?= ($settings['submission_environment'] ?? 'uat') === 'uat' ? 'selected' : '' ?>>UAT / Test (T702)</option>
+            <option value="production" <?= ($settings['submission_environment'] ?? '') === 'production' ? 'selected' : '' ?>>Production / Live (L702)</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Agreed Billing Date (day of month)</label>
+          <input type="number" min="1" max="31" name="agreed_billing_date" class="form-control form-control-sm" value="<?= e($settings['agreed_billing_date'] ?? '') ?>" placeholder="Not yet agreed">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small">Monthly Submission Deadline Rule</label>
+          <input type="text" name="monthly_submission_deadline_rule" class="form-control form-control-sm" value="<?= e($settings['monthly_submission_deadline_rule'] ?? '') ?>">
+        </div>
+      </div>
+
+      <h5 class="mb-1">Account Type Mapping <span class="badge <?= ($settings['account_type_mapping_confirmed'] ?? 'no') === 'yes' ? 'bg-success' : 'bg-warning text-dark' ?>"><?= ($settings['account_type_mapping_confirmed'] ?? 'no') === 'yes' ? 'Confirmed' : 'Pending Bureau Confirmation' ?></span></h5>
+      <p class="text-muted small mb-3">
+        The CPL specification defines M as a one-month personal loan and P as a personal loan over a term
+        greater than one month. This is applied automatically below, but has not yet been confirmed in
+        writing with Creditinfo/the supplier for this book -- the export continues to run against the
+        documented default while confirmation is pending.
+      </p>
+      <div class="row g-3 mb-2">
+        <div class="col-md-3">
+          <label class="form-label small">One-Month Loan Account Type</label>
+          <input type="text" name="account_type_one_month" class="form-control form-control-sm" maxlength="1" value="<?= e($settings['account_type_one_month'] ?? 'M') ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Multi-Month Loan Account Type</label>
+          <input type="text" name="account_type_multi_month" class="form-control form-control-sm" maxlength="1" value="<?= e($settings['account_type_multi_month'] ?? 'P') ?>">
+        </div>
+        <div class="col-md-6 d-flex align-items-end">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="account_type_mapping_confirmed" name="account_type_mapping_confirmed" <?= ($settings['account_type_mapping_confirmed'] ?? 'no') === 'yes' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="account_type_mapping_confirmed">Creditinfo/supplier has confirmed this mapping in writing</label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
+    </form>
+  </div>
+</div>

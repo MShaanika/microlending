@@ -367,9 +367,22 @@ class LoanController extends Controller
         // the agent -- a later top-up/repeat loan for the same borrower
         // does not auto-attribute to the original referring agent.
         $agentId = null;
+        // CPL field 26 (Loan Reason Code) -- the applicant's answer on
+        // apply-dg.php's "What is this loan mainly for?" question lands in
+        // the application's extra_data.loan_reason_code, not on
+        // loan_applications itself (the code belongs to the loan, not the
+        // application). Falls back to 'O' (Other) only when no valid answer
+        // was captured -- never silently overridden once a real answer exists.
+        $loanReasonCode = 'O';
         if ($applicationId) {
             $application = (new LoanApplication())->find($applicationId);
             $agentId = !empty($application['agent_id']) ? (int) $application['agent_id'] : null;
+
+            $extra = !empty($application['extra_data']) ? (json_decode($application['extra_data'], true) ?: []) : [];
+            $validReasonCodes = ['C', 'D', 'E', 'G', 'I', 'H', 'S', 'F', 'R', 'O', 'J'];
+            if (!empty($extra['loan_reason_code']) && in_array($extra['loan_reason_code'], $validReasonCodes, true)) {
+                $loanReasonCode = $extra['loan_reason_code'];
+            }
         }
 
         $loanId = $this->loans->create([
@@ -392,6 +405,7 @@ class LoanController extends Controller
             'interest_recognition_method' => $interestRecognitionMethod,
             'penalty_rate' => (float) $plan['penalty_rate'],
             'purpose' => trim($_POST['purpose'] ?? '') ?: null,
+            'loan_reason_code' => $loanReasonCode,
             'payment_day' => $paymentDay,
             'quarter_month' => $_POST['quarter_month'] ?: null,
             'loan_status' => 'Pending Approval',
