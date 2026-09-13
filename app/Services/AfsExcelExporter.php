@@ -388,11 +388,12 @@ class AfsExcelExporter
         $genRow = $row;
         $this->totalRow($sheet, $row++, 'Cash generated from operations', "C{$recRow}+C{$paidRow}");
         $intPaidRow = $row;
-        // Always 0 here -- interest paid is shown under Financing
-        // Activities instead (see $interestPaidFinancingRow below), per
-        // the client's corrected reference. Kept as its own template row
-        // rather than removed, matching that reference's layout.
-        $this->dataRow($sheet, $row++, 'Interest paid', 0.0);
+        // Interest paid belongs entirely under Operating Activities, not
+        // Financing -- per the client's own correction. Excluded from
+        // opexTotal above (not folded into "Cash paid to suppliers and
+        // employees") so it isn't double-counted, since it's shown here as
+        // its own explicit line instead.
+        $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
         $financeRow = $row;
         $this->dataRow($sheet, $row++, 'Finance charges', -$mv('pl_finance_cost'));
         $distRow = $row;
@@ -441,13 +442,8 @@ class AfsExcelExporter
         // that inflow and "Check to actual closing cash" never reconciles.
         $overdraftRow = $row;
         $this->dataRow($sheet, $row++, 'Increase/(decrease) in Bank Overdrafts', $bsMv('bs_bank_overdrafts'));
-        // Interest paid on borrowings -- excluded from opexTotal above so it
-        // isn't folded into "Cash paid to suppliers and employees"; shown
-        // here instead per the client's corrected reference.
-        $interestPaidFinancingRow = $row;
-        $this->dataRow($sheet, $row++, 'Interest paid', -$mv('pl_opex_interest_paid'));
         $netFinancingRow = $row;
-        $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$interestPaidFinancingRow})", true);
+        $this->totalRow($sheet, $row++, 'Net cash from financing activities', "SUM(C{$membersContribRow}:C{$overdraftRow})", true);
         $row++;
 
         $netMovementRow = $row;

@@ -609,7 +609,16 @@ class ApplicationController extends Controller
                 'physical_address' => $application['applicant_address'] ?: null,
                 'postal_address' => $extra['postal_address'] ?? null,
                 'marital_status' => $extra['marital_status'] ?? null,
-                'status' => 'Pending',
+                // convert() only ever runs from an application whose status
+                // is already 'Approved' (guarded above) -- the borrower it
+                // creates must carry that approval forward, not restart a
+                // second, hidden approval cycle nothing in the UI surfaces
+                // or that the New Loan borrower picker (status = 'Approved'
+                // only) and loan creation's own server-side check would then
+                // silently exclude this borrower from.
+                'status' => 'Approved',
+                'approved_by' => $userId,
+                'approved_at' => date('Y-m-d H:i:s'),
                 'created_by' => $userId,
                 'title' => $extra['title'] ?? null,
                 'ownership_type' => $extra['ownership_type'] ?? '00',
