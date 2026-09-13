@@ -640,12 +640,18 @@ class DebitOrderCollexiaController extends Controller
             $client = new CollexiaEndoApiClient();
             $result = $client->mandateEnquiry(['contractReference' => $debitOrder['collexia_api_contract_reference']]);
 
-            $this->debitOrders->updateCollexiaApiState((int) $id, [
+            $update = [
                 'collexia_api_last_response' => json_encode($result),
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-            ]);
+            ];
+            $mandateStatus = $this->mapMandateStatus($result);
+            if ($mandateStatus !== null) {
+                $update['status'] = $mandateStatus;
+            }
 
-            Session::flash('success', 'Synced the latest mandate status.');
+            $this->debitOrders->updateCollexiaApiState((int) $id, $update);
+
+            Session::flash('success', 'Synced the latest mandate status.' . ($mandateStatus !== null ? ' Collexia reports this mandate as ' . $mandateStatus . '.' : ''));
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
@@ -653,11 +659,38 @@ class DebitOrderCollexiaController extends Controller
         $this->redirect('/debit-orders/' . $id);
     }
 
+    /**
+     * Extracts mandate.status from a Mandate Enquiry response (spec 6.3) and
+     * maps it through CollexiaV3Codes::MANDATE_STATUSES, returning it ONLY
+     * when it's one of the 4 values that exist in debit_orders.status'
+     * ENUM (Active/Suspended/Cancelled/Completed) -- the other 4 vendor
+     * statuses (Data Error/CancelInProgress/SuspendedInProcess/Manually
+     * Processed) have no local equivalent and are left for staff to read
+     * from the raw collexia_api_last_response instead of forcing a
+     * mismatched local status. Returns null for anything not shaped like a
+     * Mandate Enquiry response (e.g. a stored load-confirmation response),
+     * so this never misfires against the wrong response type.
+     */
+    private function mapMandateStatus(array $result): ?string
+    {
+        $mandate = $result['mandate'] ?? null;
+        if (is_array($mandate) && isset($mandate[0]) && is_array($mandate[0])) {
+            $mandate = $mandate[0];
+        }
+        if (!is_array($mandate) || !isset($mandate['status'])) {
+            return null;
+        }
+
+        $label = CollexiaV3Codes::MANDATE_STATUSES[(int) $mandate['status']] ?? null;
+        return in_array($label, ['Active', 'Suspended', 'Cancelled', 'Completed'], true) ? $label : null;
+    }
+
     private function syncSplitStatus(array $debitOrder): void
     {
         $id = (int) $debitOrder['id'];
         $splits = $this->splitLegs->activeForDebitOrder($id);
         $attempted = false;
+        $mandateStatuses = [];
 
         foreach ($splits as $split) {
             if (!in_array($split['collexia_api_status'], self::SPLIT_LIVE_STATUSES, true) || !$split['collexia_api_contract_reference']) {
@@ -673,6 +706,11 @@ class DebitOrderCollexiaController extends Controller
                     'collexia_api_last_response' => json_encode($result),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
                 ]);
+
+                $mandateStatus = $this->mapMandateStatus($result);
+                if ($mandateStatus !== null) {
+                    $mandateStatuses[] = $mandateStatus;
+                }
             } catch (\RuntimeException $e) {
                 Session::flash('error', $e->getMessage());
                 return;
@@ -684,8 +722,22 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
 
-        $this->debitOrders->updateCollexiaApiState($id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
-        Session::flash('success', 'Synced the latest status for every placed split transaction.');
+        $update = ['collexia_api_synced_at' => date('Y-m-d H:i:s')];
+        $rolledUpStatus = null;
+        // Only ever flip the parent's status when EVERY live split reported a
+        // clean, comparable mandate status and they all agree -- a mixed
+        // result (e.g. one split Completed, another still Active) means the
+        // debit order as a whole isn't there yet, so its status is left
+        // untouched rather than guessed from a partial picture.
+        if (count($mandateStatuses) === count(array_filter($splits, fn ($split) => in_array($split['collexia_api_status'], self::SPLIT_LIVE_STATUSES, true) && $split['collexia_api_contract_reference']))
+            && count(array_unique($mandateStatuses)) === 1
+        ) {
+            $rolledUpStatus = $mandateStatuses[0];
+            $update['status'] = $rolledUpStatus;
+        }
+
+        $this->debitOrders->updateCollexiaApiState($id, $update);
+        Session::flash('success', 'Synced the latest status for every placed split transaction.' . ($rolledUpStatus !== null ? ' Collexia reports every split as ' . $rolledUpStatus . '.' : ''));
     }
 
     public function cancelMandate(string $id): void
