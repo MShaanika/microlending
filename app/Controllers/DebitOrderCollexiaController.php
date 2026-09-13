@@ -396,6 +396,23 @@ class DebitOrderCollexiaController extends Controller
             : $this->buildContractReference($id, $splitNo);
         $suffix = self::splitSuffix($splitNo);
 
+        // A retry rejected as "Duplicate UserReference or Internal Contract
+        // Reference" even after the contract reference above was made
+        // provably fresh (a real case, not hypothetical -- see debit order
+        // #36 split #2) means the userReference itself, not the contract
+        // reference, is the actual duplicate at Collexia. userReferenceBase
+        // is deterministic (the loan ref or debit order no, never
+        // time-based), so a retry needs its own fresh value the same way --
+        // "R" + SAST HHmmss (6 digits, same correct-timezone source as
+        // buildContractReference() above, not the server's UTC clock) +
+        // the split suffix, well within the field's 10-char limit. Loses
+        // the human-recognisable loan reference for a retry specifically;
+        // an unavoidable trade-off once uniqueness is what's actually
+        // blocking the mandate.
+        $userReference = $isRetry
+            ? 'R' . CollexiaClient::sastDateTimeParts()['time'] . $suffix
+            : substr((string) $userReferenceBase, 0, 9) . $suffix;
+
         $mandate = [
             'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
             // Same DesertLedger loan reference as the single-mandate
@@ -403,7 +420,7 @@ class DebitOrderCollexiaController extends Controller
             // split leg the same way clientNo already is, to stay
             // within the field's 10-char limit while keeping each
             // split traceable to its parent loan.
-            'userReference' => substr((string) $userReferenceBase, 0, 9) . $suffix,
+            'userReference' => $userReference,
             'frequencyCode' => 4,
             'installmentAmount' => $amount,
             'noOfInstallments' => $noOfInstallments,
