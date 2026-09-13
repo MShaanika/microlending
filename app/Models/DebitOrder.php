@@ -144,6 +144,26 @@ class DebitOrder extends Model
         return $this->one("SELECT * FROM debit_orders WHERE collexia_api_contract_reference = ?", [$contractReference]);
     }
 
+    /**
+     * Debit orders whose local status could still change based on what
+     * Collexia reports -- status is still Active/Suspended (Cancelled and
+     * Completed are terminal locally) and there's actually a mandate to ask
+     * about (a non-split contract reference, or split_enabled, where
+     * CollexiaMandateStatusSyncService looks at the individual splits and
+     * safely no-ops if none are live yet). Feeds
+     * bin/sync_collexia_mandate_status.php -- the scheduled equivalent of
+     * clicking "Sync Status" on every eligible debit order.
+     */
+    public function dueForCollexiaStatusSync(): array
+    {
+        return $this->all(
+            "SELECT * FROM debit_orders
+             WHERE status IN ('Active', 'Suspended')
+               AND (collexia_api_contract_reference IS NOT NULL OR split_enabled = 1)
+             ORDER BY id"
+        );
+    }
+
     public function create(array $data): int
     {
         return $this->insert('debit_orders', $data);
