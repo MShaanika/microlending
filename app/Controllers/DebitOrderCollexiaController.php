@@ -95,21 +95,8 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
 
-        $banId = $debitOrder['bank_code'] ? CollexiaV3Codes::fromLegacyBankCode($debitOrder['bank_code']) : null;
+        $banId = $this->resolveBanIdOrFlash($debitOrder, '/debit-orders/' . $id);
         if (!$banId) {
-            Session::flash('error', 'This debit order\'s bank has no known Collexia bank ID -- cannot place the mandate. Confirm the correct bank and re-save the debit order first.');
-            $this->redirect('/debit-orders/' . $id);
-            return;
-        }
-
-        // Defensive, not expected to ever fire in normal use -- the debit
-        // order form's own account_type dropdown (CollexiaCodes::ACCOUNT_TYPES)
-        // only ever offers 1 or 2, matching Collexia's ValidValues exactly.
-        // Guards against stale/legacy rows rather than silently sending an
-        // unconfirmed value if one ever existed.
-        if (!isset(CollexiaV3Codes::ACCOUNT_TYPES[(int) $debitOrder['account_type']])) {
-            Session::flash('error', 'This debit order\'s account type is not a value Collexia recognises -- cannot place the mandate. Confirm the correct account type and re-save the debit order first.');
-            $this->redirect('/debit-orders/' . $id);
             return;
         }
 
@@ -120,6 +107,93 @@ class DebitOrderCollexiaController extends Controller
         }
 
         $this->redirect('/debit-orders/' . $id);
+    }
+
+    /**
+     * Retries placement for ONE specific still-failing/never-placed split
+     * leg -- the targeted counterpart to placeMandate()'s "retry everything
+     * eligible at once" behaviour. Useful exactly when some splits already
+     * registered fine and only one (e.g. rejected with a Collexia-side
+     * "Duplicate" error) needs another attempt, without re-touching the
+     * ones that are already fine.
+     */
+    public function placeSingleSplitMandate(string $id, string $splitNo): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        if (!$this->verifyCsrfOrRedirect($id, '/debit-orders/' . $id . '/split-transactions')) {
+            return;
+        }
+
+        $redirectTo = '/debit-orders/' . $id . '/split-transactions';
+
+        if ((int) ($debitOrder['split_enabled'] ?? 0) !== 1) {
+            Session::flash('error', 'This debit order does not use split transactions.');
+            $this->redirect($redirectTo);
+            return;
+        }
+
+        $banId = $this->resolveBanIdOrFlash($debitOrder, $redirectTo);
+        if (!$banId) {
+            return;
+        }
+
+        $splitNo = (int) $splitNo;
+        $split = null;
+        foreach ($this->splitLegs->activeForDebitOrder((int) $id) as $s) {
+            if ((int) $s['split_no'] === $splitNo) {
+                $split = $s;
+                break;
+            }
+        }
+
+        if (!$split || !in_array($split['collexia_api_status'], self::SPLIT_UNSENT_STATUSES, true)) {
+            Session::flash('error', 'Split #' . $splitNo . ' is not waiting to be placed.');
+            $this->redirect($redirectTo);
+            return;
+        }
+
+        if (!$this->installmentTargets->hasSnapshot((int) $id)) {
+            $this->installmentTargets->snapshot((int) $id, $this->debitOrders->orderedUnpaidScheduleIds((int) $debitOrder['loan_id']));
+        }
+
+        $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
+        $clientNoBase = $debitOrder['borrower_no'];
+        $userReferenceBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
+
+        $result = $this->attemptSplitPlacement($debitOrder, $split, $banId, $clientNoBase, $userReferenceBase, $noOfInstallments);
+        $this->rollupSplitStatus((int) $id);
+
+        Audit::log('Update', 'Debit Orders', 'Retried Collexia split mandate placement for debit order #' . $id . ' split #' . $splitNo . ' -> ' . ($result['success'] ? 'submitted' : 'rejected'));
+        Session::flash($result['success'] ? 'success' : 'error', $result['message']);
+        $this->redirect($redirectTo);
+    }
+
+    /** Flashes and returns null on failure -- callers just check for null and return. */
+    private function resolveBanIdOrFlash(array $debitOrder, string $redirectTo): ?int
+    {
+        $banId = $debitOrder['bank_code'] ? CollexiaV3Codes::fromLegacyBankCode($debitOrder['bank_code']) : null;
+        if (!$banId) {
+            Session::flash('error', 'This debit order\'s bank has no known Collexia bank ID -- cannot place the mandate. Confirm the correct bank and re-save the debit order first.');
+            $this->redirect($redirectTo);
+            return null;
+        }
+
+        // Defensive, not expected to ever fire in normal use -- the debit
+        // order form's own account_type dropdown (CollexiaCodes::ACCOUNT_TYPES)
+        // only ever offers 1 or 2, matching Collexia's ValidValues exactly.
+        // Guards against stale/legacy rows rather than silently sending an
+        // unconfirmed value if one ever existed.
+        if (!isset(CollexiaV3Codes::ACCOUNT_TYPES[(int) $debitOrder['account_type']])) {
+            Session::flash('error', 'This debit order\'s account type is not a value Collexia recognises -- cannot place the mandate. Confirm the correct account type and re-save the debit order first.');
+            $this->redirect($redirectTo);
+            return null;
+        }
+
+        return $banId;
     }
 
     private function placeSingleMandate(array $debitOrder, int $banId): void
@@ -269,73 +343,10 @@ class DebitOrderCollexiaController extends Controller
         $placedSummary = [];
 
         foreach ($pending as $split) {
-            $splitNo = (int) $split['split_no'];
-            $amount = (float) $split['leg_amount'];
-            $contractReference = $this->buildContractReference($id, $splitNo);
-            $suffix = self::splitSuffix($splitNo);
-
-            $mandate = [
-                'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
-                // Same DesertLedger loan reference as the single-mandate
-                // path -- see placeSingleMandate()'s comment. Suffixed per
-                // split leg the same way clientNo already is, to stay
-                // within the field's 10-char limit while keeping each
-                // split traceable to its parent loan.
-                'userReference' => substr((string) $userReferenceBase, 0, 9) . $suffix,
-                'frequencyCode' => 4,
-                'installmentAmount' => $amount,
-                'noOfInstallments' => $noOfInstallments,
-                // Always the Remote GID, never 0 -- confirmed by Collexia.
-                'origin' => (int) $this->settings->get('collexia_remote_gid'),
-                'contractReference' => $contractReference,
-                'magId' => CollexiaV3Codes::MAG_ID_ENDO,
-                'initialAmount' => 0,
-                'firstCollectionDate' => date('Ymd', strtotime((string) $debitOrder['start_date'])),
-                'collectionDay' => CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']),
-                'numberOfTrackingDays' => (int) $debitOrder['no_of_days_tracking'],
-                'debtorAccountName' => $debitOrder['account_name'] ?: $debitOrder['borrower_name'],
-                'debtorIdentificationType' => 1,
-                'debtorIdentificationNo' => $debitOrder['id_number'],
-                'debtorAccountNumber' => $debitOrder['account_number'],
-                'debtorAccountType' => (int) $debitOrder['account_type'],
-                'debtorBanId' => $banId,
-            ];
-
-            try {
-                $client = new CollexiaEndoApiClient();
-                $client->loadMandate($mandate, $this->frontEndUserName());
-
-                $this->splitLegs->updateState($id, $splitNo, [
-                    'collexia_api_contract_reference' => $contractReference,
-                    'collexia_api_status' => 'Load Pending',
-                    'collexia_api_last_response' => 'Mandate submitted. Call "Check Final Fate" to confirm registration.',
-                    'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-                ]);
-                $placedSummary[] = 'split #' . $splitNo . ' ' . format_money($amount);
-            } catch (CollexiaApiException $e) {
-                // contractReference is deterministic (debit order id + split
-                // no + today's date, see buildContractReference()) -- stored
-                // even on failure, not just success, so a rejection caused
-                // by Collexia already holding this exact mandate (e.g. code
-                // 10543 "Duplicate UserReference or Internal Contract
-                // Reference", from an earlier attempt that DesertLedger
-                // never got local confirmation of) can still be resolved via
-                // Check Final Fate below instead of being stuck forever with
-                // no reference to check.
-                $this->splitLegs->updateState($id, $splitNo, [
-                    'collexia_api_contract_reference' => $contractReference,
-                    'collexia_api_status' => 'Load Failed',
-                    'collexia_api_last_response' => $e->getMessage(),
-                    'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-                ]);
-                $anyFailed = true;
-            } catch (\RuntimeException $e) {
-                $this->splitLegs->updateState($id, $splitNo, [
-                    'collexia_api_contract_reference' => $contractReference,
-                    'collexia_api_status' => 'Load Failed',
-                    'collexia_api_last_response' => $e->getMessage(),
-                    'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-                ]);
+            $result = $this->attemptSplitPlacement($debitOrder, $split, $banId, $clientNoBase, $userReferenceBase, $noOfInstallments);
+            if ($result['success']) {
+                $placedSummary[] = 'split #' . (int) $split['split_no'] . ' ' . format_money((float) $split['leg_amount']);
+            } else {
                 $anyFailed = true;
             }
         }
@@ -348,6 +359,89 @@ class DebitOrderCollexiaController extends Controller
             Session::flash('error', 'At least one split transaction was rejected. See Split Transactions for details.');
         } else {
             Session::flash('success', count($pending) . ' split transaction(s) submitted. Use "Check Final Fate" to confirm registration.');
+        }
+    }
+
+    /**
+     * Places (or retries) the Collexia mandate for exactly one split leg --
+     * shared by the bulk "place every pending split" loop above and
+     * placeSingleSplitMandate()'s targeted single-split retry. Always
+     * records the attempted contractReference, success or not (see the
+     * comment on the Load Failed branch below for why).
+     *
+     * @return array{success: bool, message: string}
+     */
+    private function attemptSplitPlacement(array $debitOrder, array $split, int $banId, string $clientNoBase, string $userReferenceBase, int $noOfInstallments): array
+    {
+        $id = (int) $debitOrder['id'];
+        $splitNo = (int) $split['split_no'];
+        $amount = (float) $split['leg_amount'];
+        $contractReference = $this->buildContractReference($id, $splitNo);
+        $suffix = self::splitSuffix($splitNo);
+
+        $mandate = [
+            'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
+            // Same DesertLedger loan reference as the single-mandate
+            // path -- see placeSingleMandate()'s comment. Suffixed per
+            // split leg the same way clientNo already is, to stay
+            // within the field's 10-char limit while keeping each
+            // split traceable to its parent loan.
+            'userReference' => substr((string) $userReferenceBase, 0, 9) . $suffix,
+            'frequencyCode' => 4,
+            'installmentAmount' => $amount,
+            'noOfInstallments' => $noOfInstallments,
+            // Always the Remote GID, never 0 -- confirmed by Collexia.
+            'origin' => (int) $this->settings->get('collexia_remote_gid'),
+            'contractReference' => $contractReference,
+            'magId' => CollexiaV3Codes::MAG_ID_ENDO,
+            'initialAmount' => 0,
+            'firstCollectionDate' => date('Ymd', strtotime((string) $debitOrder['start_date'])),
+            'collectionDay' => CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']),
+            'numberOfTrackingDays' => (int) $debitOrder['no_of_days_tracking'],
+            'debtorAccountName' => $debitOrder['account_name'] ?: $debitOrder['borrower_name'],
+            'debtorIdentificationType' => 1,
+            'debtorIdentificationNo' => $debitOrder['id_number'],
+            'debtorAccountNumber' => $debitOrder['account_number'],
+            'debtorAccountType' => (int) $debitOrder['account_type'],
+            'debtorBanId' => $banId,
+        ];
+
+        try {
+            $client = new CollexiaEndoApiClient();
+            $client->loadMandate($mandate, $this->frontEndUserName());
+
+            $this->splitLegs->updateState($id, $splitNo, [
+                'collexia_api_contract_reference' => $contractReference,
+                'collexia_api_status' => 'Load Pending',
+                'collexia_api_last_response' => 'Mandate submitted. Call "Check Final Fate" to confirm registration.',
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+            return ['success' => true, 'message' => 'Split #' . $splitNo . ' submitted (' . $contractReference . '). Use "Check Final Fate" to confirm registration.'];
+        } catch (CollexiaApiException $e) {
+            // contractReference is deterministic (debit order id + split
+            // no + today's date, see buildContractReference()) -- stored
+            // even on failure, not just success, so a rejection caused
+            // by Collexia already holding this exact mandate (e.g. code
+            // 10543 "Duplicate UserReference or Internal Contract
+            // Reference", from an earlier attempt that DesertLedger
+            // never got local confirmation of) can still be resolved via
+            // Check Final Fate below instead of being stuck forever with
+            // no reference to check.
+            $this->splitLegs->updateState($id, $splitNo, [
+                'collexia_api_contract_reference' => $contractReference,
+                'collexia_api_status' => 'Load Failed',
+                'collexia_api_last_response' => $e->getMessage(),
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+            return ['success' => false, 'message' => 'Split #' . $splitNo . ' was rejected: ' . $e->getMessage()];
+        } catch (\RuntimeException $e) {
+            $this->splitLegs->updateState($id, $splitNo, [
+                'collexia_api_contract_reference' => $contractReference,
+                'collexia_api_status' => 'Load Failed',
+                'collexia_api_last_response' => $e->getMessage(),
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+            return ['success' => false, 'message' => 'Split #' . $splitNo . ' failed: ' . $e->getMessage()];
         }
     }
 

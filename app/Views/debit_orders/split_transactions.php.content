@@ -30,11 +30,12 @@
               <th>Status</th>
               <th>Collection Date</th>
               <th>Created</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($splits)): ?>
-              <tr><td colspan="7" class="text-center text-muted py-4">No split transactions found.</td></tr>
+              <tr><td colspan="8" class="text-center text-muted py-4">No split transactions found.</td></tr>
             <?php endif; ?>
             <?php foreach ($splits as $s): ?>
               <?php
@@ -72,6 +73,14 @@
                 </td>
                 <td><?= $collectedDate ? e(date('d M Y', strtotime($collectedDate))) : '&mdash;' ?></td>
                 <td class="small text-muted"><?= e(date('d M Y H:i', strtotime($s['created_at']))) ?></td>
+                <td>
+                  <?php if (!$s['merged_into_id'] && in_array($s['collexia_api_status'], ['Not Placed', 'Load Failed'], true)): ?>
+                    <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/place') ?>" class="d-inline" onsubmit="return confirm('Retry placing split #<?= (int) $s['split_no'] ?> with Collexia?');">
+                      <?= csrf_field() ?>
+                      <button type="submit" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-refresh"></i> Retry Placement</button>
+                    </form>
+                  <?php endif; ?>
+                </td>
               </tr>
             <?php endforeach; ?>
           </tbody>
