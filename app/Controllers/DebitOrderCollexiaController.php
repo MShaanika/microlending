@@ -313,7 +313,17 @@ class DebitOrderCollexiaController extends Controller
                 ]);
                 $placedSummary[] = 'split #' . $splitNo . ' ' . format_money($amount);
             } catch (CollexiaApiException $e) {
+                // contractReference is deterministic (debit order id + split
+                // no + today's date, see buildContractReference()) -- stored
+                // even on failure, not just success, so a rejection caused
+                // by Collexia already holding this exact mandate (e.g. code
+                // 10543 "Duplicate UserReference or Internal Contract
+                // Reference", from an earlier attempt that DesertLedger
+                // never got local confirmation of) can still be resolved via
+                // Check Final Fate below instead of being stuck forever with
+                // no reference to check.
                 $this->splitLegs->updateState($id, $splitNo, [
+                    'collexia_api_contract_reference' => $contractReference,
                     'collexia_api_status' => 'Load Failed',
                     'collexia_api_last_response' => $e->getMessage(),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -321,6 +331,7 @@ class DebitOrderCollexiaController extends Controller
                 $anyFailed = true;
             } catch (\RuntimeException $e) {
                 $this->splitLegs->updateState($id, $splitNo, [
+                    'collexia_api_contract_reference' => $contractReference,
                     'collexia_api_status' => 'Load Failed',
                     'collexia_api_last_response' => $e->getMessage(),
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
@@ -397,7 +408,14 @@ class DebitOrderCollexiaController extends Controller
         $allLoaded = true;
 
         foreach ($splits as $split) {
-            if ($split['collexia_api_status'] !== 'Load Pending' || !$split['collexia_api_contract_reference']) {
+            // Also re-checks a Load Failed split, as long as it has a
+            // contract reference on file -- a genuine rejection (bad
+            // debtor details, etc.) will just be confirmed not-loaded again
+            // here (harmless, read-only), but a "Duplicate" rejection
+            // (Collexia already holding this exact deterministic reference
+            // from an earlier attempt) gets a real chance to resolve to
+            // Registered instead of being permanently stuck.
+            if (!in_array($split['collexia_api_status'], ['Load Pending', 'Load Failed'], true) || !$split['collexia_api_contract_reference']) {
                 continue;
             }
             $attempted = true;
