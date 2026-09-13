@@ -369,6 +369,20 @@ class DebitOrderCollexiaController extends Controller
      * records the attempted contractReference, success or not (see the
      * comment on the Load Failed branch below for why).
      *
+     * A brand-new split (status Not Placed) uses the deterministic
+     * debitOrderId+splitNo reference (buildContractReference() below) --
+     * guaranteed distinct from its sibling splits even when several are
+     * placed in the same tight loop (bulk placement), which the
+     * time-based format below cannot guarantee (see its own docblock).
+     * A RETRY (status already Load Failed) switches to
+     * CollexiaClient::buildContractReference() instead -- the format
+     * actually confirmed against Collexia's own Postman pre-request
+     * script (GID+MMDD+HHmmss), safe here because a retry is one isolated
+     * call, never part of a same-second batch -- so a rejection caused by
+     * Collexia already holding the OLD deterministic reference (e.g. code
+     * 10543 "Duplicate...") gets a genuinely fresh reference to try
+     * instead of recomputing the exact same one forever.
+     *
      * @return array{success: bool, message: string}
      */
     private function attemptSplitPlacement(array $debitOrder, array $split, int $banId, string $clientNoBase, string $userReferenceBase, int $noOfInstallments): array
@@ -376,7 +390,10 @@ class DebitOrderCollexiaController extends Controller
         $id = (int) $debitOrder['id'];
         $splitNo = (int) $split['split_no'];
         $amount = (float) $split['leg_amount'];
-        $contractReference = $this->buildContractReference($id, $splitNo);
+        $isRetry = $split['collexia_api_status'] === 'Load Failed';
+        $contractReference = $isRetry
+            ? (new CollexiaClient())->buildContractReference()
+            : $this->buildContractReference($id, $splitNo);
         $suffix = self::splitSuffix($splitNo);
 
         $mandate = [
