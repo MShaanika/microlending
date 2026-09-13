@@ -75,10 +75,11 @@
                 <td class="small text-muted"><?= e(date('d M Y H:i', strtotime($s['created_at']))) ?></td>
                 <td>
                   <?php if (!$s['merged_into_id'] && in_array($s['collexia_api_status'], ['Not Placed', 'Load Failed'], true)): ?>
-                    <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/place') ?>" class="d-inline" onsubmit="return confirm('Retry placing split #<?= (int) $s['split_no'] ?> with Collexia?');">
-                      <?= csrf_field() ?>
-                      <button type="submit" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-refresh"></i> Retry Placement</button>
-                    </form>
+                    <button type="button" class="btn btn-sm btn-outline-warning retry-placement-btn"
+                      data-url="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/place') ?>"
+                      data-split-no="<?= (int) $s['split_no'] ?>">
+                      <i class="mdi mdi-refresh"></i> Retry Placement
+                    </button>
                   <?php endif; ?>
                 </td>
               </tr>
@@ -86,6 +87,14 @@
           </tbody>
         </table>
       </div>
+    </form>
+
+    <!-- Deliberately its own top-level form, not nested inside merge-form
+         above -- nested <form> elements are invalid HTML and get silently
+         dropped by the browser, which would submit this button into the
+         merge form instead (and did, before this was split out). -->
+    <form id="retry-placement-form" method="post" action="">
+      <?= csrf_field() ?>
     </form>
   </div>
 </div>
@@ -161,6 +170,17 @@
       hiddenFields.appendChild(input);
     });
     form.submit();
+  });
+
+  var retryForm = document.getElementById('retry-placement-form');
+  document.querySelectorAll('.retry-placement-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!confirm('Retry placing split #' + btn.getAttribute('data-split-no') + ' with Collexia?')) {
+        return;
+      }
+      retryForm.action = btn.getAttribute('data-url');
+      retryForm.submit();
+    });
   });
 })();
 </script>
