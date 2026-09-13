@@ -19,11 +19,24 @@
       <span class="badge fs-6 bg-<?= $badge ?>"><?= e($debitOrder['status']) ?></span>
     </div>
 
+    <?php
+      // A debit order is registered with Collexia through exactly ONE of
+      // two independent mechanisms -- this legacy bulk-file "Debit Order
+      // Run" batch (collexia_status), or the real-time EnDO API below
+      // (collexia_api_status). They are alternatives, not two steps of one
+      // flow, so a mandate placed via the API will correctly show "Not
+      // Registered" here forever -- that's expected, not a fault, but easy
+      // to misread as "nothing is registered" without this note.
+      $usingApiPath = !empty($debitOrder['split_enabled']) || ($debitOrder['collexia_api_status'] ?? 'Not Placed') !== 'Not Placed';
+    ?>
     <p class="mb-1 mt-2">
-      <strong>Batch Registration:</strong>
+      <strong>Batch Registration <span class="text-muted small fw-normal">(legacy bulk-file method)</span>:</strong>
       <span class="badge bg-<?= $debitOrder['collexia_status'] === 'Registered' ? 'success' : 'secondary' ?>"><?= e($debitOrder['collexia_status']) ?></span>
       <?php if ($debitOrder['merchant_system_contract_no']): ?>
         <span class="text-muted small">Contract No: <?= e($debitOrder['merchant_system_contract_no']) ?></span>
+      <?php endif; ?>
+      <?php if ($usingApiPath && $debitOrder['collexia_status'] !== 'Registered'): ?>
+        <div class="text-muted small">Not used for this mandate -- see <strong>API Registration</strong> below for its real status.</div>
       <?php endif; ?>
     </p>
 
