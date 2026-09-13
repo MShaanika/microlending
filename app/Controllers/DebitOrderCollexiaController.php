@@ -199,6 +199,24 @@ class DebitOrderCollexiaController extends Controller
     private function placeSingleMandate(array $debitOrder, int $banId): void
     {
         $id = (int) $debitOrder['id'];
+
+        $maxAmount = $this->settings->maxSingleMandateAmount();
+        $amount = (float) $debitOrder['debit_amount'];
+        if ($maxAmount !== null && $amount > $maxAmount) {
+            // See attemptSplitPlacement()'s identical guard -- rejected
+            // locally, before calling Collexia, using direct evidence of
+            // their "10569 Mandate amount limit exceeded" rejection.
+            $message = 'This debit order\'s amount (' . format_money($amount) . ') exceeds the configured max single mandate amount of '
+                . format_money($maxAmount) . ' -- not sent to Collexia. Use a split debit order instead.';
+            $this->debitOrders->updateCollexiaApiState($id, [
+                'collexia_api_status' => 'Load Failed',
+                'collexia_api_last_response' => $message,
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+            Session::flash('error', $message);
+            return;
+        }
+
         $collexiaClient = new CollexiaClient();
         $contractReference = $collexiaClient->buildContractReference();
         $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
@@ -390,6 +408,23 @@ class DebitOrderCollexiaController extends Controller
         $id = (int) $debitOrder['id'];
         $splitNo = (int) $split['split_no'];
         $amount = (float) $split['leg_amount'];
+
+        $maxAmount = $this->settings->maxSingleMandateAmount();
+        if ($maxAmount !== null && $amount > $maxAmount) {
+            // Rejected locally, before ever calling Collexia -- no point
+            // spending a live API call on an amount we already have direct
+            // evidence Collexia will reject (code 10569, see
+            // CollexiaSetting::maxSingleMandateAmount()'s own docblock).
+            $message = 'Split #' . $splitNo . ' (' . format_money($amount) . ') exceeds the configured max single mandate amount of '
+                . format_money($maxAmount) . ' -- not sent to Collexia. Split this amount into smaller legs instead.';
+            $this->splitLegs->updateState($id, $splitNo, [
+                'collexia_api_status' => 'Load Failed',
+                'collexia_api_last_response' => $message,
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+            return ['success' => false, 'message' => $message];
+        }
+
         $isRetry = $split['collexia_api_status'] === 'Load Failed';
         $contractReference = $isRetry
             ? (new CollexiaClient())->buildContractReference()
@@ -1084,6 +1119,20 @@ class DebitOrderCollexiaController extends Controller
             }
         }
 
+        // Checked BEFORE anything is cancelled at Collexia -- discovering
+        // this only after the merge (debit order #36: splits #1 and #2
+        // genuinely cancelled at Collexia, then the combined #4 rejected
+        // with "10569 Mandate amount limit exceeded") leaves the amount
+        // with no live mandate at all until someone notices and fixes it.
+        $maxAmount = $this->settings->maxSingleMandateAmount();
+        $combinedAmountCheck = round((float) array_sum(array_column($selected, 'leg_amount')), 2);
+        if ($maxAmount !== null && $combinedAmountCheck > $maxAmount) {
+            Session::flash('error', 'Merging these would total ' . format_money($combinedAmountCheck) . ', which exceeds the configured max single mandate amount of '
+                . format_money($maxAmount) . '. Nothing was cancelled at Collexia -- choose a smaller combination.');
+            $this->redirect('/debit-orders/' . $id . '/split-transactions');
+            return;
+        }
+
         $toCancelAtCollexia = array_values(array_filter(
             $selected,
             fn ($s) => in_array($s['collexia_api_status'], self::SPLIT_LIVE_STATUSES, true) && $s['collexia_api_contract_reference']
@@ -1130,5 +1179,73 @@ class DebitOrderCollexiaController extends Controller
 
         Session::flash('success', count($selected) . ' split transaction(s) merged into one ' . format_money($combinedAmount) . ' transaction (split #' . $newSplitNo . '). Place its mandate when ready.');
         $this->redirect('/debit-orders/' . $id . '/split-transactions');
+    }
+
+    /**
+     * Recovers from a merge that turned out to combine too much (e.g.
+     * rejected with "10569 Mandate amount limit exceeded") -- only usable
+     * on a merged split that Load Failed, since its sources were already
+     * genuinely cancelled at Collexia by the merge itself (see
+     * mergeSplits()) and never re-registered; nothing further needs
+     * cancelling here. Un-merging never resurrects the failed combined
+     * split -- it retires it and creates fresh, brand-new split legs (Not
+     * Placed) at the sources' original amounts, ready to be placed
+     * independently via the normal Place/Retry flow.
+     */
+    public function unmergeSplit(string $id, string $splitNo): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        $redirectTo = '/debit-orders/' . $id . '/split-transactions';
+        if (!$this->verifyCsrfOrRedirect($id, $redirectTo)) {
+            return;
+        }
+
+        $splitNo = (int) $splitNo;
+        $target = null;
+        foreach ($this->splitLegs->forDebitOrder((int) $id) as $s) {
+            if ((int) $s['split_no'] === $splitNo) {
+                $target = $s;
+                break;
+            }
+        }
+
+        if (!$target || $target['collexia_api_status'] !== 'Load Failed') {
+            Session::flash('error', 'Only a Load Failed merged split can be un-merged.');
+            $this->redirect($redirectTo);
+            return;
+        }
+
+        $sources = $this->splitLegs->mergeSourcesFor((int) $target['id']);
+        if (empty($sources)) {
+            Session::flash('error', 'Split #' . $splitNo . ' did not result from a merge -- nothing to un-merge.');
+            $this->redirect($redirectTo);
+            return;
+        }
+
+        $created = [];
+        foreach ($sources as $source) {
+            $newSplitNo = $this->splitLegs->nextSplitNo((int) $id);
+            $this->splitLegs->upsert((int) $id, $newSplitNo, (float) $source['leg_amount'], (int) $source['total_splits']);
+            $created[] = 'split #' . $newSplitNo . ' (' . format_money($source['leg_amount']) . ', originally split #' . $source['split_no'] . ')';
+        }
+
+        $this->splitLegs->updateById((int) $target['id'], [
+            'collexia_api_status' => 'Cancelled',
+            'collexia_api_last_response' => 'Un-merged back into: ' . implode(', ', $created) . '. This combined amount is retired, never placed.',
+            'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Audit::log(
+            'Update',
+            'Debit Orders',
+            'Un-merged failed split #' . $splitNo . ' (' . format_money($target['leg_amount']) . ') on debit order #' . $id . ' (' . $debitOrder['debit_order_no'] . ') back into: ' . implode('; ', $created)
+        );
+
+        Session::flash('success', 'Split #' . $splitNo . ' un-merged into ' . count($created) . ' fresh split(s): ' . implode(', ', $created) . '. Place their mandates when ready.');
+        $this->redirect($redirectTo);
     }
 }

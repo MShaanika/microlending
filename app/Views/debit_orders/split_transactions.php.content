@@ -81,6 +81,14 @@
                       <i class="mdi mdi-refresh"></i> Retry Placement
                     </button>
                   <?php endif; ?>
+                  <?php if ($isMergeResult && $s['collexia_api_status'] === 'Load Failed'): ?>
+                    <button type="button" class="btn btn-sm btn-outline-secondary unmerge-btn"
+                      data-url="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/unmerge') ?>"
+                      data-split-no="<?= (int) $s['split_no'] ?>"
+                      data-sources="<?= e(implode(', #', $mergeSources[$s['id']])) ?>">
+                      <i class="mdi mdi-call-split"></i> Un-merge
+                    </button>
+                  <?php endif; ?>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -176,6 +184,18 @@
   document.querySelectorAll('.retry-placement-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (!confirm('Retry placing split #' + btn.getAttribute('data-split-no') + ' with Collexia?')) {
+        return;
+      }
+      retryForm.action = btn.getAttribute('data-url');
+      retryForm.submit();
+    });
+  });
+
+  document.querySelectorAll('.unmerge-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var msg = 'Un-merge split #' + btn.getAttribute('data-split-no') + ' back into split(s) #' + btn.getAttribute('data-sources') + '? '
+        + 'This retires the failed combined split and creates fresh, unplaced splits for the original amounts.';
+      if (!confirm(msg)) {
         return;
       }
       retryForm.action = btn.getAttribute('data-url');

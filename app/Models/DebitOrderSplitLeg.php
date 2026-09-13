@@ -50,6 +50,12 @@ class DebitOrderSplitLeg extends Model
         );
     }
 
+    /** The original split(s) that were folded into $mergedIntoId by a prior merge -- used to un-merge a failed combined split back into its constituent amounts. */
+    public function mergeSourcesFor(int $mergedIntoId): array
+    {
+        return $this->all("SELECT * FROM debit_order_split_legs WHERE merged_into_id = ? ORDER BY split_no", [$mergedIntoId]);
+    }
+
     public function nextSplitNo(int $debitOrderId): int
     {
         $max = $this->scalar("SELECT MAX(split_no) FROM debit_order_split_legs WHERE debit_order_id = ?", [$debitOrderId]);

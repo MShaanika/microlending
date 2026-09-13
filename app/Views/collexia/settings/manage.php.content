@@ -82,6 +82,23 @@ $statusBadge = [
           <input type="password" name="collexia_client_secret" class="form-control" autocomplete="new-password" placeholder="<?= $clientSecretSet ? '••••••••' : 'Not yet supplied' ?>">
         </div>
       </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">
+            Max Single Mandate Amount (N$)
+            <span class="badge bg-warning text-dark">Unconfirmed</span>
+          </label>
+          <input type="number" step="0.01" name="collexia_max_single_mandate_amount" class="form-control" value="<?= e($settings['collexia_max_single_mandate_amount'] ?? '') ?>" placeholder="Blank = no local limit enforced">
+          <div class="form-text">
+            Collexia rejects a mandate above some amount with "10569 Mandate amount limit exceeded" --
+            confirmed by evidence (N$548.33 registered fine; N$1,096.66 was rejected) but Collexia has never
+            stated the actual number in writing. This is a locally-configured safety limit, checked before
+            DesertLedger even attempts a placement -- adjust it once Collexia confirms their real limit, or
+            blank it to stop enforcing a local limit entirely.
+          </div>
+        </div>
+      </div>
       <p class="text-muted small mb-3">Password and Client Secret are encrypted, never shown again after saving. Leave blank to keep the current value.</p>
 
       <hr>

@@ -18,6 +18,7 @@ class CollexiaSettingController extends Controller
         'collexia_remote_gid',
         'collexia_system_username',
         'collexia_client_id',
+        'collexia_max_single_mandate_amount',
     ];
 
     private CollexiaSetting $settings;

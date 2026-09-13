@@ -156,4 +156,32 @@ class CollexiaSetting extends Model
 
         return ($all['collexia_enabled_reason'] ?? '') === 'disabled_by_user' ? 'Disabled' : 'Ready for UAT';
     }
+
+    /**
+     * Collexia rejects a single mandate above some maximum amount with
+     * "10569 Mandate amount limit exceeded" -- confirmed by direct evidence
+     * (debit order #36: N$548.33 registered fine, twice; N$1,096.66 was
+     * rejected with this exact code), but the real threshold has never been
+     * confirmed by Collexia in writing. This is a locally-configured,
+     * deliberately conservative safety limit (default N$1,000, safely
+     * between the two known data points), NOT a Collexia-confirmed number --
+     * adjust it once Collexia states their actual limit. Returns null if
+     * blanked out in Settings (no local limit enforced, e.g. once a real
+     * confirmed value makes this check obsolete or unnecessary).
+     */
+    public function maxSingleMandateAmount(): ?float
+    {
+        $all = $this->allSettings();
+        // Row never saved at all yet (fresh install/migration default) vs.
+        // a row that exists but was deliberately blanked in Settings to
+        // disable the check -- array_key_exists is true either way once
+        // the migration/first save has run, even if the stored value is
+        // NULL, so a genuine blank correctly returns null here instead of
+        // silently falling back to the default.
+        if (!array_key_exists('collexia_max_single_mandate_amount', $all)) {
+            return 1000.00;
+        }
+        $value = trim((string) $all['collexia_max_single_mandate_amount']);
+        return $value === '' ? null : (float) $value;
+    }
 }
