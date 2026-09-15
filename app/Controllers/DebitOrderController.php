@@ -209,6 +209,12 @@ class DebitOrderController extends Controller
         if (!empty($_POST['bank_code']) && !isset(CollexiaCodes::BANKS[$_POST['bank_code']])) {
             $errors['bank_code'] = 'Select a valid bank.';
         }
+        // Collexia rejects a mandate load whose collection date isn't in the
+        // future (error 10567) -- catching it here saves a round trip to
+        // Collexia and matches the site's own date picker restriction.
+        if (empty($errors['start_date']) && !empty($_POST['start_date']) && $_POST['start_date'] < date('Y-m-d')) {
+            $errors['start_date'] = 'Start Date must be today or a future date.';
+        }
 
         $splitEnabled = !empty($_POST['split_enabled']);
         $splitCount = 0;
@@ -382,6 +388,9 @@ class DebitOrderController extends Controller
         }
         if (!empty($_POST['bank_code']) && !isset(CollexiaCodes::BANKS[$_POST['bank_code']])) {
             $errors['bank_code'] = 'Select a valid bank.';
+        }
+        if (empty($errors['start_date']) && !empty($_POST['start_date']) && $_POST['start_date'] < date('Y-m-d')) {
+            $errors['start_date'] = 'Start Date must be today or a future date.';
         }
 
         if (!empty($errors)) {

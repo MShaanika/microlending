@@ -56,10 +56,10 @@
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Start Date <span class="text-danger">*</span></label>
-          <input type="date" id="start_date" name="start_date" data-first-due="<?= e($firstDueDate ?? '') ?>" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
+          <input type="date" id="start_date" name="start_date" min="<?= e(date('Y-m-d')) ?>" data-first-due="<?= e($firstDueDate ?? '') ?>" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
           <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
           <?php if ($firstDueDate): ?>
-            <div class="form-text">Loan's first installment is due <?= e(date('d M Y', strtotime($firstDueDate))) ?> &mdash; Collexia rounds this to the nearest matching Debit Day, so a mismatched Start Date silently shifts the first collection off-schedule.</div>
+            <div class="form-text">Loan's first installment is due <?= e(date('d M Y', strtotime($firstDueDate))) ?> &mdash; Collexia rounds this to the nearest matching Debit Day, so a mismatched Start Date silently shifts the first collection off-schedule. If the resulting collection date falls on a weekend or public holiday, Collexia automatically moves it to the next business day -- it never collects early.</div>
           <?php else: ?>
             <div class="form-text text-warning">No repayment schedule found for this loan yet -- confirm this date manually.</div>
           <?php endif; ?>

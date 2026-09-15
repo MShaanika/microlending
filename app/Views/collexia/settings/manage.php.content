@@ -96,7 +96,9 @@ $statusBadge = [
             confirmed (2026-09-15) this limit only exists in the sandbox/UAT environment and will not apply
             once live in production. This is a locally-configured safety limit, checked before DesertLedger
             even attempts a placement -- <strong>blank this field before going live</strong> so production
-            placements are never blocked by a UAT-only restriction.
+            placements are never blocked by a UAT-only restriction. The related per-installment limit
+            ("10570 Installment amount limit exceeded") is confirmed UAT-only too -- see Known System
+            Behaviors below.
           </div>
         </div>
       </div>
@@ -112,5 +114,74 @@ $statusBadge = [
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Settings</button>
     </form>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h4 class="card-title">Known Collexia System Behaviors</h4>
+    <p class="text-muted small mb-3">
+      Confirmed facts about how Collexia's own system behaves, gathered from their UAT Test Pack and
+      direct testing -- kept here so this knowledge lives in DesertLedger itself, not just in email/chat
+      threads with Collexia's team.
+    </p>
+    <table class="table table-sm table-borderless mb-0">
+      <tbody>
+        <tr>
+          <td style="width: 260px;" class="text-nowrap"><strong>Weekend/holiday collections</strong></td>
+          <td>
+            If a mandate's Next Date For Collection (or a rescheduled installment date) falls on a
+            weekend or public holiday, Collexia automatically moves collection to the <strong>next
+            business day</strong> -- it never collects early, and DesertLedger doesn't need to
+            pre-adjust the date. Also shown as inline help on the Start Date / Reschedule fields.
+          </td>
+        </tr>
+        <tr>
+          <td class="text-nowrap"><strong>Tracking Days</strong></td>
+          <td>
+            The number of days (1-14) Collexia keeps retrying a collection attempt after the scheduled
+            date before giving up and marking it failed. Set per debit order at registration
+            (<code>no_of_days_tracking</code>) -- there is no way to change it after placement without
+            rescheduling the installment.
+          </td>
+        </tr>
+        <tr>
+          <td class="text-nowrap"><strong>Past collection/reschedule dates</strong></td>
+          <td>
+            Collexia rejects a mandate load or installment update whose date isn't in the future
+            ("10567 Registration declined" / "10568 Update Declined -- Collection Date must be in the
+            future"). DesertLedger now blocks this locally too (date pickers refuse a past date, and the
+            server re-checks it), so this should never reach Collexia at all.
+          </td>
+        </tr>
+        <tr>
+          <td class="text-nowrap"><strong>Amount limits (UAT-only)</strong></td>
+          <td>
+            Both "10569 Mandate amount limit exceeded" (whole mandate) and "10570 Installment amount
+            limit exceeded" (a single installment) are confirmed by Collexia to be sandbox/UAT-only
+            restrictions that will not exist in production. Only the mandate-level one has a local guard
+            today (Max Single Mandate Amount, above) -- remember to blank it before go-live.
+          </td>
+        </tr>
+        <tr>
+          <td class="text-nowrap"><strong>CDV account validation</strong></td>
+          <td>
+            Collexia validates the debtor's account number and account type against the receiving
+            bank's own records (CDV) before accepting a mandate -- "5645" rejects a bad account number,
+            "5646" a mismatched account type. These come back as plain rejection text, which DesertLedger
+            already surfaces as-is.
+          </td>
+        </tr>
+        <tr>
+          <td class="text-nowrap"><strong>UAT test accounts</strong></td>
+          <td>
+            Collexia's UAT Test Pack supplies dummy account numbers for forcing specific outcomes while
+            testing (Frozen, Non Existing, Deceased/Dormant, Suspended, Closed, Active, Inactive) -- see
+            the Test Pack's "UAT Test Accounts" sheet rather than using a real client account for
+            negative-path testing.
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>

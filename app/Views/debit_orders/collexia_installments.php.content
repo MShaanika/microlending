@@ -56,7 +56,8 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">New Scheduled Date</label>
-          <input type="date" name="scheduled_date" class="form-control" required>
+          <input type="date" name="scheduled_date" min="<?= e(date('Y-m-d')) ?>" class="form-control" required>
+          <div class="form-text">Must be today or later -- Collexia rejects a past date. If it falls on a weekend or public holiday, Collexia moves it to the next business day.</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">New Amount</label>

@@ -812,6 +812,14 @@ class DebitOrderCollexiaController extends Controller
             $this->redirect('/debit-orders/' . $id . '/collexia/installments');
             return;
         }
+        // Collexia rejects a reschedule whose date isn't in the future
+        // (error 10568) -- catching it here saves a round trip and matches
+        // the reschedule form's own date picker restriction.
+        if ($scheduledDate < date('Y-m-d')) {
+            Session::flash('error', 'Reschedule Date must be in the future.');
+            $this->redirect('/debit-orders/' . $id . '/collexia/installments');
+            return;
+        }
 
         try {
             $client = new CollexiaEndoApiClient();

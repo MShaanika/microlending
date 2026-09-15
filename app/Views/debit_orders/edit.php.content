@@ -53,8 +53,9 @@
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Start Date <span class="text-danger">*</span></label>
-          <input type="date" name="start_date" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= e(substr((string) ($debitOrder['start_date'] ?? ''), 0, 10)) ?>">
+          <input type="date" name="start_date" min="<?= e(date('Y-m-d')) ?>" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= e(substr((string) ($debitOrder['start_date'] ?? ''), 0, 10)) ?>">
           <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
+          <div class="form-text">If the resulting collection date falls on a weekend or public holiday, Collexia automatically moves it to the next business day.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Tracking Days (1-14)</label>
