@@ -2,8 +2,7 @@
 
 <div class="card mb-3">
   <div class="card-body">
-    <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary', 'CollexiaAPI' => 'info'][$import['report_type']] ?? 'secondary'; ?>
-    <h4 class="card-title mb-1">Collection Report <?= e($import['filename']) ?> <span class="badge bg-<?= $typeBadge ?>"><?= e($import['report_type']) ?></span></h4>
+    <h4 class="card-title mb-1">Collection Report <?= e($import['filename']) ?> <span class="badge bg-<?= collexia_report_type_badge($import['report_type']) ?>"><?= e(collexia_report_type_label($import['report_type'])) ?></span></h4>
     <p class="text-muted small mb-3">Imported by <?= $import['imported_by_name'] ? e($import['imported_by_name']) : '&mdash;' ?> on <?= e(date('d M Y H:i', strtotime($import['imported_at']))) ?></p>
 
     <div class="row text-center">

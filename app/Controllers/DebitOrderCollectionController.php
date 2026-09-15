@@ -9,16 +9,23 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\BankAccount;
 use App\Models\CollexiaSetting;
-use App\Models\DebitOrder;
 use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderCollectionImport;
+use App\Models\DebitOrderInstallmentTarget;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Services\CollexiaEndoApiClient;
+use App\Services\CollexiaFailedValidationParser;
+use App\Services\CollexiaMandateCreationAuditParser;
+use App\Services\CollexiaMandateLookupService;
 use App\Services\CollexiaPaymentReconciliationService;
 use App\Services\CollexiaReportReader;
+use App\Services\CollexiaScheduledInstallmentsDetailParser;
+use App\Services\CollexiaScheduledInstallmentsForecastParser;
 use App\Services\CollexiaScheduledInstallmentsParser;
+use App\Services\CollexiaSuccessfulTransactionDetailParser;
 use App\Services\CollexiaSuccessfulTransactionsParser;
+use App\Services\CollexiaSuccessfulTransactionsSimplifiedParser;
 use App\Services\CollexiaUnsuccessfulTransactionsParser;
 
 /**
@@ -50,11 +57,12 @@ class DebitOrderCollectionController extends Controller
 {
     private DebitOrderCollectionImport $imports;
     private DebitOrderCollection $collections;
-    private DebitOrder $debitOrders;
+    private DebitOrderInstallmentTarget $installmentTargets;
     private Loan $loans;
     private Payment $payments;
     private BankAccount $bankAccounts;
     private CollexiaSetting $collexiaSettings;
+    private CollexiaMandateLookupService $mandateLookup;
 
     private const ALLOWED_EXTENSIONS = ['xlsx', 'xls'];
     private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -63,11 +71,12 @@ class DebitOrderCollectionController extends Controller
     {
         $this->imports = new DebitOrderCollectionImport();
         $this->collections = new DebitOrderCollection();
-        $this->debitOrders = new DebitOrder();
+        $this->installmentTargets = new DebitOrderInstallmentTarget();
         $this->loans = new Loan();
         $this->payments = new Payment();
         $this->bankAccounts = new BankAccount();
         $this->collexiaSettings = new CollexiaSetting();
+        $this->mandateLookup = new CollexiaMandateLookupService();
     }
 
     public function index(): void
@@ -158,7 +167,7 @@ class DebitOrderCollectionController extends Controller
 
         $reportType = CollexiaReportReader::detectReportType($file['tmp_name']);
         if ($reportType === null) {
-            Session::flash('error', 'Could not recognize this file as a Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export.');
+            Session::flash('error', 'Could not recognize this file as one of Collexia\'s report exports.');
             $this->redirect('/debit-order-collections/create');
             return;
         }
@@ -166,7 +175,13 @@ class DebitOrderCollectionController extends Controller
         $result = match ($reportType) {
             'Successful' => CollexiaSuccessfulTransactionsParser::parse($file['tmp_name']),
             'Unsuccessful' => CollexiaUnsuccessfulTransactionsParser::parse($file['tmp_name']),
-            default => CollexiaScheduledInstallmentsParser::parse($file['tmp_name']),
+            'Scheduled' => CollexiaScheduledInstallmentsParser::parse($file['tmp_name']),
+            'FailedValidation' => CollexiaFailedValidationParser::parse($file['tmp_name']),
+            'SuccessfulSimplified' => CollexiaSuccessfulTransactionsSimplifiedParser::parse($file['tmp_name']),
+            'SuccessfulDetail' => CollexiaSuccessfulTransactionDetailParser::parse($file['tmp_name']),
+            'ScheduledDetail' => CollexiaScheduledInstallmentsDetailParser::parse($file['tmp_name']),
+            'ScheduledForecast' => CollexiaScheduledInstallmentsForecastParser::parse($file['tmp_name']),
+            'MandateAudit' => CollexiaMandateCreationAuditParser::parse($file['tmp_name']),
         };
         if (!empty($result['errors'])) {
             Session::flash('error', 'Import failed: ' . implode(' ', $result['errors']));
@@ -187,32 +202,68 @@ class DebitOrderCollectionController extends Controller
         $matched = 0;
         $posted = 0;
 
+        // Reports that carry real collection data (installment no + amount
+        // + successful date) and post a Payment, same rules regardless of
+        // which report supplied them. Every other report type is
+        // visibility-only -- see each parser's own docblock for why.
+        $postingTypes = ['Successful', 'SuccessfulDetail'];
+        // 'SuccessfulSimplified' and 'ScheduledForecast' carry no contract-
+        // reference-shaped column at all (see their parsers' docblocks) --
+        // resolving a mandate from anything else they DO carry (a client/
+        // loan reference) risks matching the wrong loan, so these two never
+        // attempt a lookup at all.
+        $unmatchableTypes = ['SuccessfulSimplified', 'ScheduledForecast'];
+
         foreach ($result['rows'] as $row) {
-            $mandate = $this->debitOrders->findByContractNo($row['merchant_system_contract_no']);
-            $debitOrderId = $mandate['id'] ?? null;
+            $reference = (string) ($row['merchant_system_contract_no'] ?? '');
+            // Resolves via legacy batch, API non-split, or a split leg's own
+            // contract reference -- see CollexiaMandateLookupService's
+            // docblock; a plain findByContractNo() here would silently miss
+            // every payment for an API-placed, non-split mandate.
+            $mandate = in_array($reportType, $unmatchableTypes, true) ? null : $this->mandateLookup->resolve($reference);
+            $debitOrderId = $mandate['debit_order_id'] ?? null;
             $loanId = $mandate['loan_id'] ?? null;
+            $splitNo = $mandate['split_no'] ?? null;
             $paymentId = null;
 
             if ($mandate) {
                 $matched++;
             }
 
-            if ($reportType === 'Successful') {
-                $alreadyPosted = $mandate && $this->collections->alreadyPosted((int) $debitOrderId, (int) $row['installment_no']);
+            if (in_array($reportType, $postingTypes, true)) {
+                $installmentNo = (int) $row['installment_no'];
+                $alreadyPosted = $mandate && $this->collections->alreadyPosted((int) $debitOrderId, $installmentNo, $splitNo);
 
                 if ($mandate && !$alreadyPosted) {
                     $loan = $this->loans->find((int) $loanId);
                     if ($loan) {
-                        $paymentId = $this->payments->recordAndAllocate($loan, (float) $row['collection_amount'], [
+                        $meta = [
                             'payment_date' => $row['successful_date'],
                             'payment_source' => 'Debit Order',
                             'bank_account_id' => $bankAccountId,
-                            'reference_no' => $row['merchant_system_contract_no'] . '-' . $row['installment_no'],
-                            'payer_name' => $loan['borrower_name'] ?? $row['client_name'],
-                            'notes' => 'Collexia Successful Transactions report: ' . $file['name'],
+                            'reference_no' => $reference . '-' . $installmentNo . ($splitNo !== null ? '-' . $splitNo : ''),
+                            'payer_name' => $loan['borrower_name'] ?? ($row['client_name'] ?? null),
+                            'notes' => 'Collexia ' . $reportType . ' report: ' . $file['name'],
                             'user_id' => $userId,
-                        ]);
-                        $posted++;
+                        ];
+
+                        // A split's collection targets the exact
+                        // loan_schedules row snapshotted at placement time
+                        // (DebitOrderInstallmentTarget), same as the REST
+                        // Download Payments path -- otherwise
+                        // recordAndAllocate()'s FIFO could land it on the
+                        // wrong row whenever the loan has arrears ahead of
+                        // the current installment.
+                        if ($splitNo !== null) {
+                            $scheduleId = $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
+                            if ($scheduleId) {
+                                $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, (float) $row['collection_amount'], $meta);
+                                $posted++;
+                            }
+                        } else {
+                            $paymentId = $this->payments->recordAndAllocate($loan, (float) $row['collection_amount'], $meta);
+                            $posted++;
+                        }
                     }
                 }
 
@@ -220,8 +271,9 @@ class DebitOrderCollectionController extends Controller
                     'import_id' => $importId,
                     'debit_order_id' => $debitOrderId,
                     'loan_id' => $loanId,
-                    'merchant_system_contract_no' => $row['merchant_system_contract_no'],
+                    'merchant_system_contract_no' => $reference,
                     'installment_no' => $row['installment_no'],
+                    'split_no' => $splitNo,
                     'scheduled_date' => $row['scheduled_date'],
                     'installment_amount' => $row['installment_amount'],
                     'payment_date' => $row['successful_date'],
@@ -231,21 +283,31 @@ class DebitOrderCollectionController extends Controller
                     'payment_id' => $paymentId,
                 ]);
             } else {
-                // Unsuccessful (rejection reason in installment_status) and
-                // Scheduled (broad status snapshot) both carry no collection
-                // date/amount, so neither ever posts a payment -- recorded
-                // purely for visibility.
+                // Every other report type -- rejection reasons, broad
+                // status snapshots, forecasts, and mandate-creation audit
+                // rows -- is visibility-only, never posts a payment. Some
+                // (ScheduledDetail) carry a Payment Date/Amount of their
+                // own, which are recorded here for reference even though
+                // they never drive posting -- see that parser's docblock
+                // for why.
                 $this->collections->create([
                     'import_id' => $importId,
                     'debit_order_id' => $debitOrderId,
                     'loan_id' => $loanId,
-                    'merchant_system_contract_no' => $row['merchant_system_contract_no'],
-                    'installment_no' => $row['installment_no'],
-                    'scheduled_date' => $row['scheduled_date'],
-                    'installment_amount' => $row['installment_amount'],
-                    'payment_date' => null,
-                    'payment_amount' => null,
-                    'installment_status' => $row['installment_status'],
+                    // merchant_system_contract_no is sized for a contract
+                    // reference (<=14 chars) -- SuccessfulSimplified has no
+                    // such column, only a shorter client/loan reference
+                    // that happens to fit the same column for display; its
+                    // own longer StatementReference is deliberately NOT
+                    // used here, it would silently overflow.
+                    'merchant_system_contract_no' => $reference !== '' ? $reference : ($row['merchant_client_no'] ?? $row['client_number'] ?? null),
+                    'installment_no' => $row['installment_no'] ?? null,
+                    'split_no' => $splitNo,
+                    'scheduled_date' => $row['scheduled_date'] ?? null,
+                    'installment_amount' => $row['installment_amount'] ?? null,
+                    'payment_date' => $row['payment_date'] ?? null,
+                    'payment_amount' => $row['payment_amount'] ?? null,
+                    'installment_status' => $row['installment_status'] ?? null,
                     'matched' => $mandate ? 1 : 0,
                     'payment_id' => null,
                 ]);

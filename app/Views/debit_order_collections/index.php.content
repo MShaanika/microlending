@@ -18,7 +18,7 @@
         <a href="<?= url('/debit-order-collections/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-upload"></i> Import Report</a>
       </div>
     </div>
-    <p class="text-muted small">Upload any Successful Transactions, Unsuccessful Transactions, or Scheduled Installments export here -- the report type is detected automatically. Matched Successful Transactions rows are posted as real payments automatically.</p>
+    <p class="text-muted small">Upload any of Collexia's report exports here -- the report type is detected automatically from the file. Matched rows from a Successful Transactions report (plain or "with Detail Selection") are posted as real payments automatically; every other report type is imported for visibility only.</p>
     <?php if (!$collexiaConfigured): ?>
       <p class="text-muted small">"Download Payments from Collexia" needs API credentials first -- <a href="<?= url('/collexia/settings') ?>">set them up here</a>.</p>
     <?php elseif (!$collexiaEnabled): ?>
@@ -35,10 +35,10 @@
             <tr><td colspan="8" class="text-center text-muted py-4">No collection reports imported yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($imports as $i): ?>
-            <?php $typeBadge = ['Successful' => 'success', 'Unsuccessful' => 'danger', 'Scheduled' => 'secondary', 'CollexiaAPI' => 'info'][$i['report_type']] ?? 'secondary'; ?>
+            <?php $typeBadge = collexia_report_type_badge($i['report_type']); ?>
             <tr>
               <td><?= e($i['filename']) ?></td>
-              <td><span class="badge bg-<?= $typeBadge ?>"><?= e($i['report_type']) ?></span></td>
+              <td><span class="badge bg-<?= $typeBadge ?>"><?= e(collexia_report_type_label($i['report_type'])) ?></span></td>
               <td><?= (int) $i['total_rows'] ?></td>
               <td><?= (int) $i['matched_rows'] ?></td>
               <td><span class="badge bg-success"><?= (int) $i['posted_payments'] ?></span></td>

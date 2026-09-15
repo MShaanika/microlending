@@ -3,7 +3,15 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">Import Collection Report</h4>
-    <p class="text-muted small">Upload any of the three collection report exports (.xlsx) -- the report type is detected automatically from the file. <strong>Successful Transactions</strong> posts a real payment for every row matched to one of our registered mandates. <strong>Unsuccessful Transactions</strong> and <strong>Scheduled Installments</strong> are recorded for visibility only -- neither carries a real collected amount, so neither ever posts a payment.</p>
+    <p class="text-muted small">
+      Upload any of Collexia's report exports (.xlsx) -- the report type is detected automatically from the file.
+      <strong>Successful Transactions</strong> (plain or "with Detail Selection") posts a real payment for every row
+      matched to one of our registered mandates. Every other report type -- Unsuccessful Transactions, Failed
+      Validation, Successful Transactions (Simplified), Scheduled Installments (plain, with Detail Selection, or
+      Forecast), and the Mandate Creation Audit Report -- is recorded for visibility only and never posts a payment,
+      either because it carries no real collected amount, or because it lacks a reliable enough reference to safely
+      match it to one specific mandate.
+    </p>
 
     <form method="post" action="<?= url('/debit-order-collections') ?>" enctype="multipart/form-data">
       <?= csrf_field() ?>

@@ -53,6 +53,45 @@ function format_money(mixed $amount): string
 }
 
 /**
+ * Human-readable label + Bootstrap badge color for a
+ * debit_order_collection_imports.report_type value -- shared by the
+ * Collection Reports list and its detail page so every report type (the 3
+ * original Excel exports, the REST API's CollexiaAPI, and the 6 added
+ * 2026-09-15) renders consistently instead of a raw enum key.
+ */
+function collexia_report_type_label(string $reportType): string
+{
+    return [
+        'Successful' => 'Successful Transactions',
+        'Unsuccessful' => 'Unsuccessful Transactions',
+        'Scheduled' => 'Scheduled Installments',
+        'CollexiaAPI' => 'Collexia API (Download Payments)',
+        'FailedValidation' => 'Failed Validation',
+        'SuccessfulSimplified' => 'Successful Transactions (Simplified)',
+        'SuccessfulDetail' => 'Successful Transaction (Detail Selection)',
+        'ScheduledDetail' => 'Scheduled Installments (Detail Selection)',
+        'ScheduledForecast' => 'Scheduled Installments Forecast',
+        'MandateAudit' => 'Mandate Creation Audit',
+    ][$reportType] ?? $reportType;
+}
+
+function collexia_report_type_badge(string $reportType): string
+{
+    return [
+        'Successful' => 'success',
+        'SuccessfulDetail' => 'success',
+        'SuccessfulSimplified' => 'success',
+        'Unsuccessful' => 'danger',
+        'FailedValidation' => 'danger',
+        'Scheduled' => 'secondary',
+        'ScheduledDetail' => 'secondary',
+        'ScheduledForecast' => 'secondary',
+        'CollexiaAPI' => 'info',
+        'MandateAudit' => 'info',
+    ][$reportType] ?? 'secondary';
+}
+
+/**
  * Same as format_money() but renders negatives in parentheses, e.g.
  * (332.10) instead of -332.10 -- the convention accounting reports (GL
  * running balance) use for an overdrawn/credit balance.

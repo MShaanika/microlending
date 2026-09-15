@@ -33,13 +33,18 @@ class CollexiaReportReader
     }
 
     /**
-     * Scans the first $searchRows rows for the one containing a
-     * "Merchant System Contract No" cell -- present in every Collexia report
-     * of this family -- and treats that as the header row.
+     * Scans the first $searchRows rows for the one containing an
+     * $anchorHeader cell, and treats that as the header row. Every Collexia
+     * report of this family has a title/record-count row and a blank row
+     * before the real header, so the anchor can't just be "row 1" -- but
+     * not every report shares the same anchor column (e.g. "Scheduled
+     * installments forecast" and "Failed Validation" have no "Merchant
+     * System Contract No" column at all), so callers for those report types
+     * must pass a column that IS actually present in their report.
      *
      * @return array{0: ?int, 1: array<string,string>, 2: ?string} [headerRow, headerName => columnLetter map, error]
      */
-    public static function locateHeaders(Worksheet $sheet, array $requiredHeaders, int $searchRows = 10): array
+    public static function locateHeaders(Worksheet $sheet, array $requiredHeaders, int $searchRows = 10, string $anchorHeader = 'Merchant System Contract No'): array
     {
         $highestCol = $sheet->getHighestDataColumn();
         $highestColIndex = Coordinate::columnIndexFromString($highestCol);
@@ -52,7 +57,7 @@ class CollexiaReportReader
                 $rowValues[$colLetter] = trim((string) $sheet->getCell($colLetter . $r)->getValue());
             }
 
-            if (in_array('Merchant System Contract No', $rowValues, true)) {
+            if (in_array($anchorHeader, $rowValues, true)) {
                 $missing = array_diff($requiredHeaders, array_values($rowValues));
                 if (!empty($missing)) {
                     return [null, [], 'Missing expected column(s): ' . implode(', ', $missing)];
@@ -61,13 +66,22 @@ class CollexiaReportReader
             }
         }
 
-        return [null, [], 'Could not find the header row (expected a "Merchant System Contract No" column) -- is this a Collexia report export?'];
+        return [null, [], 'Could not find the header row (expected a "' . $anchorHeader . '" column) -- is this a Collexia report export?'];
     }
 
     /**
-     * Identifies which of the three known Collexia report exports a file is,
-     * purely from its sheet names, so the caller can route to the matching
-     * parser without staff having to say which report they're uploading.
+     * Identifies which of Collexia's report exports a file is, purely from
+     * its sheet names, so the caller can route to the matching parser
+     * without staff having to say which report they're uploading.
+     *
+     * Order matters: several sheet names are substrings of others (e.g.
+     * "Scheduled installments forecast" and "Scheduled Installments With
+     * Detail Selection" both contain the plain "Scheduled Installments"
+     * report's name, and "Successful Transactions (simplified)" contains
+     * the plain "Successful Transactions" report's name) -- every specific
+     * pattern is checked before the generic one it's a substring of, so a
+     * newer/richer report never gets silently misrouted to the older
+     * parser built for a narrower column set.
      */
     public static function detectReportType(string $filePath): ?string
     {
@@ -78,19 +92,23 @@ class CollexiaReportReader
         }
 
         $names = $spreadsheet->getSheetNames();
-        foreach ($names as $name) {
-            if (stripos($name, 'Unsuccessful Transactions') !== false) {
-                return 'Unsuccessful';
-            }
-        }
-        foreach ($names as $name) {
-            if (stripos($name, 'Successful Transactions') !== false) {
-                return 'Successful';
-            }
-        }
-        foreach ($names as $name) {
-            if (stripos($name, 'Scheduled Installments') !== false) {
-                return 'Scheduled';
+        $patterns = [
+            'Failed Validation' => 'FailedValidation',
+            'Successful Transactions (simplified)' => 'SuccessfulSimplified',
+            'Successful Transaction with Detail Selection' => 'SuccessfulDetail',
+            'Unsuccessful Transactions' => 'Unsuccessful',
+            'Successful Transactions' => 'Successful',
+            'Scheduled Installments With Detail Selection' => 'ScheduledDetail',
+            'Scheduled installments forecast' => 'ScheduledForecast',
+            'Scheduled Installments' => 'Scheduled',
+            'Mandate Creation Audit Report' => 'MandateAudit',
+        ];
+
+        foreach ($patterns as $needle => $type) {
+            foreach ($names as $name) {
+                if (stripos($name, $needle) !== false) {
+                    return $type;
+                }
             }
         }
 

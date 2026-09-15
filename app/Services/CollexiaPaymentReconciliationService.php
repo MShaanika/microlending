@@ -2,11 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\DebitOrder;
 use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderCollectionImport;
 use App\Models\DebitOrderInstallmentTarget;
-use App\Models\DebitOrderSplitLeg;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Support\CollexiaV3Codes;
@@ -40,11 +38,12 @@ use App\Support\CollexiaV3Codes;
  * scheduled date or scheduled amount -- only what was actually paid. Those
  * two columns are left null for API-sourced rows rather than guessed.
  *
- * Split debit orders (DebitOrderSplitLeg): a split's contractReference
- * never matches debit_orders itself (that column is only ever populated
- * for a non-split mandate), so it's looked up in debit_order_split_legs
- * instead. A split's successful collection posts through
- * Payment::recordAndAllocateToScheduleId() rather than recordAndAllocate(),
+ * Matching a contractReference back to a local mandate (legacy batch,
+ * non-split API, or a split leg) is delegated entirely to
+ * CollexiaMandateLookupService -- see its own docblock for why a naive
+ * "check debit_orders, then split legs" isn't enough. A split's successful
+ * collection posts through Payment::recordAndAllocateToScheduleId() rather
+ * than recordAndAllocate(),
  * targeting the exact loan_schedules row DebitOrderInstallmentTarget
  * snapshotted at placement time -- this guarantees every split of the same
  * cycle lands on the same row (so "all succeed = Paid, some succeed =
@@ -54,23 +53,21 @@ use App\Support\CollexiaV3Codes;
  */
 class CollexiaPaymentReconciliationService
 {
-    private DebitOrder $debitOrders;
-    private DebitOrderSplitLeg $splitLegs;
     private DebitOrderInstallmentTarget $installmentTargets;
     private DebitOrderCollection $collections;
     private DebitOrderCollectionImport $imports;
     private Loan $loans;
     private Payment $payments;
+    private CollexiaMandateLookupService $lookup;
 
     public function __construct()
     {
-        $this->debitOrders = new DebitOrder();
-        $this->splitLegs = new DebitOrderSplitLeg();
         $this->installmentTargets = new DebitOrderInstallmentTarget();
         $this->collections = new DebitOrderCollection();
         $this->imports = new DebitOrderCollectionImport();
         $this->loans = new Loan();
         $this->payments = new Payment();
+        $this->lookup = new CollexiaMandateLookupService();
     }
 
     /**
@@ -97,16 +94,9 @@ class CollexiaPaymentReconciliationService
             $responseCode = (string) ($row['responseCode'] ?? '');
             $isSuccessful = $responseCode === '0';
 
-            $mandate = $contractReference !== '' ? $this->debitOrders->findByContractNo($contractReference) : null;
-            $splitNo = null;
-            if (!$mandate && $contractReference !== '') {
-                $splitRow = $this->splitLegs->findByContractNo($contractReference);
-                if ($splitRow) {
-                    $mandate = ['id' => $splitRow['debit_order_id'], 'loan_id' => $splitRow['loan_id']];
-                    $splitNo = (int) $splitRow['split_no'];
-                }
-            }
-            $debitOrderId = $mandate['id'] ?? null;
+            $mandate = $this->lookup->resolve($contractReference);
+            $splitNo = $mandate['split_no'] ?? null;
+            $debitOrderId = $mandate['debit_order_id'] ?? null;
             $loanId = $mandate['loan_id'] ?? null;
             $paymentId = null;
 
