@@ -544,6 +544,11 @@ class DebitOrderCollexiaController extends Controller
             $this->flashCollexiaDebug($client, 'Final Fate');
 
             $loaded = !empty($result['mandateLoaded']);
+            // authorizationOutstanding (spec 9.5): 1-Y, 2-N -- a mandate can
+            // come back "loaded" but still awaiting the debtor's/bank's own
+            // authorization step, so a plain "Registered" would overstate
+            // how final this actually is.
+            $authOutstanding = $loaded && (int) ($result['authorizationOutstanding'] ?? 2) === 1;
             $this->debitOrders->updateCollexiaApiState((int) $id, [
                 'collexia_api_status' => $loaded ? 'Registered' : 'Load Failed',
                 'collexia_api_last_response' => json_encode($result),
@@ -552,7 +557,7 @@ class DebitOrderCollexiaController extends Controller
 
             Audit::log('Update', 'Debit Orders', 'Checked Collexia final fate for debit order #' . $id . ' -> ' . ($loaded ? 'Registered' : 'Load Failed'));
             Session::flash($loaded ? 'success' : 'error', $loaded
-                ? 'Mandate confirmed registered.'
+                ? ('Mandate confirmed registered.' . ($authOutstanding ? ' Authorization is still outstanding -- Collexia has not yet confirmed the debtor/bank has authorized it.' : ''))
                 : 'The mandate did not register (code ' . ($result['mandateLoadedResponseCode'] ?? '?') . ').');
         } catch (\RuntimeException $e) {
             if (isset($client)) {
@@ -570,6 +575,7 @@ class DebitOrderCollexiaController extends Controller
         $splits = $this->splitLegs->activeForDebitOrder($id);
         $attempted = false;
         $allLoaded = true;
+        $anyAuthOutstanding = false;
 
         foreach ($splits as $split) {
             // Also re-checks a Load Failed split, as long as it has a
@@ -588,6 +594,9 @@ class DebitOrderCollexiaController extends Controller
                 $client = new CollexiaEndoApiClient();
                 $result = $client->requestFinalFate((string) $split['collexia_api_contract_reference'], $this->frontEndUserName());
                 $loaded = !empty($result['mandateLoaded']);
+                if ($loaded && (int) ($result['authorizationOutstanding'] ?? 2) === 1) {
+                    $anyAuthOutstanding = true;
+                }
 
                 $this->splitLegs->updateState($id, (int) $split['split_no'], [
                     'collexia_api_status' => $loaded ? 'Registered' : 'Load Failed',
@@ -610,7 +619,7 @@ class DebitOrderCollexiaController extends Controller
 
         Audit::log('Update', 'Debit Orders', 'Checked Collexia final fate for split debit order #' . $id);
         Session::flash($allLoaded ? 'success' : 'error', $allLoaded
-            ? 'All submitted split transactions confirmed registered.'
+            ? ('All submitted split transactions confirmed registered.' . ($anyAuthOutstanding ? ' At least one still has authorization outstanding -- Collexia has not yet confirmed the debtor/bank has authorized it.' : ''))
             : 'At least one split transaction did not register. See Split Transactions for details.');
     }
 

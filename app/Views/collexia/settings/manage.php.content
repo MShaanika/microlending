@@ -168,8 +168,9 @@ $statusBadge = [
           <td>
             Collexia validates the debtor's account number and account type against the receiving
             bank's own records (CDV) before accepting a mandate -- "5645" rejects a bad account number,
-            "5646" a mismatched account type. These come back as plain rejection text, which DesertLedger
-            already surfaces as-is.
+            "5646" a mismatched account type, and "5647" a general CDV error (account number, account
+            type, or branch). These come back as plain rejection text, which DesertLedger already
+            surfaces as-is.
           </td>
         </tr>
         <tr>
