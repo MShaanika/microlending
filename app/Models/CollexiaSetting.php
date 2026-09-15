@@ -161,13 +161,14 @@ class CollexiaSetting extends Model
      * Collexia rejects a single mandate above some maximum amount with
      * "10569 Mandate amount limit exceeded" -- confirmed by direct evidence
      * (debit order #36: N$548.33 registered fine, twice; N$1,096.66 was
-     * rejected with this exact code), but the real threshold has never been
-     * confirmed by Collexia in writing. This is a locally-configured,
-     * deliberately conservative safety limit (default N$1,000, safely
-     * between the two known data points), NOT a Collexia-confirmed number --
-     * adjust it once Collexia states their actual limit. Returns null if
-     * blanked out in Settings (no local limit enforced, e.g. once a real
-     * confirmed value makes this check obsolete or unnecessary).
+     * rejected with this exact code). Collexia has since confirmed
+     * (2026-09-15, via their product contact) this limit is a
+     * sandbox/UAT-only restriction and will not apply once live in
+     * production. This is a locally-configured, deliberately conservative
+     * safety limit (default N$1,000) for testing against the UAT
+     * environment -- blank it out in Settings before going live so
+     * production placements are never blocked by a UAT-only restriction.
+     * Returns null once blanked (no local limit enforced).
      */
     public function maxSingleMandateAmount(): ?float
     {
