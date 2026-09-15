@@ -48,12 +48,16 @@ class HrmAttendanceController extends Controller
         if ($month < 1 || $month > 12) {
             $month = (int) date('n');
         }
+        $employeeId = (int) ($_GET['employee_id'] ?? 0);
 
         $monthStart = sprintf('%04d-%02d-01', $year, $month);
         $daysInMonth = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
         $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
 
-        $employees = $this->employees->allEmployees(['status' => 'Active']);
+        $allEmployees = $this->employees->allEmployees(['status' => 'Active']);
+        $employees = $employeeId
+            ? array_values(array_filter($allEmployees, fn ($e) => (int) $e['id'] === $employeeId))
+            : $allEmployees;
         $attendanceMap = $this->attendances->forRange($monthStart, $monthEnd);
         $leaveMap = $this->leaveApplications->approvedInRange($monthStart, $monthEnd);
         $holidays = $this->holidays->inRange($monthStart, $monthEnd);
@@ -66,6 +70,8 @@ class HrmAttendanceController extends Controller
             'daysInMonth' => $daysInMonth,
             'year' => $year,
             'month' => $month,
+            'employeeId' => $employeeId,
+            'allEmployees' => $allEmployees,
         ]);
     }
 
@@ -114,7 +120,12 @@ class HrmAttendanceController extends Controller
             'employees' => $this->employees->allEmployees(),
             'shifts' => $this->shifts->allShifts(true),
             'today' => date('Y-m-d'),
-            'old' => [],
+            // Pre-fills when opened from the Attendance Report grid's a
+            // blank/pending day cell -- see report.php.content.
+            'old' => array_filter([
+                'employee_id' => $_GET['employee_id'] ?? null,
+                'attendance_date' => $_GET['date'] ?? null,
+            ]),
             'errors' => [],
         ];
 

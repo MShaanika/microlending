@@ -14,6 +14,15 @@
     </div>
 
     <form method="get" action="<?= url('/hrm/attendance/report') ?>" class="row g-2 align-items-end mb-3">
+      <div class="col-md-4">
+        <label class="form-label small mb-0">Employee</label>
+        <select name="employee_id" class="form-select">
+          <option value="">All Employees</option>
+          <?php foreach ($allEmployees as $emp): ?>
+            <option value="<?= (int) $emp['id'] ?>" <?= $employeeId === (int) $emp['id'] ? 'selected' : '' ?>><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
       <div class="col-md-3">
         <label class="form-label small mb-0">Month</label>
         <select name="month" class="form-select">
@@ -72,7 +81,7 @@
                 <div class="fw-semibold"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></div>
                 <div class="text-muted small"><?= e($emp['employee_no']) ?></div>
               </td>
-              <?php foreach ($row['days'] as $cell): ?>
+              <?php $dayNum = 0; foreach ($row['days'] as $cell): $dayNum++; ?>
                 <?php
                   $icon = [
                     'present' => 'mdi-check-circle text-success',
@@ -90,8 +99,23 @@
                     'overtime' => 'mdi-timer-plus-outline text-info',
                     'holiday' => 'mdi-star text-info',
                   ];
+                  $cellDate = sprintf('%04d-%02d-%02d', $year, $month, $dayNum);
+                  // A day with a recorded attendance row opens it for editing;
+                  // a still-blank past/today day opens Add Attendance
+                  // pre-filled for this employee + date -- clicking any cell
+                  // in the grid is the fast path into the same modal forms
+                  // /hrm/attendance/create and /edit already use elsewhere.
+                  $editUrl = null;
+                  if (Auth::can('hrm.manage')) {
+                      if (!empty($cell['record_id'])) {
+                          $editUrl = url('/hrm/attendance/' . $cell['record_id'] . '/edit');
+                      } elseif ($cell['code'] === 'pending') {
+                          $editUrl = url('/hrm/attendance/create?employee_id=' . (int) $emp['id'] . '&date=' . $cellDate);
+                      }
+                  }
                 ?>
-                <td class="text-center" title="<?= e($cell['title'] ?? '') ?>">
+                <td class="text-center<?= $editUrl ? ' attendance-cell-editable' : '' ?>" title="<?= e($cell['title'] ?? '') ?>"
+                  <?php if ($editUrl): ?>data-modal-url="<?= $editUrl ?>" data-modal-title="<?= !empty($cell['record_id']) ? 'Edit Attendance' : 'Add Attendance' ?>" data-modal-size="lg" role="button"<?php endif; ?>>
                   <?php if ($icon): ?><i class="mdi <?= $icon ?>"></i><?php endif; ?>
                   <?php foreach (($cell['flags'] ?? []) as $flag): ?>
                     <i class="mdi <?= $flagIcon[$flag] ?? '' ?>" style="font-size: 0.7rem;"></i>
@@ -105,3 +129,8 @@
     </div>
   </div>
 </div>
+
+<style>
+  .attendance-cell-editable { cursor: pointer; }
+  .attendance-cell-editable:hover { background-color: rgba(13, 110, 253, 0.08); }
+</style>
