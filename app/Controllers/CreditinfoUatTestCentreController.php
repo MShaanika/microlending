@@ -90,8 +90,16 @@ class CreditinfoUatTestCentreController extends Controller
 
         try {
             $bureau = new CreditinfoBureauClient();
+            // firstName/presentSurname/gender/dateOfBirth/mobilePhone are
+            // ALL hard, server-side-required fields on search/smart/
+            // individual -- confirmed live against UAT 2026-09-16, sending
+            // any of them blank gets the whole request rejected with a
+            // validation error (e.g. "DateOfBirth cannot be empty") before
+            // Creditinfo even looks at the National ID. dateOfBirth/
+            // mobilePhone use the vendor's own "Example of fields on the
+            // inquiry" values, confirmed to pass validation.
             $search = $bureau->searchIndividual(
-                ['idNumber' => $testId, 'gender' => $genderCode, 'firstName' => 'UAT', 'presentSurname' => 'TestSubject', 'dateOfBirth' => '', 'mobilePhone' => ''],
+                ['idNumber' => $testId, 'gender' => $genderCode, 'firstName' => 'UAT', 'presentSurname' => 'TestSubject', 'dateOfBirth' => '1976-07-16T00:00:00', 'mobilePhone' => '86123456789'],
                 $inquiryReason,
                 true,
                 false,

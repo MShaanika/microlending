@@ -222,10 +222,22 @@ class CreditinfoAssessmentController extends Controller
         // loan_applications.extra_data['dob'] (Back Office intake only) --
         // never derived from the National ID. Null when genuinely
         // unavailable (Agent Self-Service / public online intake, not yet
-        // converted to a borrower) -- the search proceeds without it
-        // rather than blocking, since the supplied Postman collection
-        // doesn't confirm dateOfBirth as mandatory for Smart Search.
+        // converted to a borrower).
+        //
+        // Confirmed live against UAT 2026-09-16: dateOfBirth (along with
+        // firstName/presentSurname/gender/mobilePhone) is a hard,
+        // server-side-required field on search/smart/individual -- sending
+        // it blank doesn't degrade gracefully, Creditinfo rejects the whole
+        // request with "DateOfBirth cannot be empty" (HTTP 400). Blocked
+        // here with the same pre-flight pattern as the gender code above,
+        // rather than letting a real applicant's missing DOB surface as a
+        // raw API validation error.
         $dateOfBirth = $this->resolveDateOfBirth($application);
+        if ($dateOfBirth === null) {
+            Session::flash('error', 'This application has no date of birth on file -- Creditinfo requires it to run a search. Add it to the application/borrower record first.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
 
         try {
             $this->applications->transaction(function () use ($id, $application, $consent, $nationalId, $isUatTestId, $environment, $genderCode, $dateOfBirth, $inquiryReasonSearch, $inquiryReasonReport, $userId, $key) {
@@ -238,7 +250,7 @@ class CreditinfoAssessmentController extends Controller
                         'gender' => $genderCode,
                         'firstName' => (string) $application['applicant_first_name'],
                         'presentSurname' => (string) $application['applicant_last_name'],
-                        'dateOfBirth' => $dateOfBirth ?? '',
+                        'dateOfBirth' => $dateOfBirth,
                         'mobilePhone' => (string) $application['applicant_phone'],
                     ],
                     $inquiryReasonSearch,
