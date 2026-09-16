@@ -137,8 +137,8 @@ class CreditinfoSettingController extends Controller
             return;
         }
 
+        $client = new CreditinfoClient();
         try {
-            $client = new CreditinfoClient();
             $client->getAccessToken('settings_test');
             $userId = Auth::user()['id'] ?? null;
             $this->settings->set('creditinfo_last_successful_connection_at', date('Y-m-d H:i:s'), $userId);
@@ -148,7 +148,18 @@ class CreditinfoSettingController extends Controller
             Audit::log('Update', 'Creditinfo', 'Tested Creditinfo connection -- failed');
             Session::flash('error', 'Could not connect to Creditinfo: ' . $e->getMessage());
         }
+        $this->flashCreditinfoDebug($client, 'Test Connection');
 
         $this->redirect('/creditinfo/settings/manage');
+    }
+
+    /** Prints the request/response of the last call to the browser console (never the secret/token) -- same UAT debug pattern DebitOrderCollexiaController::flashCollexiaDebug() already established. */
+    private function flashCreditinfoDebug(CreditinfoClient $client, string $action): void
+    {
+        $debug = $client->lastDebug();
+        if ($debug === null) {
+            return;
+        }
+        Session::flash('creditinfo_debug', json_encode(array_merge(['action' => $action], $debug)));
     }
 }

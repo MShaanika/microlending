@@ -59,7 +59,14 @@ class CreditinfoClient
         return $this->lastDebug;
     }
 
-    /** Cached token if still fresh, else a fresh one fetched and stored -- never logged, never returned via lastDebug(). */
+    /**
+     * Cached token if still fresh, else a fresh one fetched and stored.
+     * Populates lastDebug() same as get()/post() -- client_secret is
+     * never included in the redacted request shown, and a successful
+     * response has its access_token replaced with a placeholder before
+     * being stored, so a live bearer token is never printed to the
+     * browser console either.
+     */
     public function getAccessToken(string $source = 'application_check'): string
     {
         $cached = $this->settings->cachedAccessToken(self::TOKEN_SAFETY_MARGIN_SECONDS);
@@ -76,6 +83,8 @@ class CreditinfoClient
         if ($authUrl === null || $clientId === null || $clientSecret === null) {
             throw new CreditinfoAuthException('Creditinfo is not configured -- see Settings > Integrations > Creditinfo.');
         }
+
+        $debugRequestBody = ['grant_type' => 'client_credentials', 'scope' => $scope, 'client_id' => $clientId, 'client_secret' => '(hidden)'];
 
         $ch = curl_init($authUrl);
         curl_setopt_array($ch, [
@@ -97,19 +106,27 @@ class CreditinfoClient
         $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         if ($response === false) {
+            $this->lastDebug = ['path' => '/connect/token', 'requestBody' => $debugRequestBody, 'httpCode' => 0, 'responseRaw' => '(no response -- ' . $error . ')'];
             $this->logDiagnostic($source, '/connect/token', null, 0, null, $durationMs, 'TIMEOUT', $error);
             throw new CreditinfoAuthException('Failed to reach the Creditinfo authentication endpoint: ' . $error);
         }
 
         $data = json_decode((string) $response, true);
         if ($httpCode >= 400 || !is_array($data) || empty($data['access_token'])) {
+            $this->lastDebug = ['path' => '/connect/token', 'requestBody' => $debugRequestBody, 'httpCode' => $httpCode, 'responseRaw' => (string) $response];
             $this->logDiagnostic($source, '/connect/token', null, $httpCode, null, $durationMs, (string) $httpCode, 'Authentication failed');
             // Never include $response verbatim in the exception message -- an
             // OAuth2 error body can legitimately echo back the client_id and
             // could, depending on the provider, echo more; keep it out of
-            // anything that might get displayed or logged.
+            // anything that might get displayed or logged. lastDebug() above
+            // is the deliberate, opt-in channel for seeing it (UAT console
+            // only), this exception message is not.
             throw new CreditinfoAuthException('Creditinfo authentication failed (HTTP ' . $httpCode . ').', $httpCode);
         }
+
+        $redactedResponse = $data;
+        $redactedResponse['access_token'] = '(redacted)';
+        $this->lastDebug = ['path' => '/connect/token', 'requestBody' => $debugRequestBody, 'httpCode' => $httpCode, 'responseRaw' => json_encode($redactedResponse)];
 
         $expiresIn = (int) ($data['expires_in'] ?? 3600);
         $this->settings->storeAccessToken((string) $data['access_token'], $expiresIn, null);

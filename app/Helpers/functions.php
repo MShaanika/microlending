@@ -213,5 +213,15 @@ function flash_messages(): string
             . ', "font-weight:bold;color:#25a9e0;", ' . $collexiaDebug . ');</script>';
     }
 
+    // Same UAT debug pattern as collexia_debug above, for Creditinfo --
+    // see CreditinfoClient::lastDebug()/CreditinfoSettingController::
+    // flashCreditinfoDebug(). Never the client secret or a live access
+    // token, both are redacted before this ever reaches the session.
+    $creditinfoDebug = \App\Core\Session::flash('creditinfo_debug');
+    if ($creditinfoDebug) {
+        $html .= '<script>console.log("%cCreditinfo API — " + ' . json_encode(json_decode($creditinfoDebug, true)['action'] ?? '')
+            . ', "font-weight:bold;color:#7c3aed;", ' . $creditinfoDebug . ');</script>';
+    }
+
     return $html;
 }

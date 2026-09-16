@@ -17,7 +17,6 @@ $statusBadge = [
       <span class="badge <?= $statusBadge ?>"><?= e($status) ?></span>
     </div>
     <p class="text-muted small mb-3">
-      Credit bureau check credentials (Creditinfo Namibia CBS REST API).
       <a href="<?= url('/creditinfo/settings') ?>">Back to status</a>.
     </p>
 
@@ -33,7 +32,6 @@ $statusBadge = [
       <div class="form-check form-switch mb-3">
         <input type="checkbox" class="form-check-input" id="creditinfo_enabled" name="creditinfo_enabled" <?= $enabled ? 'checked' : '' ?>>
         <label class="form-check-label" for="creditinfo_enabled">Enable Creditinfo</label>
-        <div class="form-text">Requires every field below. Rejected server-side if anything's missing.</div>
       </div>
 
       <hr>
@@ -45,7 +43,6 @@ $statusBadge = [
             <option value="uat" <?= ($settings['creditinfo_environment'] ?? 'uat') === 'uat' ? 'selected' : '' ?>>UAT</option>
             <option value="production" <?= ($settings['creditinfo_environment'] ?? '') === 'production' ? 'selected' : '' ?>>Production</option>
           </select>
-          <div class="form-text">Every actual call stays in UAT until this is deliberately switched.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">API Version</label>
@@ -80,20 +77,17 @@ $statusBadge = [
           <input type="password" name="creditinfo_client_secret" class="form-control" autocomplete="new-password" placeholder="<?= $clientSecretSet ? '••••••••' : 'Not yet supplied' ?>">
         </div>
       </div>
-      <p class="text-muted small mb-3">Client Secret is encrypted, never shown again after saving. Leave blank to keep the current value.</p>
+      <p class="text-muted small mb-3">Leave Client Secret blank to keep the current value.</p>
 
       <hr>
-      <h5 class="mb-1">Inquiry Reason Mapping <span class="badge bg-success-subtle text-success">Vendor Confirmed</span></h5>
-      <p class="text-muted small mb-2">
-        Creditinfo has confirmed both the code table below AND that <code>search/smart/individual</code> and <code>reports/custom</code> share ONE integer enum (superseding the manual's original, incorrect implication that search took a string enum). Which code DesertLedger sends for a given scenario is still our own business choice, editable below -- for a normal new loan application / affordability assessment, Creditinfo-confirmed code <strong>1</strong> (ApplicationForCreditOrAmendmentOfCreditTerms) is the recommended default.
-      </p>
+      <h5 class="mb-1">Inquiry Reason Mapping</h5>
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Inquiry Reason (Search)</label>
           <select name="creditinfo_inquiry_reason_search" class="form-select">
             <?php foreach (\App\Support\CreditinfoV3Codes::INQUIRY_REASONS as $code => $label): ?>
               <option value="<?= (int) $code ?>" <?= (int) ($settings['creditinfo_inquiry_reason_search'] ?? \App\Support\CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON) === $code ? 'selected' : '' ?>>
-                <?= (int) $code ?> = <?= e($label) ?><?= $code === \App\Support\CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON ? ' -- recommended for a new loan application' : '' ?>
+                <?= (int) $code ?> = <?= e($label) ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -107,16 +101,11 @@ $statusBadge = [
               </option>
             <?php endforeach; ?>
           </select>
-          <div class="form-text">Sent verbatim on <code>reports/custom</code>. Code 36 (CustomerInquiry) is the vendor's own working example and the current default.</div>
         </div>
       </div>
-      <p class="text-muted small mb-3">Both values above use the same Creditinfo-confirmed code table (<code>App\Support\CreditinfoV3Codes</code>) -- there is nothing left to independently confirm about what a given code means, only which one fits a given business scenario.</p>
 
       <hr>
-      <h5 class="mb-1">Gender Code Mapping <span class="badge bg-success-subtle text-success">Vendor Confirmed</span></h5>
-      <p class="text-muted small mb-2">
-        Creditinfo has confirmed in writing: <strong>1 = Male</strong>, <strong>2 = Female</strong> (<code>App\Support\CreditinfoV3Codes</code>). Still read from settings rather than hardcoded, so a future vendor correction is a settings change, not a deploy. A credit check remains blocked for any applicant while either field is unset.
-      </p>
+      <h5 class="mb-1">Gender Code Mapping</h5>
       <div class="row">
         <div class="col-md-3 mb-3">
           <label class="form-label">Code for Male</label>
@@ -135,7 +124,7 @@ $statusBadge = [
     <form method="post" action="<?= url('/creditinfo/settings/test') ?>" class="d-inline">
       <?= csrf_field() ?>
       <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-connection"></i> Test Connection</button>
-      <span class="text-muted small ms-2">Requests a live token from the UAT authentication endpoint only -- does not run a credit check.</span>
+      <span class="text-muted small ms-2">Request/response logged to the browser console.</span>
     </form>
   </div>
 </div>
