@@ -22,11 +22,16 @@ class CreditinfoDiagnosticLog extends Model
 {
     public function record(array $data): int
     {
+        // national_id_used is never a real column (creditinfo_diagnostic_log
+        // only has national_id_masked) -- it must come out of $data
+        // unconditionally, not just when it happened to carry a value, or an
+        // insert with no national ID (every call that isn't a subject
+        // search: auth, report fetch, PDF, etc.) fails on an unknown column
+        // and gets silently dropped by logDiagnostic()'s catch-all.
         if (!empty($data['national_id_used'])) {
             $data['national_id_masked'] = self::maskNationalId((string) $data['national_id_used']);
-            unset($data['national_id_used']);
         }
-        unset($data['subject_token'], $data['report_token'], $data['access_token'], $data['client_secret'], $data['authorization']);
+        unset($data['national_id_used'], $data['subject_token'], $data['report_token'], $data['access_token'], $data['client_secret'], $data['authorization']);
 
         return $this->insert('creditinfo_diagnostic_log', $data);
     }
