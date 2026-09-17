@@ -17,7 +17,7 @@
       <h4 class="mb-1 text-white"><?= e($greeting) ?>, <?= e($firstName) ?>!</h4>
       <p class="mb-0 opacity-75"><?= e(date('l, d F Y')) ?></p>
     </div>
-    <a href="<?= asset('Staff_User_Guide.docx') ?>" class="btn btn-light btn-sm" target="_blank"><i class="mdi mdi-book-open-page-variant"></i> Staff User Guide</a>
+    <a href="<?= url('/documentation/staff-guide/download') ?>" class="btn btn-light btn-sm" target="_blank"><i class="mdi mdi-book-open-page-variant"></i> Staff User Guide</a>
   </div>
 </div>
 
