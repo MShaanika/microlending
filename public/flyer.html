@@ -491,6 +491,17 @@
     color: var(--ink-faint);
   }
 
+  .form-note.is-error { color: #e0645f; }
+  .form-note.is-success { color: var(--accent); }
+
+  .hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
   @media (max-width: 760px) {
     .contact { grid-template-columns: 1fr; }
   }
@@ -694,8 +705,9 @@
       <input type="text" name="name" placeholder="Your name" required>
       <input type="email" name="email" placeholder="Your email" required>
       <textarea name="message" placeholder="What would you like to know?" rows="3" required></textarea>
+      <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
       <button type="submit" class="btn">Send message <span aria-hidden="true">&rarr;</span></button>
-      <p class="form-note">Opens in your email app, addressed to nestor@kodecamp.org.</p>
+      <p class="form-note" id="formNote">Sent straight to our team.</p>
     </form>
   </div>
 </div>
@@ -709,12 +721,36 @@
 <script>
   document.getElementById('contactForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var name = this.name.value.trim();
-    var email = this.email.value.trim();
-    var message = this.message.value.trim();
-    var subject = 'DesertLedger enquiry from ' + name;
-    var body = message + '\n\n' + name + '\n' + email;
-    window.location.href = 'mailto:nestor@kodecamp.org?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    var form = this;
+    var note = document.getElementById('formNote');
+    var button = form.querySelector('button[type="submit"]');
+    var buttonLabel = button.innerHTML;
+
+    button.disabled = true;
+    button.textContent = 'Sending…';
+    note.className = 'form-note';
+    note.textContent = 'Sending…';
+
+    fetch('/flyer/contact', { method: 'POST', body: new FormData(form) })
+      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+      .then(function (result) {
+        if (result.ok && result.data.status === 'success') {
+          note.className = 'form-note is-success';
+          note.textContent = 'Thanks — we\'ll be in touch shortly.';
+          form.reset();
+        } else {
+          note.className = 'form-note is-error';
+          note.textContent = (result.data && result.data.message) || 'Something went wrong. Please email us directly instead.';
+        }
+      })
+      .catch(function () {
+        note.className = 'form-note is-error';
+        note.textContent = 'Could not reach the server. Please email us directly instead.';
+      })
+      .finally(function () {
+        button.disabled = false;
+        button.innerHTML = buttonLabel;
+      });
   });
 </script>
 

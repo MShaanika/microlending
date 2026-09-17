@@ -140,6 +140,7 @@ use App\Controllers\PortalController;
 use App\Controllers\ApplicationController;
 use App\Controllers\ApplicationIntakeController;
 use App\Controllers\VoiceCallWebhookController;
+use App\Controllers\FlyerContactController;
 use App\Controllers\IntakeSourceController;
 use App\Controllers\RescheduleController;
 use App\Controllers\DebitOrderController;
@@ -378,6 +379,10 @@ $router->post('/api/applications/{sourceCode}', [ApplicationIntakeController::cl
 // Public, unauthenticated webhook -- Bland AI posts call completion/citation
 // events here. Security is the random token in the URL, not a session.
 $router->post('/api/voice-calls/webhook/{token}', [VoiceCallWebhookController::class, 'receive']);
+
+// Public, unauthenticated contact form -- public/flyer.html (a static page,
+// so no session/CSRF) POSTs here. See FlyerContactController.
+$router->post('/flyer/contact', [FlyerContactController::class, 'submit']);
 
 // Borrower letter requests (Completion / Consolidation) -- staff fulfil by uploading the prepared PDF
 $router->get('/letters', [LetterController::class, 'index']);

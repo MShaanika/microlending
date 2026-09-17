@@ -19,7 +19,7 @@ class EmailSenderService
      * @param array<int, array{content: string, filename: string, mime: string}> $attachments
      * @return array{success: bool, providerReference: ?string, error: ?string}
      */
-    public static function send(string $to, string $subject, string $body, ?string $toName = null, bool $isHtml = false, array $attachments = []): array
+    public static function send(string $to, string $subject, string $body, ?string $toName = null, bool $isHtml = false, array $attachments = [], ?string $replyTo = null, ?string $replyToName = null): array
     {
         $settings = new NotificationSetting();
         $host = $settings->get('SMTP_HOST');
@@ -52,6 +52,9 @@ class EmailSenderService
                 $settings->get('SMTP_FROM_NAME', 'DesertLedger')
             );
             $mail->addAddress($to, $toName ?? '');
+            if ($replyTo !== null) {
+                $mail->addReplyTo($replyTo, $replyToName ?? '');
+            }
             $mail->Subject = $subject;
             $mail->Body = $body;
             $mail->isHTML($isHtml);
