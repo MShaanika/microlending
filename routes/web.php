@@ -148,6 +148,9 @@ use App\Controllers\DebitOrderCancellationController;
 use App\Controllers\DebitOrderRunController;
 use App\Controllers\DebitOrderCollectionController;
 use App\Controllers\DebitOrderCollexiaController;
+use App\Controllers\PublicHolidayController;
+use App\Controllers\PayCyclePolicyController;
+use App\Controllers\CollectionDateAdjustmentController;
 use App\Controllers\CollexiaSettingController;
 use App\Controllers\CreditinfoSettingController;
 use App\Controllers\CreditinfoAssessmentController;
@@ -230,6 +233,26 @@ $router->post('/debit-orders', [DebitOrderController::class, 'store']);
 $router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
 $router->get('/debit-orders/{id}/edit', [DebitOrderController::class, 'edit']);
 $router->post('/debit-orders/{id}', [DebitOrderController::class, 'update']);
+
+// Pay-cycle-aware collection date adjustments (Governance & Control /
+// Collections cross-cutting -- see database/pay_cycle_module.sql)
+$router->get('/public-holidays', [PublicHolidayController::class, 'index']);
+$router->post('/public-holidays', [PublicHolidayController::class, 'store']);
+$router->post('/public-holidays/{id}/toggle', [PublicHolidayController::class, 'toggleActive']);
+$router->post('/public-holidays/import', [PublicHolidayController::class, 'import']);
+$router->post('/public-holidays/copy-previous-year', [PublicHolidayController::class, 'copyPreviousYear']);
+
+$router->get('/pay-cycle-policies', [PayCyclePolicyController::class, 'index']);
+$router->post('/pay-cycle-policies', [PayCyclePolicyController::class, 'store']);
+$router->post('/pay-cycle-policies/{id}', [PayCyclePolicyController::class, 'update']);
+$router->post('/pay-cycle-policies/employer-mapping', [PayCyclePolicyController::class, 'mapEmployer']);
+$router->post('/pay-cycle-policies/employer-mapping/{id}/toggle', [PayCyclePolicyController::class, 'toggleEmployerMapping']);
+
+$router->get('/collection-date-adjustments', [CollectionDateAdjustmentController::class, 'index']);
+$router->post('/collection-date-adjustments/generate', [CollectionDateAdjustmentController::class, 'generatePreview']);
+$router->post('/collection-date-adjustments/{batchId}/submit', [CollectionDateAdjustmentController::class, 'submitForApproval']);
+$router->post('/collection-date-adjustments/{batchId}/approve', [CollectionDateAdjustmentController::class, 'approveBatch']);
+$router->post('/collection-date-adjustments/{batchId}/reject', [CollectionDateAdjustmentController::class, 'rejectBatch']);
 
 $router->get('/collexia/settings', [CollexiaSettingController::class, 'edit']);
 $router->get('/collexia/settings/manage', [CollexiaSettingController::class, 'manage']);

@@ -1,0 +1,143 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h4 class="card-title mb-2">Pay-Cycle Policies</h4>
+    <p class="text-muted small">An employer-level template -- assign it to an employer once below, and every borrower currently captured under that employer inherits it automatically. Never inferred from the employer's name.</p>
+
+    <div class="table-responsive mb-3">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Policy</th><th>Normal Pay Day</th><th>Non-Business-Day Rule</th><th>Employers</th><th>Borrowers (direct)</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($policies)): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">No pay-cycle policies yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($policies as $p): $formId = 'policy-form-' . $p['id']; ?>
+            <tr>
+              <!-- form="<id>" on each control below, rather than a <form>
+                   spanning multiple <td>s -- a form element can't legally
+                   cross table-cell boundaries (same class of bug fixed
+                   earlier in split_transactions.php.content). -->
+              <td>
+                <strong><?= e($p['policy_name']) ?></strong>
+                <?php if ($p['description']): ?><div class="small text-muted"><?= e($p['description']) ?></div><?php endif; ?>
+                <form id="<?= $formId ?>" method="post" action="<?= url('/pay-cycle-policies/' . $p['id']) ?>"><?= csrf_field() ?></form>
+              </td>
+              <td>
+                <input type="number" form="<?= $formId ?>" name="normal_pay_day" min="1" max="31" value="<?= (int) $p['normal_pay_day'] ?>" class="form-control form-control-sm" style="width:70px">
+              </td>
+              <td>
+                <select form="<?= $formId ?>" name="non_business_day_rule" class="form-select form-select-sm" style="width:auto">
+                  <option value="NONE" <?= $p['non_business_day_rule'] === 'NONE' ? 'selected' : '' ?>>None</option>
+                  <option value="PREVIOUS_BUSINESS_DAY" <?= $p['non_business_day_rule'] === 'PREVIOUS_BUSINESS_DAY' ? 'selected' : '' ?>>Previous business day</option>
+                  <option value="NEXT_BUSINESS_DAY" <?= $p['non_business_day_rule'] === 'NEXT_BUSINESS_DAY' ? 'selected' : '' ?>>Next business day</option>
+                </select>
+              </td>
+              <td><span class="badge bg-info"><?= (int) $p['employer_count'] ?></span></td>
+              <td><span class="badge bg-secondary"><?= (int) $p['borrower_count'] ?></span></td>
+              <td>
+                <div class="form-check form-switch d-inline-block">
+                  <input type="checkbox" form="<?= $formId ?>" name="is_active" class="form-check-input" value="1" <?= $p['is_active'] ? 'checked' : '' ?>>
+                </div>
+                <button type="submit" form="<?= $formId ?>" class="btn btn-sm btn-outline-secondary">Save</button>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post" action="<?= url('/pay-cycle-policies') ?>" class="border rounded p-3">
+      <h6>New Policy</h6>
+      <?= csrf_field() ?>
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small">Policy Name</label>
+          <input type="text" name="policy_name" class="form-control form-control-sm" placeholder="e.g. Government Payroll" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Normal Pay Day</label>
+          <input type="number" name="normal_pay_day" min="1" max="31" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Non-Business-Day Rule</label>
+          <select name="non_business_day_rule" class="form-select form-select-sm">
+            <option value="NONE">None</option>
+            <option value="PREVIOUS_BUSINESS_DAY">Previous business day</option>
+            <option value="NEXT_BUSINESS_DAY">Next business day</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Description</label>
+          <input type="text" name="description" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-1">
+          <button type="submit" class="btn btn-info btn-sm">Add</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Employer &rarr; Policy Mapping</h5>
+    <p class="text-muted small">Exact employer name match only -- pick from employer names already captured on borrower records, never a typed guess.</p>
+
+    <div class="table-responsive mb-3">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Employer</th><th>Policy</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($employerMappings)): ?>
+            <tr><td colspan="4" class="text-center text-muted py-3">No employer mappings yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($employerMappings as $m): ?>
+            <tr>
+              <td><?= e($m['employer_name']) ?></td>
+              <td><?= e($m['policy_name']) ?></td>
+              <td><span class="badge bg-<?= $m['is_active'] ? 'success' : 'secondary' ?>"><?= $m['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+              <td>
+                <form method="post" action="<?= url('/pay-cycle-policies/employer-mapping/' . $m['id'] . '/toggle') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="active" value="<?= $m['is_active'] ?>">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary"><?= $m['is_active'] ? 'Deactivate' : 'Activate' ?></button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php if (!empty($unmappedEmployerNames)): ?>
+      <p class="small text-muted mb-2"><strong><?= count($unmappedEmployerNames) ?></strong> employer name(s) currently in use with no policy mapping yet.</p>
+    <?php endif; ?>
+
+    <form method="post" action="<?= url('/pay-cycle-policies/employer-mapping') ?>" class="row g-2 align-items-end">
+      <?= csrf_field() ?>
+      <div class="col-md-5">
+        <label class="form-label small">Employer</label>
+        <select name="employer_name" class="form-select form-select-sm" required>
+          <option value="">Select employer&hellip;</option>
+          <?php foreach ($unmappedEmployerNames as $name): ?>
+            <option value="<?= e($name) ?>"><?= e($name) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small">Policy</label>
+        <select name="pay_cycle_policy_id" class="form-select form-select-sm" required>
+          <option value="">Select policy&hellip;</option>
+          <?php foreach ($policies as $p): ?>
+            <option value="<?= (int) $p['id'] ?>"><?= e($p['policy_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info btn-sm">Map Employer</button>
+      </div>
+    </form>
+  </div>
+</div>

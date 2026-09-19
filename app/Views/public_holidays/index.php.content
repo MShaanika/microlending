@@ -1,0 +1,100 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h4 class="card-title mb-0">Public Holidays</h4>
+      <form method="get" class="d-flex align-items-center gap-2">
+        <label class="text-muted small mb-0">Year</label>
+        <select name="year" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+          <?php for ($y = (int) date('Y') + 1; $y >= (int) date('Y') - 2; $y--): ?>
+            <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>><?= $y ?></option>
+          <?php endfor; ?>
+        </select>
+      </form>
+    </div>
+    <p class="text-muted small">Nothing here is guessed or hard-coded -- an administrator enters the real gazetted Namibian public holiday list. Used by every pay-cycle adjustment calculation.</p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Date</th><th>Holiday Name</th><th>Year</th><th>Source</th><th>Active</th><th>Created By</th><th></th></tr>
+        </thead>
+        <tbody>
+          <?php if (empty($holidays)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">No holidays captured for <?= $year ?> yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($holidays as $h): ?>
+            <tr class="<?= $h['is_active'] ? '' : 'text-muted' ?>">
+              <td><?= e(date('d M Y', strtotime($h['holiday_date']))) ?></td>
+              <td><?= e($h['holiday_name']) ?></td>
+              <td><?= (int) $h['year'] ?></td>
+              <td><span class="badge bg-secondary"><?= e($h['source']) ?></span><?= $h['copied_from_year'] ? ' <span class="small text-muted">from ' . (int) $h['copied_from_year'] . '</span>' : '' ?></td>
+              <td><span class="badge bg-<?= $h['is_active'] ? 'success' : 'warning' ?>"><?= $h['is_active'] ? 'Active' : 'Draft / Inactive' ?></span></td>
+              <td class="small text-muted"><?= e($h['created_by_name'] ?? '—') ?></td>
+              <td>
+                <form method="post" action="<?= url('/public-holidays/' . $h['id'] . '/toggle') ?>" class="d-inline">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-sm btn-outline-secondary"><?= $h['is_active'] ? 'Deactivate' : 'Activate' ?></button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Add Holiday</h6>
+        <form method="post" action="<?= url('/public-holidays') ?>">
+          <?= csrf_field() ?>
+          <div class="mb-2">
+            <label class="form-label small">Date</label>
+            <input type="date" name="holiday_date" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Holiday Name</label>
+            <input type="text" name="holiday_name" class="form-control form-control-sm" placeholder="e.g. Heroes' Day" required>
+          </div>
+          <button type="submit" class="btn btn-info btn-sm">Add Holiday</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Import Holidays</h6>
+        <p class="text-muted small">One per line: <code>YYYY-MM-DD,Holiday Name</code>. Imported rows are inserted active -- treated as an already-confirmed list.</p>
+        <form method="post" action="<?= url('/public-holidays/import') ?>">
+          <?= csrf_field() ?>
+          <textarea name="csv_data" class="form-control form-control-sm mb-2" rows="5" placeholder="2027-03-21,Independence Day&#10;2027-05-01,Workers' Day"></textarea>
+          <button type="submit" class="btn btn-outline-info btn-sm">Import Holidays</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Copy Previous Year</h6>
+        <p class="text-muted small">Shifts each active holiday by +1 year as an <strong>inactive draft</strong> for review -- Easter-linked and similar dates change annually and are never auto-activated.</p>
+        <form method="post" action="<?= url('/public-holidays/copy-previous-year') ?>">
+          <?= csrf_field() ?>
+          <div class="mb-2">
+            <label class="form-label small">Copy from year</label>
+            <input type="number" name="from_year" class="form-control form-control-sm" value="<?= $year - 1 ?>" required>
+          </div>
+          <button type="submit" class="btn btn-outline-warning btn-sm">Copy Previous Year</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

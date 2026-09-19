@@ -1,0 +1,147 @@
+<?= flash_messages() ?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="card-title mb-1">Collection Date Adjustments</h4>
+        <p class="text-muted small mb-0">Proposed shifts to when a debit order is collected, so it lines up with when the borrower is actually paid -- never changes the contractual due date. Rolling 30-day window, refreshed automatically once daily and on demand below.</p>
+      </div>
+      <form method="post" action="<?= url('/collection-date-adjustments/generate') ?>">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-refresh"></i> Generate / Refresh Preview</button>
+      </form>
+    </div>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+      <div class="col-md-2">
+        <label class="form-label small">Month</label>
+        <input type="month" name="month" class="form-control form-control-sm" value="<?= e($filters['month']) ?>">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Employer</label>
+        <select name="employer" class="form-select form-select-sm">
+          <option value="">All</option>
+          <?php foreach ($employers as $emp): ?>
+            <option value="<?= e($emp) ?>" <?= $filters['employer'] === $emp ? 'selected' : '' ?>><?= e($emp) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Policy</label>
+        <select name="policy_id" class="form-select form-select-sm">
+          <option value="">All</option>
+          <?php foreach ($policyOptions as $p): ?>
+            <option value="<?= (int) $p['id'] ?>" <?= (int) $filters['policy_id'] === (int) $p['id'] ? 'selected' : '' ?>><?= e($p['policy_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Adjustment Reason</label>
+        <input type="text" name="reason" class="form-control form-control-sm" placeholder="Search reason&hellip;" value="<?= e($filters['reason']) ?>">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Approval Status</label>
+        <select name="approval_status" class="form-select form-select-sm">
+          <option value="">All</option>
+          <?php foreach (['PENDING_REVIEW', 'SUBMITTED', 'APPROVED', 'REJECTED', 'RETURNED'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['approval_status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Collexia Status</label>
+        <select name="collexia_status" class="form-select form-select-sm">
+          <option value="">All</option>
+          <?php foreach (['NOT_APPLIED', 'READY', 'APPLIED', 'FAILED', 'SUPERSEDED'] as $s): ?>
+            <option value="<?= $s ?>" <?= $filters['collexia_status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+        <a href="<?= url('/collection-date-adjustments') ?>" class="btn btn-outline-secondary btn-sm">Clear</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle table-sm">
+        <thead>
+          <tr>
+            <th>Client</th><th>Employer</th><th>Loan</th>
+            <th>Contract Due</th><th>Normal Pay Date</th><th>Adjusted Pay Date</th><th>Proposed Collection</th>
+            <th>Reason</th><th>Collexia Status</th><th>Approval Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($rows)): ?>
+            <tr><td colspan="11" class="text-center text-muted py-4">No adjustments match these filters. Click "Generate / Refresh Preview" to scan the next 30 days.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($rows as $r): ?>
+            <tr>
+              <td><?= e($r['borrower_name']) ?> <span class="text-muted small">(<?= e($r['borrower_no']) ?>)</span></td>
+              <td><?= e($r['employer_name'] ?? '—') ?></td>
+              <td><?= e($r['loan_no']) ?></td>
+              <td><?= e(date('d M Y', strtotime($r['contractual_due_date']))) ?></td>
+              <td><?= e(date('d M Y', strtotime($r['normal_pay_date']))) ?></td>
+              <td><?= e(date('d M Y', strtotime($r['adjusted_pay_date']))) ?></td>
+              <td>
+                <?= e(date('d M Y', strtotime($r['proposed_collection_date']))) ?>
+                <?php if ($r['requires_manual_flag'] === 'CROSS_PERIOD_ADJUSTMENT'): ?>
+                  <div><span class="badge bg-warning text-dark" title="Adjusted date falls in a different month/year than the normal pay date -- requires individual manual review, excluded from bulk selection.">CROSS_PERIOD_ADJUSTMENT</span></div>
+                <?php endif; ?>
+              </td>
+              <td class="small"><?= e($r['adjustment_reason']) ?></td>
+              <td><span class="badge bg-<?= $r['collexia_status'] === 'APPLIED' ? 'success' : ($r['collexia_status'] === 'FAILED' ? 'danger' : 'secondary') ?>"><?= e($r['collexia_status']) ?></span></td>
+              <td><span class="badge bg-<?= match ($r['approval_status']) { 'APPROVED' => 'success', 'REJECTED' => 'danger', 'SUBMITTED' => 'warning', default => 'secondary' } ?>"><?= e($r['approval_status']) ?></span></td>
+              <td>
+                <?php if ($r['approval_status'] === 'PENDING_REVIEW'): ?>
+                  <form method="post" action="<?= url('/collection-date-adjustments/' . $r['batch_id'] . '/submit') ?>" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Submit Batch</button>
+                  </form>
+                <?php elseif ($r['approval_status'] === 'SUBMITTED'): ?>
+                  <form method="post" action="<?= url('/collection-date-adjustments/' . $r['batch_id'] . '/approve') ?>" class="d-inline" onsubmit="return confirm('Approve batch #<?= (int) $r['batch_id'] ?>? This does not call Collexia yet -- automatic application is still disabled.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-success">Approve</button>
+                  </form>
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal<?= (int) $r['batch_id'] ?>">Reject</button>
+                  <div class="modal fade" id="rejectModal<?= (int) $r['batch_id'] ?>" tabindex="-1">
+                    <div class="modal-dialog">
+                      <form method="post" action="<?= url('/collection-date-adjustments/' . $r['batch_id'] . '/reject') ?>" class="modal-content">
+                        <?= csrf_field() ?>
+                        <div class="modal-header"><h6 class="modal-title">Reject batch #<?= (int) $r['batch_id'] ?></h6></div>
+                        <div class="modal-body">
+                          <label class="form-label small">Reason (required)</label>
+                          <textarea name="comments" class="form-control form-control-sm" rows="2" required></textarea>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                <?php else: ?>
+                  <span class="text-muted small">Batch #<?= (int) $r['batch_id'] ?></span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php if ($total > $perPage): ?>
+      <nav>
+        <ul class="pagination pagination-sm">
+          <?php for ($p = 1; $p <= (int) ceil($total / $perPage); $p++): ?>
+            <li class="page-item <?= $p === $page ? 'active' : '' ?>">
+              <a class="page-link" href="?<?= http_build_query(array_merge($filters, ['page' => $p])) ?>"><?= $p ?></a>
+            </li>
+          <?php endfor; ?>
+        </ul>
+      </nav>
+    <?php endif; ?>
+  </div>
+</div>
