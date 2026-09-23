@@ -11,8 +11,10 @@ use App\Models\HrmAttendance;
 use App\Models\HrmEmployee;
 use App\Models\HrmLeaveApplication;
 use App\Models\HrmLeaveType;
+use App\Models\Company;
 use App\Models\HrmPayroll;
 use App\Models\HrmPayrollEntry;
+use App\Services\PayslipPdfExporter;
 use DateTime;
 
 /**
@@ -187,6 +189,39 @@ class EmployeeSelfServiceController extends Controller
             'deductions' => json_decode($entry['deductions_breakdown'] ?? '[]', true) ?: [],
             'staffLoans' => json_decode($entry['staff_loans_breakdown'] ?? '[]', true) ?: [],
         ]);
+    }
+
+    public function payslipPdf(int $entryId): void
+    {
+        $employee = $this->resolveEmployee();
+        if (!$employee) {
+            return;
+        }
+
+        $entry = $this->payrollEntries->find($entryId);
+        if (!$entry || (int) $entry['employee_id'] !== (int) $employee['id']) {
+            Session::flash('error', 'Payslip not found.');
+            $this->redirect('/my/payslips');
+            return;
+        }
+        $payroll = $this->payrolls->find((int) $entry['payroll_id']);
+
+        $allowances = json_decode($entry['allowances_breakdown'] ?? '[]', true) ?: [];
+        $deductions = json_decode($entry['deductions_breakdown'] ?? '[]', true) ?: [];
+        $staffLoans = json_decode($entry['staff_loans_breakdown'] ?? '[]', true) ?: [];
+        $company = (new Company())->primary() ?: [];
+
+        ob_start();
+        $pdf = PayslipPdfExporter::build($payroll, $entry, $allowances, $deductions, $staffLoans, $company);
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment;filename="Payslip_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $entry['employee_no'] . '_' . $payroll['title']) . '.pdf"');
+        header('Cache-Control: max-age=0');
+        echo $pdf;
+        exit;
     }
 
     public function attendance(): void

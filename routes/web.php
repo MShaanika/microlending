@@ -905,6 +905,7 @@ $router->get('/hrm/payrolls/{id}', [HrmPayrollController::class, 'show']);
 $router->post('/hrm/payrolls/{id}/run', [HrmPayrollController::class, 'run']);
 $router->post('/hrm/payrolls/{payrollId}/entries/{entryId}/mark-paid', [HrmPayrollController::class, 'markEntryPaid']);
 $router->get('/hrm/payrolls/{payrollId}/entries/{entryId}/payslip', [HrmPayrollController::class, 'payslip']);
+$router->get('/hrm/payrolls/{payrollId}/entries/{entryId}/payslip.pdf', [HrmPayrollController::class, 'payslipPdf']);
 
 // Employee Self-Service -- gated by "must be logged in and linked to an
 // employee record", not hrm.view/hrm.manage -- every employee sees only
@@ -915,6 +916,7 @@ $router->post('/my/leave', [EmployeeSelfServiceController::class, 'leaveStore'])
 $router->get('/my/leave/balance', [EmployeeSelfServiceController::class, 'leaveBalance']);
 $router->get('/my/payslips', [EmployeeSelfServiceController::class, 'payslips']);
 $router->get('/my/payslips/{entryId}', [EmployeeSelfServiceController::class, 'payslip']);
+$router->get('/my/payslips/{entryId}/download.pdf', [EmployeeSelfServiceController::class, 'payslipPdf']);
 $router->get('/my/attendance', [EmployeeSelfServiceController::class, 'attendance']);
 
 // Marketing agent self-service -- gated by AgentSelfServiceController::

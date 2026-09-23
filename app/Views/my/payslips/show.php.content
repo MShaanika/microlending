@@ -5,6 +5,7 @@
   <h4 class="mb-0">Payslip</h4>
   <div>
     <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="mdi mdi-printer"></i> Print</button>
+    <a href="<?= url('/my/payslips/' . $entry['id'] . '/download.pdf') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-download"></i> Download</a>
     <a href="<?= url('/my/payslips') ?>" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>

@@ -8,9 +8,11 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\BankAccount;
+use App\Models\Company;
 use App\Models\HrmPayroll;
 use App\Models\HrmPayrollEntry;
 use App\Services\PayrollService;
+use App\Services\PayslipPdfExporter;
 use DateTime;
 
 class HrmPayrollController extends Controller
@@ -217,6 +219,40 @@ class HrmPayrollController extends Controller
             'deductions' => json_decode($entry['deductions_breakdown'] ?? '[]', true) ?: [],
             'staffLoans' => json_decode($entry['staff_loans_breakdown'] ?? '[]', true) ?: [],
         ]);
+    }
+
+    public function payslipPdf(int $payrollId, int $entryId): void
+    {
+        Auth::authorize('hrm.view');
+
+        $payroll = $this->payrolls->find($payrollId);
+        $entry = $this->entries->find($entryId);
+        if (!$payroll || !$entry || (int) $entry['payroll_id'] !== $payrollId) {
+            Session::flash('error', 'Payslip not found.');
+            $this->redirect('/hrm/payrolls/' . $payrollId);
+            return;
+        }
+
+        $allowances = json_decode($entry['allowances_breakdown'] ?? '[]', true) ?: [];
+        $deductions = json_decode($entry['deductions_breakdown'] ?? '[]', true) ?: [];
+        $staffLoans = json_decode($entry['staff_loans_breakdown'] ?? '[]', true) ?: [];
+        $company = (new Company())->primary() ?: [];
+
+        // Dompdf can echo PHP deprecation notices directly to output while
+        // rendering -- buffer explicitly around the build call so that
+        // never reaches the response and corrupts it (same guard as
+        // LoanController::statementPdf()).
+        ob_start();
+        $pdf = PayslipPdfExporter::build($payroll, $entry, $allowances, $deductions, $staffLoans, $company);
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment;filename="Payslip_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $entry['employee_no'] . '_' . $payroll['title']) . '.pdf"');
+        header('Cache-Control: max-age=0');
+        echo $pdf;
+        exit;
     }
 
     public function markEntryPaid(int $payrollId, int $entryId): void
