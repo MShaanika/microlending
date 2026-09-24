@@ -89,7 +89,15 @@ class CollexiaPaymentReconciliationService
         $posted = 0;
 
         foreach ($responses as $row) {
-            $contractReference = (string) ($row['contractReference'] ?? '');
+            // Confirmed against a real live Download Payments response
+            // (2026-09-24 UAT retest): the field is contractReferenceNumber,
+            // not contractReference -- the latter was an incorrect
+            // assumption that silently left $mandate null for every row,
+            // so no real successful (responseCode "0") collection was ever
+            // auto-posted via this path. Falls back to contractReference
+            // only in case a different Collexia environment/version uses
+            // that name instead.
+            $contractReference = (string) ($row['contractReferenceNumber'] ?? $row['contractReference'] ?? '');
             $installmentNo = (int) ($row['installmentNo'] ?? 0);
             $responseCode = (string) ($row['responseCode'] ?? '');
             $isSuccessful = $responseCode === '0';
