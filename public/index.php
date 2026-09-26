@@ -5,6 +5,10 @@ $config = require dirname(__DIR__) . '/bootstrap/app.php';
 
 use App\Core\Router;
 
+if (\App\Support\DemoMode::enabled()) {
+    header('X-Robots-Tag: noindex, nofollow');
+}
+
 // Public API routes (/api/*) are called cross-origin by external client
 // websites, so a CORS preflight (OPTIONS) must succeed before the browser
 // sends the real POST. The actual Access-Control-Allow-Origin value is set

@@ -11,7 +11,7 @@ class Database
     {
         if (self::$pdo) return self::$pdo;
         $c = require ROOT_PATH . '/config/database.php';
-        $dsn = "mysql:host={$c['host']};port={$c['port']};dbname={$c['database']};charset={$c['charset']}";
+        $dsn = "mysql:host={$c['host']};port={$c['port']};dbname=" . (getenv('MLS_DB_NAME') ?: $c['database']) . ";charset={$c['charset']}";
         try {
             self::$pdo = new PDO($dsn, $c['username'], $c['password'], [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

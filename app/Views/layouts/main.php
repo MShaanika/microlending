@@ -664,7 +664,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             foreach ($menu['groups'] as $groupName => $group) {
               $menus[$menuName]['groups'][$groupName]['items'] = array_values(array_filter(
                   $group['items'],
-                  fn ($item) => Auth::can($item['perm'])
+                  fn ($item) => Auth::can($item['perm']) && !\App\Support\DemoMode::isPathHidden((string) parse_url($item['url'] ?? '', PHP_URL_PATH))
               ));
               if (empty($menus[$menuName]['groups'][$groupName]['items'])) {
                   unset($menus[$menuName]['groups'][$groupName]);

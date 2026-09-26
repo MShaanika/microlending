@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FinancialService",
+  "name": "Solid Desert Cash Loan Express CC",
+  "url": "https://solid-desert.com/",
+  "logo": "https://solid-desert.com/assets/images/logo.png",
+  "description": "Solid Desert Cash Loan Express CC offers quick and reliable loan services in Namibia.",
+  "areaServed": "Namibia"
+}
+</script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Solid Desert Cash Loan Express CC | Official Website Namibia</title>
+
+<meta name="description" content="Solid Desert Cash Loan Express CC offers quick, reliable loan services in Namibia. Learn about our services, requirements, forms, and contact details.">
+<meta name="keywords" content="Solid Desert Cash Loan Express CC, Namibia loans, cash loan Namibia, loan application, Solid Desert, Oranjemund loans">
+<meta name="author" content="Solid Desert Cash Loan Express CC">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://solid-desert.com/">
+
+<!-- Favicons -->
+<link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo-light.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/images/logo.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/images/logo.png">
+
+<!-- Open Graph / Social Sharing -->
+<meta property="og:title" content="Solid Desert Cash Loan Express CC | Official Website Namibia">
+<meta property="og:description" content="Quick, reliable loan services in Namibia. View requirements, forms, services, and contact details for Solid Desert Cash Loan Express CC.">
+<meta property="og:image" content="https://solid-desert.com/assets/images/logo.png">
+<meta property="og:url" content="https://solid-desert.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Solid Desert Cash Loan Express CC">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Solid Desert Cash Loan Express CC | Official Website Namibia">
+<meta name="twitter:description" content="Quick, reliable loan services in Namibia. View requirements, forms, services, and contact details.">
+<meta name="twitter:image" content="https://solid-desert.com/assets/images/logo.png">
+
+<!-- Fonts / CSS -->
+<link rel="stylesheet" href="assets/css/bootstrap.min.css">
+<link rel="stylesheet" href="assets/css/fontawesome-all.min.css">
+<link rel="stylesheet" href="assets/css/swiper.min.css">
+<link rel="stylesheet" href="assets/css/animate.min.css">
+<link rel="stylesheet" href="assets/css/pylon-icons.css">
+<link rel="stylesheet" href="assets/css/odometer.min.css">
+<link rel="stylesheet" href="assets/css/magnific-popup.css">
+<link rel="stylesheet" href="assets/css/bootstrap-select.min.css">
+<link rel="stylesheet" href="assets/css/nouislider.min.css">
+<link rel="stylesheet" href="assets/css/nouislider.pips.css">
+<link rel="stylesheet" href="assets/css/flaticon.css">
+<link rel="stylesheet" href="assets/css/owl.carousel.min.css">
+<link rel="stylesheet" href="assets/css/pylon-two-icons.css">
+<link rel="stylesheet" href="assets/css/jquery-ui.css">
+<link rel="stylesheet" href="assets/css/custom-animation.css">
+<link rel="stylesheet" href="assets/css/main.css">
+	<style>
+	
+	html {
+  scroll-behavior: smooth;
+}
+
+
+.message-alert {
+    padding: 15px 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    position: relative;
+    border-left: 5px solid;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.message-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left-color: #28a745;
+}
+
+.message-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left-color: #dc3545;
+}
+
+.message-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+}
+
+.message-close:hover {
+    opacity: 1;
+}
+
+.message-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.message-id {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .message-alert {
+        margin: 15px 10px;
+        padding: 12px 15px;
+        font-size: 14px;
+    }
+}
+</style>
+<!-- Add this PHP code at the top of your index.php (after opening -->
+
+<!-- Add this JavaScript code before closing </body> tag -->
+<script>
+function closeMessage() {
+    const messageAlert = document.getElementById('messageAlert');
+    if (messageAlert) {
+        messageAlert.style.display = 'none';
+        
+        // Optional: Remove the URL parameters to clean up the URL
+        if (window.history && window.history.replaceState) {
+            const url = new URL(window.location);
+            url.searchParams.delete('status');
+            url.searchParams.delete('message');
+            url.searchParams.delete('id');
+            window.history.replaceState({}, document.title, url.pathname + url.search);
+        }
+    }
+}
+
+// Auto-hide success messages after 8 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const messageAlert = document.getElementById('messageAlert');
+    if (messageAlert && messageAlert.classList.contains('message-success')) {
+        setTimeout(function() {
+            if (messageAlert.style.display !== 'none') {
+                messageAlert.style.opacity = '0';
+                setTimeout(function() {
+                    closeMessage();
+                }, 300);
+            }
+        }, 8000);
+    }
+});
+</script>
+
+<!-- Add this HTML where you want the message to appear (typically near the top of your page content) -->
+</head>
+
+<body>
+	<div class="preloader">
+		<img class="preloader__image" src="assets/images/logo-light.png" loading="lazy" alt="">
+	</div><!-- /.preloader -->
+	<div class="page-wrapper">
+
+<!------header----------->
+<style>
+/* Fix Twitter X icon */
+.topbar__social i.fa-x-twitter::before {
+  font-family: "Font Awesome 6 Brands";
+  content: "\e61b";
+}
+
+/* Make contact info texts white */
+.main-header-two__info__list__content,
+.main-header-two__info__list__content a {
+  color: #fff !important;
+}
+
+/* li elements borders */
+.main-header-two__info__list li {
+  border-left: 1px solid #ffc107;
+  border-right: 1px solid #ffc107;
+}
+
+.main-header-two__info__inner {
+  border-bottom: 1px solid #ffc107;
+}
+
+/* Apply button style */
+.btn-apply {
+  display: inline-block;
+  background-color: #ffc107;
+  color: #000;
+  font-weight: bold;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.btn-apply:hover {
+  background-color: #e0a800;
+  color: #fff;
+}
+
+/* All main nav links white and bold */
+.main-menu__list li a {
+  color: #fff !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 8px 12px;
+  transition: color 0.3s ease;
+}
+
+.main-menu__list li a:hover {
+  color: #ffc107 !important;
+}
+
+.btn-apply {
+  display: inline-block;
+  background-color: #ffc107;
+  color: #000;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.btn-apply:hover {
+  background-color: #e0a800;
+  color: black !important;
+}
+
+.main-header-two__info__list .fab.fa-whatsapp {
+  color: #25D366;
+  font-size: 1.2em;
+}
+
+/* Modal styling */
+.modal-modern .modal-content {
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.20);
+}
+
+.modal-header-modern {
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+}
+
+.modal-header-modern.success {
+  background: linear-gradient(135deg, #198754, #157347);
+}
+
+.modal-header-modern h5 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.modal-header-modern h5 svg,
+.modal-footer-modern button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-close-modern {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-close-modern svg {
+  width: 22px;
+  height: 22px;
+}
+
+.modal-body-modern {
+  padding: 22px;
+  background: #fff;
+}
+
+.modal-footer-modern {
+  padding: 16px 22px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #fff;
+}
+
+.form-group-modern label {
+  font-weight: 600;
+  margin-bottom: 7px;
+  display: block;
+  color: #222;
+}
+
+.form-control-modern,
+.form-select-modern {
+  border-radius: 10px;
+  border: 1px solid #dcdcdc;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.form-control-modern:focus,
+.form-select-modern:focus {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25,135,84,.15);
+  outline: none;
+}
+
+.required::after {
+  content: " *";
+  color: red;
+}
+
+.btn-modern {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.btn-success-modern {
+  background: #198754;
+  color: #fff;
+}
+
+.btn-success-modern:hover {
+  background: #157347;
+}
+
+.upload-note {
+  font-size: 13px;
+  color: #666;
+  margin-top: 6px;
+}
+
+
+/* SHOW CLAIM REFUND ON SMALL DEVICES */
+@media (max-width: 767px) {
+
+  .topbar-two {
+    display: block !important;
+    padding: 8px 0 !important;
+  }
+
+  .topbar-two .container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .topbar__right,
+  .topbar__social {
+    display: none !important;
+  }
+
+  .topbar-two__menu {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .topbar-two__menu li {
+    display: none !important;
+  }
+
+  .topbar-two__menu li:first-child {
+    display: block !important;
+  }
+
+  .topbar-two__menu li:first-child a {
+    display: inline-block !important;
+    background: #ffc107 !important;
+    color: #000 !important;
+    font-weight: 800 !important;
+    padding: 9px 18px !important;
+    border-radius: 30px !important;
+    text-transform: uppercase !important;
+    font-size: 13px !important;
+  }
+}
+</style>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DJMHYEWE39"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-DJMHYEWE39');
+</script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+  var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+  s1.async=true;
+  s1.src='https://embed.tawk.to/6899f7fd0016c719246d140f/1j2cn1ec0';
+  s1.charset='UTF-8';
+  s1.setAttribute('crossorigin','*');
+  s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+<div class="main-header-two">
+  <div class="topbar-two" style="background-color: #21232a !important">
+    <div class="container">
+      <div class="topbar__right">
+        <a href="mailto:info@solid-desert.com">
+          <i class="pylon-two-icon-paper-plane"></i>
+          <span>info@solid-desert.com</span>
+        </a>
+
+        <a href="#"><i class="pylon-two-icon-clock"></i>MON - FRIDAY 08H00 - 18H00</a>
+      </div>
+
+      <ul class="topbar-two__menu list-unstyled">
+        <li><a href="#" data-bs-toggle="modal" data-bs-target="#addModal">Claim Refund</a></li>
+        <li><a href="/service_area/system/login.php">Login</a></li>
+        <li><a href="news.php">News & Events</a></li>
+        <li><a href="faq.php">FAQs</a></li>
+        <li><a href="gallery.php">Gallery</a></li>
+       <!------------ <li><a target="_blank" href="https://solid-desert.com/hr_system/public/careers/">Careers</a></li>-------------->
+        <li><a target="_blank" href="https://erp.kodecamp.org/solid-desert-cash-loan-express-cc/careers/">Careers</a></li>
+      </ul>
+
+      <div class="topbar__social">
+        <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://x.com" target="_blank"><i class="fab fa-x-twitter"></i></a>
+        <a href="https://instagram.com" target="_blank"><i class="fab fa-instagram"></i></a>
+        <a href="https://linkedin.com" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-header-two__info" style="background-color: #2a2d35 !important">
+    <div class="container">
+      <div class="main-header-two__info__inner">
+        <div class="logo-box">
+          <a href="index.php" aria-label="logo image">
+            <img src="assets/images/logo-dark.png" width="155" alt="">
+          </a>
+          <span class="fa fa-bars mobile-nav__toggler"></span>
+        </div>
+
+        <ul class="list-unstyled main-header-two__info__list">
+          <li>
+            <div class="main-header-two__info__list__icon">
+              <i class="pylon-two-icon-phone"></i>
+            </div>
+            <div class="main-header-two__info__list__content">
+              <div class="main-header-two__info__list__text">Call Anytime 24/7</div>
+              <div class="main-header-two__info__list__info">
+                <a href="tel:+264813719403">(+264) 81 371 9403</a>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <div class="main-header-two__info__list__icon">
+              <i class="pylon-two-icon-at-sign"></i>
+            </div>
+            <div class="main-header-two__info__list__content">
+              <div class="main-header-two__info__list__text">Mail Us For Support</div>
+              <div class="main-header-two__info__list__info">
+                <a href="mailto:info@solid-desert.com">
+                  <span>info@solid-desert.com</span>
+                </a>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <div class="main-header-two__info__list__icon">
+              <i class="pylon-two-icon-map-pin"></i>
+            </div>
+            <div class="main-header-two__info__list__content">
+              <div class="main-header-two__info__list__text">Office Address</div>
+              <div class="main-header-two__info__list__info" style="color: #fff !important;">Oranjemund Erf: 1142</div>
+            </div>
+          </li>
+
+          <li>
+            <div class="main-header-two__info__list__icon">
+              <i class="fab fa-whatsapp"></i>
+            </div>
+            <div class="main-header-two__info__list__content">
+              <div class="main-header-two__info__list__text">WhatsApp Us</div>
+              <div class="main-header-two__info__list__info">
+                <a href="https://whatsapp.com/channel/0029VbAf54pFcow6B2YtOG1t" target="_blank">Our Channel</a>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-header-two__menu main-menu" style="background-color: #2a2d35 !important">
+    <div class="container">
+      <ul class="main-menu__list">
+        <li><a href="index.php">HOME</a></li>
+        <li class="dropdown">
+          <a href="about.php">ABOUT</a>
+          <ul style="background-color: #2a2d35 !important">
+            <li><a href="about.php">Our Company</a></li>
+            <li><a href="team.php">Team</a></li>
+          </ul>
+        </li>
+        <li><a href="services.php">SERVICES</a></li>
+        <li class="dropdown">
+          <a href="">FORMS & DOCUMENTS</a>
+          <ul style="background-color: #2a2d35 !important">
+            <li><a href="./loan-documents/Customer_Affordability_Assesment.pdf" target="_blank">Affordability Assesment Form</a></li>
+            <li><a href="./loan-documents/Standard_Loan_Agreement.pdf" target="_blank">Standard Loan Agreement Form</a></li>
+          </ul>
+        </li>
+        <li><a href="contactus.php">CONTACT US</a></li>
+        <li><a href="apply.php" class="apply-nav btn-apply">APPLY NOW</a></li>
+      </ul>
+
+      <div class="main-header-two__form">
+        <form action="#">
+          <label for="search" class="sr-only">search here</label>
+          <input type="text" id="search" placeholder="Search Here..." />
+          <button type="submit" aria-label="search submit" class="thm-btn">
+            <i class="pylon-two-icon-search"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </nav>
+</div>
+
+<div class="stricky-header stricked-menu main-header-two__menu main-menu" style="background-color: #2a2d35 !important">
+  <div class="sticky-header__content"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal fade modal-modern" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <!-- IMPORTANT: enctype added for file upload -->
+ <form method="POST" action="save_refund_public.php" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_time" value="1790419439">
+    <input type="hidden" name="csrf_token" value="6d22d90f340efbf3e0fc20b9b053556994f2103de4595386a3bcfb3ff6662978">
+    <input type="hidden" name="authorised_by" value="Website User">
+    <input type="text" name="website_url" value="" style="display:none;">
+
+    <div class="modal-header-modern success">
+      <h5 id="addModalLabel">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        New Refund Claim
+      </h5>
+      <button type="button" class="btn-close-modern" data-bs-dismiss="modal" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body-modern">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label class="required">Full Name</label>
+            <input type="text" name="full_name" class="form-control form-control-modern" required>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label class="required">ID Number</label>
+            <input type="text" name="id_number" class="form-control form-control-modern" required>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label>Contact Number</label>
+            <input type="text" name="contact_number" class="form-control form-control-modern">
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label class="required">Loan Number</label>
+            <input type="text" name="loan_number" class="form-control form-control-modern" required>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label>Loan Amount</label>
+            <input type="number" step="0.01" name="loan_amount" class="form-control form-control-modern" placeholder="N$ 0.00">
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label class="required">Amount Claimed</label>
+            <input type="number" step="0.01" name="amount_claimed" class="form-control form-control-modern" required placeholder="N$ 0.00">
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label>Loan Date</label>
+            <input type="date" name="loan_date" class="form-control form-control-modern">
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label class="required">Application Date</label>
+            <input type="date" name="application_date" class="form-control form-control-modern" required>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-group-modern">
+            <label>Reason for Refund</label>
+            <textarea name="refund_reason" class="form-control form-control-modern" rows="3" placeholder="Please describe the reason for this refund claim..."></textarea>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label>Proof of Payment</label>
+            <select name="proof_of_payment" class="form-select form-select-modern">
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group-modern">
+            <label>Valid ID Provided</label>
+            <select name="valid_id_provided" class="form-select form-select-modern">
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-group-modern">
+            <label class="required">Merged Document (Bank Statement + ID Copy)</label>
+            <input type="file" name="merged_document" class="form-control form-control-modern" accept=".pdf,.jpg,.jpeg,.png" required>
+            <small style="color:#666;">
+              Upload one merged file containing both the bank statement and ID copy.
+            </small>
+          </div>
+        </div>
+		<div class="col-12">
+		  <div class="form-group-modern">
+			<label class="required">Signature</label>
+
+			<div style="border:2px dashed #ccc; border-radius:10px; background:#fff; padding:8px;">
+			  <canvas id="signature-pad" style="width:100%; height:200px; display:block;"></canvas>
+			</div>
+
+			<input type="hidden" name="signature" id="signature-data">
+
+			<div style="margin-top:10px;">
+			  <button type="button" id="clear-signature" class="btn-modern" style="background:#f8d7da; color:#721c24;">
+				Clear Signature
+			  </button>
+			</div>
+		  </div>
+		</div>
+      </div>
+    </div>
+
+    <div class="modal-footer-modern">
+      <button type="button" class="btn-modern" style="background: #e9ecef; color: #495057;" data-bs-dismiss="modal">
+        Cancel
+      </button>
+      <button type="submit" class="btn-modern btn-success-modern">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Request Refund
+      </button>
+    </div>
+</form>
+
+    </div>
+  </div>
+</div>
+
+<!-- REQUIRED: Bootstrap 5 JS must be loaded for modal to work -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const modal = document.getElementById("addModal");
+  const form = modal.querySelector("form");
+  const canvas = document.getElementById("signature-pad");
+  const clearBtn = document.getElementById("clear-signature");
+  const signatureInput = document.getElementById("signature-data");
+
+  let signaturePad = null;
+
+  function resizeCanvas() {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+    // get visible size after modal opens
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = 200 * ratio;
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(ratio, ratio);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (signaturePad) {
+      signaturePad.clear();
+    }
+  }
+
+  function initSignaturePad() {
+    if (!signaturePad) {
+      signaturePad = new SignaturePad(canvas, {
+        minWidth: 1,
+        maxWidth: 2.5
+      });
+    }
+    resizeCanvas();
+  }
+
+  // VERY IMPORTANT: initialize only when modal is shown
+  modal.addEventListener("shown.bs.modal", function () {
+    initSignaturePad();
+  });
+
+  // optional: clear when modal closes
+  modal.addEventListener("hidden.bs.modal", function () {
+    if (signaturePad) {
+      signaturePad.clear();
+    }
+    signatureInput.value = "";
+  });
+
+  clearBtn.addEventListener("click", function () {
+    if (signaturePad) {
+      signaturePad.clear();
+      signatureInput.value = "";
+    }
+  });
+
+  form.addEventListener("submit", function (e) {
+    if (!signaturePad || signaturePad.isEmpty()) {
+      e.preventDefault();
+      alert("Please provide a signature.");
+      return;
+    }
+
+    signatureInput.value = signaturePad.toDataURL("image/png");
+  });
+
+  window.addEventListener("resize", function () {
+    if (signaturePad && modal.classList.contains("show")) {
+      resizeCanvas();
+    }
+  });
+});
+</script><!-- /.main-header-two -->
+
+
+
+		<section class="main-slider main-slider-two">
+						<div class="swiper-container thm-swiper__slider" data-swiper-options='{
+			        "slidesPerView": 1,
+			        "loop": true,
+			        "effect": "fade",
+			        "autoplay": {
+			            "delay": 5000
+			        },
+			        "navigation": {
+			            "nextEl": "#main-slider__swiper-button-next",
+			            "prevEl": "#main-slider__swiper-button-prev"
+			        }
+			    }'>
+				<div class="swiper-wrapper">
+					<div class="swiper-slide">
+						<div class="image-layer"
+							style="background-image: url(assets/images/update-20-12-2022/resources/slider-1-1.jpg);">
+						</div>
+						<!-- /.image-layer -->
+						<div class="container-fluid">
+							<div class="row">
+								<div class="col-xl-6 col-lg-6">
+									<p>WE ARE HERE FOR YOU...</p>
+									<h2>Fast, Flexible  <br>
+										Loans for Life's <br> <span>Big Moments!</span></h2>
+									<div class="main-slider-two__text">We offer a range of loan amounts tailored to your individual needs , support without the stress.</div>
+									<!-- /.main-slider-two__text -->
+									<a href="apply.php" class=" thm-btn btn-apply" style="background-color: #e0a800;color: black !important;">Apply Now</a>
+									<!-- /.thm-btn dynamic-radius -->
+								</div><!-- /.col-lg-7 text-right -->
+							</div><!-- /.row -->
+						</div><!-- /.container-fluid -->
+					</div><!-- /.swiper-slide -->
+					<div class="swiper-slide">
+						<div class="image-layer"
+							style="background-image: url(assets/images/update-20-12-2022/resources/car.jpeg);">
+						</div>
+						<!-- /.image-layer -->
+						<div class="container-fluid">
+							<div class="row">
+								<div class="col-xl-6 col-lg-6">
+									<p>30% Interest Rate</p>
+									<h2>A Quick, Secure <br>
+										And Transparent <br> <span>Process</span></h2>
+									<div class="main-slider-two__text">Enjoy competitive interest rates starting at 30% with transparent service. No hidden fees or surprises.</div>
+									<!-- /.main-slider-two__text -->
+									<a href="apply.php" class=" thm-btn" style="background-color: #e0a800;color: black !important;">Apply Now</a>
+									<!-- /.thm-btn dynamic-radius -->
+								</div><!-- /.col-lg-7 text-right -->
+							</div><!-- /.row -->
+						</div><!-- /.container-fluid -->
+					</div><!-- /.swiper-slide -->
+					<div class="swiper-slide">
+						<div class="image-layer"
+							style="background-image: url(assets/images/update-20-12-2022/resources/cattles.jpeg);">
+						</div>
+						<!-- /.image-layer -->
+						<div class="container-fluid">
+							<div class="row">
+								<div class="col-xl-6 col-lg-6">
+									<p>Customized Repayment Plans</p>
+									<h2>A Quick, Secure <br>
+										And Transparent <br> <span>Process</span></h2>
+									<div class="main-slider-two__text">Choose flexible repayment options that suit your financial situation.</div>
+									<!-- /.main-slider-two__text -->
+									<a href="apply.php" class=" thm-btn" style="background-color: #e0a800;color: black !important;">Apply Now</a>
+									<!-- /.thm-btn dynamic-radius -->
+								</div><!-- /.col-lg-7 text-right -->
+							</div><!-- /.row -->
+						</div><!-- /.container-fluid -->
+					</div><!-- /.swiper-slide -->
+				</div><!-- /.swiper-wrapper -->
+			</div><!-- /.swiper-container thm-swiper__slider -->
+		</section><!-- /.main-slider -->
+
+<section class="service-four">
+  <div class="container">
+    <div class="service-four__shape"></div>
+    <h1 style="margin-bottom: 70px; text-align:center;">Why Choose Us?</h1>
+    <div class="row">
+
+      <!-- Fast Money -->
+      <div class="col-md-12 col-lg-4 wow fadeInLeft" data-wow-duration="1500ms" data-wow-delay="000ms">
+        <div class="service-four__single">
+          <div class="service-four__single__shape"></div>
+          <div class="service-four__single__inner">
+            <div class="service-four__single__icon">
+              <i class="fa fa-bolt"></i> <!-- Lightning = Speed -->
+            </div>
+            <h3 class="service-four__single__title"><a href="#">Money in 1 Hour!</a></h3>
+            <p class="service-four__single__text">
+              Get fast access to funds when you need them most. We process applications quickly, aiming to provide approved clients with cash in as little as 1 hour.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Helpful Staff -->
+      <div class="col-md-12 col-lg-4 wow fadeInUp" data-wow-duration="1500ms" data-wow-delay="100ms">
+        <div class="service-four__single">
+          <div class="service-four__single__shape"></div>
+          <div class="service-four__single__inner">
+            <div class="service-four__single__icon">
+              <i class="fa fa-headset"></i> <!-- Support/Help Icon -->
+            </div>
+            <h3 class="service-four__single__title"><a href="#">Helpful Staff</a></h3>
+            <p class="service-four__single__text">
+              Our friendly, knowledgeable team is dedicated to guiding you through each step of the process, ensuring a smooth and stress-free experience.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Credit History Considered -->
+      <div class="col-md-12 col-lg-4 wow fadeInRight" data-wow-duration="1500ms" data-wow-delay="200ms">
+        <div class="service-four__single">
+          <div class="service-four__single__shape"></div>
+          <div class="service-four__single__inner">
+            <div class="service-four__single__icon">
+              <i class="fa fa-file-signature"></i> <!-- Document/Approval -->
+            </div>
+            <h3 class="service-four__single__title"><a href="#">Credit History Considered</a></h3>
+            <p class="service-four__single__text">
+              We review each application individually and consider clients with various credit backgrounds.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- /.service-four -->
+
+		<section class="introduction-one">
+			<div class="introduction-one__shape-1"></div><!-- /.introduction-one__shape-1 -->
+			<div class="container">
+				<div class="row">
+					<div class="col-lg-6">
+						<div class="introduction-one__image">
+							<div class="introduction-one__image__shape-1 float-bob-x"></div>
+							<!-- /.introduction-one__image__shape-1 -->
+							<div class="introduction-one__image__shape-2 float-bob-y"></div>
+							<!-- /.introduction-one__image__shape-2 -->
+							<img src="assets/images/update-20-12-2022/resources/6.jpeg" loading="lazy" alt="">
+							<div class="introduction-one__image__caption" >
+								<div class="introduction-one__image__caption__icon">
+									<i class="pylon-two-icon-trophy"></i>
+								</div><!-- /.introduction-one__image__caption__icon -->
+								<div class="introduction-one__image__caption__content">
+									<h3 class="introduction-one__image__caption__title"><span class="odometer"
+											data-count="8"></span>+</h3>
+									<!-- /.introduction-one__image__caption__title -->
+									<p class="introduction-one__image__caption__text">
+										Award Winning</p><!-- /.introduction-one__image__caption__text -->
+								</div><!-- /.introduction-one__image__content -->
+							</div><!-- /.introduction-one__image__caption -->
+						</div><!-- /.introduction-one__image -->
+					</div><!-- /.col-lg-6 -->
+					<div class="col-lg-6">
+						<div class="introduction-one__content">
+							<div class="sec-title-two text-start">
+								<span class="sec-title-two__tagline">
+									<i class="fa fa-star"></i>
+									<span >Our company Over view</span>
+								</span><!-- /.sec-title-two__tagline -->
+								<h2 class="sec-title-two__title ">Welcome to<br>
+									Solid Desert Cash Loan Express
+								</h2>
+								<!-- /.sec-title-two__title -->
+							</div><!-- /.sec-title-two -->
+							
+							<div class="introduction-one__text">At Solid Desert Cash Loan Express, we are committed to providing fast, reliable, and flexible financial solutions to meet your personal and business needs. Whether you're facing unexpected expenses or planning your next big investment, we offer tailored loan options with competitive rates and flexible terms. Our simple, hassle-free application process ensures that you get the funds you need quickly and efficiently. Trust us to be your reliable financial partner, helping you navigate life's challenges with ease. Apply today and experience the Solid Desert difference!
+							</div><!-- /.introduction-one__text -->
+							<div class="introduction-one__caption">
+								<div class="introduction-one__caption__icon">
+									<i class="pylon-two-icon-check-circle"></i>
+								</div><!-- /.introduction-one__caption__icon -->
+								<div class="introduction-one__caption__content">
+									<h3 class="introduction-one__caption__title">Regulated by</h3>
+									<!-- /.introduction-one__caption__title -->
+									<p class="introduction-one__caption__text">Bank of Namibia (BoN), NAMFISA and Ministry of Finance.</p>
+									<!-- /.introduction-one__caption__text -->
+								</div><!-- /.introduction-one__caption__content -->
+							</div><!-- /.introduction-one__caption -->
+							<!-- /.introduction-one__btn -->
+						</div><!-- /.introduction-one__content -->
+					</div><!-- /.col-lg-6 -->
+				</div><!-- /.row -->
+			</div><!-- /.container -->
+		</section><!-- /.introduction-one -->
+
+		
+<section class="loan-calculator-two">
+  <div class="container">
+    <div class="loan-calculator-two__shape-1 float-bob-y"></div>
+    <div class="loan-calculator-two__shape-2 float-bob-x"></div>
+    <div class="loan-calculator-two__inner wow fadeInUp" data-wow-duration="1500ms">
+      <div class="row">
+        <div class="col-lg-6">
+          <div class="sec-title-two text-start">
+            <span class="sec-title-two__tagline">
+              <i class="fa fa-star"></i>
+              <span>Loan Calculator</span>
+            </span>
+            <h2 class="sec-title-two__title">Customize Your Plan</h2>
+          </div>
+
+          <!-- KEEP your sliders as they are -->
+          <div class="loan-slider-box">
+            <!-- Loan Amount slider -->
+            <div class="single-loan-slider">
+              <div class="single-loan-slider__top">
+                <h4>Loan Amount</h4>
+                <div class="single-loan-counter">
+                  <span>N$</span>
+                  <span id="pricipal">100</span>
+                </div>
+              </div>
+              <div id="pricipal-slide"
+                   class="ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content">
+                <div class="ui-slider-range ui-corner-all ui-widget-header ui-slider-range-min"></div>
+                <span tabindex="0"
+                      class="ui-slider-handle ui-corner-all ui-state-default"></span>
+              </div>
+              <div class="single-loan-slider__bottom">
+                <span>N$100</span>
+                <span>N$5000000</span>
+              </div>
+            </div>
+
+            <!-- Loan Months slider -->
+            <div class="single-loan-slider">
+              <div class="single-loan-slider__top">
+                <h4>Loan Months</h4>
+                <div class="single-loan-counter">
+                  <span id="totalyear">5</span>
+                  <span>Months</span>
+                </div>
+              </div>
+              <div id="totalyear-slide"
+                   class="ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content">
+                <div class="ui-slider-range ui-corner-all ui-widget-header ui-slider-range-min"></div>
+                <span tabindex="0"
+                      class="ui-slider-handle ui-corner-all ui-state-default"></span>
+              </div>
+              <div class="single-loan-slider__bottom">
+                <span>1</span>
+                <span>5</span>
+              </div>
+            </div>
+
+            <!-- Interest Rate slider -->
+            <div class="single-loan-slider">
+              <div class="single-loan-slider__top">
+                <h4>Interest Rate</h4>
+                <div class="single-loan-counter">
+                  <span id="intrest">30</span>
+                  <span>%</span>
+                </div>
+              </div>
+              <div id="intrest-slide"
+                   class="ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content">
+                <div class="ui-slider-range ui-corner-all ui-widget-header ui-slider-range-min"></div>
+                <span tabindex="0"
+                      class="ui-slider-handle ui-corner-all ui-state-default"></span>
+              </div>
+              <div class="single-loan-slider__bottom">
+                <span>4</span>
+                <span>16</span>
+              </div>
+            </div>
+
+            <p class="loan-calculator-two__text">
+              *These calculators are provided only as general self-help Planning Tools. Results depend on other factors.
+            </p>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div id="loan-calculator-1" data-interest-rate="15" class="loan-calculator-two__form">
+            <span class="sec-title-two__tagline">
+              <i class="fa fa-star"></i>
+              <span>How Much You Need</span>
+            </span>
+            <div class="loan-calculator-two__form__calculation">
+              <div class="loan-calculator-two__form__emi">
+                <span>Monthly EMI:</span>
+                <b>N$<i id="emi"></i></b>
+              </div>
+              <p>
+                <span>Total Interest</span>
+                <b>N$<i id="tbl_emi"></i></b>
+              </p>
+              <p>
+                <span>Total Amount Payable</span>
+                <b>N$<i id="finalAmount">100</i></b>
+              </p>
+              <p>
+                <span>Total Months</span>
+                <b><i id="t_m">12</i> Months</b>
+              </p>
+              <p>
+                <span>Interest Rate</span>
+                <b><i id="t_ir">30</i>%</b>
+              </p>
+              <!-- New Penalty Row -->
+              <p>
+                <span>Penalty (5%)</span>
+                <b>N$<i id="penaltyAmount">0.00</i></b>
+              </p>
+            </div>
+            <a href="apply.php" class="thm-btn" target="_blank" rel="nofollow">Apply For Loan</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- /.loan-calculator-two -->
+
+		<section class="trusted-company-two">
+			<div class="container">
+				<div class="trusted-company-two__shape-2"></div><!-- /.trusted-company-two__shape-2 -->
+				<div class="trusted-company-two__shape-3"></div><!-- /.trusted-company-two__shape-3 -->
+				<div class="row">
+					<div class="col-xl-6">
+						<div class="trusted-company-two__image wow fadeInLeft" data-wow-duration="1500ms">
+							<div class="trusted-company-two__shape-1"></div><!-- /.trusted-company-two__shape-1 -->
+							<img src="assets/images/logo-dark.png" loading="lazy" alt="">
+						</div><!-- /.trusted-company-two__image -->
+					</div><!-- /.col-xl-6 -->
+					<div class="col-xl-6">
+						<div class="trusted-company-two__content">
+							<div class="sec-title-two text-start">
+								<span class="sec-title-two__tagline">
+									<i class="fa fa-star"></i>
+									<span>Trusted Company</span>
+								</span><!-- /.sec-title-two__tagline -->
+								<h2 class="sec-title-two__title ">Our Loans will Fill Your Dreams Come True</h2>
+								<!-- /.sec-title-two__title -->
+							</div><!-- /.sec-title-two -->
+							<div class="trusted-company-two__text">There are many variations of passages of lorem ipsum
+								available the majority have suffered alteration in some form by injected humour. Duis
+								aute irure dolor lipsum</div><!-- /.trusted-company-two__text -->
+							<ul class="list-unstyled trusted-company-two__list">
+								<li>
+									<div class="trusted-company-two__list__count" style="color: #ffc107">99%</div>
+									<!-- /.trusted-company-two__list__count -->
+									<p class="trusted-company-two__list__text">We Approve Loans</p>
+									<!-- /.trusted-company-two__list__text -->
+								</li>
+								<li>
+									<div class="trusted-company-two__list__count" style="color: #ffc107">N$90 k</div>
+									<!-- /.trusted-company-two__list__count -->
+									<p class="trusted-company-two__list__text">Daily Payments</p>
+									<!-- /.trusted-company-two__list__text -->
+								</li>
+							</ul><!-- /.list-unstyled trusted-company-two__list -->
+							<div class="trusted-company-two__author">
+								<div class="trusted-company-two__author__image">
+									<img src="assets/images/nestor.jpg" loading="lazy" alt="Client Testimonial" style="width: 60px;">
+								</div><!-- /.trusted-company-two__author__image -->
+								<div class="trusted-company-two__author__content">
+									<h3 class="trusted-company-two__author__name">Nestory Festus</h3>
+									<!-- /.trusted-company-two__author__name -->
+									<p class="trusted-company-two__author__designation" style="color: #ffc107">Valued Client</p>
+									<!-- /.trusted-company-two__author__designation -->
+									<p class="trusted-company-two__author__text">
+										I am truly grateful for the support I received from Solid Desert Cash Loan Express. 
+										The process was quick, transparent, and stress-free, and I couldn�t be happier with how 
+										easy it was to access the loan I needed. </p>
+									<!-- /.trusted-company-two__author__text -->
+								</div><!-- /.trusted-company-two__author__content -->
+							</div>
+							<!-- /.trusted-company-two__author -->
+						</div><!-- /.trusted-company-two__content -->
+					</div><!-- /.col-xl-6 -->
+				</div><!-- /.row -->
+			</div><!-- /.container -->
+		</section><!-- /.trusted-company-two -->
+
+		<section class="why-choose-two">
+			<div class="container">
+				<div class="why-choose-two__inner"
+					style="background-image: url(assets/images/update-20-12-2022/resources/progress-bg-1-1.jpg);">
+					<div class="why-choose-two__shape-1"></div><!-- /.why-choose-two__shape-1 -->
+					<div class="why-choose-two__shape-2"></div><!-- /.why-choose-two__shape-2 -->
+					<div class="sec-title-two text-start">
+						<span class="sec-title-two__tagline">
+							<i class="fa fa-star"></i>
+							<span>Our Benifits</span>
+						</span><!-- /.sec-title-two__tagline -->
+						<h2 class="sec-title-two__title ">Why Choose Us?</h2>
+						<!-- /.sec-title-two__title -->
+					</div><!-- /.sec-title-two -->
+					<div class="why-choose-two__text">We process applications quickly, aiming to provide approved clients with cash in as little as 1 hour.</div><!-- /.why-choose-two__text -->
+					<ul class="list-unstyled why-choose-two__progress">
+						<li>
+							<div class="why-choose-two__progress__box">
+								<div class="circleGraphic" data-circle-options='{
+									"color": "#ffc107",
+									"value": 90
+								  }'></div><!-- /.circleGraphic -->
+								<span>90%</span>
+							</div><!-- /.why-choose-two__progress__box -->
+							<h3 class="why-choose-two__progress__title">Loan Proccess</h3>
+							<!-- /.why-choose-two__progress__title -->
+						</li>
+						<li>
+							<div class="why-choose-two__progress__box">
+								<div class="circleGraphic" data-circle-options='{
+									"color": "#ffc107",
+									"value": 80
+								  }'></div><!-- /.circleGraphic -->
+								<span>80%</span>
+							</div><!-- /.why-choose-two__progress__box -->
+							<h3 class="why-choose-two__progress__title">Consultancy</h3>
+							<!-- /.why-choose-two__progress__title -->
+						</li>
+						<li>
+							<div class="why-choose-two__progress__box">
+								<div class="circleGraphic" data-circle-options='{
+									"color": "#ffc107",
+									"value": 86
+								  }'></div><!-- /.circleGraphic -->
+								<span>86%</span>
+							</div><!-- /.why-choose-two__progress__box -->
+							<h3 class="why-choose-two__progress__title">Payment Proccess</h3>
+							<!-- /.why-choose-two__progress__title -->
+						</li>
+						<li>
+							<div class="why-choose-two__progress__box">
+								<div class="circleGraphic" data-circle-options='{
+									"color": "#ffc107",
+									"value": 93
+								  }'></div><!-- /.circleGraphic -->
+								<span>93%</span>
+							</div><!-- /.why-choose-two__progress__box -->
+							<h3 class="why-choose-two__progress__title">Payment Benefits</h3>
+							<!-- /.why-choose-two__progress__title -->
+						</li>
+					</ul><!-- /.list-unstyled why-choose-two__progress -->
+				</div><!-- /.why-choose-two__inner -->
+			</div><!-- /.container -->
+		</section><!-- /.why-choose-two -->
+
+		
+
+<section class="how-works-two">
+  <div class="how-works-two__shape-1 float-bob-y"></div>
+  <div class="how-works-two__shape-2"></div>
+  <div class="container">
+
+    <!-- Section Title -->
+    <div class="sec-title-two text-center">
+      <span class="sec-title-two__tagline">
+        <i class="fa fa-star"></i>
+        <span>Work Process</span>
+      </span>
+      <h2 class="sec-title-two__title">How It Works in Easy Steps</h2>
+    </div>
+
+    <!-- Steps -->
+    <div class="row">
+      <!-- Step 1 -->
+      <div class="col-md-6 col-lg-3 wow fadeInUp" data-wow-duration="1500ms" data-wow-delay="0ms">
+        <div class="how-works-two__single">
+          <div class="how-works-two__single__inner">
+            <i class="how-works-two__single__icon__floated flaticon-peer-to-peer"></i>
+            <i class="how-works-two__single__icon flaticon-peer-to-peer"></i>
+            <h3 class="how-works-two__single__title"><a href="#">Apply Online</a></h3>
+            <p class="how-works-two__single__text">Visit our website and click on <strong>Apply Now</strong>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="col-md-6 col-lg-3 wow fadeInUp" data-wow-duration="1500ms" data-wow-delay="100ms">
+        <div class="how-works-two__single">
+          <div class="how-works-two__single__inner">
+            <i class="how-works-two__single__icon__floated flaticon-bank"></i>
+            <i class="how-works-two__single__icon flaticon-bank"></i>
+            <h3 class="how-works-two__single__title"><a href="#">Fill in Your Details</a></h3>
+            <p class="how-works-two__single__text">Complete the form, upload your documents, and submit.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="col-md-6 col-lg-3 wow fadeInUp" data-wow-duration="1500ms" data-wow-delay="200ms">
+        <div class="how-works-two__single">
+          <div class="how-works-two__single__inner">
+            <i class="how-works-two__single__icon__floated flaticon-payment-1"></i>
+            <i class="how-works-two__single__icon flaticon-payment-1"></i>
+            <h3 class="how-works-two__single__title"><a href="#">Application Review</a></h3>
+            <p class="how-works-two__single__text">Our team reviews your application and gets back to you promptly.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="col-md-6 col-lg-3 wow fadeInUp" data-wow-duration="1500ms" data-wow-delay="300ms">
+        <div class="how-works-two__single">
+          <div class="how-works-two__single__inner">
+            <i class="how-works-two__single__icon__floated flaticon-save-money"></i>
+            <i class="how-works-two__single__icon flaticon-save-money"></i>
+            <h3 class="how-works-two__single__title"><a href="#">Receive Your Loan</a></h3>
+            <p class="how-works-two__single__text">Once approved, the loan is disbursed directly to your account.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Button -->
+    <div class="how-works-two__btns text-center">
+      <a href="/apply.php" class=" thm-btn" style="background-color: #e0a800;color: black !important;">Apply Now</a>
+    </div>
+
+  </div>
+</section>
+
+
+		<section class="blog-one">
+			<div class="container">
+				<div class="blog-one__top">
+					<div class="sec-title-two">
+						<span class="sec-title-two__tagline">
+							<i class="fa fa-star"></i>
+							<span>Blog & Articles</span>
+						</span><!-- /.sec-title-two__tagline -->
+						<h2 class="sec-title-two__title sec-title-two__title--light ">From Our Blog List <br> Latest
+							News
+							& Article</h2>
+						<!-- /.sec-title-two__title -->
+					</div><!-- /.sec-title-two -->
+				</div><!-- /.blog-one__top -->
+				<div class="blog-one__bottom wow fadeInUp" data-wow-duration="1500ms">
+					<div class="row">
+						<div class="col-md-12 col-lg-4">
+							<div class="blog-one__single">
+								<div class="blog-one__single__image">
+									<img src="assets/images/update-20-12-2022/resources/car.png" loading="lazy" alt="">
+									<div class="blog-one__single__category">Car Loan</div>
+									<!-- /.blog-one__single__category -->
+									<a href="" class="blog-one__single__arrow">
+										<i class="pylon-two-icon-arrow-right"></i>
+									</a>
+								</div><!-- /.blog-one__single__image -->
+								<div class="blog-one__single__content">
+									<ul class="list-unstyled blog-one__single__meta">
+										<li>
+											<a href="#">Admin</a>
+										</li>
+										<li class="blog-one__single__meta__date">
+											<a href="#">
+												<i class="far fa-calendar"></i>
+												August 21, 2025
+											</a>
+										</li>
+									</ul><!-- /.list-unstyled -->
+									<h3 class="blog-one__single__title"><a href="">Your Loan. Your Way: 5 Flexible Options That Work
+
+for You</a></h3><!-- /.blog-one__single__title -->
+									<p class="blog-one__single__text">Every dream is different. Every journey is unique. That�s why at Solid Desert, we
+designed our loans to adapt to you � not the other way around..</p>
+									<a href="" class="blog-one__single__btn">Read More</a>
+									<!-- /.blog-one__single__btn -->
+								</div><!-- /.blog-one__single__content -->
+							</div><!-- /.blog-one__single -->
+						</div><!-- /.col-md-12 -->
+						<div class="col-md-12 col-lg-4">
+							<div class="blog-one__single">
+								<div class="blog-one__single__image">
+									<img src="assets/images/update-20-12-2022/resources/school.png" loading="lazy" alt="">
+									<div class="blog-one__single__category">Study Loan</div>
+									<!-- /.blog-one__single__category -->
+									<a href="" class="blog-one__single__arrow">
+										<i class="pylon-two-icon-arrow-right"></i>
+									</a>
+								</div><!-- /.blog-one__single__image -->
+								<div class="blog-one__single__content">
+									<ul class="list-unstyled blog-one__single__meta">
+										<li>
+											<a href="#">Admin</a>
+										</li>
+										<li class="blog-one__single__meta__date">
+											<a href="#">
+												<i class="far fa-calendar"></i>
+												September 21, 2025
+											</a>
+										</li>
+									</ul><!-- /.list-unstyled -->
+									<h3 class="blog-one__single__title"><a href="">The Digital Evolution of Loan Applications in
+
+Namibia</a></h3><!-- /.blog-one__single__title -->
+									<p class="blog-one__single__text">At Solid Desert, we believe the future of financial services lies in simplicity,
+accessibility, and empowerment. Our new campaign, 'Your Loan. Your Way.', is
+more than a tagline � it�s a revolution in how loans are experienced.</p>
+									<a href="" class="blog-one__single__btn">Read More</a>
+									<!-- /.blog-one__single__btn -->
+								</div><!-- /.blog-one__single__content -->
+							</div><!-- /.blog-one__single -->
+						</div><!-- /.col-md-12 -->
+						<div class="col-md-12 col-lg-4">
+							<div class="blog-one__single">
+								<div class="blog-one__single__image">
+									<img src="assets/images/update-20-12-2022/resources/pexels-pavel-danilyuk-7937765.jpg" loading="lazy" alt="">
+									<div class="blog-one__single__category">Home Loan</div>
+									<!-- /.blog-one__single__category -->
+									<a href="" class="blog-one__single__arrow">
+										<i class="pylon-two-icon-arrow-right"></i>
+									</a>
+								</div><!-- /.blog-one__single__image -->
+								<div class="blog-one__single__content">
+									<ul class="list-unstyled blog-one__single__meta">
+										<li>
+											<a href="#">Admin</a>
+										</li>
+										<li class="blog-one__single__meta__date">
+											<a href="#">
+												<i class="far fa-calendar"></i>
+												September 24, 2025
+											</a>
+										</li>
+									</ul><!-- /.list-unstyled -->
+									<h3 class="blog-one__single__title"><a href="">Raising the Boy Child: Shining Light Where
+
+Society Turns Away</a></h3><!-- /.blog-one__single__title -->
+									<p class="blog-one__single__text">At Solid Desert, we believe every young person deserves the tools to carve out
+their future � including the boy child.It�s about reminding every young dreamer �
+whether they want to study, build, or start something new � that their voice
+matters, their dreams are valid, and their future is theirs to design.</p>
+									<a href="" class="blog-one__single__btn">Read More</a>
+									<!-- /.blog-one__single__btn -->
+								</div><!-- /.blog-one__single__content -->
+							</div><!-- /.blog-one__single -->
+						</div><!-- /.col-md-12 -->
+					</div><!-- /.row -->
+				</div><!-- /.blog-one__bottom -->
+			</div><!-- /.container -->
+		</section><!-- /.blog-one -->
+
+		
+
+		<!----------footer--------------->
+		<style>
+.cta-one__inner {
+  background-image: url('assets/images/update-20-12-2022/shapes/cta-one-1-1.png');
+  background-size: cover;   /* Ensures the image covers the whole container */
+  background-position: center center;  /* Centers the image */
+  background-repeat: no-repeat;  /* Prevents tiling */
+  padding: 60px 20px;  /* adjust padding for spacing */
+}
+
+</style>
+
+<!-- Popup Box -->
+<div id="formPopup" style="
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 320px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    padding: 20px;
+    z-index: 9999;
+    display: none;
+    font-family: Arial, sans-serif;
+">
+  <h5 style="margin-top: 0;">We Value Your Feedback</h5>
+  <p style="font-size: 14px;">Kindly help us improve by completing a short survey.</p>
+  <a href="https://docs.google.com/forms/d/e/1FAIpQLSdX0d4GoIV-287MIR6jbtWUz6QR1g0ctzxZe_b1sQARwQvaGA/viewform?embedded=true"
+     target="_blank"
+     style="display: inline-block; background-color: #FFD700; color: black !important; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+    Take the Survey
+  </a>
+  <button id="closePopup" style="
+    margin-top: 10px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+    float: right;
+  ">Dismiss</button>
+</div>
+<section class="cta-one">
+  <div class="container">
+    <div class="cta-one__inner wow fadeInUp" data-wow-duration="1500ms">
+      
+      <div class="cta-one__content text-center">
+        <!-- Title -->
+        <div class="sec-title-two">
+          <span class="sec-title-two__tagline">
+            <i class="fa fa-star" aria-hidden="true"></i>
+            <span>Connect with Solid Desert Cash Loan</span>
+          </span>
+          <h2 class="sec-title-two__title sec-title-two__title--light">Join the Community</h2>
+        </div>
+        
+        <!-- Text -->
+        <p class="cta-one__text" style="color: white !important">
+          Stay updated with the latest news, insights, and opportunities. Be part of the Desert Cash Loan community today!
+        </p>
+        
+        <!-- Subscription Form -->
+        <form action="#" method="post" class="mc-form cta-one__form" data-url="MC_FORM_URL">
+          <label for="cta-email" class="sr-only">Email Address</label>
+          <input id="cta-email" type="email" name="EMAIL" placeholder="Enter your email" required>
+          <button type="submit" class="cta-one__button">Subscribe</button>
+        </form>
+        <div class="mc-form__response"></div>
+      </div>
+      
+    </div>
+  </div>
+</section>
+<footer class="site-footer-two">
+    <div class="site-footer-two__main" style="background-color: #2a2d35 !important">
+        <div class="site-footer-two__shape-1"></div>
+        <div class="site-footer-two__shape-2"></div>
+        <div class="site-footer-two__shape-3 float-bob-x"></div>
+        <div class="site-footer-two__shape-4 float-bob-y"></div>
+
+        <div class="container">
+            <div class="row">
+
+                <!-- ABOUT -->
+                <div class="col-md-6 col-lg-3">
+                    <div class="site-footer-two__widget site-footer-two__widget--about">
+                        <a href="index.php">
+                            <img src="assets/images/logo-light.png" width="186" alt="">
+                        </a>
+                        <p class="site-footer-two__widget__text">
+                            Welcome to Solid Desert Cash Loan Express. We provide fast, reliable, and flexible financial solutions.
+                        </p>
+                        <div class="site-footer-two__widget__time">
+                            <i class="pylon-two-icon-clock1"></i>
+                            MON - FRIDAY 08H00 - <br> 18H00 PM
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LINKS -->
+                <div class="col-md-6 col-lg-2">
+                    <div class="site-footer-two__widget site-footer-two__widget--menu">
+                        <h3 class="site-footer-two__widget__title" style="border-bottom: 1px solid #ffc107;">Useful Links</h3>
+                        <ul class="list-unstyled site-footer-two__widget__menu">
+                            <li><a href="about.php">About Us</a></li>
+                            <li><a href="services.php">Our Service</a></li>
+                            <li><a href="news.php">News & Events</a></li>
+                            <li><a href="contactus.php">Contact Us</a></li>
+                            <li><a href="apply.php">Apply Now</a></li>
+                            <li><a href="https://solid-desert.com/3/index.php#loan-calculator-section">Loan Calculator</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- INFO -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="site-footer-two__widget site-footer-two__widget--info">
+                        <h3 class="site-footer-two__widget__title" style="border-bottom: 1px solid #ffc107;">Official Info</h3>
+                        <ul class="list-unstyled site-footer-two__widget__info" style="border: 1px solid #ffc107;">
+                            <li><i class="pylon-two-icon-phone"></i><a href="tel:+264813719403">(+264) 81 371 9403</a></li>
+                            <li><i class="pylon-two-icon-email"></i><a href="mailto:info@solid-desert.com">info@solid-desert.com</a></li>
+                            <li><i class="pylon-two-icon-map-pin"></i>Oranjemund Erf: 1142</li>
+                        </ul>
+
+                        <div class="site-footer-two__widget__social">
+                            <span>Follow :</span>
+                            <a href="#"><i class="fab fa-instagram"></i></a>
+                            <a href="#"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#"><i class="fab fa-twitter"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GALLERY -->
+                <div class="col-md-6 col-lg-3">
+                    <div class="site-footer-two__widget">
+                        <h3 class="site-footer-two__widget__title" style="border-bottom: 1px solid #ffc107;">Gallery</h3>
+                        <ul class="list-unstyled site-footer-two__widget__gallery">
+                            <li><img src="assets/images/update-20-12-2022/resources/pexels-pavel-danilyuk-7937765.jpg"></li>
+                            <li><img src="assets/images/update-20-12-2022/resources/school.png"></li>
+                            <li><img src="assets/images/update-20-12-2022/resources/car.png"></li>
+                            <li><img src="assets/images/update-20-12-2022/resources/sme.jpg"></li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= FOOTER BOTTOM ================= -->
+<div class="site-footer-two__bottom">
+    <div class="container">
+        <div class="footer-bottom-flex">
+
+            <!-- LEFT -->
+            <p class="footer-copy mb-0">
+                &copy; 2026 Solid Desert Cash Loan Express. All Rights Reserved.
+            </p>
+
+            <!-- CENTER -->
+            <div class="footer-sitelock">
+                <a href="https://www.sitelock.com/verify.php?site=solid-desert.com"
+                   onclick="window.open(this.href,'SiteLock','width=600,height=600'); return false;">
+                    <img src="https://shield.sitelock.com/shield/solid-desert.com"
+                         alt="SiteLock Security"
+                         title="SiteLock">
+                </a>
+            </div>
+
+            <!-- RIGHT -->
+            <p class="footer-credit mb-0">
+                Developed by 
+                <a href="https://kodecamp.org/" target="_blank" rel="noopener">
+                    Kodecamp Technologies
+                </a>
+            </p>
+
+        </div>
+    </div>
+</div>
+
+<style>
+.footer-bottom-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* THIS is the magic */
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Center the SiteLock properly */
+.footer-sitelock {
+    text-align: center;
+}
+
+.footer-sitelock img {
+    max-width: 130px;
+    height: auto;
+}
+
+/* Mobile fix */
+@media (max-width: 768px) {
+    .footer-bottom-flex {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+    </div>
+</footer><!-- /.site-footer-two -->
+	</div><!-- /.page-wrapper -->
+
+
+	<div class="mobile-nav__wrapper">
+		<div class="mobile-nav__overlay mobile-nav__toggler"></div>
+		<!-- /.mobile-nav__overlay -->
+		<div class="mobile-nav__content">
+			<span class="mobile-nav__close mobile-nav__toggler"></span>
+			<div class="logo-box">
+				<a href="index.html" aria-label="logo image"><img src="assets/images/logo-light.png" width="155"
+						alt="" /></a>
+
+			</div>
+			<!-- /.logo-box -->
+			<div class="mobile-nav__container"></div>
+			<!-- /.mobile-nav__container -->
+
+			<ul class="mobile-nav__contact list-unstyled">
+				<li>
+					<i class="pylon-icon-email1"></i>
+					<a href="mailto:info@solid-desert.com">info@solid-desert.com</a>
+				</li>
+				<li>
+					<i class="pylon-icon-telephone"></i>
+					<a href="tel:+26481 371 9403">(+264) 81 371 9403</a>
+				</li>
+			</ul><!-- /.mobile-nav__contact -->
+			<div class="mobile-nav__top">
+				<div class="mobile-nav__social">
+					<a href="#" aria-label="twitter"><i class="fab fa-twitter"></i></a>
+					<a href="#" aria-label="facebook"><i class="fab fa-facebook-square"></i></a>
+					<a href="#" aria-label="pinterest"><i class="fab fa-pinterest-p"></i></a>
+					<a href="#" aria-label="instagram"><i class="fab fa-instagram"></i></a>
+				</div><!-- /.mobile-nav__social -->
+			</div><!-- /.mobile-nav__top -->
+
+
+
+		</div>
+		<!-- /.mobile-nav__content -->
+		<script>
+  // Wait for the DOM to fully load
+  document.addEventListener('DOMContentLoaded', function () {
+    // Show the popup after 3 seconds
+    setTimeout(function () {
+      const popup = document.getElementById('formPopup');
+      if (popup) popup.style.display = 'block';
+    }, 3000);
+
+    // Close the popup on button click
+    const closeBtn = document.getElementById('closePopup');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        const popup = document.getElementById('formPopup');
+        if (popup) popup.style.display = 'none';
+      });
+    }
+  });
+</script>		<!----------footer--------------->
+	</div>
+	<!-- /.mobile-nav__wrapper -->
+	<a href="#" data-target="html" class="scroll-to-target scroll-to-top"><i class="fa fa-angle-up"></i></a>
+
+
+	<script src="assets/js/jquery-3.5.1.min.js"></script>
+	<script src="assets/js/bootstrap.bundle.min.js"></script>
+	<script src="assets/js/swiper.min.js"></script>
+	<script src="assets/js/jquery.ajaxchimp.min.js"></script>
+	<script src="assets/js/jquery.magnific-popup.min.js"></script>
+	<script src="assets/js/jquery.validate.min.js"></script>
+	<script src="assets/js/bootstrap-select.min.js"></script>
+	<script src="assets/js/wow.js"></script>
+	<script src="assets/js/odometer.min.js"></script>
+	<script src="assets/js/jquery.appear.min.js"></script>
+	<script src="assets/js/wNumb.min.js"></script>
+	<script src="assets/js/nouislider.min.js"></script>
+	<script src="assets/js/owl.carousel.min.js"></script>
+	<script src="assets/js/jquery.circleGraph.js"></script>
+	<script src="assets/js/jquery-ui.js"></script>
+	<script src="assets/js/loan-calculator.js"></script>
+
+	<!-- template js -->
+	<script src="assets/js/theme.js"></script>
+	<script >
+
+	</script>
+
+
+
+</body>
+
+</html>

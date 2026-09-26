@@ -1,0 +1,3087 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="assets/images/dl-icon.png">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Loan Application | DesertLedger Demo</title>
+	<!-- favicons Icons -->
+	
+	
+	
+	<meta name="description" content="DesertLedger demonstration loan application form." />
+	
+	<meta name="author" content="DesertLedger" />
+
+	<!-- Open Graph / Social Sharing -->
+	
+	
+	
+	
+	
+<!-- Add this to the <head> section after other CSS links -->
+<link rel="stylesheet" href="assets/css/loan-form.css">
+	<!-- fonts -->
+
+	<link rel="stylesheet" href="assets/css/bootstrap.min.css">
+	<link rel="stylesheet" href="assets/css/fontawesome-all.min.css">
+	<link rel="stylesheet" href="assets/css/swiper.min.css">
+	<link rel="stylesheet" href="assets/css/animate.min.css">
+	<link rel="stylesheet" href="assets/css/pylon-icons.css">
+	<link rel="stylesheet" href="assets/css/odometer.min.css">
+	<link rel="stylesheet" href="assets/css/magnific-popup.css">
+	<link rel="stylesheet" href="assets/css/bootstrap-select.min.css">
+	<link rel="stylesheet" href="assets/css/nouislider.min.css">
+	<link rel="stylesheet" href="assets/css/nouislider.pips.css">
+	<link rel="stylesheet" type="text/css" href="assets/css/flaticon.css">
+	<link rel="stylesheet" href="assets/css/owl.carousel.min.css">
+	<!-- updated icons -->
+	<link rel="stylesheet" href="assets/css/pylon-two-icons.css">
+	<link rel="stylesheet" href="assets/css/jquery-ui.css">
+	<link rel="stylesheet" href="assets/css/custom-animation.css">
+	<!-- template styles -->
+	<link rel="stylesheet" href="assets/css/main.css">
+
+</head>
+
+<body>
+<style>
+/* Fix Twitter X icon */
+.topbar__social i.fa-x-twitter::before {
+  font-family: "Font Awesome 6 Brands";
+  content: "\e61b";
+}
+
+/* Make contact info texts white */
+.main-header-two__info__list__content,
+.main-header-two__info__list__content a {
+  color: #fff !important;
+}
+
+/* li elements borders */
+.main-header-two__info__list li {
+  border-left: 1px solid #ffc107;
+  border-right: 1px solid #ffc107;
+}
+
+.main-header-two__info__inner {
+  border-bottom: 1px solid #ffc107;
+}
+
+/* Apply button style */
+.btn-apply {
+  display: inline-block;
+  background-color: #ffc107;
+  color: #000;
+  font-weight: bold;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.btn-apply:hover {
+  background-color: #e0a800;
+  color: #fff;
+}
+
+/* All main nav links white and bold */
+.main-menu__list li a {
+  color: #fff !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 8px 12px;
+  transition: color 0.3s ease;
+}
+
+.main-menu__list li a:hover {
+  color: #ffc107 !important;
+}
+
+.btn-apply {
+  display: inline-block;
+  background-color: #ffc107;
+  color: #000;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.btn-apply:hover {
+  background-color: #e0a800;
+  color: black !important;
+}
+
+.main-header-two__info__list .fab.fa-whatsapp {
+  color: #25D366;
+  font-size: 1.2em;
+}
+
+/* Modal styling */
+.modal-modern .modal-content {
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.20);
+}
+
+.modal-header-modern {
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+}
+
+.modal-header-modern.success {
+  background: linear-gradient(135deg, #198754, #157347);
+}
+
+.modal-header-modern h5 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.modal-header-modern h5 svg,
+.modal-footer-modern button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-close-modern {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-close-modern svg {
+  width: 22px;
+  height: 22px;
+}
+
+.modal-body-modern {
+  padding: 22px;
+  background: #fff;
+}
+
+.modal-footer-modern {
+  padding: 16px 22px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #fff;
+}
+
+.form-group-modern label {
+  font-weight: 600;
+  margin-bottom: 7px;
+  display: block;
+  color: #222;
+}
+
+.form-control-modern,
+.form-select-modern {
+  border-radius: 10px;
+  border: 1px solid #dcdcdc;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.form-control-modern:focus,
+.form-select-modern:focus {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25,135,84,.15);
+  outline: none;
+}
+
+.required::after {
+  content: " *";
+  color: red;
+}
+
+.btn-modern {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.btn-success-modern {
+  background: #198754;
+  color: #fff;
+}
+
+.btn-success-modern:hover {
+  background: #157347;
+}
+
+.upload-note {
+  font-size: 13px;
+  color: #666;
+  margin-top: 6px;
+}
+
+
+/* SHOW CLAIM REFUND ON SMALL DEVICES */
+@media (max-width: 767px) {
+
+  .topbar-two {
+    display: block !important;
+    padding: 8px 0 !important;
+  }
+
+  .topbar-two .container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .topbar__right,
+  .topbar__social {
+    display: none !important;
+  }
+
+  .topbar-two__menu {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .topbar-two__menu li {
+    display: none !important;
+  }
+
+  .topbar-two__menu li:first-child {
+    display: block !important;
+  }
+
+  .topbar-two__menu li:first-child a {
+    display: inline-block !important;
+    background: #ffc107 !important;
+    color: #000 !important;
+    font-weight: 800 !important;
+    padding: 9px 18px !important;
+    border-radius: 30px !important;
+    text-transform: uppercase !important;
+    font-size: 13px !important;
+  }
+}
+</style>
+<div class="dl-header">
+  <div class="dl-header__inner">
+    <img src="assets/images/dl-logo.png" alt="DesertLedger" height="54">
+    <div class="dl-header__note"><strong>Demonstration form.</strong> Applications sent here appear in the DesertLedger demo system only.</div>
+  </div>
+</div>
+<style>
+.dl-header{background:#fff;border-bottom:1px solid #e3e6ea}
+.dl-header__inner{max-width:1140px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.dl-header__note{font-size:14px;color:#4a5560}
+</style>
+
+<!-- Multi-Step Loan Application Form - Unified Interface Design -->
+<div class="loan-form-wrapper" id="loanFormWrapper">
+    <div class="loan-form-card">
+        <!-- Internal Header with Progress Tracker -->
+        <div class="form-header-section">
+            <div class="form-title-row">
+                <a href="#" class="back-link" onclick="goBack(event)">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+            </div>
+            <h1 class="main-title">Loan Application</h1>
+            <p class="main-subtitle">Complete your comprehensive loan application in simple steps</p>
+        </div>
+
+        <!-- Horizontal Progress Tracker -->
+        <div class="progress-tracker-container">
+            <div class="progress-tracker" id="progressTracker">
+                <div class="progress-track-line">
+                    <div class="progress-track-fill" id="progressFill"></div>
+                </div>
+
+                <div class="progress-step" data-step="1">
+                    <div class="step-indicator active" id="indicator-1">
+                        <span class="step-number">1</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Personal</span>
+                </div>
+
+                <div class="progress-step" data-step="2">
+                    <div class="step-indicator" id="indicator-2">
+                        <span class="step-number">2</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Financial</span>
+                </div>
+
+                <div class="progress-step" data-step="3">
+                    <div class="step-indicator" id="indicator-3">
+                        <span class="step-number">3</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Employment</span>
+                </div>
+
+                <div class="progress-step" data-step="4">
+                    <div class="step-indicator" id="indicator-4">
+                        <span class="step-number">4</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Banking</span>
+                </div>
+
+                <div class="progress-step" data-step="5">
+                    <div class="step-indicator" id="indicator-5">
+                        <span class="step-number">5</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Loan</span>
+                </div>
+
+                <div class="progress-step" data-step="6">
+                    <div class="step-indicator" id="indicator-6">
+                        <span class="step-number">6</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Documents</span>
+                </div>
+
+                <div class="progress-step" data-step="7" id="progressStep7">
+                    <div class="step-indicator" id="indicator-7">
+                        <span class="step-number">7</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Sign</span>
+                </div>
+
+                <div class="progress-step" data-step="8" id="progressStep8">
+                    <div class="step-indicator" id="indicator-8">
+                        <span class="step-number">8</span>
+                        <i class="fas fa-check step-icon"></i>
+                    </div>
+                    <span class="step-label">Review</span>
+                </div>
+            </div>
+
+            <!-- Mobile Progress Text -->
+            <div class="mobile-progress-info" id="mobileProgressInfo">
+                <span id="currentStepLabel">Step 1 of 8: Personal Information</span>
+                <div class="mobile-progress-bar">
+                    <div class="mobile-progress-fill" id="mobileProgressFill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Content Container -->
+        <div class="form-content-area">
+            <form id="loanApplicationForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="is_admin" id="is_admin" value="0">
+                <input type="hidden" name="admin_new" id="admin_new" value="0">
+                <input type="hidden" name="submission_mode" id="submission_mode" value="full">
+
+                <!-- Hidden fields for referral tracking from URL parameters -->
+                <input type="hidden" id="refId" name="refId" value="">
+                <input type="hidden" id="bID" name="bID" value="0">
+
+                <!-- Auth token for the DesertLedger public intake API -- get this
+                     value from the MLS admin at Settings > Intake Sources
+                     (never commit the real token to a public repo). -->
+                <input type="hidden" id="_source_token" name="_source_token" value="e7cf32450b29a9c76f78834c053c5c398fcb4f5c">
+                <div class="form-step active" id="step-1">
+                    <div class="step-header">
+                        <div class="step-badge">01</div>
+                        <div class="step-info">
+                            <h2>Personal Information</h2>
+                            <p>Please provide your personal details</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="firstname">First Name <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" id="firstname" name="firstname" placeholder="Enter your first name" value="">
+                            </div>
+                            <div class="error-message">Please enter your first name</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lastname">Last Name <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" id="lastname" name="lastname" placeholder="Enter your last name" value="">
+                            </div>
+                            <div class="error-message">Please enter your last name</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_number">ID Number <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-id-card input-icon"></i>
+                                <input type="text" id="id_number" name="id_number" placeholder="Enter your ID number" value="">
+                            </div>
+                            <div class="error-message">Please enter your ID number</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="title">Title</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-address-card input-icon"></i>
+                                <select id="title" name="title">
+                                    <option value="">Select Title</option>
+                                    <option value="MR" >Mr</option>
+                                    <option value="MRS" >Mrs</option>
+                                    <option value="MISS" >Miss</option>
+                                    <option value="MS" >Ms</option>
+                                    <option value="DR" >Dr</option>
+                                    <option value="PROF" >Prof</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date_of_birth">Date of Birth <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-birthday-cake input-icon"></i>
+                                <input type="date" id="date_of_birth" name="date_of_birth" value="">
+                            </div>
+                            <div class="error-message">Please enter your date of birth</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gender">Gender <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-venus-mars input-icon"></i>
+                                <select id="gender" name="gender">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male" >Male</option>
+                                    <option value="Female" >Female</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select your gender</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="branch_id">Branch <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-map-marker-alt input-icon"></i>
+                                <select id="branch_id" name="branch_id" required>
+                                    <option value="">Select Branch</option>
+                                                                            <option value="1">Head Office - Windhoek</option>
+<option value="2">Ongwediva Branch</option>
+                                                                    </select>
+                            </div>
+                            <div class="error-message">Please select a branch</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="marital_status">Marital Status <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-ring input-icon"></i>
+                                <select id="marital_status" name="marital_status">
+                                    <option value="">Select Status</option>
+                                    <option value="Single" >Single</option>
+                                    <option value="Married" >Married</option>
+                                    <option value="Divorced" >Divorced</option>
+                                    <option value="Widowed" >Widowed</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select your marital status</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="account_no">Account Number <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-university input-icon"></i>
+                                <input type="text" id="account_no" name="account_no" placeholder="Enter your account number" value="">
+                            </div>
+                            <div class="error-message">Please enter your account number</div>
+                        </div>
+
+                        <input type="hidden" id="address" name="address">
+                        <input type="hidden" id="postal_address" name="postal_address">
+
+                        <div class="section-divider full-width">
+                            <span class="section-label">Residential Address</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="residential_line1">Street Address <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-home input-icon"></i>
+                                <input type="text" id="residential_line1" name="residential_line1" placeholder="Street name and number" value="">
+                            </div>
+                            <div class="error-message">Please enter your street address</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="residential_line2">Suburb</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-map input-icon"></i>
+                                <input type="text" id="residential_line2" name="residential_line2" placeholder="Suburb" value="">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="residential_line3">Town / City <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-city input-icon"></i>
+                                <input type="text" id="residential_line3" name="residential_line3" placeholder="Town or city" value="">
+                            </div>
+                            <div class="error-message">Please enter your town or city</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="residential_postal_code">Postal Code</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-mail-bulk input-icon"></i>
+                                <input type="text" id="residential_postal_code" name="residential_postal_code" placeholder="e.g. 10001" value="">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Do you own or rent this home? <span class="required">*</span></label>
+                            <div class="input-wrapper" style="border:none;padding-left:0;display:flex;gap:20px;align-items:center;">
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+                                    <input type="radio" name="residential_ownership" value="O" > Own
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+                                    <input type="radio" name="residential_ownership" value="T" > Rent
+                                </label>
+                            </div>
+                            <div class="error-message">Please select whether you own or rent</div>
+                        </div>
+
+                        <div class="section-divider full-width">
+                            <span class="section-label">Postal Address</span>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+                                <input type="checkbox" id="postal_same_as_residential" checked> My postal address is the same as my residential address
+                            </label>
+                        </div>
+
+                        <div id="postal-address-fields" class="form-grid full-width" style="display:none;">
+                            <div class="form-group">
+                                <label for="postal_line1">Postal Address Line 1</label>
+                                <div class="input-wrapper">
+                                    <i class="fas fa-envelope input-icon"></i>
+                                    <input type="text" id="postal_line1" name="postal_line1" placeholder="e.g. P O Box 1234" value="">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="postal_line2">Suburb</label>
+                                <div class="input-wrapper">
+                                    <i class="fas fa-map input-icon"></i>
+                                    <input type="text" id="postal_line2" name="postal_line2" placeholder="Suburb" value="">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="postal_line3">Town / City</label>
+                                <div class="input-wrapper">
+                                    <i class="fas fa-city input-icon"></i>
+                                    <input type="text" id="postal_line3" name="postal_line3" placeholder="Town or city" value="">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="postal_postal_code">Postal Code</label>
+                                <div class="input-wrapper">
+                                    <i class="fas fa-mail-bulk input-icon"></i>
+                                    <input type="text" id="postal_postal_code" name="postal_postal_code" placeholder="e.g. 10001" value="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="how_heard">How did you hear about us?</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-bullhorn input-icon"></i>
+                                <select id="how_heard" name="how_heard">
+                                    <option value="">Select an option</option>
+                                    <option value="Radio" >Radio</option>
+                                    <option value="Newspaper/Print" >Newspaper/Print</option>
+                                    <option value="Social Media" >Social Media</option>
+                                    <option value="Friend/Family Referral" >Friend/Family Referral</option>
+                                    <option value="Existing Client" >Existing Client</option>
+                                    <option value="Walk-in/Signage" >Walk-in/Signage</option>
+                                    <option value="Google Search" >Google Search</option>
+                                    <option value="Other" >Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Financial Information -->
+                <div class="form-step" id="step-2">
+                    <div class="step-header">
+                        <div class="step-badge">02</div>
+                        <div class="step-info">
+                            <h2>Financial Information</h2>
+                            <p>Provide your monthly income and expenses</p>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Monthly Income</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="salary">Net Salary (After Deductions) <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-money-bill-wave input-icon"></i>
+                                <input type="number" id="salary" name="salary" step="0.01" class="calc-income" placeholder="0.00" value="">
+                            </div>
+                            <div class="error-message">Please enter your net salary</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="commission">Commission</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-coins input-icon"></i>
+                                <input type="number" id="commission" name="commission" step="0.01" class="calc-income" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pension">Pension</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-piggy-bank input-icon"></i>
+                                <input type="number" id="pension" name="pension" step="0.01" class="calc-income" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="business_income">Own Business Income</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-briefcase input-icon"></i>
+                                <input type="number" id="business_income" name="business_income" step="0.01" class="calc-income" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group highlight-field">
+                            <label for="total_income">Total Monthly Income</label>
+                            <div class="input-wrapper readonly">
+                                <i class="fas fa-wallet input-icon"></i>
+                                <input type="number" id="total_income" name="total_income" step="0.01" class="calc-field" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Living Expenses</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="groceries">Groceries <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-shopping-cart input-icon"></i>
+                                <input type="number" id="groceries" name="groceries" step="0.01" class="calc-expense" placeholder="0.00" value="">
+                            </div>
+                            <div class="error-message">Please enter groceries cost</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="school_fees">School Fees</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-graduation-cap input-icon"></i>
+                                <input type="number" id="school_fees" name="school_fees" step="0.01" class="calc-expense" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="transport">Transport Cost <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-bus input-icon"></i>
+                                <input type="number" id="transport" name="transport" step="0.01" class="calc-expense" placeholder="0.00" value="">
+                            </div>
+                            <div class="error-message">Please enter transport cost</div>
+                        </div>
+
+                        <div class="form-group highlight-field">
+                            <label for="total_expenses">Total Monthly Expenses</label>
+                            <div class="input-wrapper readonly">
+                                <i class="fas fa-file-invoice-dollar input-icon"></i>
+                                <input type="number" id="total_expenses" name="total_expenses" step="0.01" class="calc-field" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Monthly Contractual Payments</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="home_loan">Home Loan Account</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-building input-icon"></i>
+                                <input type="number" id="home_loan" name="home_loan" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="home_rental">Home Rental</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-key input-icon"></i>
+                                <input type="number" id="home_rental" name="home_rental" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="credit_card">Credit Card Payment</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-credit-card input-icon"></i>
+                                <input type="number" id="credit_card" name="credit_card" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="personal_loans">Personal Loans</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-hand-holding-usd input-icon"></i>
+                                <input type="number" id="personal_loans" name="personal_loans" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="education_loan">Educational Loan</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-book input-icon"></i>
+                                <input type="number" id="education_loan" name="education_loan" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="insurance">Insurance</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-shield-alt input-icon"></i>
+                                <input type="number" id="insurance" name="insurance" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="car_payments">Car Payments</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-car input-icon"></i>
+                                <input type="number" id="car_payments" name="car_payments" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cell_phone">Cell Phone Contract</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-mobile-alt input-icon"></i>
+                                <input type="number" id="cell_phone" name="cell_phone" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="other_credit">Other Credit</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-credit-card input-icon"></i>
+                                <input type="number" id="other_credit" name="other_credit" step="0.01" class="calc-installment" value="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="form-group highlight-field">
+                            <label for="total_installments">Total Contractual Payments</label>
+                            <div class="input-wrapper readonly">
+                                <i class="fas fa-calculator input-icon"></i>
+                                <input type="number" id="total_installments" name="total_installments" step="0.01" class="calc-field" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Employment Information -->
+                <div class="form-step" id="step-3">
+                    <div class="step-header">
+                        <div class="step-badge">03</div>
+                        <div class="step-info">
+                            <h2>Employment Information</h2>
+                            <p>Details about your current employment</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="occupation">Occupation <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user-tie input-icon"></i>
+                                <input type="text" id="occupation" name="occupation" placeholder="Your job title" value="">
+                            </div>
+                            <div class="error-message">Please enter your occupation</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="employee_number">Employee Number <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-id-badge input-icon"></i>
+                                <input type="text" id="employee_number" name="employee_number" placeholder="Your employee ID" value="">
+                            </div>
+                            <div class="error-message">Please enter your employee number</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="company_name">Company Name <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-building input-icon"></i>
+                                <input type="text" id="company_name" name="company_name" placeholder="Company you work for" value="">
+                            </div>
+                            <div class="error-message">Please enter your company name</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="company_tel">Company Telephone <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-phone input-icon"></i>
+                                <input type="tel" id="company_tel" name="company_tel" placeholder="Company phone number" value="">
+                            </div>
+                            <div class="error-message">Please enter company telephone</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gross_salary">Gross Monthly Salary <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-money-bill-alt input-icon"></i>
+                                <input type="number" id="gross_salary" name="gross_salary" step="0.01" min="0" placeholder="0.00" value="">
+                            </div>
+                            <div class="error-message">Please enter your gross salary</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="income_frequency">How Often Are You Paid? <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-calendar-week input-icon"></i>
+                                <select id="income_frequency" name="income_frequency">
+                                    <option value="M" >Monthly</option>
+                                    <option value="W" >Weekly</option>
+                                    <option value="F" >Fortnightly</option>
+                                    <option value="Q" >Quarterly</option>
+                                    <option value="A" >Annually</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select how often you are paid</div>
+                        </div>
+
+                        <div class="form-group">
+							<label for="payment_day">Payment Day <span class="required">*</span></label>
+							<div class="input-wrapper">
+								<i class="fas fa-calendar-alt input-icon"></i>
+								<select id="payment_day" name="payment_day" required>
+									<option value="">Select Payment Day</option>
+
+																			<option value="1" >
+											1st of each month
+										</option>
+																			<option value="2" >
+											2nd of each month
+										</option>
+																			<option value="3" >
+											3rd of each month
+										</option>
+																			<option value="4" >
+											4th of each month
+										</option>
+																			<option value="5" >
+											5th of each month
+										</option>
+																			<option value="6" >
+											6th of each month
+										</option>
+																			<option value="7" >
+											7th of each month
+										</option>
+																			<option value="8" >
+											8th of each month
+										</option>
+																			<option value="9" >
+											9th of each month
+										</option>
+																			<option value="10" >
+											10th of each month
+										</option>
+																			<option value="11" >
+											11th of each month
+										</option>
+																			<option value="12" >
+											12th of each month
+										</option>
+																			<option value="13" >
+											13th of each month
+										</option>
+																			<option value="14" >
+											14th of each month
+										</option>
+																			<option value="15" >
+											15th of each month
+										</option>
+																			<option value="16" >
+											16th of each month
+										</option>
+																			<option value="17" >
+											17th of each month
+										</option>
+																			<option value="18" >
+											18th of each month
+										</option>
+																			<option value="19" >
+											19th of each month
+										</option>
+																			<option value="20" >
+											20th of each month
+										</option>
+																			<option value="21" >
+											21st of each month
+										</option>
+																			<option value="22" >
+											22nd of each month
+										</option>
+																			<option value="23" >
+											23rd of each month
+										</option>
+																			<option value="24" >
+											24th of each month
+										</option>
+																			<option value="25" >
+											25th of each month
+										</option>
+																			<option value="26" >
+											26th of each month
+										</option>
+																			<option value="27" >
+											27th of each month
+										</option>
+																			<option value="28" >
+											28th of each month
+										</option>
+																			<option value="29" >
+											29th of each month
+										</option>
+																			<option value="30" >
+											30th of each month
+										</option>
+																			<option value="31" >
+											31st of each month
+										</option>
+																	</select>
+							</div>
+							<div class="error-message">Please select your payment day</div>
+						</div>
+
+
+                        <div class="form-group full-width">
+                            <label for="employer_address">Employer Address <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-map-marker-alt input-icon"></i>
+                                <textarea id="employer_address" name="employer_address" rows="2" placeholder="Enter your employer's full address"></textarea>
+                            </div>
+                            <div class="error-message">Please enter employer address</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Contact Details & Banking -->
+                <div class="form-step" id="step-4">
+                    <div class="step-header">
+                        <div class="step-badge">04</div>
+                        <div class="step-info">
+                            <h2>Contact & Banking Information</h2>
+                            <p>How we can reach you and your banking details</p>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Contact Details</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="contact_no">Contact Number <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-phone-alt input-icon"></i>
+                                <input type="tel" id="contact_no" name="contact_no" placeholder="e.g. 081 234 5678" value="">
+                            </div>
+                            <div class="error-message">Please enter your contact number</div>
+                            <div class="field-hint" style="font-size:12px;color:#666;margin-top:4px;">Namibian number -- will be saved as +264...</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="home_telephone">Home Telephone <span style="font-weight:normal;color:#888;">(optional)</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-phone input-icon"></i>
+                                <input type="tel" id="home_telephone" name="home_telephone" placeholder="Landline, if you have one" value="">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input type="email" id="email" name="email" placeholder="your@email.com" value="">
+                            </div>
+                            <div class="error-message">Please enter a valid email address</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="relative_contact">Relative/Witness Contact <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user-friends input-icon"></i>
+                                <input type="tel" id="relative_contact" name="relative_contact" placeholder="Contact if unreachable" value="">
+                            </div>
+                            <div class="error-message">Please enter relative/witness contact number</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Banking Details</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="bank_name">Bank Name <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-university input-icon"></i>
+                                <input type="text" id="bank_name" name="bank_name" placeholder="Name of your bank" value="">
+                            </div>
+                            <div class="error-message">Please enter your bank name</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bank_branch">Branch <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-map-pin input-icon"></i>
+                                <input type="text" id="bank_branch" name="bank_branch" placeholder="Bank branch" value="">
+                            </div>
+                            <div class="error-message">Please enter your bank branch</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="account_number">Account Number <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-hashtag input-icon"></i>
+                                <input type="text" id="account_number" name="account_number" placeholder="Your account number" value="">
+                            </div>
+                            <div class="error-message">Please enter your account number</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="account_type">Account Type <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-wallet input-icon"></i>
+                                <select id="account_type" name="account_type">
+                                    <option value="">Select Type</option>
+                                    <option value="Savings" >Savings</option>
+                                    <option value="Current" >Current</option>
+                                    <option value="Cheque" >Cheque</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select account type</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">References</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="ref1_name">Reference 1 Name <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" id="ref1_name" name="ref1_name" placeholder="First reference name" value="">
+                            </div>
+                            <div class="error-message">Please enter reference 1 name</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ref1_tel">Reference 1 Telephone <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-phone input-icon"></i>
+                                <input type="tel" id="ref1_tel" name="ref1_tel" placeholder="First reference phone" value="">
+                            </div>
+                            <div class="error-message">Please enter reference 1 telephone</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ref2_name">Reference 2 Name <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" id="ref2_name" name="ref2_name" placeholder="Second reference name" value="">
+                            </div>
+                            <div class="error-message">Please enter reference 2 name</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ref2_tel">Reference 2 Telephone <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-phone input-icon"></i>
+                                <input type="tel" id="ref2_tel" name="ref2_tel" placeholder="Second reference phone" value="">
+                            </div>
+                            <div class="error-message">Please enter reference 2 telephone</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Loan Details -->
+                <div class="form-step" id="step-5">
+                    <div class="step-header">
+                        <div class="step-badge">05</div>
+                        <div class="step-info">
+                            <h2>Loan Details</h2>
+                            <p>Specify your loan requirements</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+			                        <div class="form-group">
+                            <label for="loan_types">Loan Type <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-hand-holding-usd input-icon"></i>
+                                <select id="loan_types" name="loan_types">
+                                    <option value="">Select Loan Type</option>
+                                    <option value="Study loan" >Study Loan</option>
+                                    <option value="Personal loans" >Personal Loan</option>
+                                    <option value="Vehicle purchase loans" >Vehicle Purchase Loan</option>
+                                    <option value="Home loans" >Home Loan</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select a loan type</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loan_purpose_category">What Is This Loan Mainly For? <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-bullseye input-icon"></i>
+                                <select id="loan_purpose_category" name="loan_purpose_category">
+                                    <option value="">Select a Reason</option>
+                                    <option value="C" >Emergency -- Other Unforeseen Circumstance</option>
+                                    <option value="D" >Emergency -- Death / Funeral Expenses</option>
+                                    <option value="E" >Emergency -- Medical Expenses</option>
+                                    <option value="G" >Emergency -- Loss of Income</option>
+                                    <option value="I" >Emergency -- Theft, Fire or Other Loss</option>
+                                    <option value="H" >Home Improvement or Property</option>
+                                    <option value="S" >Education / Study Fees</option>
+                                    <option value="F" >Vehicle or Other Asset Purchase</option>
+                                    <option value="R" >Consolidating Other Debt</option>
+                                    <option value="J" >Business Use (Sole Proprietor)</option>
+                                    <option value="O" >Other</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select a reason for this loan</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loan_amount">Loan Amount <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-money-bill input-icon"></i>
+                                <input type="number" id="loan_amount" name="loan_amount" step="0.01" min="0" placeholder="How much do you need?" value="">
+                            </div>
+                            <div class="error-message">Please enter the loan amount</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="finance_charges">Interest Rate (%)</label>
+                            <div class="input-wrapper readonly">
+                                <i class="fas fa-percentage input-icon"></i>
+                                <input type="number" id="finance_charges" name="finance_charges" step="0.01" value="30" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="finance_charges_amount">Interest Amount (N$)</label>
+                            <div class="input-wrapper readonly">
+                                <i class="fas fa-coins input-icon"></i>
+                                <input type="number" id="finance_charges_amount" name="finance_charges_amount" step="0.01" class="calc-field" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="total_repayable">Total Repayable (N$)</label>
+                            <div class="input-wrapper readonly highlight">
+                                <i class="fas fa-file-invoice-dollar input-icon"></i>
+                                <input type="number" id="total_repayable" name="total_repayable" step="0.01" class="calc-field" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num_installments">Number of Installments (Max 5) <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-list-ol input-icon"></i>
+                                <input type="number" id="num_installments" name="num_installments" min="1" max="5" value="1" placeholder="1-5">
+                            </div>
+                            <div class="error-message">Please enter number of installments</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="installment_amount">Installment Amount (N$)</label>
+                            <div class="input-wrapper readonly highlight">
+                                <i class="fas fa-calculator input-icon"></i>
+                                <input type="number" id="installment_amount" name="installment_amount" step="0.01" class="calc-field" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="first_due_date">First Payment Due <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-calendar-check input-icon"></i>
+                                <input type="date" id="first_due_date" name="first_due_date" required value="">
+                            </div>
+                            <div class="error-message">Please select first due date</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="last_due_date">Last Payment Due <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-calendar input-icon"></i>
+                                <input type="date" id="last_due_date" name="last_due_date" required value="">
+                            </div>
+                            <div class="error-message">Please select last due date</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="final_repayment_date">Final Repayment Date</label>
+                            <div class="input-wrapper readonly">
+                                <i class="fas fa-flag-checkered input-icon"></i>
+                                <input type="date" id="final_repayment_date" name="final_repayment_date" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Signing Details</span>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="signing_place">Signed At (Place) <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-map-marker-alt input-icon"></i>
+                                <input type="text" id="signing_place" name="signing_place" placeholder="Location of signing" value="">
+                            </div>
+                            <div class="error-message">Please enter signing place</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signing_day">Day <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-calendar-day input-icon"></i>
+                                <input type="number" id="signing_day" name="signing_day" min="1" max="31" placeholder="1-31" value="">
+                            </div>
+                            <div class="error-message">Please enter signing day</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signing_month">Month <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-calendar input-icon"></i>
+                                <select id="signing_month" name="signing_month">
+                                    <option value="">Select Month</option>
+                                    <option value="January" >January</option>
+                                    <option value="February" >February</option>
+                                    <option value="March" >March</option>
+                                    <option value="April" >April</option>
+                                    <option value="May" >May</option>
+                                    <option value="June" >June</option>
+                                    <option value="July" >July</option>
+                                    <option value="August" >August</option>
+                                    <option value="September" >September</option>
+                                    <option value="October" >October</option>
+                                    <option value="November" >November</option>
+                                    <option value="December" >December</option>
+                                </select>
+                            </div>
+                            <div class="error-message">Please select signing month</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signing_year">Year <span class="required">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-calendar input-icon"></i>
+                                <input type="number"
+       id="signing_year"
+       name="signing_year"
+       min="2024"
+       max="2030"
+       value="2026"
+       placeholder="2026">
+
+                            </div>
+                            <div class="error-message">Please enter signing year</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Documents -->
+                <div class="form-step" id="step-6">
+                    <div class="step-header">
+                        <div class="step-badge">06</div>
+                        <div class="step-info">
+                            <h2>Document Upload</h2>
+                            <p>Upload required documents for your application</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="payslip">Payslip <span class="required">*</span></label>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="payslip" name="payslip" accept=".pdf,.jpg,.jpeg,.png">
+                                <label for="payslip" class="file-upload-label">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span class="file-text">Upload Payslip</span>
+                                    <span class="file-formats">PDF, JPG, PNG</span>
+                                </label>
+                            </div>
+                            <div class="error-message">Please upload your payslip</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_copy">ID Copy <span class="required">*</span></label>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="id_copy" name="id_copy" accept=".pdf,.jpg,.jpeg,.png">
+                                <label for="id_copy" class="file-upload-label">
+                                    <i class="fas fa-id-card"></i>
+                                    <span class="file-text">Upload ID Copy</span>
+                                    <span class="file-formats">PDF, JPG, PNG</span>
+                                </label>
+                            </div>
+                            <div class="error-message">Please upload your ID copy</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider">
+                        <span class="section-label">Bank Statements</span>
+                    </div>
+
+                    <div class="bank-statement-section">
+                        <div class="form-group">
+                            <label>Statement Format <span class="required">*</span></label>
+                            <div class="radio-group-horizontal">
+                                <div class="radio-option">
+                                    <input type="radio" id="bank_merged" name="bank_statement_type" value="merged" >
+                                    <label for="bank_merged">
+                                        <i class="fas fa-file-pdf"></i>
+                                        <span>Single Merged PDF</span>
+                                    </label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="bank_separate" name="bank_statement_type" value="separate" >
+                                    <label for="bank_separate">
+                                        <i class="fas fa-files"></i>
+                                        <span>Separate Files</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="error-message">Please select bank statement type</div>
+                        </div>
+
+                        <div class="bank-uploads" id="bankUploads">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 7: Digital Signatures -->
+                <div class="form-step" id="step-7">
+                    <div class="step-header">
+                        <div class="step-badge">07</div>
+                        <div class="step-info">
+                            <h2>Digital Signatures</h2>
+                            <p>Please sign below to complete your application</p>
+                        </div>
+                    </div>
+
+                    <div class="signature-section">
+                        <div class="form-group">
+                            <label>Borrower Signature <span class="required">*</span></label>
+                            <div class="signature-wrapper">
+                                <canvas id="borrower_canvas" width="500" height="150"></canvas>
+                                <div class="signature-actions">
+                                    <button type="button" class="btn-clear" onclick="clearSignature('borrower')">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="borrower_signature" name="borrower_signature">
+                            <div class="error-message">Please provide your signature</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Witness Signature <span class="required">*</span></label>
+                            <div class="signature-wrapper">
+                                <canvas id="witness_canvas" width="500" height="150"></canvas>
+                                <div class="signature-actions">
+                                    <button type="button" class="btn-clear" onclick="clearSignature('witness')">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="witness_signature" name="witness_signature">
+                            <div class="error-message">Please provide witness signature</div>
+                        </div>
+
+                        <div class="signature-instruction">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Sign using your mouse or touch screen</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 8: Review -->
+                <div class="form-step" id="step-8">
+                    <div class="step-header">
+                        <div class="step-badge">08</div>
+                        <div class="step-info">
+                            <h2>Review Your Application</h2>
+                            <p>Please review all information before submitting</p>
+                        </div>
+                    </div>
+
+                    <div class="review-section" id="reviewContent">
+                        <!-- Dynamic content -->
+                    </div>
+
+                    <div class="terms-section">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="terms" name="terms">
+                            <label for="terms">
+                                <span class="checkmark"></span>
+                                <span>
+								I confirm that I have read and understood the
+								<a href="#" target="_blank" class="terms-link">
+								DesertLedger Data Processing Consent & Terms
+								</a>.
+								I explicitly consent to the collection, processing, storage, and sharing of my personal information, including credit bureau verification, loan assessment, and marketing communications.
+								I understand that a consent document containing my name, signature, and date will be generated and retained as proof of my authorization.
+								</span>
+
+                            </label>
+                        </div>
+                        <div class="error-message">Please accept the terms and conditions</div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Integrated Navigation Bar -->
+        <div class="form-footer-nav">
+            <button type="button" class="btn-nav btn-prev" id="prevBtn" onclick="changeStep(-1)">
+                <i class="fas fa-arrow-left"></i>
+                <span>Previous</span>
+            </button>
+
+            <div class="step-indicator-text">
+                <span id="stepIndicator">Step 1 of 8</span>
+            </div>
+
+            <button type="button" class="btn-nav btn-next" id="nextBtn" onclick="changeStep(1)">
+                <span>Next</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+
+            <button type="submit" class="btn-nav btn-submit" id="submitBtn" form="loanApplicationForm" style="display: none;">
+                <span>Submit Application</span>
+                <i class="fas fa-check"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <h3>Processing Your Application</h3>
+            <p>Please wait while we process your loan application...</p>
+            <div id="submissionProgress" class="submission-progress"></div>
+        </div>
+    </div>
+
+    <!-- Debug Panel (visible for development) -->
+    <!------<div class="debug-panel" id="debugPanel">
+        <div class="debug-header" onclick="toggleDebugPanel()">
+            <span><i class="fas fa-bug"></i> Debug Log</span>
+            <span class="debug-toggle">▼</span>
+        </div>
+        <div class="debug-content" id="debugContent">
+            <!-- Debug messages will appear here --
+        </div>
+    </div>---------->
+</div>
+
+<!-- Form JavaScript -->
+<script>
+    // ==========================================
+    // GLOBAL DEBUG LOGGING SYSTEM
+    // ==========================================
+    const DebugLogger = {
+        logs: [],
+
+        log: function(stage, message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp: timestamp,
+                stage: stage,
+                message: message,
+                data: data
+            };
+
+            this.logs.push(logEntry);
+
+            // Console output with formatting
+            console.log(`[${timestamp}] [${stage}] ${message}`);
+            if (data !== null) {
+                console.log(`[${stage}] Data:`, data);
+            }
+
+            // Update debug panel if it exists
+            this.updateDebugPanel();
+
+            return logEntry;
+        },
+
+        updateDebugPanel: function() {
+            const debugContent = document.getElementById('debugContent');
+            if (!debugContent) return;
+
+            let html = '';
+            for (let i = Math.max(0, this.logs.length - 20); i < this.logs.length; i++) {
+                const log = this.logs[i];
+                const stageClass = log.stage.toLowerCase().replace(/\s+/g, '-');
+                html += `<div class="debug-entry debug-${stageClass}">
+                    <span class="debug-time">${log.timestamp}</span>
+                    <span class="debug-stage">[${log.stage}]</span>
+                    <span class="debug-message">${log.message}</span>
+                </div>`;
+            }
+            debugContent.innerHTML = html;
+
+            // Auto-scroll to bottom
+            debugContent.scrollTop = debugContent.scrollHeight;
+        },
+
+        getAllLogs: function() {
+            return this.logs;
+        },
+
+        clearLogs: function() {
+            this.logs = [];
+            this.updateDebugPanel();
+        }
+    };
+
+    // ==========================================
+    // PHONE NUMBER NORMALIZATION (Twilio E.164)
+    // ==========================================
+    // Twilio requires E.164 format ("+264811234567"). Borrowers commonly type
+    // the local trunk-prefix form ("0811234567") or with spaces/dashes -- this
+    // normalizes to E.164 before submission so every number we later SMS
+    // (approval notice, portal credentials) is already Twilio-valid. The
+    // server independently re-normalizes on receipt as a safety net, so this
+    // is belt-and-braces, not the only line of defense.
+    function normalizePhoneE164(raw, countryCode) {
+        countryCode = countryCode || '264';
+        if (!raw) return raw;
+        const hasPlus = raw.trim().startsWith('+');
+        const digits = raw.replace(/\D/g, '');
+        if (!digits) return raw;
+        if (hasPlus) return '+' + digits;
+        if (digits.startsWith('00')) return '+' + digits.slice(2);
+        if (digits.startsWith('0')) return '+' + countryCode + digits.slice(1);
+        if (!digits.startsWith(countryCode)) return '+' + countryCode + digits;
+        return '+' + digits;
+    }
+
+    function normalizePhoneFields() {
+        ['contact_no', 'relative_contact', 'company_tel', 'ref1_tel', 'ref2_tel', 'home_telephone'].forEach(function(id) {
+            const field = document.getElementById(id);
+            if (field && field.value.trim()) {
+                field.value = normalizePhoneE164(field.value);
+            }
+        });
+    }
+
+    // Builds the legacy single-line 'address'/'postal_address' hidden
+    // fields from the structured residential/postal line inputs, so
+    // downstream code that still reads applicant_address / extra_data.postal_address
+    // (unchanged, not part of this update) keeps working exactly as before.
+    function composeAddressFields() {
+        function fieldVal(id) {
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : '';
+        }
+
+        const residentialParts = ['residential_line1', 'residential_line2', 'residential_line3', 'residential_postal_code']
+            .map(fieldVal).filter(Boolean);
+        document.getElementById('address').value = residentialParts.join(', ');
+
+        const postalSameCheckbox = document.getElementById('postal_same_as_residential');
+        const postalUsesResidential = !postalSameCheckbox || postalSameCheckbox.checked;
+
+        if (postalUsesResidential) {
+            document.getElementById('postal_address').value = residentialParts.join(', ');
+            // Mirror the structured postal lines too, so the postal_line1-4
+            // columns (used directly by the CPL export) are populated even
+            // when the applicant never touched the postal section.
+            ['line1', 'line2', 'line3'].forEach(function (suffix, i) {
+                const src = document.getElementById('residential_' + suffix);
+                const dst = document.getElementById('postal_' + suffix);
+                if (src && dst) { dst.value = src.value; }
+            });
+            const resPostal = document.getElementById('residential_postal_code');
+            const dstPostal = document.getElementById('postal_postal_code');
+            if (resPostal && dstPostal) { dstPostal.value = resPostal.value; }
+        } else {
+            const postalParts = ['postal_line1', 'postal_line2', 'postal_line3', 'postal_postal_code']
+                .map(fieldVal).filter(Boolean);
+            document.getElementById('postal_address').value = postalParts.join(', ');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const postalSameCheckbox = document.getElementById('postal_same_as_residential');
+        const postalFieldsBlock = document.getElementById('postal-address-fields');
+        if (postalSameCheckbox && postalFieldsBlock) {
+            postalSameCheckbox.addEventListener('change', function () {
+                postalFieldsBlock.style.display = this.checked ? 'none' : 'grid';
+            });
+        }
+    });
+
+    // ==========================================
+    // MAIN FORM CONTROLLER
+    // ==========================================
+    let currentStep = 1;
+    const totalSteps = 8;
+    let borrowerCanvas, borrowerCtx, witnessCanvas, witnessCtx;
+    let isDrawing = false;
+    let isDataLoaded = true; // PHP pre-populates fields, so assume loaded initially
+
+    // Step names for mobile display
+    const stepNames = [
+        'Personal Information',
+        'Financial Information',
+        'Employment Information',
+        'Contact & Banking',
+        'Loan Details',
+        'Document Upload',
+        'Digital Signatures',
+        'Review Application'
+    ];
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+    function initForm() {
+        DebugLogger.log('INIT', 'Initializing form...');
+
+        updateProgressBar();
+        updateMobileProgress();
+        updateStepIndicator();
+        setupFileInputs();
+        setupBankStatementToggle();
+        setupCalculations();
+        setupReferralTracking();
+
+        DebugLogger.log('INIT', 'Form initialization complete');
+        DebugLogger.log('INIT', 'Current step: ' + currentStep + ' of ' + totalSteps);
+
+        // Calculate loan details if data was pre-populated via PHP
+        const loanAmount = document.getElementById('loan_amount');
+        const numInstallments = document.getElementById('num_installments');
+        if (loanAmount && loanAmount.value && parseFloat(loanAmount.value) > 0) {
+            DebugLogger.log('INIT', 'Pre-populated loan data found, calculating...');
+            setTimeout(calculateLoanDetails, 200);
+        }
+
+        // Calculate financial totals if data was pre-populated via PHP
+        const salary = document.getElementById('salary');
+        if (salary && salary.value && parseFloat(salary.value) > 0) {
+            DebugLogger.log('INIT', 'Pre-populated financial data found, calculating...');
+            setTimeout(calculateTotals, 200);
+        }
+
+        // Trigger bank statement upload section if data was pre-populated
+        const bankMerged = document.getElementById('bank_merged');
+        const bankSeparate = document.getElementById('bank_separate');
+        if ((bankMerged && bankMerged.checked) || (bankSeparate && bankSeparate.checked)) {
+            DebugLogger.log('INIT', 'Pre-populated bank statement type found');
+            setTimeout(setupBankStatementToggle, 200);
+        }
+    }
+
+    // ==========================================
+    // REFERRAL TRACKING
+    // ==========================================
+    function setupReferralTracking() {
+        DebugLogger.log('REFERRAL', 'Setting up referral tracking...');
+
+        const refIdField = document.getElementById('refId');
+        const bIDField = document.getElementById('bID');
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const refId = urlParams.get('refId');
+        const bID = urlParams.get('bID');
+        const isAdmin = urlParams.get('admin') === 'true';
+        const isAdminNew = isAdmin && urlParams.get('new') === 'true';
+
+        DebugLogger.log('REFERRAL', 'URL Parameters', { refId, bID, isAdmin });
+
+        // Set values only if parameters exist
+        if (refId && refIdField) {
+            refIdField.value = refId;
+            DebugLogger.log('REFERRAL', 'Set refId: ' + refId);
+        }
+        if (bID && bIDField) {
+            bIDField.value = bID;
+            DebugLogger.log('REFERRAL', 'Set bID: ' + bID);
+        }
+
+// Admin NEW mode: allow admin to type a reference number and keep it in sync with refId        if (isAdminNew) {            const loanRefField = document.getElementById('loan_reference_no');            if (loanRefField) {                // If refId is passed in URL, prefill the loan reference field too                if (refId) { loanRefField.value = refId; }                // Always sync into hidden refId so the server receives it                loanRefField.addEventListener('input', function () {                    if (refIdField) refIdField.value = loanRefField.value.trim();                });                if (refIdField && !refIdField.value && loanRefField.value) {                    refIdField.value = loanRefField.value.trim();                }            }        }
+        // If admin mode, hide step 7 and disable native browser validation.
+        // Admin mode uses conditional document rules, so HTML5 `required` would incorrectly block submission
+        // (e.g., "An invalid form control ... is not focusable").
+        if (isAdmin) {
+            DebugLogger.log('ADMIN', 'Admin mode detected, hiding step 7');
+            hideStep7ForAdmin();
+
+            const formEl = document.getElementById('loanApplicationForm');
+            if (formEl) {
+                formEl.setAttribute('novalidate', 'novalidate');
+            }
+
+            // Remove any hard `required` constraints from conditional document inputs.
+            // JS validation (validateAdminStep6Documents) controls the requirements.
+            const conditionalIds = [
+                'admin_merged_document',
+                'id_copy',
+                'payslip',
+                'bank_statement_merged',
+                'bank_statement_1',
+                'bank_statement_2',
+                'bank_statement_3'
+            ];
+            conditionalIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.required = false;
+            });
+        }
+
+        // Data is already loaded via PHP server-side pre-population
+        DebugLogger.log('REFERRAL', 'Borrower data loaded via PHP server-side rendering');
+    }
+
+    /**
+     * Hide step 7 when admin=true parameter is set
+     */
+    function hideStep7ForAdmin() {
+        const step7 = document.getElementById('step-7');
+        const step7Indicator = document.querySelector('.progress-step[data-step="7"]');
+
+        DebugLogger.log('ADMIN', 'Attempting to hide step 7', { step7Exists: !!step7, indicatorExists: !!step7Indicator });
+
+        if (step7) {
+            step7.style.display = 'none';
+            DebugLogger.log('ADMIN', 'Step 7 hidden');
+        }
+
+        if (step7Indicator) {
+            step7Indicator.style.display = 'none';
+            DebugLogger.log('ADMIN', 'Step 7 indicator hidden');
+        }
+
+        // Adjust total steps for admin view (7 instead of 8)
+        // Note: We don't change totalSteps variable as it's used for UI calculations
+
+        // Update progress tracker
+        updateProgressBar();
+        updateStepIndicator();
+        updateNavigationButtons();
+    }
+
+
+// Add this function after the hideStep7ForAdmin function
+
+/**
+ * Enhance step 6 for admin mode
+ * - Keep the standard document uploads (payslip, ID copy, bank statements)
+ * - Add an additional required upload for a single merged application PDF
+ */
+function simplifyStep6ForAdmin() {
+    const step6 = document.getElementById('step-6');
+
+    if (!step6) {
+        DebugLogger.log('ADMIN', 'ERROR: Step 6 not found');
+        return;
+    }
+
+    const formGrid = step6.querySelector('.form-grid');
+    if (!formGrid) {
+        DebugLogger.log('ADMIN', 'ERROR: Step 6 .form-grid not found');
+        return;
+    }
+
+    // Avoid duplicating the field if this function is called more than once
+    if (document.getElementById('admin_merged_document')) {
+        DebugLogger.log('ADMIN', 'Admin merged document field already exists; skipping insert');
+        return;
+    }
+
+    DebugLogger.log('ADMIN', 'Admin mode detected: adding merged application document upload to step 6');
+
+    // Insert the extra upload at the top of step 6, while keeping existing uploads
+    const adminUploadHtml = `
+        <div class="form-group full-width" id="adminMergedDocumentGroup">
+            <label for="admin_merged_document">Upload Application Document <span class="required">*</span></label>
+            <div class="file-upload-wrapper">
+                    <input type="file" id="admin_merged_document" name="admin_merged_document" accept=".pdf">
+                <label for="admin_merged_document" class="file-upload-label">
+                    <i class="fas fa-file-pdf"></i>
+                    <span class="file-text">Upload Merged Application PDF</span>
+                    <span class="file-formats">PDF Only</span>
+                </label>
+            </div>
+            <div class="error-message">Please upload the application document</div>
+            <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                <i class="fas fa-info-circle"></i> Upload a single PDF containing all application documents
+            </p>
+        </div>
+    `;
+
+    formGrid.insertAdjacentHTML('afterbegin', adminUploadHtml);
+
+    // Re-setup file inputs so the new input gets the same UX behavior
+    if (typeof setupFileInputs === 'function') {
+        setupFileInputs();
+    }
+}
+
+
+// Modify the hideStep7ForAdmin function to also call simplifyStep6ForAdmin
+function hideStep7ForAdmin() {
+    const step7 = document.getElementById('step-7');
+    const step7Indicator = document.querySelector('.progress-step[data-step="7"]');
+
+    DebugLogger.log('ADMIN', 'Attempting to hide step 7', { step7Exists: !!step7, indicatorExists: !!step7Indicator });
+
+    if (step7) {
+        step7.style.display = 'none';
+        DebugLogger.log('ADMIN', 'Step 7 hidden');
+    }
+
+    if (step7Indicator) {
+        step7Indicator.style.display = 'none';
+        DebugLogger.log('ADMIN', 'Step 7 indicator hidden');
+    }
+
+    // NEW: Simplify step 6 for admin mode
+    simplifyStep6ForAdmin();
+    setupStep6AdminRequirementUX();
+
+    // Update progress tracker
+    updateProgressBar();
+    updateStepIndicator();
+    updateNavigationButtons();
+}
+
+// Modify validation for step 6 in admin mode
+function validateStep6AdminComplex() {
+    // Admin rule:
+    // - Admin may submit EITHER a single merged application PDF (admin_merged_document)
+    // - OR the full set of the 3 document types: Payslip + ID Copy + Bank Statement(s)
+    //   (within bank statements: obey the existing merged/separate sub-rules)
+
+    const adminDoc = document.getElementById('admin_merged_document');
+    const payslipFile = document.getElementById('payslip');
+    const idCopyFile = document.getElementById('id_copy');
+
+    const hasMergedApp = !!(adminDoc && adminDoc.files && adminDoc.files.length > 0);
+    const hasPayslip = !!(payslipFile && payslipFile.files && payslipFile.files.length > 0);
+    const hasIdCopy = !!(idCopyFile && idCopyFile.files && idCopyFile.files.length > 0);
+
+    // Bank statement detection
+    const bankStatementType = document.querySelector('input[name="bank_statement_type"]:checked');
+    let bankHasAny = false;
+    let bankIsComplete = false;
+
+    if (bankStatementType) {
+        if (bankStatementType.value === 'merged') {
+            const mergedFile = document.getElementById('bank_statement_merged');
+            bankHasAny = !!(mergedFile && mergedFile.files && mergedFile.files.length > 0);
+            bankIsComplete = bankHasAny;
+        } else if (bankStatementType.value === 'separate') {
+            const stmt1 = document.getElementById('bank_statement_1');
+            const stmt2 = document.getElementById('bank_statement_2');
+            const stmt3 = document.getElementById('bank_statement_3');
+
+            const s1 = !!(stmt1 && stmt1.files && stmt1.files.length > 0);
+            const s2 = !!(stmt2 && stmt2.files && stmt2.files.length > 0);
+            const s3 = !!(stmt3 && stmt3.files && stmt3.files.length > 0);
+
+            bankHasAny = s1 || s2 || s3;
+            // Existing UX expects statement 1 as the minimum required when separate is chosen
+            bankIsComplete = s1;
+        }
+    }
+
+    // If merged application doc provided, Step 6 is valid regardless of the other three
+    if (hasMergedApp) {
+        DebugLogger.log('VALIDATION', 'Admin Step 6: merged application document provided; other docs optional');
+        // Clear any existing error styling on document groups
+        [adminDoc, payslipFile, idCopyFile].forEach(function(el) {
+            const fg = el?.closest('.form-group');
+            if (fg) fg.classList.remove('error');
+        });
+        const bankSection = document.querySelector('#step-6 .bank-statement-section');
+        if (bankSection) bankSection.classList.remove('error');
+        return true;
+    }
+
+    // Otherwise, if admin started uploading any of the 3 doc types, enforce completion of all 3
+    const startedIndividualRoute = hasPayslip || hasIdCopy || bankHasAny;
+
+    let isValid = true;
+
+    // Helper to mark/clear errors
+    function markError(el, shouldError) {
+        if (!el) return;
+        const fg = el.closest('.form-group, .bank-statement-section');
+        if (!fg) return;
+        fg.classList.toggle('error', !!shouldError);
+    }
+
+    // Case: nothing uploaded at all
+    if (!startedIndividualRoute) {
+        DebugLogger.log('VALIDATION', 'Admin Step 6: no documents uploaded; require merged PDF OR full set of 3 document types');
+        markError(adminDoc, true);
+        markError(payslipFile, true);
+        markError(idCopyFile, true);
+        const bankSection = document.querySelector('#step-6 .bank-statement-section');
+        if (bankSection) bankSection.classList.add('error');
+        return false;
+    }
+
+    // Individual route: require Payslip + ID Copy + Bank Statement(s)
+    if (!hasPayslip) {
+        DebugLogger.log('VALIDATION', 'Admin Step 6: Payslip missing (required when using individual uploads)');
+        markError(payslipFile, true);
+        isValid = false;
+    } else {
+        markError(payslipFile, false);
+    }
+
+    if (!hasIdCopy) {
+        DebugLogger.log('VALIDATION', 'Admin Step 6: ID copy missing (required when using individual uploads)');
+        markError(idCopyFile, true);
+        isValid = false;
+    } else {
+        markError(idCopyFile, false);
+    }
+
+    // Bank statements required (and must be complete according to its selected mode)
+    if (!bankStatementType) {
+        DebugLogger.log('VALIDATION', 'Admin Step 6: Bank statement type not selected (required when using individual uploads)');
+        const bankSection = document.querySelector('#step-6 .bank-statement-section');
+        if (bankSection) bankSection.classList.add('error');
+        isValid = false;
+    } else {
+        const bankSection = document.querySelector('#step-6 .bank-statement-section');
+        if (bankSection) bankSection.classList.remove('error');
+
+        if (!bankIsComplete) {
+            DebugLogger.log('VALIDATION', 'Admin Step 6: Bank statement file(s) incomplete for selected mode');
+            isValid = false;
+
+            if (bankStatementType.value === 'merged') {
+                const mergedFile = document.getElementById('bank_statement_merged');
+                markError(mergedFile, true);
+            } else {
+                const stmt1 = document.getElementById('bank_statement_1');
+                markError(stmt1, true);
+            }
+        } else {
+            // Clear bank input error states
+            const mergedFile = document.getElementById('bank_statement_merged');
+            const stmt1 = document.getElementById('bank_statement_1');
+            if (mergedFile) markError(mergedFile, false);
+            if (stmt1) markError(stmt1, false);
+        }
+    }
+
+    // Merged application PDF is optional in this route
+    markError(adminDoc, false);
+
+    return isValid;
+}
+
+function setupStep6AdminRequirementUX() {
+    // Optional: live-toggle the red "error" styling as admin selects files.
+    // This does not replace validateStep6AdminComplex() which is the source of truth.
+
+    const step6 = document.getElementById('step-6');
+    if (!step6) return;
+
+    // Use event delegation so we catch dynamically inserted bank inputs
+    step6.addEventListener('change', function(e) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
+        if (!isAdmin) return;
+
+        // If step 6 is currently visible/active, we can softly re-validate to clear errors
+        if (typeof currentStep !== 'undefined' && currentStep === 6) {
+            validateStep6AdminComplex();
+        }
+    }, true);
+}
+
+
+// Update the validateCurrentStep function to handle admin mode for step 6
+// Add this check at the beginning of the step 6 validation section:
+
+/*
+// In the validateCurrentStep function, replace the step 6 validation with:
+
+if (currentStep === 6) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get('admin') === 'true';
+
+    if (isAdmin) {
+        // Admin mode - only validate single merged document
+        DebugLogger.log('VALIDATION', 'Validating admin mode step 6...');
+        return validateStep6Admin();
+    } else {
+        // Regular mode - validate as before
+        DebugLogger.log('VALIDATION', 'Validating bank statement uploads...');
+        // ... existing validation code ...
+    }
+}
+*/
+    // ==========================================
+    // PROGRESS BAR
+    // ==========================================
+    function updateProgressBar() {
+        DebugLogger.log('PROGRESS', 'Updating progress bar', { currentStep, totalSteps });
+
+        const progressFill = document.getElementById('progressFill');
+        const percentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
+        DebugLogger.log('PROGRESS', 'Progress percentage: ' + percentage.toFixed(1) + '%');
+
+        progressFill.style.width = percentage + '%';
+
+        // Update step indicators
+        for (let i = 1; i <= totalSteps; i++) {
+            const indicator = document.getElementById('indicator-' + i);
+            if (!indicator) continue;
+
+            const stepNumber = indicator.querySelector('.step-number');
+            const stepIcon = indicator.querySelector('.step-icon');
+
+            indicator.classList.remove('active', 'completed');
+
+            if (i < currentStep) {
+                indicator.classList.add('completed');
+                stepNumber.style.display = 'none';
+                stepIcon.style.display = 'block';
+                DebugLogger.log('PROGRESS', 'Step ' + i + ': completed');
+            } else if (i === currentStep) {
+                indicator.classList.add('active');
+                stepNumber.style.display = 'flex';
+                stepIcon.style.display = 'none';
+                DebugLogger.log('PROGRESS', 'Step ' + i + ': active');
+            } else {
+                stepNumber.style.display = 'flex';
+                stepIcon.style.display = 'none';
+                DebugLogger.log('PROGRESS', 'Step ' + i + ': pending');
+            }
+        }
+    }
+
+    function updateMobileProgress() {
+        const mobileFill = document.getElementById('mobileProgressFill');
+        const currentLabel = document.getElementById('currentStepLabel');
+
+        if (mobileFill && currentLabel) {
+            const percentage = (currentStep / totalSteps) * 100;
+            mobileFill.style.width = percentage + '%';
+            currentLabel.textContent = 'Step ' + currentStep + ' of ' + totalSteps + ': ' + stepNames[currentStep - 1];
+            DebugLogger.log('PROGRESS', 'Mobile progress updated: Step ' + currentStep);
+        }
+    }
+
+    function updateStepIndicator() {
+        const stepIndicator = document.getElementById('stepIndicator');
+        if (stepIndicator) {
+            stepIndicator.textContent = 'Step ' + currentStep + ' of ' + totalSteps;
+            DebugLogger.log('PROGRESS', 'Step indicator updated');
+        }
+    }
+
+// ==========================================
+// STEP NAVIGATION
+// ==========================================
+function changeStep(direction) {
+    DebugLogger.log('NAVIGATION', 'changeStep called', { direction, currentStep });
+
+    // Check if current step exists for admin mode
+    const currentStepEl = document.getElementById('step-' + currentStep);
+        // Admin Step 6 has conditional requirements (merged PDF OR full set of 3 docs).
+        // Validate here, but do NOT return early; allow navigation to continue if valid.
+        if (currentStep === 6) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAdmin = urlParams.get('admin') === 'true';
+            if (isAdmin) {
+                DebugLogger.log('VALIDATION', 'Validating admin mode step 6 (conditional document rules)...');
+                if (!validateStep6AdminComplex()) {
+                    DebugLogger.log('VALIDATION', 'Admin step 6 validation FAILED');
+                    return;
+                }
+            }
+        }
+    if (!currentStepEl) {
+        DebugLogger.log('NAVIGATION', 'Step ' + currentStep + ' not found, skipping...');
+        // Skip to next step
+        if (direction === 1) {
+            currentStep += direction;
+            changeStep(direction); // Recursively try next step
+            return;
+        } else {
+            currentStep += direction;
+            changeStep(direction); // Recursively try previous step
+            return;
+        }
+    }
+
+    if (direction === 1) {
+        DebugLogger.log('VALIDATION', 'Moving to next step, validating current step...');
+        if (!validateCurrentStep()) {
+            DebugLogger.log('VALIDATION', 'Validation FAILED for step ' + currentStep);
+            return;
+        }
+        DebugLogger.log('VALIDATION', 'Validation PASSED for step ' + currentStep);
+    }
+
+    // Hide current step
+    DebugLogger.log('NAVIGATION', 'Hiding step ' + currentStep);
+    currentStepEl.classList.remove('active');
+    currentStepEl.classList.add('exiting');
+
+    setTimeout(function() {
+        currentStepEl.classList.remove('exiting');
+
+        // Update step counter
+        currentStep += direction;
+        DebugLogger.log('NAVIGATION', 'Now on step ' + currentStep);
+
+        // For admin mode, check if the next step exists and skip if it doesn't
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
+
+        if (isAdmin && direction === 1) {
+            // Skip step 7 if it doesn't exist
+            let nextStepEl = document.getElementById('step-' + currentStep);
+            let attempts = 0;
+            const maxAttempts = 3;
+
+            while ((!nextStepEl || nextStepEl.style.display === 'none') && attempts < maxAttempts) {
+                DebugLogger.log('ADMIN', 'Step ' + currentStep + ' not found or hidden, skipping...');
+                currentStep += direction;
+                nextStepEl = document.getElementById('step-' + currentStep);
+                attempts++;
+            }
+        } else if (isAdmin && direction === -1) {
+            // Skip step 7 when going backwards
+            let prevStepEl = document.getElementById('step-' + currentStep);
+            let attempts = 0;
+            const maxAttempts = 3;
+
+            while ((!prevStepEl || prevStepEl.style.display === 'none') && attempts < maxAttempts) {
+                DebugLogger.log('ADMIN', 'Step ' + currentStep + ' not found or hidden, skipping backward...');
+                currentStep += direction;
+                prevStepEl = document.getElementById('step-' + currentStep);
+                attempts++;
+            }
+        }
+
+        // Show new step
+        const newStepEl = document.getElementById('step-' + currentStep);
+        if (!newStepEl) {
+            DebugLogger.log('NAVIGATION', 'ERROR: Step ' + currentStep + ' not found');
+            return;
+        }
+
+        newStepEl.classList.add('active');
+        DebugLogger.log('NAVIGATION', 'Showing step ' + currentStep + ': ' + stepNames[currentStep - 1]);
+
+        // Update UI
+        updateProgressBar();
+        updateMobileProgress();
+        updateStepIndicator();
+        updateNavigationButtons();
+
+        // Setup signature pads when reaching step 7 (only if not admin)
+        if (currentStep === 7 && !isAdmin) {
+            DebugLogger.log('SIGNATURE', 'Reaching signature step, setting up signature pads...');
+            setTimeout(setupSignaturePads, 100);
+        }
+
+        // Populate review on final step
+        const finalStep = 8; // Review is step 8 for both modes (admin hides step 7 UI only)
+        if (currentStep === finalStep) {
+            DebugLogger.log('REVIEW', 'Reaching review step, populating review content...');
+            populateReview();
+        }
+
+        // Scroll to top of form
+        document.querySelector('.loan-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+}
+
+    function updateNavigationButtons() {
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Show/hide previous button
+        prevBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+        prevBtn.style.opacity = currentStep === 1 ? '0' : '1';
+
+        // Show/hide next/submit buttons
+        if (currentStep === totalSteps) {
+            nextBtn.style.display = 'none';
+            submitBtn.style.display = 'inline-flex';
+            DebugLogger.log('NAVIGATION', 'Submit button shown');
+        } else {
+            nextBtn.style.display = 'inline-flex';
+            submitBtn.style.display = 'none';
+            DebugLogger.log('NAVIGATION', 'Next button shown');
+        }
+    }
+
+    // ==========================================
+    // VALIDATION
+    // ==========================================
+    function validateCurrentStep() {
+        DebugLogger.log('VALIDATION', 'Starting validation for step ' + currentStep);
+
+        const currentStepEl = document.getElementById('step-' + currentStep);
+
+        // ADMIN_STEP6_BYPASS
+        // Admin Step 6 has conditional requirements (merged application PDF OR full set of 3 document types).
+        // Bypass generic [required] scanning to avoid false negatives.
+        if (currentStep === 6) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAdmin = urlParams.get('admin') === 'true';
+            if (isAdmin) {
+                DebugLogger.log('VALIDATION', 'Validating admin mode step 6 (conditional document rules)...');
+                const ok = validateStep6AdminComplex();
+                if (!ok) {
+                    // Try to scroll to the first visible error in step 6
+                    const firstErr = document.querySelector('#step-6 .error');
+                    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return ok;
+            }
+        }
+
+        const requiredFields = currentStepEl.querySelectorAll('[required]');
+        let isValid = true;
+        let firstError = null;
+        let errorCount = 0;
+        let errorMessages = [];
+
+        requiredFields.forEach(function(field) {
+            // Find the closest parent container for error styling
+            let formGroup = field.closest('.form-group, .bank-statement-section, .terms-section, .signature-section');
+
+            // Handle different field types
+            let isEmpty = false;
+
+            if (field.type === 'checkbox') {
+                isEmpty = !field.checked;
+                DebugLogger.log('VALIDATION', 'Checkbox [' + field.id + ']: ' + (field.checked ? 'checked' : 'unchecked'));
+            } else if (field.type === 'file') {
+                isEmpty = field.files.length === 0;
+                DebugLogger.log('VALIDATION', 'File [' + field.id + ']: ' + (field.files.length > 0 ? field.files[0].name : 'no file'));
+            } else {
+                isEmpty = !field.value.trim();
+                DebugLogger.log('VALIDATION', 'Field [' + field.id + ']: ' + (field.value.trim() ? field.value : 'empty'));
+            }
+
+            if (isEmpty) {
+                if (formGroup) {
+                    formGroup.classList.add('error');
+                }
+                isValid = false;
+                errorCount++;
+                errorMessages.push(field.id + ' is required');
+                if (!firstError) {
+                    firstError = field;
+                }
+                DebugLogger.log('VALIDATION', 'ERROR: [' + field.id + '] is empty or invalid');
+            } else {
+                if (formGroup) {
+                    formGroup.classList.remove('error');
+                }
+            }
+        });
+
+        // Special validation for radio buttons
+        const radioGroups = currentStepEl.querySelectorAll('input[type="radio"][required]');
+        const radioNames = new Set();
+
+        radioGroups.forEach(function(radio) {
+            radioNames.add(radio.name);
+        });
+
+        DebugLogger.log('VALIDATION', 'Radio groups found: ' + radioNames.size);
+
+        radioNames.forEach(function(name) {
+            const checked = currentStepEl.querySelector('input[name="' + name + '"]:checked');
+            const firstRadio = currentStepEl.querySelector('input[name="' + name + '"]');
+            const formGroup = firstRadio.closest('.form-group, .bank-statement-section');
+
+            if (!checked) {
+                if (formGroup) {
+                    formGroup.classList.add('error');
+                }
+                isValid = false;
+                errorCount++;
+                errorMessages.push(name + ' selection is required');
+                DebugLogger.log('VALIDATION', 'ERROR: Radio group [' + name + '] has no selection');
+            } else {
+                if (formGroup) {
+                    formGroup.classList.remove('error');
+                }
+                DebugLogger.log('VALIDATION', 'Radio group [' + name + ']: selected value = ' + checked.value);
+            }
+        });
+
+        // Special validation for signatures
+        if (currentStep === 7) {
+            DebugLogger.log('VALIDATION', 'Validating signatures...');
+
+            const borrowerSig = document.getElementById('borrower_signature');
+            const witnessSig = document.getElementById('witness_signature');
+
+            if (!borrowerSig || !borrowerSig.value) {
+                const sigGroup = document.querySelector('#borrower_canvas')?.closest('.signature-section');
+                if (sigGroup) {
+                    sigGroup.classList.add('error');
+                }
+                isValid = false;
+                errorCount++;
+                DebugLogger.log('VALIDATION', 'ERROR: Borrower signature missing');
+            } else {
+                const sigGroup = document.querySelector('#borrower_canvas')?.closest('.signature-section');
+                if (sigGroup) {
+                    sigGroup.classList.remove('error');
+                }
+                DebugLogger.log('VALIDATION', 'Borrower signature present');
+            }
+
+            if (!witnessSig || !witnessSig.value) {
+                const sigGroup = document.querySelector('#witness_canvas')?.closest('.signature-section');
+                if (sigGroup) {
+                    sigGroup.classList.add('error');
+                }
+                isValid = false;
+                errorCount++;
+                DebugLogger.log('VALIDATION', 'ERROR: Witness signature missing');
+            } else {
+                const sigGroup = document.querySelector('#witness_canvas')?.closest('.signature-section');
+                if (sigGroup) {
+                    sigGroup.classList.remove('error');
+                }
+                DebugLogger.log('VALIDATION', 'Witness signature present');
+            }
+        }
+
+        // Summary
+        DebugLogger.log('VALIDATION', 'Validation complete', {
+            isValid: isValid,
+            errorCount: errorCount,
+            errors: errorMessages
+        });
+
+        // Scroll to first error
+        if (!isValid && firstError) {
+            DebugLogger.log('VALIDATION', 'Scrolling to first error field');
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        return isValid;
+    }
+
+    // ==========================================
+    // FILE INPUTS
+    // ==========================================
+    function setupFileInputs() {
+        DebugLogger.log('FILES', 'Setting up file input handlers...');
+
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        DebugLogger.log('FILES', 'Found ' + fileInputs.length + ' file inputs');
+
+        fileInputs.forEach(function(input) {
+            input.addEventListener('change', function() {
+                const label = this.closest('.file-upload-wrapper').querySelector('.file-upload-label');
+                const fileText = label.querySelector('.file-text');
+
+                if (this.files.length > 0) {
+                    const fileName = this.files[0].name;
+                    const fileSize = (this.files[0].size / 1024).toFixed(2) + ' KB';
+                    fileText.textContent = fileName + ' ✓';
+                    label.classList.add('has-file');
+                    DebugLogger.log('FILES', 'File selected: ' + fileName + ' (' + fileSize + ')');
+                } else {
+                    const originalText = fileText.textContent.replace(' ✓', '');
+                    fileText.textContent = originalText;
+                    label.classList.remove('has-file');
+                    DebugLogger.log('FILES', 'File cleared');
+                }
+            });
+        });
+    }
+
+    // ==========================================
+    // BANK STATEMENT UPLOAD TOGGLE
+    // ==========================================
+    function setupBankStatementToggle() {
+        DebugLogger.log('BANK', 'Setting up bank statement toggle...');
+
+        const bankMerged = document.getElementById('bank_merged');
+        const bankSeparate = document.getElementById('bank_separate');
+        const bankUploads = document.getElementById('bankUploads');
+
+        function updateBankUploads() {
+            DebugLogger.log('BANK', 'Updating bank uploads display...');
+
+            bankUploads.innerHTML = '';
+
+            if (bankMerged.checked) {
+                const type = bankMerged.value;
+                DebugLogger.log('BANK', 'Selected: ' + type);
+
+                bankUploads.innerHTML = '<div class="form-grid"><div class="form-group full-width"><label for="bank_statement_merged">Merged Bank Statement <span class="required">*</span></label><div class="file-upload-wrapper"><input type="file" id="bank_statement_merged" name="bank_statement_merged" accept=".pdf" required><label for="bank_statement_merged" class="file-upload-label"><i class="fas fa-file-pdf"></i><span class="file-text">Upload Merged Statement</span><span class="file-formats">PDF Only</span></label></div><div class="error-message">Please upload your bank statement (PDF format)</div></div></div>';
+                DebugLogger.log('BANK', 'Created merged file upload field');
+            } else if (bankSeparate.checked) {
+                const type = bankSeparate.value;
+                DebugLogger.log('BANK', 'Selected: ' + type);
+
+                bankUploads.innerHTML = '<div class="form-grid"><div class="form-group"><label for="bank_statement_1">Statement 1 <span class="required">*</span></label><div class="file-upload-wrapper"><input type="file" id="bank_statement_1" name="bank_statement_1" accept=".pdf" required><label for="bank_statement_1" class="file-upload-label"><i class="fas fa-file-pdf"></i><span class="file-text">Upload Statement 1</span><span class="file-formats">PDF Only</span></label></div><div class="error-message">Please upload bank statement 1</div></div><div class="form-group"><label for="bank_statement_2">Statement 2</label><div class="file-upload-wrapper"><input type="file" id="bank_statement_2" name="bank_statement_2" accept=".pdf"><label for="bank_statement_2" class="file-upload-label"><i class="fas fa-file-pdf"></i><span class="file-text">Upload Statement 2 (Optional)</span><span class="file-formats">PDF Only</span></label></div></div><div class="form-group"><label for="bank_statement_3">Statement 3</label><div class="file-upload-wrapper"><input type="file" id="bank_statement_3" name="bank_statement_3" accept=".pdf"><label for="bank_statement_3" class="file-upload-label"><i class="fas fa-file-pdf"></i><span class="file-text">Upload Statement 3 (Optional)</span><span class="file-formats">PDF Only</span></label></div></div></div>';
+                DebugLogger.log('BANK', 'Created separate file upload fields (3 statements)');
+            } else {
+                DebugLogger.log('BANK', 'No bank statement type selected');
+            }
+
+            setupFileInputs();
+        }
+
+        bankMerged.addEventListener('change', function() {
+            DebugLogger.log('BANK', 'Merged radio changed to: ' + this.checked);
+            updateBankUploads();
+        });
+        bankSeparate.addEventListener('change', function() {
+            DebugLogger.log('BANK', 'Separate radio changed to: ' + this.checked);
+            updateBankUploads();
+        });
+
+        DebugLogger.log('BANK', 'Bank statement toggle handlers set up');
+    }
+
+    // ==========================================
+    // CALCULATIONS
+    // ==========================================
+    function setupCalculations() {
+        DebugLogger.log('CALC', 'Setting up calculation handlers...');
+
+        document.querySelectorAll('.calc-income').forEach(function(input) {
+            input.addEventListener('input', function() {
+                DebugLogger.log('CALC', 'Income field changed: ' + this.id + ' = ' + this.value);
+                calculateTotals();
+            });
+        });
+
+        document.querySelectorAll('.calc-expense').forEach(function(input) {
+            input.addEventListener('input', function() {
+                DebugLogger.log('CALC', 'Expense field changed: ' + this.id + ' = ' + this.value);
+                calculateTotals();
+            });
+        });
+
+        document.querySelectorAll('.calc-installment').forEach(function(input) {
+            input.addEventListener('input', function() {
+                DebugLogger.log('CALC', 'Installment field changed: ' + this.id + ' = ' + this.value);
+                calculateTotals();
+            });
+        });
+
+        document.getElementById('loan_amount').addEventListener('input', function() {
+            DebugLogger.log('CALC', 'Loan amount changed: ' + this.value);
+            calculateLoanDetails();
+        });
+
+        document.getElementById('num_installments').addEventListener('input', function() {
+            DebugLogger.log('CALC', 'Installments changed: ' + this.value);
+            calculateLoanDetails();
+        });
+
+        document.getElementById('first_due_date').addEventListener('change', function() {
+            DebugLogger.log('CALC', 'First due date changed: ' + this.value);
+            validateDates();
+        });
+
+        document.getElementById('last_due_date').addEventListener('change', function() {
+            DebugLogger.log('CALC', 'Last due date changed: ' + this.value);
+            validateDates();
+        });
+
+        DebugLogger.log('CALC', 'Calculation handlers set up');
+    }
+
+    function calculateTotals() {
+        let totalIncome = 0;
+        document.querySelectorAll('.calc-income').forEach(function(input) {
+            totalIncome += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total_income').value = totalIncome.toFixed(2);
+        DebugLogger.log('CALC', 'Total income calculated: ' + totalIncome.toFixed(2));
+
+        let totalExpenses = 0;
+        document.querySelectorAll('.calc-expense').forEach(function(input) {
+            totalExpenses += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total_expenses').value = totalExpenses.toFixed(2);
+        DebugLogger.log('CALC', 'Total expenses calculated: ' + totalExpenses.toFixed(2));
+
+        let totalInstallments = 0;
+        document.querySelectorAll('.calc-installment').forEach(function(input) {
+            totalInstallments += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total_installments').value = totalInstallments.toFixed(2);
+        DebugLogger.log('CALC', 'Total installments calculated: ' + totalInstallments.toFixed(2));
+    }
+
+    function calculateLoanDetails() {
+        const loanAmount = parseFloat(document.getElementById('loan_amount').value) || 0;
+        const months = parseInt(document.getElementById('num_installments').value) || 1;
+        const financeChargesAmountEl = document.getElementById('finance_charges_amount');
+        const totalRepayableEl = document.getElementById('total_repayable');
+        const installmentAmountEl = document.getElementById('installment_amount');
+
+        // Check if elements exist before trying to set values
+        if (!financeChargesAmountEl || !totalRepayableEl || !installmentAmountEl) {
+            console.error('Loan calculation elements not found');
+            DebugLogger.log('CALC', 'ERROR: Loan calculation elements not found');
+            return;
+        }
+
+        if (loanAmount <= 0) {
+            financeChargesAmountEl.value = '';
+            totalRepayableEl.value = '';
+            installmentAmountEl.value = '';
+            DebugLogger.log('CALC', 'Loan amount is 0 or empty, cleared calculated fields');
+            return;
+        }
+
+        if (months > 5) {
+            alert('Number of installments cannot exceed 5.');
+            document.getElementById('num_installments').value = '5';
+            DebugLogger.log('CALC', 'ERROR: Installments exceed 5, reset to 5');
+            return;
+        }
+
+        const finChargeAmt = loanAmount + (loanAmount * 0.0103) + 5;
+        const rate = parseFloat(document.getElementById('finance_charges').value) || 30;
+        const interestCharge = finChargeAmt * (rate / 100);
+
+        const total = finChargeAmt + interestCharge;
+
+        // Set values with null checks
+        financeChargesAmountEl.value = interestCharge.toFixed(2);
+        totalRepayableEl.value = total.toFixed(2);
+
+        if (months > 0) {
+            installmentAmountEl.value = (total / months).toFixed(2);
+        }
+
+        DebugLogger.log('CALC', 'Loan details calculated', {
+            loanAmount: loanAmount,
+            months: months,
+            interestCharge: interestCharge.toFixed(2),
+            total: total.toFixed(2),
+            installment: (total / months).toFixed(2)
+        });
+    }
+
+    function validateDates() {
+        const firstDate = document.getElementById('first_due_date').value;
+        const lastDate = document.getElementById('last_due_date').value;
+
+        DebugLogger.log('CALC', 'Validating dates', { firstDate, lastDate });
+
+        if (!firstDate || !lastDate) {
+            document.getElementById('final_repayment_date').value = '';
+            DebugLogger.log('CALC', 'Missing date, cleared final repayment date');
+            return;
+        }
+
+        const first = new Date(firstDate);
+        const last = new Date(lastDate);
+
+        if (last < first) {
+            alert('Last payment date must be on or after the first payment date.');
+            document.getElementById('last_due_date').value = '';
+            document.getElementById('final_repayment_date').value = '';
+            DebugLogger.log('CALC', 'ERROR: Last date before first date, cleared last date');
+            return;
+        }
+
+        document.getElementById('final_repayment_date').value = lastDate;
+        DebugLogger.log('CALC', 'Final repayment date set: ' + lastDate);
+    }
+
+    // ==========================================
+    // SIGNATURE PADS
+    // ==========================================
+    function setupSignaturePads() {
+        DebugLogger.log('SIGNATURE', 'Setting up signature pads...');
+
+        borrowerCanvas = document.getElementById('borrower_canvas');
+        witnessCanvas = document.getElementById('witness_canvas');
+
+        if (borrowerCanvas && witnessCanvas) {
+            // Set canvas size for responsive
+            borrowerCanvas.width = borrowerCanvas.offsetWidth || 500;
+            witnessCanvas.width = witnessCanvas.offsetWidth || 500;
+
+            borrowerCtx = borrowerCanvas.getContext('2d');
+            witnessCtx = witnessCanvas.getContext('2d');
+
+            borrowerCtx.strokeStyle = '#1a1a2e';
+            borrowerCtx.lineWidth = 2;
+            borrowerCtx.lineCap = 'round';
+            borrowerCtx.lineJoin = 'round';
+
+            witnessCtx.strokeStyle = '#1a1a2e';
+            witnessCtx.lineWidth = 2;
+            witnessCtx.lineCap = 'round';
+            witnessCtx.lineJoin = 'round';
+
+            setupCanvasEvents(borrowerCanvas, borrowerCtx, 'borrower_signature');
+            setupCanvasEvents(witnessCanvas, witnessCtx, 'witness_signature');
+
+            DebugLogger.log('SIGNATURE', 'Signature pads initialized');
+        } else {
+            DebugLogger.log('SIGNATURE', 'ERROR: Canvas elements not found');
+        }
+    }
+
+    function setupCanvasEvents(canvas, ctx, hiddenFieldId) {
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const coords = getCoords(e);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+            DebugLogger.log('SIGNATURE', 'Started drawing on ' + hiddenFieldId);
+        }
+
+        function draw(e) {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const coords = getCoords(e);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            updateSignatureData(canvas, hiddenFieldId);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+            DebugLogger.log('SIGNATURE', 'Stopped drawing on ' + hiddenFieldId);
+        }
+    }
+
+    function updateSignatureData(canvas, hiddenFieldId) {
+        const dataURL = canvas.toDataURL('image/png');
+        document.getElementById(hiddenFieldId).value = dataURL;
+        DebugLogger.log('SIGNATURE', 'Updated signature data for ' + hiddenFieldId + ', length: ' + dataURL.length);
+    }
+
+    function clearSignature(type) {
+        DebugLogger.log('SIGNATURE', 'Clearing ' + type + ' signature...');
+
+        if (type === 'borrower' && borrowerCtx) {
+            borrowerCtx.clearRect(0, 0, borrowerCanvas.width, borrowerCanvas.height);
+            document.getElementById('borrower_signature').value = '';
+            DebugLogger.log('SIGNATURE', 'Borrower signature cleared');
+        } else if (type === 'witness' && witnessCtx) {
+            witnessCtx.clearRect(0, 0, witnessCanvas.width, witnessCanvas.height);
+            document.getElementById('witness_signature').value = '';
+            DebugLogger.log('SIGNATURE', 'Witness signature cleared');
+        }
+    }
+
+    // ==========================================
+    // REVIEW SECTION
+    // ==========================================
+    function populateReview() {
+        DebugLogger.log('REVIEW', 'Populating review section...');
+
+        const reviewContent = document.getElementById('reviewContent');
+
+        // Helper function to get field value directly from DOM (works with PHP pre-populated values)
+        function getFieldValue(fieldName) {
+            const field = document.getElementById(fieldName);
+            return field ? field.value : '';
+        }
+
+        // Helper function to get radio button value by name
+        function getRadioValue(radioName) {
+            const radios = document.getElementsByName(radioName);
+            for (let i = 0; i < radios.length; i++) {
+                if (radios[i].checked) {
+                    return radios[i].value;
+                }
+            }
+            return '';
+        }
+
+        // Helper function to get select field text
+        function getSelectText(fieldName) {
+            const field = document.getElementById(fieldName);
+            if (field && field.selectedIndex >= 0) {
+                return field.options[field.selectedIndex].text;
+            }
+            return field ? field.value : '';
+        }
+
+        // Get values directly from form fields (works with PHP pre-population)
+        const firstname = getFieldValue('firstname');
+        const lastname = getFieldValue('lastname');
+        const idNumber = getFieldValue('id_number');
+        const gender = getFieldValue('gender');
+        const maritalStatus = getFieldValue('marital_status');
+        const salary = parseFloat(getFieldValue('salary')) || 0;
+        const totalIncome = parseFloat(getFieldValue('total_income')) || 0;
+        const totalExpenses = parseFloat(getFieldValue('total_expenses')) || 0;
+        const totalInstallments = parseFloat(getFieldValue('total_installments')) || 0;
+        const occupation = getFieldValue('occupation');
+        const companyName = getFieldValue('company_name');
+        const grossSalary = parseFloat(getFieldValue('gross_salary')) || 0;
+        const paymentDay = getFieldValue('payment_day');
+        const bankName = getFieldValue('bank_name');
+        const bankBranch = getFieldValue('bank_branch');
+        const accountType = getFieldValue('account_type');
+        const loanTypes = getFieldValue('loan_types');
+        const loanAmount = parseFloat(getFieldValue('loan_amount')) || 0;
+        const numInstallments = getFieldValue('num_installments');
+        const installmentAmount = parseFloat(getFieldValue('installment_amount')) || 0;
+        const totalRepayable = parseFloat(getFieldValue('total_repayable')) || 0;
+
+        const payslipFile = document.getElementById('payslip');
+        const idCopyFile = document.getElementById('id_copy');
+        const bankStatementType = getRadioValue('bank_statement_type');
+
+        // Get bank statement file info
+        let bankStatementInfo = 'Not selected';
+        if (bankStatementType === 'merged') {
+            const mergedFile = document.getElementById('bank_statement_merged');
+            bankStatementInfo = mergedFile && mergedFile.files[0] ? mergedFile.files[0].name : 'Merged PDF (not uploaded)';
+        } else if (bankStatementType === 'separate') {
+            let statements = [];
+            for (let i = 1; i <= 3; i++) {
+                const stmtFile = document.getElementById('bank_statement_' + i);
+                if (stmtFile && stmtFile.files[0]) {
+                    statements.push(stmtFile.files[0].name);
+                }
+            }
+            bankStatementInfo = statements.length > 0 ? statements.join(', ') : 'Separate files (not uploaded)';
+        }
+
+        DebugLogger.log('REVIEW', 'Review data collected', {
+            name: firstname + ' ' + lastname,
+            loanAmount: loanAmount,
+            bankStatementType: bankStatementType,
+            payslipUploaded: !!(payslipFile && payslipFile.files[0]),
+            idCopyUploaded: !!(idCopyFile && idCopyFile.files[0])
+        });
+
+        reviewContent.innerHTML = '<div class="review-grid"><div class="review-card"><div class="review-card-header"><i class="fas fa-user"></i><h4>Personal Information</h4></div><div class="review-card-body"><div class="review-item"><span class="label">Name:</span> <span class="value">' + firstname + ' ' + lastname + '</span></div><div class="review-item"><span class="label">ID Number:</span> <span class="value">' + idNumber + '</span></div><div class="review-item"><span class="label">Gender:</span> <span class="value">' + gender + '</span></div><div class="review-item"><span class="label">Marital Status:</span> <span class="value">' + maritalStatus + '</span></div></div></div><div class="review-card"><div class="review-card-header"><i class="fas fa-money-bill-wave"></i><h4>Financial Summary</h4></div><div class="review-card-body"><div class="review-item"><span class="label">Net Salary:</span> <span class="value">N$' + salary.toLocaleString() + '</span></div><div class="review-item"><span class="label">Total Income:</span> <span class="value">N$' + totalIncome.toLocaleString() + '</span></div><div class="review-item"><span class="label">Total Expenses:</span> <span class="value">N$' + totalExpenses.toLocaleString() + '</span></div><div class="review-item"><span class="label">Installments:</span> <span class="value">N$' + totalInstallments.toLocaleString() + '</span></div></div></div><div class="review-card"><div class="review-card-header"><i class="fas fa-briefcase"></i><h4>Employment</h4></div><div class="review-card-body"><div class="review-item"><span class="label">Occupation:</span> <span class="value">' + occupation + '</span></div><div class="review-item"><span class="label">Company:</span> <span class="value">' + companyName + '</span></div><div class="review-item"><span class="label">Gross Salary:</span> <span class="value">N$' + grossSalary.toLocaleString() + '</span></div><div class="review-item"><span class="label">Payment Day:</span> <span class="value">' + paymentDay + 'th</span></div></div></div><div class="review-card"><div class="review-card-header"><i class="fas fa-university"></i><h4>Banking</h4></div><div class="review-card-body"><div class="review-item"><span class="label">Bank:</span> <span class="value">' + bankName + '</span></div><div class="review-item"><span class="label">Branch:</span> <span class="value">' + bankBranch + '</span></div><div class="review-item"><span class="label">Account Type:</span> <span class="value">' + accountType + '</span></div></div></div><div class="review-card loan-summary"><div class="review-card-header highlight"><i class="fas fa-hand-holding-usd"></i><h4>Loan Summary</h4></div><div class="review-card-body"><div class="review-item"><span class="label">Loan Type:</span> <span class="value">' + loanTypes + '</span></div><div class="review-item"><span class="label">Amount:</span> <span class="value highlight">N$' + loanAmount.toLocaleString() + '</span></div><div class="review-item"><span class="label">Installments:</span> <span class="value">' + numInstallments + ' x N$' + installmentAmount.toLocaleString() + '</span></div><div class="review-item total"><span class="label">Total Repayable:</span> <span class="value highlight">N$' + totalRepayable.toLocaleString() + '</span></div></div></div><div class="review-card"><div class="review-card-header"><i class="fas fa-file-alt"></i><h4>Documents</h4></div><div class="review-card-body"><div class="review-item"><span class="label">Payslip:</span> <span class="value">' + (payslipFile && payslipFile.files[0] ? payslipFile.files[0].name : 'Not uploaded') + '</span></div><div class="review-item"><span class="label">ID Copy:</span> <span class="value">' + (idCopyFile && idCopyFile.files[0] ? idCopyFile.files[0].name : 'Not uploaded') + '</span></div><div class="review-item"><span class="label">Bank Statements:</span> <span class="value">' + bankStatementInfo + '</span></div></div></div></div><div class="review-note"><i class="fas fa-info-circle"></i><p>Affordability Assessment and Loan Agreement will be auto-generated by the system after submission.</p></div>';
+
+        DebugLogger.log('REVIEW', 'Review section populated successfully');
+    }
+
+
+// ==========================================
+// FORM SUBMISSION
+// ==========================================
+document.getElementById('loanApplicationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    DebugLogger.log('SUBMISSION', 'Form submit event triggered');
+
+    // Check if we're waiting for borrower data to load
+    const urlParams = new URLSearchParams(window.location.search);
+    const bID = urlParams.get('bID');
+
+    // Safely check isDataLoaded - default to true if not defined
+    const dataLoaded = typeof isDataLoaded !== 'undefined' ? isDataLoaded : true;
+
+    if (bID && !dataLoaded) {
+        DebugLogger.log('SUBMISSION', 'Waiting for borrower data to load...');
+        alert('Please wait while borrower data is being loaded...');
+        return;
+    }
+
+    DebugLogger.log('SUBMISSION', 'isDataLoaded check passed', { bID: bID, dataLoaded: dataLoaded });
+
+    // Final validation before submission
+    DebugLogger.log('SUBMISSION', 'Performing final validation...');
+    if (!validateCurrentStep()) {
+        DebugLogger.log('SUBMISSION', 'Final validation FAILED');
+        return;
+    }
+    DebugLogger.log('SUBMISSION', 'Final validation PASSED');
+
+    // Skip required field validation - allow submission even with empty fields
+    DebugLogger.log('SUBMISSION', 'Skipping required field validation - allowing empty submissions');
+
+    // Compose the legacy single-line address/postal_address hidden fields
+    // from the structured line1-4 inputs above, so applicant_address and
+    // extra_data.postal_address (still read elsewhere) keep working exactly
+    // as before -- the structured lines are the new source of truth, this
+    // is purely a compatibility mirror.
+    composeAddressFields();
+
+    // Normalize all phone number fields to Twilio-valid E.164 (+264...)
+    // before the FormData snapshot is taken below.
+    DebugLogger.log('SUBMISSION', 'Normalizing phone numbers to E.164...');
+    normalizePhoneFields();
+
+    DebugLogger.log('SUBMISSION', 'Proceeding with submission...');
+
+    // Log all form data for debugging - show ALL fields
+    const formData = new FormData(this);
+    DebugLogger.log('SUBMISSION', 'Form data to be submitted:');
+
+    // First, log ALL form field values directly from DOM
+    DebugLogger.log('SUBMISSION', '=== DIRECT FIELD VALUES ===');
+    const importantFields = ['firstname', 'lastname', 'id_number', 'date_of_birth', 'email', 'contact_no', 'gender', 'address', 'residential_line1', 'income_frequency', 'loan_purpose_category', 'loan_amount', 'gross_salary'];
+    importantFields.forEach(fieldName => {
+        const field = document.getElementById(fieldName);
+        const value = field ? field.value : 'NOT_FOUND';
+        DebugLogger.log('SUBMISSION', 'Field [' + fieldName + ']: [' + value + ']');
+    });
+    DebugLogger.log('SUBMISSION', '=== END DIRECT VALUES ===');
+
+    // Now log FormData contents
+    let formDataLog = {};
+    let fieldCount = 0;
+    for (let [key, value] of formData.entries()) {
+        fieldCount++;
+        if (key.includes('signature')) {
+            formDataLog[key] = '[signature data, length: ' + (value ? value.length : 0) + ']';
+        } else if (key.includes('bank_statement') || key === 'payslip' || key === 'id_copy') {
+            formDataLog[key] = '[file data: ' + (value ? value.name : 'no file') + ']';
+        } else if (key === '_source_token') {
+            formDataLog[key] = '[redacted]';
+        } else {
+            formDataLog[key] = String(value);
+        }
+    }
+    DebugLogger.log('SUBMISSION', 'FormData field count: ' + fieldCount);
+    DebugLogger.log('SUBMISSION', 'Form data: ' + JSON.stringify(formDataLog, null, 2));
+
+    // Check bank statement type and files
+    const bankStatementType = document.querySelector('input[name="bank_statement_type"]:checked');
+    if (bankStatementType) {
+        DebugLogger.log('SUBMISSION', 'Bank statement type: ' + bankStatementType.value);
+
+        if (bankStatementType.value === 'merged') {
+            const mergedFile = document.getElementById('bank_statement_merged');
+            if (mergedFile && mergedFile.files[0]) {
+                DebugLogger.log('SUBMISSION', 'Merged bank statement: ' + mergedFile.files[0].name + ' (' + (mergedFile.files[0].size / 1024).toFixed(2) + ' KB)');
+            } else {
+                DebugLogger.log('SUBMISSION', 'WARNING: Merged bank statement file not found');
+            }
+        } else if (bankStatementType.value === 'separate') {
+            for (let i = 1; i <= 3; i++) {
+                const stmtFile = document.getElementById('bank_statement_' + i);
+                if (stmtFile && stmtFile.files[0]) {
+                    DebugLogger.log('SUBMISSION', 'Statement ' + i + ': ' + stmtFile.files[0].name + ' (' + (stmtFile.files[0].size / 1024).toFixed(2) + ' KB)');
+                }
+            }
+        }
+    } else {
+        DebugLogger.log('SUBMISSION', 'WARNING: No bank statement type selected');
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const submissionProgress = document.getElementById('submissionProgress');
+
+    loadingOverlay.classList.add('active');
+
+    // Update progress indicator
+    submissionProgress.innerHTML = '<div class="progress-status">Sending application...</div>';
+
+    DebugLogger.log('SUBMISSION', 'Sending form data to server...');
+
+    // Submits directly to the DesertLedger public application intake API
+    // (see App\Controllers\ApplicationIntakeController::submit()). Field
+    // names above already match the "demo" source's configured
+    // field mappings, so no field renaming was needed here.
+    fetch('/api/applications/demo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(response) {
+        DebugLogger.log('SUBMISSION', 'Received response from server');
+        return response.text();
+    })
+    .then(function(data) {
+        loadingOverlay.classList.remove('active');
+
+        DebugLogger.log('SUBMISSION', 'Server response: ' + data);
+
+        // Support both legacy plain-text responses and JSON responses
+        let parsed = null;
+        try { parsed = JSON.parse(data); } catch (e) {}
+
+        const isSuccess = (data && data.trim() === 'success') || (parsed && parsed.status === 'success');
+
+        if (isSuccess) {
+            DebugLogger.log('SUBMISSION', 'SUCCESS: Application submitted successfully!');
+            alert('Application submitted successfully!');
+            window.location.href = './';
+            return;
+        }
+
+        const errMsg = (parsed && (parsed.message || parsed.error)) ? (parsed.message || parsed.error) : data;
+        DebugLogger.log('SUBMISSION', 'ERROR: Application submission failed', { error: errMsg, raw: data });
+        alert('Error submitting Application: ' + errMsg);
+
+        // Show detailed error in debug panel
+        DebugLogger.log('SUBMISSION', 'Detailed server response', { fullResponse: data, parsed: parsed });
+    })
+    .catch(function(error) {
+        loadingOverlay.classList.remove('active');
+        DebugLogger.log('SUBMISSION', 'CRITICAL ERROR: ' + error.message);
+        alert('Error submitting application: ' + error.message);
+    });
+});
+    // ==========================================
+    // DEBUG PANEL FUNCTIONS
+    // ==========================================
+    function toggleDebugPanel() {
+        const panel = document.getElementById('debugPanel');
+        const content = panel.querySelector('.debug-content');
+        const toggle = panel.querySelector('.debug-toggle');
+
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            toggle.textContent = '▼';
+        } else {
+            content.style.display = 'none';
+            toggle.textContent = '▲';
+        }
+    }
+
+    // ==========================================
+    // DOM LOAD EVENT
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        DebugLogger.log('INIT', 'DOM loaded, initializing form...');
+        initForm();
+        updateNavigationButtons();
+
+        // Handle window resize for signature canvases
+        window.addEventListener('resize', function() {
+            if (currentStep === 7) {
+                DebugLogger.log('RESIZE', 'Window resized, reinitializing signature pads');
+                setupSignaturePads();
+            }
+        });
+
+        // Check for URL parameters and fetch borrower data if present
+        setupReferralTracking();
+
+        DebugLogger.log('INIT', 'Form initialization complete');
+    });
+
+    function goBack(event) {
+        event.preventDefault();
+        DebugLogger.log('NAVIGATION', 'Going back...');
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.href = './';
+        }
+    }
+</script>
+
+            </form>
+</div></div></div>
+<footer style="background:#2a2d35;color:#cfd4da;padding:28px 20px;text-align:center;font-size:14px">
+  <div>&copy; 2026 DesertLedger. Demonstration environment &mdash; no real applications are processed.</div>
+  <div style="margin-top:6px">demo@desertledger.example &middot; +264 61 000 0000</div>
+</footer>
+
+<script src="assets/js/jquery-3.5.1.min.js"></script>
+<script src="assets/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

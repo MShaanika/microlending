@@ -1,0 +1,175 @@
+@font-face {
+  font-family: 'pylon-two-icon';
+  src: url('../fonts/pylon-two-icon.eot?d2mtjg');
+  src: url('../fonts/pylon-two-icon.eot?d2mtjg#iefix') format('embedded-opentype'),
+    url('../fonts/pylon-two-icon.ttf?d2mtjg') format('truetype'),
+    url('../fonts/pylon-two-icon.woff?d2mtjg') format('woff'),
+    url('../fonts/pylon-two-icon.svg?d2mtjg#pylon-two-icon') format('svg');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+[class^="pylon-two-icon-"],
+[class*=" pylon-two-icon-"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'pylon-two-icon' !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.pylon-two-icon-loan:before {
+  content: "\e924";
+}
+
+.pylon-two-icon-user:before {
+  content: "\e917";
+}
+
+.pylon-two-icon-graduate:before {
+  content: "\e918";
+}
+
+.pylon-two-icon-sports-car:before {
+  content: "\e919";
+}
+
+.pylon-two-icon-suitcase:before {
+  content: "\e91a";
+}
+
+.pylon-two-icon-personal:before {
+  content: "\e91b";
+}
+
+.pylon-two-icon-rating:before {
+  content: "\e91c";
+}
+
+.pylon-two-icon-experience:before {
+  content: "\e91d";
+}
+
+.pylon-two-icon-bill:before {
+  content: "\e91e";
+}
+
+.pylon-two-icon-select:before {
+  content: "\e91f";
+}
+
+.pylon-two-icon-growth:before {
+  content: "\e920";
+}
+
+.pylon-two-icon-love:before {
+  content: "\e921";
+}
+
+.pylon-two-icon-money-transfer:before {
+  content: "\e922";
+}
+
+.pylon-two-icon-bank-transfer:before {
+  content: "\e923";
+}
+
+.pylon-two-icon-at-sign:before {
+  content: "\e90e";
+}
+
+.pylon-two-icon-check-circle:before {
+  content: "\e90f";
+}
+
+.pylon-two-icon-clock:before {
+  content: "\e910";
+}
+
+.pylon-two-icon-map-pin:before {
+  content: "\e911";
+}
+
+.pylon-two-icon-money-tree:before {
+  content: "\e912";
+}
+
+.pylon-two-icon-paper-plane:before {
+  content: "\e913";
+}
+
+.pylon-two-icon-phone:before {
+  content: "\e914";
+}
+
+.pylon-two-icon-search:before {
+  content: "\e915";
+}
+
+.pylon-two-icon-trophy:before {
+  content: "\e916";
+}
+
+.pylon-two-icon-star:before {
+  content: "\e90d";
+}
+
+.pylon-two-icon-arrow-right:before {
+  content: "\e908";
+}
+
+.pylon-two-icon-arrow-left:before {
+  content: "\e909";
+}
+
+.pylon-two-icon-arrow-up:before {
+  content: "\e90a";
+}
+
+.pylon-two-icon-arrow-down:before {
+  content: "\e90b";
+}
+
+.pylon-two-icon-arrow-right-2:before {
+  content: "\e900";
+}
+
+.pylon-two-icon-arrow-left-2:before {
+  content: "\e90c";
+}
+
+.pylon-two-icon-calender:before {
+  content: "\e901";
+}
+
+.pylon-two-icon-clock1:before {
+  content: "\e902";
+}
+
+.pylon-two-icon-qoute-1:before {
+  content: "\e906";
+}
+
+.pylon-two-icon-qoute-2:before {
+  content: "\e907";
+}
+
+.pylon-two-icon-email:before {
+  content: "\e903";
+}
+
+.pylon-two-icon-map-pin1:before {
+  content: "\e904";
+}
+
+.pylon-two-icon-phone1:before {
+  content: "\e905";
+}

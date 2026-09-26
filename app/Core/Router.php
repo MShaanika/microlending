@@ -50,6 +50,12 @@ class Router
 			}
 		}
 
+		if (\App\Support\DemoMode::isPathHidden($path)) {
+			http_response_code(403);
+			View::render('errors/404', ['title' => 'Not available in the demo']);
+			return;
+		}
+
 		$params = [];
 		$handler = $this->routes[$method][$path] ?? null;
 

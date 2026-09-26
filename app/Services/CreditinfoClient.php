@@ -84,6 +84,10 @@ class CreditinfoClient
             throw new CreditinfoAuthException('Creditinfo is not configured -- see Settings > Integrations > Creditinfo.');
         }
 
+        if (\App\Support\DemoMode::enabled() && !\App\Support\DemoMode::isSandboxUrl($authUrl)) {
+            throw new CreditinfoAuthException('The demo environment only connects to the Creditinfo test environment, not a production address.');
+        }
+
         $debugRequestBody = ['grant_type' => 'client_credentials', 'scope' => $scope, 'client_id' => $clientId, 'client_secret' => '(hidden)'];
 
         $ch = curl_init($authUrl);
@@ -157,6 +161,10 @@ class CreditinfoClient
         $version = $this->config('creditinfo_api_version');
         if ($baseUrl === '' || $version === null) {
             throw new CreditinfoApiException('The Creditinfo API is not configured yet -- see Settings > Integrations > Creditinfo.');
+        }
+
+        if (\App\Support\DemoMode::enabled() && !\App\Support\DemoMode::isSandboxUrl($baseUrl)) {
+            throw new CreditinfoApiException('The demo environment only connects to the Creditinfo test environment, not a production address.');
         }
 
         $token = $this->getAccessToken($source);
