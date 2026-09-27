@@ -20,6 +20,10 @@ class BlandVoiceCallService
      */
     public static function dispatch(string $toPhone, string $task, string $webhookUrl): array
     {
+        if (\App\Support\DemoMode::blocksMessaging()) {
+            return ['success' => false, 'callId' => null, 'error' => 'Sandbox: voice calls are disabled, nothing is dialled.'];
+        }
+
         $settings = new NotificationSetting();
 
         $apiKey = trim((string) $settings->get('BLAND_API_KEY'));

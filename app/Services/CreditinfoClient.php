@@ -84,7 +84,7 @@ class CreditinfoClient
             throw new CreditinfoAuthException('Creditinfo is not configured -- see Settings > Integrations > Creditinfo.');
         }
 
-        if (\App\Support\DemoMode::enabled() && !\App\Support\DemoMode::isSandboxUrl($authUrl)) {
+        if (\App\Support\DemoMode::requiresTestEnvironment() && !\App\Support\DemoMode::isSandboxUrl($authUrl)) {
             throw new CreditinfoAuthException('The demo environment only connects to the Creditinfo test environment, not a production address.');
         }
 
@@ -163,7 +163,7 @@ class CreditinfoClient
             throw new CreditinfoApiException('The Creditinfo API is not configured yet -- see Settings > Integrations > Creditinfo.');
         }
 
-        if (\App\Support\DemoMode::enabled() && !\App\Support\DemoMode::isSandboxUrl($baseUrl)) {
+        if (\App\Support\DemoMode::requiresTestEnvironment() && !\App\Support\DemoMode::isSandboxUrl($baseUrl)) {
             throw new CreditinfoApiException('The demo environment only connects to the Creditinfo test environment, not a production address.');
         }
 

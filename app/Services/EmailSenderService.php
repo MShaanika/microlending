@@ -21,6 +21,10 @@ class EmailSenderService
      */
     public static function send(string $to, string $subject, string $body, ?string $toName = null, bool $isHtml = false, array $attachments = [], ?string $replyTo = null, ?string $replyToName = null): array
     {
+        if (\App\Support\DemoMode::blocksMessaging()) {
+            return ['success' => false, 'providerReference' => null, 'error' => 'Sandbox: email is disabled, nothing is sent.'];
+        }
+
         $settings = new NotificationSetting();
         $host = $settings->get('SMTP_HOST');
 

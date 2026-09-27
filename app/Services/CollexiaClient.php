@@ -241,7 +241,7 @@ class CollexiaClient
             throw new \RuntimeException('The Collexia API is not configured yet -- see Collections > Debit Order API Settings.');
         }
 
-        if (\App\Support\DemoMode::enabled() && !\App\Support\DemoMode::isSandboxUrl($baseUrl)) {
+        if (\App\Support\DemoMode::requiresTestEnvironment() && !\App\Support\DemoMode::isSandboxUrl($baseUrl)) {
             throw new \RuntimeException('The demo environment only connects to Collexia UAT, not a production address.');
         }
 

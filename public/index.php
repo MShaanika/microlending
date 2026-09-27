@@ -5,7 +5,7 @@ $config = require dirname(__DIR__) . '/bootstrap/app.php';
 
 use App\Core\Router;
 
-if (\App\Support\DemoMode::enabled()) {
+if (\App\Support\DemoMode::enabled() || \App\Support\DemoMode::sandbox()) {
     header('X-Robots-Tag: noindex, nofollow');
 }
 

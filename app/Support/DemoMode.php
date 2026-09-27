@@ -60,6 +60,30 @@ final class DemoMode
         return false;
     }
 
+    /**
+     * Staging copy of the real business (config 'sandbox_mode'): masked/fictional
+     * data, so nothing may message anyone, and vendors are test-environment only.
+     */
+    public static function sandbox(): bool
+    {
+        static $sandbox = null;
+        if ($sandbox === null) {
+            $config = require ROOT_PATH . '/config/app.php';
+            $sandbox = !empty($config['sandbox_mode']) || getenv('MLS_SANDBOX_MODE') === '1';
+        }
+        return $sandbox;
+    }
+
+    public static function blocksMessaging(): bool
+    {
+        return self::sandbox();
+    }
+
+    public static function requiresTestEnvironment(): bool
+    {
+        return self::enabled() || self::sandbox();
+    }
+
     public static function isOwner(): bool
     {
         return (Auth::user()['username'] ?? null) === self::OWNER_USERNAME;

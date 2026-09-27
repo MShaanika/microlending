@@ -22,6 +22,10 @@ class RetellVoiceCallService
      */
     public static function dispatch(string $toPhone, array $dynamicVariables): array
     {
+        if (\App\Support\DemoMode::blocksMessaging()) {
+            return ['success' => false, 'callId' => null, 'error' => 'Sandbox: voice calls are disabled, nothing is dialled.'];
+        }
+
         $settings = new NotificationSetting();
 
         $apiKey = trim((string) $settings->get('RETELL_API_KEY'));

@@ -21,6 +21,10 @@ class SmsSenderService
      */
     public static function send(string $toPhone, string $message): array
     {
+        if (\App\Support\DemoMode::blocksMessaging()) {
+            return ['success' => false, 'providerReference' => null, 'error' => 'Sandbox: SMS is disabled, nothing is sent.'];
+        }
+
         $settings = new NotificationSetting();
 
         $sid = trim((string)$settings->get('TWILIO_ACCOUNT_SID'));

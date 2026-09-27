@@ -186,6 +186,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
 </head>
 
 <body>
+<?php if (\App\Support\DemoMode::sandbox()): ?>
+<div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#b42318;color:#fff;text-align:center;font:600 13px/28px system-ui,sans-serif;letter-spacing:.02em">SANDBOX &mdash; test environment with fictional data. No SMS, email or calls are sent.</div>
+<div style="height:28px"></div>
+<?php endif; ?>
 <div class="preloader">
   <div class="spinner-border text-info" role="status"></div>
 </div>
