@@ -106,7 +106,7 @@ echo "Wiped sandbox.\n";
 // 2. Configuration copied from production (explicit allow-list)
 // ---------------------------------------------------------------------------
 $copyFromProduction = [
-    'accounting_accounts', 'approval_policies', 'asset_categories', 'branches', 'companies', 'cpl_settings',
+    'accounting_accounts', 'approval_policies', 'asset_categories', 'companies', 'cpl_settings',
     'dashboard_widgets', 'data_quality_rules', 'document_templates', 'document_template_categories',
     'document_template_fields', 'duty_stamp_settings', 'expense_categories', 'hrm_departments',
     'hrm_designations', 'hrm_holidays', 'hrm_leave_types', 'hrm_shifts', 'loan_breakdown_size_bands',
@@ -125,6 +125,12 @@ foreach ($copyFromProduction as $table) {
     $n = copyRows($source, $target, $table);
     echo sprintf("  %-34s %d\n", $table, $n);
 }
+// Branch names/codes/addresses are business information, but the contact phone/email can be a person's own.
+copyRows($source, $target, 'branches', null, function ($r) {
+    $r['phone'] = '081 555 ' . str_pad((string) (700 + (int) $r['id']), 4, '0', STR_PAD_LEFT);
+    $r['email'] = 'branch' . (int) $r['id'] . '@sandbox.example';
+    return $r;
+});
 copyRows($source, $target, 'system_settings', "setting_key <> 'security_alert_recipient_email'");
 $target->exec("UPDATE system_settings SET setting_value = 'friendly' WHERE setting_key = 'error_display_mode'");
 
