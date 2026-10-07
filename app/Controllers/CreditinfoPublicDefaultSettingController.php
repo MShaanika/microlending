@@ -17,11 +17,12 @@ use App\Models\CreditinfoPublicDefaultSetting;
  *
  * Creditinfo has confirmed in writing there is no REST API for Public
  * Defaults -- only their own User Interface (fully supported by this
- * module) and SFTP (not yet specified). public_defaults_enabled can
- * therefore be freely toggled -- the manual workflow is real and complete
- * -- there is nothing left to gate it on. sftp_enabled is a placeholder
- * toggle only: nothing in this codebase branches on it yet, since there
- * is no SFTP client to enable (item 4).
+ * module) and SFTP. public_defaults_enabled can therefore be freely
+ * toggled -- the manual workflow is real and complete -- there is nothing
+ * left to gate it on. sftp_enabled now actually gates a real client
+ * (CreditinfoPublicDefaultSftpService, wired in via "Submit via SFTP" on
+ * an approved batch) once host/username/secret/outbound folder are all
+ * filled in here -- see CreditinfoPublicDefaultSetting::isSftpReady().
  */
 class CreditinfoPublicDefaultSettingController extends Controller
 {
@@ -52,6 +53,7 @@ class CreditinfoPublicDefaultSettingController extends Controller
             'title' => 'Public Defaults Settings',
             'settings' => $all,
             'sftpSecretSet' => $this->settings->isSftpSecretSet(),
+            'sftpReady' => $this->settings->isSftpReady(),
         ]);
     }
 

@@ -5,7 +5,7 @@
     <h4 class="card-title">Public Defaults Settings</h4>
 
     <div class="alert alert-info">
-      Creditinfo has confirmed in writing: <strong>"We don't have an API for Public Defaults, we have a user interface option and SFTP too."</strong> This module submits either through Creditinfo's own User Interface (record it on each default's detail screen), or by generating the vendor-confirmed submission file below (<a href="<?= url('/creditinfo/public-defaults/batches/listing') ?>">Listing Submission Batches</a> / <a href="<?= url('/creditinfo/public-defaults/batches/removal') ?>">Removal Submission Batches</a>) for a person to upload themselves via their own SFTP client -- this codebase does not make the SFTP connection itself.
+      Creditinfo has confirmed in writing: <strong>"We don't have an API for Public Defaults, we have a user interface option and SFTP too."</strong> This module submits either through Creditinfo's own User Interface (record it on each default's detail screen), or by generating the vendor-confirmed submission file below (<a href="<?= url('/creditinfo/public-defaults/batches/listing') ?>">Listing Submission Batches</a> / <a href="<?= url('/creditinfo/public-defaults/batches/removal') ?>">Removal Submission Batches</a>). Once a batch is approved there, it can either be downloaded for someone to upload via their own SFTP client, or -- once SFTP is fully configured and enabled below -- submitted straight to Creditinfo's inbound folder with a "Submit via SFTP" button, no manual upload needed.
     </div>
 
     <form method="post" action="<?= url('/creditinfo/public-defaults/settings') ?>">
@@ -21,8 +21,14 @@
         </div>
         <div class="col-md-8">
           <label class="form-label small">Submission Method</label>
-          <input type="text" class="form-control form-control-sm" value="Creditinfo User Interface (Manual)" disabled>
-          <div class="form-text">The only operative method right now -- see Record Submission on each default's detail screen. SFTP will appear here as a second option once implemented.</div>
+          <input type="text" class="form-control form-control-sm" value="<?= $sftpReady ? 'Creditinfo User Interface (Manual) + SFTP (Automated)' : 'Creditinfo User Interface (Manual)' ?>" disabled>
+          <div class="form-text">
+            <?php if ($sftpReady): ?>
+              SFTP is configured and enabled -- an approved submission batch can be sent straight to Creditinfo via the "Submit via SFTP" button, or still downloaded for manual upload. Single-record submissions still use Record Submission on each default's detail screen.
+            <?php else: ?>
+              The manual workflow (Record Submission on each default's detail screen, or downloading an approved batch to upload yourself) is the only operative method right now. Fill in the SFTP fields below and switch SFTP Enabled on to also unlock the "Submit via SFTP" button on approved batches.
+            <?php endif; ?>
+          </div>
         </div>
       </div>
 
@@ -93,9 +99,9 @@
       </div>
 
       <hr>
-      <h5 class="mb-1">SFTP Connection <span class="badge bg-secondary">No automated client built</span></h5>
+      <h5 class="mb-1">SFTP Connection <?php if ($sftpReady): ?><span class="badge bg-success">Enabled -- client active</span><?php else: ?><span class="badge bg-secondary">Not enabled</span><?php endif; ?></h5>
       <p class="text-muted small mb-3">
-        Connection details for Creditinfo's SFTP server (folder: "In") -- filled in once received, encrypted at rest (App\Core\Encryption), same as every other Creditinfo/Collexia credential. Nothing in this codebase opens a network connection with these values: a generated submission file is downloaded from a batch's detail screen and uploaded by a person using their own SFTP client (e.g. WinSCP/FileZilla) with the credentials below.
+        Connection details for Creditinfo's SFTP server (folder: "In") -- encrypted at rest (App\Core\Encryption), same as every other Creditinfo/Collexia credential. Once every field below is filled in and SFTP Enabled is switched on, an approved batch's "Submit via SFTP" button uses these values to connect and upload directly. A generated submission file can still always be downloaded instead, for a person to upload manually with their own SFTP client (e.g. WinSCP/FileZilla).
       </p>
       <div class="row g-3 mb-2">
         <div class="col-md-3">
@@ -103,7 +109,7 @@
             <input type="checkbox" class="form-check-input" id="sftp_enabled" name="sftp_enabled" <?= ($settings['sftp_enabled'] ?? 'off') === 'on' ? 'checked' : '' ?>>
             <label class="form-check-label" for="sftp_enabled">SFTP Enabled</label>
           </div>
-          <div class="form-text">Placeholder toggle -- not yet functional.</div>
+          <div class="form-text">Also requires host, username, secret and outbound folder to all be filled in below before "Submit via SFTP" actually appears.</div>
         </div>
         <div class="col-md-5">
           <label class="form-label small">SFTP Host</label>
