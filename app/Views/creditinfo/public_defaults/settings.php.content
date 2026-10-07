@@ -4,10 +4,6 @@
   <div class="card-body">
     <h4 class="card-title">Public Defaults Settings</h4>
 
-    <div class="alert alert-info">
-      Creditinfo has confirmed in writing: <strong>"We don't have an API for Public Defaults, we have a user interface option and SFTP too."</strong> This module submits either through Creditinfo's own User Interface (record it on each default's detail screen), or by generating the vendor-confirmed submission file below (<a href="<?= url('/creditinfo/public-defaults/batches/listing') ?>">Listing Submission Batches</a> / <a href="<?= url('/creditinfo/public-defaults/batches/removal') ?>">Removal Submission Batches</a>). Once a batch is approved there, it can either be downloaded for someone to upload via their own SFTP client, or -- once SFTP is fully configured and enabled below -- submitted straight to Creditinfo's inbound folder with a "Submit via SFTP" button, no manual upload needed.
-    </div>
-
     <form method="post" action="<?= url('/creditinfo/public-defaults/settings') ?>">
       <?= csrf_field() ?>
 
