@@ -52,6 +52,17 @@ $statusBadge = match ($batch['status']) {
         <a href="<?= url('/creditinfo/public-defaults/batches/' . $direction . '/' . $batch['id'] . '/download') ?>" class="btn btn-primary">Download File</a>
       <?php endif; ?>
 
+      <?php if (in_array($batch['status'], ['Approved', 'Downloaded'], true)): ?>
+        <?php if ($sftpReady): ?>
+          <form method="post" action="<?= url('/creditinfo/public-defaults/batches/' . $direction . '/' . $batch['id'] . '/submit-sftp') ?>" onsubmit="return confirm('This uploads <?= e($batch['filename']) ?> directly to Creditinfo\'s SFTP inbound folder right now. Continue?');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-success">Submit via SFTP</button>
+          </form>
+        <?php else: ?>
+          <button type="button" class="btn btn-success" disabled title="SFTP isn't configured/enabled yet -- set host, username, secret and outbound folder, and switch SFTP on, in Public Defaults Settings.">Submit via SFTP</button>
+        <?php endif; ?>
+      <?php endif; ?>
+
       <a href="<?= url('/creditinfo/public-defaults/batches/' . $direction) ?>" class="btn btn-outline-secondary">Back to <?= e(ucfirst($direction)) ?> Batches</a>
     </div>
 

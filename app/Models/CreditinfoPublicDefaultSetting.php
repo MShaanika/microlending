@@ -82,10 +82,14 @@ class CreditinfoPublicDefaultSetting extends Model
         return $this->get('submission_method', 'manual_ui');
     }
 
-    /** Always false until Creditinfo actually supplies the SFTP specification -- sftp_enabled can be flipped on in Settings, but nothing in this codebase acts on it yet (item 4: "prepare for SFTP, but don't invent its specification"). */
+    /** True once SFTP is fully configured (host/username/secret/outbound folder all set) AND an admin has explicitly switched sftp_enabled on in Settings -- see CreditinfoPublicDefaultSftpService, the real client that acts on this. */
     public function isSftpReady(): bool
     {
-        return false;
+        return $this->get('sftp_enabled') === 'on'
+            && $this->get('sftp_host') !== ''
+            && $this->get('sftp_username') !== ''
+            && $this->get('sftp_outbound_directory') !== ''
+            && $this->isSftpSecretSet();
     }
 
     /** Blank means "Requires Compliance Confirmation" -- see item 5; callers must not treat null as 0. */

@@ -296,6 +296,7 @@ $router->post('/creditinfo/public-defaults/batches/{direction}/{id}/approve', [C
 $router->post('/creditinfo/public-defaults/batches/{direction}/{id}/reject', [CreditinfoPublicDefaultBatchController::class, 'reject']);
 $router->get('/creditinfo/public-defaults/batches/{direction}/{id}/download', [CreditinfoPublicDefaultBatchController::class, 'download']);
 $router->post('/creditinfo/public-defaults/batches/{direction}/{id}/mark-submitted', [CreditinfoPublicDefaultBatchController::class, 'markSubmitted']);
+$router->post('/creditinfo/public-defaults/batches/{direction}/{id}/submit-sftp', [CreditinfoPublicDefaultBatchController::class, 'submitSftp']);
 
 $router->get('/creditinfo/public-defaults/{id}', [CreditinfoPublicDefaultController::class, 'show']);
 $router->post('/creditinfo/public-defaults/{id}/listing/submit-for-review', [CreditinfoPublicDefaultController::class, 'listingSubmitForReview']);

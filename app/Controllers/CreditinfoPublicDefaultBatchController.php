@@ -15,15 +15,17 @@ use App\Models\CreditinfoPublicDefaultBatchItem;
 use App\Models\CreditinfoPublicDefaultSetting;
 use App\Services\ApprovalService;
 use App\Services\CreditinfoPublicDefaultBatchService;
+use App\Services\CreditinfoPublicDefaultSftpService;
 
 /**
  * Public Defaults submission FILE workflow -- generating the batched
  * pipe-delimited .txt Creditinfo requires, a maker-checker review of it
- * (via the existing generic Approval Engine), and downloading it for a
- * human to actually upload via Creditinfo's own SFTP client. There is no
- * SFTP call anywhere in this controller or CreditinfoPublicDefaultBatchService
- * -- see database/creditinfo_public_defaults_submission_file.sql's header
- * comment for why that boundary is deliberate.
+ * (via the existing generic Approval Engine), and either downloading it
+ * for manual upload or, once SFTP is configured and switched on in
+ * Settings (CreditinfoPublicDefaultSetting::isSftpReady()), sending it
+ * straight to Creditinfo's inbound folder via submitSftp() /
+ * CreditinfoPublicDefaultSftpService. The manual download/mark-submitted
+ * path stays fully intact for when SFTP isn't ready or a user prefers it.
  */
 class CreditinfoPublicDefaultBatchController extends Controller
 {
@@ -115,7 +117,41 @@ class CreditinfoPublicDefaultBatchController extends Controller
             'direction' => $direction,
             'batch' => $batch,
             'items' => $this->items->forBatch((int) $batch['id']),
+            'sftpReady' => $this->settings->isSftpReady(),
         ]);
+    }
+
+    public function submitSftp(string $direction, string $id): void
+    {
+        $this->assertDirection($direction);
+        Auth::authorize('creditinfo.public_defaults.submit');
+        $idInt = (int) $id;
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/creditinfo/public-defaults/batches/' . $direction . '/' . $idInt);
+            return;
+        }
+
+        $batch = $this->batches->find($idInt);
+        if (!$batch || $batch['direction'] !== $direction) {
+            Session::flash('error', 'Batch not found.');
+            $this->redirect('/creditinfo/public-defaults/batches/' . $direction);
+            return;
+        }
+
+        $userId = (int) (Auth::user()['id'] ?? 0);
+
+        try {
+            (new CreditinfoPublicDefaultSftpService())->submit($idInt, $userId);
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/creditinfo/public-defaults/batches/' . $direction . '/' . $idInt);
+            return;
+        }
+
+        Audit::log('Update', 'Creditinfo', 'Submitted Public Defaults batch #' . $idInt . ' via SFTP', [], $batch['batch_reference']);
+        Session::flash('success', 'Batch uploaded to Creditinfo via SFTP and marked submitted.');
+        $this->redirect('/creditinfo/public-defaults/batches/' . $direction . '/' . $idInt);
     }
 
     public function approve(string $direction, string $id): void
