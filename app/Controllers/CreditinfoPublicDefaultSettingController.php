@@ -30,6 +30,7 @@ class CreditinfoPublicDefaultSettingController extends Controller
     private const TEXT_FIELDS = [
         'minimum_days_in_arrears', 'minimum_outstanding_balance', 'notice_waiting_period_days',
         'listing_fee', 'removal_fee', 'vat_rate', 'tariff_effective_date',
+        'supplier_reference_number',
         'sftp_host', 'sftp_port', 'sftp_username', 'sftp_auth_method',
         'sftp_outbound_directory', 'sftp_inbound_directory', 'sftp_archive_directory',
         'sftp_file_format', 'sftp_file_naming_convention', 'sftp_submission_schedule',
@@ -75,6 +76,15 @@ class CreditinfoPublicDefaultSettingController extends Controller
             if (array_key_exists($key, $_POST)) {
                 $this->settings->set($key, trim((string) $_POST[$key]), $userId);
             }
+        }
+
+        // A dedicated allowlist of exactly 'test'/'live', not TEXT_FIELDS --
+        // this is the "hidden server-side, not just CSS" gate a submission
+        // batch checks before it's allowed to render an environment=live
+        // file (see CreditinfoPublicDefaultBatchService::generate()), so a
+        // stray posted value can never silently become a third state.
+        if (array_key_exists('submission_environment', $_POST)) {
+            $this->settings->set('submission_environment', $_POST['submission_environment'] === 'live' ? 'live' : 'test', $userId);
         }
 
         // Blank means "leave the stored secret as it is" -- see

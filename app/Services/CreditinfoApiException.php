@@ -20,12 +20,22 @@ namespace App\Services;
  */
 class CreditinfoApiException extends \RuntimeException
 {
-    public function __construct(
-        string $message,
-        private readonly ?int $httpStatus = null,
-        private readonly ?string $rawBody = null,
-    ) {
+    // Plain (not `readonly`) promoted properties -- this codebase's
+    // deployed PHP is 8.0, which does not support readonly properties
+    // (an 8.1 feature); the earlier `readonly` version was a latent parse
+    // error that only surfaced when this class was actually instantiated
+    // (i.e. on any Creditinfo CBS API failure), never during a successful
+    // call. Found and fixed 2026-09-30 while live-testing the CBS
+    // connection -- see App\Services\CreditinfoAuthException, which
+    // extends this class and would otherwise fail to load too.
+    private ?int $httpStatus;
+    private ?string $rawBody;
+
+    public function __construct(string $message, ?int $httpStatus = null, ?string $rawBody = null)
+    {
         parent::__construct($message);
+        $this->httpStatus = $httpStatus;
+        $this->rawBody = $rawBody;
     }
 
     public function httpStatus(): ?int

@@ -5,7 +5,7 @@
     <h4 class="card-title">Public Defaults Settings</h4>
 
     <div class="alert alert-info">
-      Creditinfo has confirmed in writing: <strong>"We don't have an API for Public Defaults, we have a user interface option and SFTP too."</strong> This module submits through Creditinfo's own User Interface (fully supported below) -- SFTP is prepared for but not yet implemented, pending Creditinfo's technical specification.
+      Creditinfo has confirmed in writing: <strong>"We don't have an API for Public Defaults, we have a user interface option and SFTP too."</strong> This module submits either through Creditinfo's own User Interface (record it on each default's detail screen), or by generating the vendor-confirmed submission file below (<a href="<?= url('/creditinfo/public-defaults/batches/listing') ?>">Listing Submission Batches</a> / <a href="<?= url('/creditinfo/public-defaults/batches/removal') ?>">Removal Submission Batches</a>) for a person to upload themselves via their own SFTP client -- this codebase does not make the SFTP connection itself.
     </div>
 
     <form method="post" action="<?= url('/creditinfo/public-defaults/settings') ?>">
@@ -74,9 +74,28 @@
       </div>
 
       <hr>
-      <h5 class="mb-1">SFTP <span class="badge bg-secondary">Specification: AWAITING CREDITINFO DOCUMENTATION</span></h5>
+      <h5>Submission File Generation <span class="badge bg-success-subtle text-success">File format confirmed 2026-09-30</span></h5>
+      <p class="text-muted small">Governs the pipe-delimited, 36-column submission file the Listing/Removal Submission Batches screens generate -- see App\Services\CreditinfoPublicDefaultFileService.</p>
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label small">Supplier Reference Number</label>
+          <input type="text" name="supplier_reference_number" class="form-control form-control-sm" value="<?= e($settings['supplier_reference_number'] ?? '') ?>">
+          <div class="form-text">Creditinfo-assigned literal value, confirmed "SRN" on 2026-09-30 -- only change this if Creditinfo reassigns it.</div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small">Submission Environment</label>
+          <select name="submission_environment" class="form-select form-select-sm">
+            <option value="test" <?= ($settings['submission_environment'] ?? 'test') !== 'live' ? 'selected' : '' ?>>Test (files are named with T -- the only environment reachable without changing this)</option>
+            <option value="live" <?= ($settings['submission_environment'] ?? 'test') === 'live' ? 'selected' : '' ?>>Live (files are named with L and are real credit-bureau submissions)</option>
+          </select>
+          <div class="form-text">A submission batch can only be generated as Live once this is switched here -- never from the batch screen itself.</div>
+        </div>
+      </div>
+
+      <hr>
+      <h5 class="mb-1">SFTP Connection <span class="badge bg-secondary">No automated client built</span></h5>
       <p class="text-muted small mb-3">
-        Architecture and configuration placeholders only -- no endpoint, file layout, folder path, filename convention, or transmission schedule is invented below. Every field starts blank. Nothing in this codebase currently acts on these values; they exist so a real SFTP client can be wired in later without rebuilding the module around it. The secret is encrypted at rest (App\Core\Encryption), same as every other Creditinfo/Collexia credential.
+        Connection details for Creditinfo's SFTP server (folder: "In") -- filled in once received, encrypted at rest (App\Core\Encryption), same as every other Creditinfo/Collexia credential. Nothing in this codebase opens a network connection with these values: a generated submission file is downloaded from a batch's detail screen and uploaded by a person using their own SFTP client (e.g. WinSCP/FileZilla) with the credentials below.
       </p>
       <div class="row g-3 mb-2">
         <div class="col-md-3">

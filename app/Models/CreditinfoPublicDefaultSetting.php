@@ -126,4 +126,26 @@ class CreditinfoPublicDefaultSetting extends Model
     {
         return (float) $this->get('vat_rate', '0');
     }
+
+    /**
+     * Creditinfo's own vendor-assigned reference for this company (confirmed
+     * by Creditinfo 2026-10-07: "NA02628"), used as the filename prefix in
+     * CreditinfoPublicDefaultFileService::buildFilename(). "SRN" is the
+     * field's own abbreviation in Creditinfo's legend, not a value -- an
+     * earlier version of this method defaulted to the literal string "SRN",
+     * which is exactly the wrong filename Creditinfo flagged in their
+     * feedback on our first test submission. Defaults to '' now so a
+     * never-configured value fails obviously instead of silently looking
+     * like a real one again.
+     */
+    public function supplierReferenceNumber(): string
+    {
+        return $this->get('supplier_reference_number', '');
+    }
+
+    /** 'test' unless an admin has explicitly switched this in Settings -- never silently defaults to 'live'. Gates both the T/L filename code and whether a live batch can be generated at all. */
+    public function submissionEnvironment(): string
+    {
+        return $this->get('submission_environment', 'test') === 'live' ? 'live' : 'test';
+    }
 }

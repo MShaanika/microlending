@@ -131,6 +131,7 @@ $statusBadge = match (true) {
             <tr><td class="text-muted">Approved By</td><td><?= e($pd['listing_approved_by_name'] ?? '—') ?></td></tr>
             <tr><td class="text-muted">Approved At</td><td><?= $pd['listing_approved_at'] ? e(date('d M Y H:i', strtotime($pd['listing_approved_at']))) : '—' ?></td></tr>
             <tr><td class="text-muted">Reason</td><td><?= e($pd['listing_reason']) ?></td></tr>
+            <tr><td class="text-muted">Default Status Category</td><td><?= e($pd['default_status_category'] ?? '—') ?></td></tr>
           </tbody>
         </table>
       </div>

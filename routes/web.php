@@ -156,6 +156,7 @@ use App\Controllers\CreditinfoSettingController;
 use App\Controllers\CreditinfoAssessmentController;
 use App\Controllers\CreditinfoUatTestCentreController;
 use App\Controllers\CreditinfoPublicDefaultController;
+use App\Controllers\CreditinfoPublicDefaultBatchController;
 use App\Controllers\CreditinfoPublicDefaultSettingController;
 use App\Controllers\CreditinfoDisputeController;
 use App\Controllers\CreditinfoConsentRegisterController;
@@ -287,6 +288,14 @@ $router->get('/creditinfo/public-defaults/history', [CreditinfoPublicDefaultCont
 $router->get('/creditinfo/public-defaults/history/export', [CreditinfoPublicDefaultController::class, 'historyExport']);
 $router->get('/creditinfo/public-defaults/settings', [CreditinfoPublicDefaultSettingController::class, 'edit']);
 $router->post('/creditinfo/public-defaults/settings', [CreditinfoPublicDefaultSettingController::class, 'update']);
+
+$router->get('/creditinfo/public-defaults/batches/{direction}', [CreditinfoPublicDefaultBatchController::class, 'index']);
+$router->post('/creditinfo/public-defaults/batches/{direction}/generate', [CreditinfoPublicDefaultBatchController::class, 'generate']);
+$router->get('/creditinfo/public-defaults/batches/{direction}/{id}', [CreditinfoPublicDefaultBatchController::class, 'show']);
+$router->post('/creditinfo/public-defaults/batches/{direction}/{id}/approve', [CreditinfoPublicDefaultBatchController::class, 'approve']);
+$router->post('/creditinfo/public-defaults/batches/{direction}/{id}/reject', [CreditinfoPublicDefaultBatchController::class, 'reject']);
+$router->get('/creditinfo/public-defaults/batches/{direction}/{id}/download', [CreditinfoPublicDefaultBatchController::class, 'download']);
+$router->post('/creditinfo/public-defaults/batches/{direction}/{id}/mark-submitted', [CreditinfoPublicDefaultBatchController::class, 'markSubmitted']);
 
 $router->get('/creditinfo/public-defaults/{id}', [CreditinfoPublicDefaultController::class, 'show']);
 $router->post('/creditinfo/public-defaults/{id}/listing/submit-for-review', [CreditinfoPublicDefaultController::class, 'listingSubmitForReview']);

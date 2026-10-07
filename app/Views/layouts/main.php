@@ -376,6 +376,8 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Public Defaults Dashboard', 'url' => url('/creditinfo/public-defaults'), 'perm' => 'creditinfo.public_defaults.view'],
                 ['label' => 'Public Default Listing Requests', 'url' => url('/creditinfo/public-defaults/listings'), 'perm' => 'creditinfo.public_defaults.view'],
                 ['label' => 'Public Default Removal Requests', 'url' => url('/creditinfo/public-defaults/removals'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Listing Submission Batches', 'url' => url('/creditinfo/public-defaults/batches/listing'), 'perm' => 'creditinfo.public_defaults.view'],
+                ['label' => 'Removal Submission Batches', 'url' => url('/creditinfo/public-defaults/batches/removal'), 'perm' => 'creditinfo.public_defaults.view'],
                 ['label' => 'Active Public Defaults', 'url' => url('/creditinfo/public-defaults/register'), 'perm' => 'creditinfo.public_defaults.view'],
                 ['label' => 'Public Defaults History', 'url' => url('/creditinfo/public-defaults/history'), 'perm' => 'creditinfo.public_defaults.view'],
                 ['label' => 'Public Defaults Settings', 'url' => url('/creditinfo/public-defaults/settings'), 'perm' => 'creditinfo.public_defaults.settings'],

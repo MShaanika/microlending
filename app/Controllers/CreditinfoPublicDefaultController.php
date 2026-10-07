@@ -16,6 +16,7 @@ use App\Models\CreditinfoPublicDefaultNotice;
 use App\Models\CreditinfoPublicDefaultSubmission;
 use App\Models\Loan;
 use App\Services\ApprovalService;
+use App\Services\CreditinfoPublicDefaultFileService;
 use App\Services\CreditinfoPublicDefaultService;
 
 /**
@@ -245,13 +246,25 @@ class CreditinfoPublicDefaultController extends Controller
         }
 
         $listingReason = trim($_POST['listing_reason'] ?? '');
+        $defaultStatusCategory = trim((string) ($_POST['default_status_category'] ?? ''));
+        $errors = [];
         if ($listingReason === '') {
+            $errors['listing_reason'] = 'A listing reason is required.';
+        }
+        // Required up front, not left until the submission file is
+        // generated -- Creditinfo's DEFAULT STATUS CODE column (legend
+        // field 14) has no DesertLedger equivalent and a batch can't be
+        // rendered without it; see CreditinfoPublicDefaultFileService.
+        if (!array_key_exists($defaultStatusCategory, CreditinfoPublicDefaultFileService::DEFAULT_STATUS_CODES)) {
+            $errors['default_status_category'] = 'Select a Default Status Category.';
+        }
+        if ($errors) {
             $this->view('creditinfo/public_defaults/listing_requests/create', [
                 'title' => 'Create Public Default Listing Request',
                 'loan' => $loan,
                 'borrower' => $borrower,
                 'result' => $result,
-                'errors' => ['listing_reason' => 'A listing reason is required.'],
+                'errors' => $errors,
             ]);
             return;
         }
@@ -265,7 +278,7 @@ class CreditinfoPublicDefaultController extends Controller
         // blocks here until the first commits, then sees the row the first
         // just created and is correctly refused.
         try {
-            $id = $this->defaults->transaction(function () use ($loan, $borrower, $result, $listingReason, $userId, $reference) {
+            $id = $this->defaults->transaction(function () use ($loan, $borrower, $result, $listingReason, $defaultStatusCategory, $userId, $reference) {
                 $this->loans->findForUpdate((int) $loan['id']);
                 if ($this->defaults->hasActiveForLoan((int) $loan['id'])) {
                     throw new \RuntimeException('This loan already has a listing request in progress or an active public default.');
@@ -282,6 +295,7 @@ class CreditinfoPublicDefaultController extends Controller
                     'default_date' => date('Y-m-d'),
                     'days_in_arrears_at_listing' => $result['days_in_arrears'],
                     'listing_reason' => $listingReason,
+                    'default_status_category' => $defaultStatusCategory,
                     'status' => 'Draft',
                     'listing_requested_by' => $userId,
                     'listing_requested_at' => date('Y-m-d H:i:s'),
@@ -606,8 +620,18 @@ class CreditinfoPublicDefaultController extends Controller
 
         $category = trim((string) ($_POST['removal_reason_category'] ?? ''));
         $reason = trim((string) ($_POST['removal_reason'] ?? ''));
+        $defaultStatusCategory = trim((string) ($_POST['default_status_category'] ?? ''));
         if (!in_array($category, self::REMOVAL_REASON_CATEGORIES, true) || $reason === '') {
             Session::flash('error', 'Select a removal reason category and provide details.');
+            $this->redirect('/creditinfo/public-defaults/' . $id . '/removal/create');
+            return;
+        }
+        // Re-confirmed here, not just carried over from listing time --
+        // the true final Creditinfo status (e.g. Paid, WriteOff) is
+        // usually only known once a removal is actually being requested.
+        // See CreditinfoPublicDefaultFileService::DEFAULT_STATUS_CODES.
+        if (!array_key_exists($defaultStatusCategory, CreditinfoPublicDefaultFileService::DEFAULT_STATUS_CODES)) {
+            Session::flash('error', 'Select a Default Status Category.');
             $this->redirect('/creditinfo/public-defaults/' . $id . '/removal/create');
             return;
         }
@@ -618,6 +642,7 @@ class CreditinfoPublicDefaultController extends Controller
             'status' => 'Removal Pending Review',
             'removal_reason' => $reason,
             'removal_reason_category' => $category,
+            'default_status_category' => $defaultStatusCategory,
             'removal_requested_by' => $userId,
             'removal_requested_at' => date('Y-m-d H:i:s'),
             // A resubmission after a rejection starts a clean removal cycle.

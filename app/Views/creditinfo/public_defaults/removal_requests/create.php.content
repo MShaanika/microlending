@@ -35,6 +35,17 @@
         <textarea name="removal_reason" class="form-control" rows="3" required></textarea>
       </div>
 
+      <div class="mb-3">
+        <label class="form-label">Default Status Category <span class="text-danger">*</span></label>
+        <select name="default_status_category" class="form-select" required>
+          <option value="">— Select —</option>
+          <?php foreach (array_keys(\App\Services\CreditinfoPublicDefaultFileService::DEFAULT_STATUS_CODES) as $cat): ?>
+            <option value="<?= e($cat) ?>" <?= ($pd['default_status_category'] ?? '') === $cat ? 'selected' : '' ?>><?= e($cat) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="form-text">Required by Creditinfo's submission file (DEFAULT STATUS CODE) -- confirm or update the true final status (e.g. Paid, WriteOff) now that this default is being removed.</div>
+      </div>
+
       <button type="submit" class="btn btn-primary">Request Removal</button>
       <a href="<?= url('/creditinfo/public-defaults/' . $pd['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>

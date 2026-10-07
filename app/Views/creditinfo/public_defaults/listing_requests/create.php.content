@@ -28,6 +28,18 @@
         <?php if (isset($errors['listing_reason'])): ?><div class="invalid-feedback"><?= e($errors['listing_reason']) ?></div><?php endif; ?>
       </div>
 
+      <div class="mb-3">
+        <label class="form-label">Default Status Category <span class="text-danger">*</span></label>
+        <select name="default_status_category" class="form-select <?= isset($errors['default_status_category']) ? 'is-invalid' : '' ?>" required>
+          <option value="">— Select —</option>
+          <?php foreach (array_keys(\App\Services\CreditinfoPublicDefaultFileService::DEFAULT_STATUS_CODES) as $cat): ?>
+            <option value="<?= e($cat) ?>" <?= old('default_status_category') === $cat ? 'selected' : '' ?>><?= e($cat) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="form-text">Required by Creditinfo's submission file (DEFAULT STATUS CODE) -- not a DesertLedger status, Creditinfo's own classification of this default.</div>
+        <?php if (isset($errors['default_status_category'])): ?><div class="invalid-feedback"><?= e($errors['default_status_category']) ?></div><?php endif; ?>
+      </div>
+
       <h6>Borrower Notice / Evidence (item 8 -- optional at this stage, can be added later)</h6>
       <div class="row g-2 mb-3">
         <div class="col-md-4">
