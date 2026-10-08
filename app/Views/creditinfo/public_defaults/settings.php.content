@@ -82,7 +82,7 @@
         <div class="col-md-4">
           <label class="form-label small">Supplier Reference Number</label>
           <input type="text" name="supplier_reference_number" class="form-control form-control-sm" value="<?= e($settings['supplier_reference_number'] ?? '') ?>">
-          <div class="form-text">Creditinfo-assigned literal value, confirmed "SRN" on 2026-09-30 -- only change this if Creditinfo reassigns it.</div>
+          <div class="form-text">Creditinfo-assigned literal value, confirmed "NA02629" on 2026-10-08 -- same reference used across the CBS API, Public Defaults and CPL. Only change this if Creditinfo reassigns it.</div>
         </div>
         <div class="col-md-8">
           <label class="form-label small">Submission Environment</label>

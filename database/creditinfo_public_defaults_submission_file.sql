@@ -82,17 +82,21 @@ CREATE TABLE creditinfo_public_default_batch_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 4. Settings: the real Creditinfo-assigned Supplier Reference Number
--- (confirmed by Creditinfo 2026-10-07: "NA02628" -- an earlier version of
--- this migration seeded the literal placeholder "SRN" here, which is the
--- field's own abbreviation in Creditinfo's legend, not a value, and is
--- exactly the wrong filename Creditinfo flagged on our first test
--- submission; see CreditinfoPublicDefaultSetting::supplierReferenceNumber())
--- and the environment gate. 'test' is the only value that can ever be
--- reached without an admin explicitly visiting Settings and switching it --
--- mirrors the CBS module's UAT Test Centre pattern (never silently default
--- to live).
+-- (an earlier version of this migration seeded the literal placeholder
+-- "SRN" here, which is the field's own abbreviation in Creditinfo's
+-- legend, not a value, and is exactly the wrong filename Creditinfo
+-- flagged on our first test submission; see
+-- CreditinfoPublicDefaultSetting::supplierReferenceNumber()).
+-- "NA02628" was Creditinfo's first answer (2026-10-07), then corrected
+-- the next day to "NA02629" -- confirmed 2026-10-08 as the one real
+-- Supplier Reference Number used across the CBS API, Public Defaults and
+-- CPL alike (Creditinfo warned NA02628 would route data to a different
+-- provider). See the environment gate below too. 'test' is the only
+-- value that can ever be reached without an admin explicitly visiting
+-- Settings and switching it -- mirrors the CBS module's UAT Test Centre
+-- pattern (never silently default to live).
 INSERT INTO creditinfo_public_default_settings (setting_key, setting_value) VALUES
-('supplier_reference_number', 'NA02628'),
+('supplier_reference_number', 'NA02629'),
 ('submission_environment', 'test');
 
 -- 5. Permissions: "generate_batch" (the maker -- builds the file from

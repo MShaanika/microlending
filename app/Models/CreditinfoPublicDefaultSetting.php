@@ -133,7 +133,10 @@ class CreditinfoPublicDefaultSetting extends Model
 
     /**
      * Creditinfo's own vendor-assigned reference for this company (confirmed
-     * by Creditinfo 2026-10-07: "NA02628"), used as the filename prefix in
+     * "NA02629" as of 2026-10-08 -- used across the CBS API, Public Defaults
+     * and CPL alike; an initial "NA02628" from 2026-10-07 was corrected the
+     * next day, Creditinfo warning it would route data to a different
+     * provider), used as the filename prefix in
      * CreditinfoPublicDefaultFileService::buildFilename(). "SRN" is the
      * field's own abbreviation in Creditinfo's legend, not a value -- an
      * earlier version of this method defaulted to the literal string "SRN",
