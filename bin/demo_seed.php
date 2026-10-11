@@ -64,6 +64,12 @@ $keep = array_flip([
     // they must survive every reseed and nightly reset.
     'collexia_settings', 'creditinfo_settings', 'creditinfo_public_default_settings',
     'notification_settings', 'hrm_zoom_settings', 'intake_sources',
+    // CPL supplier reference number / SFTP submission toggle -- same
+    // "survives every reseed" rationale as creditinfo_public_default_settings
+    // above (found missing 2026-10-11 when the CPL SFTP feature shipped;
+    // without this, the nightly reseed would silently wipe the supplier
+    // number back to blank every night).
+    'cpl_settings',
 ]);
 
 $db->exec('SET FOREIGN_KEY_CHECKS = 0');
