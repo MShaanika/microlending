@@ -13,15 +13,19 @@ use App\Models\CplSetting;
 use App\Services\ApprovalService;
 use App\Services\CplExporter;
 use App\Services\CplRecordBuilder;
+use App\Services\CplSftpService;
 use App\Services\CplSnapshotService;
 
 /**
  * CPL Monthly Batch workflow (items 11-16): generate a candidate batch from
  * live data, validate it, let staff work through the error worklist and
  * revalidate, then require maker-checker approval before the extract file
- * is even generated. Nothing here transmits anything externally -- approval
- * only produces a downloadable file, matching item 15's "do not
- * automatically transmit the final monthly file without human approval".
+ * is even generated. Approval alone never transmits anything -- it only
+ * produces the file, matching item 15's "do not automatically transmit the
+ * final monthly file without human approval". submitSftp() below is a
+ * separate, explicit human action a staff member takes afterward (same
+ * two-step shape as Public Defaults' own Approve-then-Submit-via-SFTP),
+ * not something approval triggers on its own.
  */
 class CplBatchController extends Controller
 {
@@ -93,6 +97,7 @@ class CplBatchController extends Controller
             'counts' => $this->snapshots->countsForBatch((int) $id),
             'errorRecords' => $this->snapshots->forBatch((int) $id, 'Blocking Error'),
             'warningRecords' => $this->snapshots->forBatch((int) $id, 'Warning'),
+            'sftpReady' => (new CplSftpService())->isReady(),
         ]);
     }
 
@@ -225,9 +230,7 @@ class CplBatchController extends Controller
             return;
         }
 
-        $fileType = $this->settings->isProductionEnvironment() ? 'L702' : 'T702';
-        $supplierRef = preg_replace('/[^A-Za-z0-9_-]/', '_', $this->settings->supplierReferenceNumber() ?: 'PENDING');
-        $filename = $supplierRef . '_' . $this->settings->recipient() . '_' . $fileType . '_M_' . str_replace('-', '', $batch['month_end']) . '_1_1.txt';
+        $filename = (new CplSftpService())->filename($batch);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -237,6 +240,30 @@ class CplBatchController extends Controller
         header('Content-Disposition: attachment;filename="' . $filename . '"');
         echo $batch['file_content'];
         exit;
+    }
+
+    /** Explicit, separate human action after approval -- see this class's own docblock for why approval itself never transmits anything. */
+    public function submitSftp(string $id): void
+    {
+        Auth::authorize('reports.cpl_export');
+        $id = (int) $id;
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/reports/cpl-export/batches/' . $id);
+            return;
+        }
+
+        try {
+            (new CplSftpService())->submit($id, Auth::user()['id'] ?? 0);
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/reports/cpl-export/batches/' . $id);
+            return;
+        }
+
+        Audit::log('Update', 'CPL', 'Submitted CPL batch #' . $id . ' via SFTP');
+        Session::flash('success', 'Batch submitted via SFTP to Creditinfo.');
+        $this->redirect('/reports/cpl-export/batches/' . $id);
     }
 
     /** Rebuilds the CPLv1.1 text purely from each snapshot's frozen field_data -- never a fresh DB query, so approval always reflects exactly what was validated and reviewed. Also permanently records any status code carried in a snapshot -- see CplExporter::recordStatusSent()'s docblock for why this only happens now, at approval, not at snapshot time. */

@@ -59,6 +59,17 @@
 
       <?php if ($batch['status'] === 'Approved'): ?>
         <a href="<?= url('/reports/cpl-export/batches/' . $batch['id'] . '/download') ?>" class="btn btn-info btn-sm"><i class="mdi mdi-file-download"></i> Download Extract</a>
+        <?php if ($sftpReady): ?>
+          <form method="post" action="<?= url('/reports/cpl-export/batches/' . $batch['id'] . '/submit-sftp') ?>" class="d-inline" onsubmit="return confirm('Submit this CPL file to Creditinfo via SFTP now?');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="mdi mdi-cloud-upload"></i> Submit via SFTP</button>
+          </form>
+        <?php else: ?>
+          <span class="badge bg-light text-dark">SFTP submission not enabled -- see CPL Settings</span>
+        <?php endif; ?>
+      <?php endif; ?>
+      <?php if ($batch['status'] === 'Submitted'): ?>
+        <span class="badge bg-success">Submitted<?= !empty($batch['submission_notes']) ? ' -- ' . e($batch['submission_notes']) : '' ?></span>
       <?php endif; ?>
 
       <a href="<?= url('/reports/cpl-export/batches') ?>" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>

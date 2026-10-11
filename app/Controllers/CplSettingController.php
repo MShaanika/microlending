@@ -21,7 +21,7 @@ class CplSettingController extends Controller
     private const TEXT_FIELDS = [
         'supplier_reference_number', 'trading_name', 'recipient', 'cpl_version',
         'submission_environment', 'agreed_billing_date', 'monthly_submission_deadline_rule',
-        'account_type_one_month', 'account_type_multi_month',
+        'account_type_one_month', 'account_type_multi_month', 'sftp_directory',
     ];
 
     private CplSetting $settings;
@@ -59,6 +59,9 @@ class CplSettingController extends Controller
         }
 
         $this->settings->set('account_type_mapping_confirmed', !empty($_POST['account_type_mapping_confirmed']) ? 'yes' : 'no', $userId);
+        // Deliberately requires an explicit opt-in separate from Public
+        // Defaults' own sftp_enabled -- see database/cpl_sftp_submission.sql.
+        $this->settings->set('sftp_submission_enabled', !empty($_POST['sftp_submission_enabled']) ? 'on' : 'off', $userId);
 
         Audit::log('Update', 'CPL', 'Updated CPL settings');
 

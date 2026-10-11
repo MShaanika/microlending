@@ -1290,6 +1290,7 @@ $router->post('/reports/cpl-export/batches/{id}/submit-for-approval', [CplBatchC
 $router->post('/reports/cpl-export/batches/{id}/approve', [CplBatchController::class, 'approve']);
 $router->post('/reports/cpl-export/batches/{id}/reject', [CplBatchController::class, 'reject']);
 $router->get('/reports/cpl-export/batches/{id}/download', [CplBatchController::class, 'download']);
+$router->post('/reports/cpl-export/batches/{id}/submit-sftp', [CplBatchController::class, 'submitSftp']);
 $router->get('/reports/cpl-export/uat-signoff', [CplUatTestController::class, 'index']);
 $router->post('/reports/cpl-export/uat-signoff/generate-daily', [CplUatTestController::class, 'generateDaily']);
 $router->post('/reports/cpl-export/uat-signoff/generate-monthly', [CplUatTestController::class, 'generateMonthly']);
