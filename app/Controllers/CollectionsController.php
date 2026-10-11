@@ -46,10 +46,22 @@ class CollectionsController extends Controller
         }
         unset($loan);
 
+        // A promise to pay can be recorded against any loan (storePromise()
+        // never checks arrears status -- the worklist table above is just
+        // "loans overdue as at this date", not a restriction on which loans
+        // CAN have a promise). This search is how staff reach a loan that
+        // isn't overdue yet -- e.g. a borrower calls ahead of their due date
+        // to say they'll be late -- since such a loan never appears in the
+        // table above.
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $searchResults = $search !== '' ? $this->loans->paginated($search, '', 10) : [];
+
         $this->view('collections/worklist/index', [
             'title' => 'Collections Worklist',
             'asOfDate' => $asOfDate,
             'loans' => $loans,
+            'search' => $search,
+            'searchResults' => $searchResults,
         ]);
     }
 

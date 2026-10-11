@@ -15,6 +15,45 @@
   </div>
 </div>
 
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="card-title mb-1">Find a Loan</h6>
+    <p class="text-muted small">Record a promise to pay against any loan, even one that isn't overdue yet -- e.g. a borrower calls ahead of their due date to say they'll be late. A loan found here is not added to the table below; it stays there only while it's actually overdue.</p>
+    <form method="get" class="d-flex gap-2">
+      <input type="text" name="q" class="form-control form-control-sm" style="max-width: 320px;" placeholder="Loan number or borrower name" value="<?= e($search) ?>">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Search</button>
+      <?php if ($search !== ''): ?><a href="<?= url('/collections/worklist') ?>" class="btn btn-sm btn-link">Clear</a><?php endif; ?>
+    </form>
+
+    <?php if ($search !== ''): ?>
+      <div class="table-responsive mt-3">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Loan</th><th>Borrower</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+          <?php if (empty($searchResults)): ?>
+            <tr><td colspan="4" class="text-muted small">No loans match "<?= e($search) ?>".</td></tr>
+          <?php endif; ?>
+          <?php foreach ($searchResults as $loan): ?>
+            <tr>
+              <td><?= e($loan['loan_no']) ?></td>
+              <td><?= e($loan['borrower_name']) ?></td>
+              <td>
+                <?php if ($loan['is_in_arrears']): ?>
+                  <span class="badge bg-warning text-dark">Overdue</span>
+                <?php else: ?>
+                  <span class="badge bg-success"><?= e($loan['loan_status']) ?></span>
+                <?php endif; ?>
+              </td>
+              <td class="text-end"><a href="<?= url('/collections/worklist/' . $loan['id']) ?>" class="btn btn-sm btn-outline-primary">Open Case / Record Promise</a></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-body">
     <div class="table-responsive">
