@@ -156,7 +156,7 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
     <p class="text-muted small">Duties pre-fill automatically from the employee's Designation (<a href="<?= url('/hrm/designations') ?>">manage duties per designation</a>). Name, Position and Salary come from this employee's own record -- only the dates below need typing.</p>
 
     <?php if (Auth::can('hrm.manage') && !empty($contractTemplates)): ?>
-    <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/contracts/generate') ?>" class="row g-2 align-items-end mb-3">
+    <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/contracts/generate') ?>" class="row g-2 align-items-end mb-3" data-modal-behavior="reload">
       <?= csrf_field() ?>
       <input type="hidden" name="template_id" value="<?= (int) $contractTemplates[0]['id'] ?>">
       <div class="col-md-3">

@@ -95,6 +95,9 @@ class EmployeeContractController extends Controller
     {
         Auth::authorize('hrm.manage');
         if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            if ($this->isAjax()) {
+                $this->jsonCsrfFailure();
+            }
             Session::flash('error', 'Security token expired. Please try again.');
             $this->redirect('/hrm/employees/' . $employeeId);
             return;
@@ -106,6 +109,9 @@ class EmployeeContractController extends Controller
         $termEndDate = trim((string) ($_POST['term_end_date'] ?? ''));
 
         if (strtotime($contractDate) === false || strtotime($termStartDate) === false || strtotime($termEndDate) === false) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => 'Please provide valid contract, term start and term end dates.']);
+            }
             Session::flash('error', 'Please provide valid contract, term start and term end dates.');
             $this->redirect('/hrm/employees/' . $employeeId);
             return;
@@ -121,12 +127,19 @@ class EmployeeContractController extends Controller
                 (int) (Auth::user()['id'] ?? 0)
             );
         } catch (\RuntimeException $e) {
+            if ($this->isAjax()) {
+                $this->jsonErrors(['_general' => $e->getMessage()]);
+            }
             Session::flash('error', $e->getMessage());
             $this->redirect('/hrm/employees/' . $employeeId);
             return;
         }
 
         Audit::log('Create', 'HRM', 'Generated employment contract #' . $contractId . ' for employee #' . $employeeId);
+
+        if ($this->isAjax()) {
+            $this->jsonSuccess('Employment contract generated.', '/hrm/employees/' . $employeeId);
+        }
         Session::flash('success', 'Employment contract generated.');
         $this->redirect('/hrm/employees/' . $employeeId);
     }
