@@ -393,6 +393,7 @@ $router->get('/loan-requests/{id}/documents/{documentId}', [LoanRequestControlle
 $router->get('/applications', [ApplicationController::class, 'index']);
 $router->get('/applications/{id}', [ApplicationController::class, 'show']);
 $router->post('/applications/{id}/screen', [ApplicationController::class, 'screen']);
+$router->post('/applications/{id}/acknowledge-receipt', [ApplicationController::class, 'acknowledgeReceipt']);
 $router->post('/applications/{id}/creditinfo/consent', [CreditinfoAssessmentController::class, 'recordConsent']);
 $router->post('/applications/{id}/creditinfo/run', [CreditinfoAssessmentController::class, 'runCheck']);
 $router->get('/applications/{id}/creditinfo/assessment', [CreditinfoAssessmentController::class, 'viewAssessment']);

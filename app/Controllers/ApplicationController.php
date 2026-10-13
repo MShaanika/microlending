@@ -85,10 +85,30 @@ class ApplicationController extends Controller
         return $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId));
     }
 
+    /**
+     * applications.view sees every status; the narrower applications.
+     * view_submitted (e.g. Marketing Officer, whose one job here is
+     * acknowledging receipt by SMS) sees ONLY Submitted applications --
+     * enforced here and in show()/assertSubmittedOnlyAccess(), not just
+     * hidden in the nav/view, since a status filter is just a query
+     * param a user could otherwise type past.
+     */
+    private function assertApplicationsAccess(): bool
+    {
+        if (Auth::can('applications.view')) {
+            return true; // full access
+        }
+        if (Auth::can('applications.view_submitted')) {
+            return false; // restricted to Submitted only
+        }
+        Auth::authorize('applications.view'); // neither -- redirects with the standard denial
+        return true; // unreachable; authorize() exits on failure
+    }
+
     public function index(): void
     {
-        Auth::authorize('applications.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $fullAccess = $this->assertApplicationsAccess();
+        $status = $fullAccess ? trim((string) ($_GET['status'] ?? '')) : 'Submitted';
         $branchId = $this->indexBranchId();
 
         $this->view('applications/index', [
@@ -97,16 +117,22 @@ class ApplicationController extends Controller
             'status' => $status,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
             'selectedBranchId' => $branchId,
+            'restrictedToSubmitted' => !$fullAccess,
         ]);
     }
 
     public function show(string $id): void
     {
-        Auth::authorize('applications.view');
+        $fullAccess = $this->assertApplicationsAccess();
         $application = $this->applications->find((int) $id);
 
         if (!$application) {
             Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+        if (!$fullAccess && $application['status'] !== 'Submitted') {
+            Session::flash('error', 'You can only view applications that are still Submitted.');
             $this->redirect('/applications');
             return;
         }
@@ -131,6 +157,40 @@ class ApplicationController extends Controller
             'creditBureauConsent' => $consents->latestForApplication((int) $id),
             'creditBureauConsentUnconsumed' => $consents->latestUnconsumedForApplication((int) $id),
         ]);
+    }
+
+    /** No status change -- purely an outbound courtesy SMS confirming the application arrived. Restricted to Submitted applications; once an application moves on (screened/approved/rejected), the applicant has already heard from a human, so this action no longer applies. */
+    public function acknowledgeReceipt(string $id): void
+    {
+        Auth::authorize('applications.acknowledge_receipt');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/applications');
+            return;
+        }
+
+        $application = $this->applications->find($id);
+        if (!$application || $application['status'] !== 'Submitted') {
+            Session::flash('error', 'This application is no longer Submitted -- nothing to acknowledge.');
+            $this->redirect('/applications');
+            return;
+        }
+        $this->assertBranchAccess($application);
+
+        $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
+        $smsResult = TemplatedSmsService::send(
+            'APPLICATION_RECEIVED_SMS',
+            (string) ($application['applicant_phone'] ?? ''),
+            ['borrower_full_name' => $applicantName, 'application_no' => $application['application_no']],
+            $application['borrower_id'] ?? null,
+            Auth::user()['id'] ?? null
+        );
+
+        Audit::log('Update', 'Applications', 'Acknowledged receipt of application #' . $id . ' (' . $smsResult['note'] . ')');
+        Session::flash('success', 'Receipt acknowledged (' . $smsResult['note'] . ').');
+        $this->redirect('/applications?status=Submitted');
     }
 
     public function screen(string $id): void

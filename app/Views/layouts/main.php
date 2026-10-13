@@ -347,6 +347,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view'],
                 ['label' => 'Screening', 'url' => url('/applications?status=Screening'), 'perm' => 'applications.view'],
                 ['label' => 'Rejected Applications', 'url' => url('/applications?status=Rejected'), 'perm' => 'applications.view'],
+                ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view_submitted'],
               ]],
               'Loans' => ['items' => [
                 ['label' => 'Loan List', 'url' => url('/loans'), 'perm' => 'loans.view'],

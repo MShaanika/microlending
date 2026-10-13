@@ -1,3 +1,4 @@
+<?php use App\Core\Auth; ?>
 <?= flash_messages() ?>
 
 <div class="card">
@@ -6,7 +7,12 @@
       <h4 class="card-title mb-0">Online Loan Applications</h4>
     </div>
 
+    <?php if (!empty($restrictedToSubmitted)): ?>
+      <div class="alert alert-info small mb-3">You can only see applications that are still <strong>Submitted</strong> -- acknowledge each one's receipt below.</div>
+    <?php endif; ?>
+
     <form method="get" action="<?= url('/applications') ?>" class="row g-2 mb-3">
+      <?php if (empty($restrictedToSubmitted)): ?>
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
@@ -15,6 +21,7 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <?php endif; ?>
       <?php if (!empty($branches)): ?>
         <div class="col-md-3">
           <select name="branch_id" class="form-select">
@@ -63,7 +70,15 @@
               <td><span class="badge bg-<?= $badge ?>"><?= e($a['status']) ?></span></td>
               <td><?= e(date('d M Y', strtotime($a['created_at']))) ?></td>
               <td class="text-end">
-                <a href="<?= url('/applications/' . $a['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+                <?php if (Auth::can('applications.view')): ?>
+                  <a href="<?= url('/applications/' . $a['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
+                <?php endif; ?>
+                <?php if ($a['status'] === 'Submitted' && Auth::can('applications.acknowledge_receipt')): ?>
+                  <form method="post" action="<?= url('/applications/' . $a['id'] . '/acknowledge-receipt') ?>" class="d-inline" onsubmit="return confirm('Send an SMS acknowledging receipt of this application?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-message-check"></i> Acknowledge Receipt</button>
+                  </form>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>
