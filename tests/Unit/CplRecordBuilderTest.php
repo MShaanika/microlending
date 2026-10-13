@@ -52,10 +52,12 @@ class CplRecordBuilderTest extends TestCase
         $this->assertSame('M', substr($line, 30, 1));
         // Position 32-39: DATE OF BIRTH, CCYYMMDD.
         $this->assertSame('19740828', substr($line, 31, 8));
-        // Position 40-47: BRANCH CODE, A8, right-aligned/space-filled.
-        $this->assertSame('      HO', substr($line, 39, 8));
-        // Position 48-72: ACCOUNT NO, A25, right-aligned/space-filled.
-        $this->assertSame(str_pad('LN-260910-431B50', 25, ' ', STR_PAD_LEFT), substr($line, 47, 25));
+        // Position 40-47: BRANCH CODE, A8, left-aligned/space-filled (the
+        // spec's default for Alpha fields -- no right-align exception is
+        // stipulated for this field, see p.15/p.22-34).
+        $this->assertSame('HO      ', substr($line, 39, 8));
+        // Position 48-72: ACCOUNT NO, A25, left-aligned/space-filled (same reasoning).
+        $this->assertSame(str_pad('LN-260910-431B50', 25, ' ', STR_PAD_RIGHT), substr($line, 47, 25));
         // Position 77-101: SURNAME, A25, left-aligned/space-filled.
         $this->assertSame(str_pad('Nangolo', 25, ' ', STR_PAD_RIGHT), substr($line, 76, 25));
         // Position 433-434: STATUS CODE, A2, left-aligned.
@@ -64,6 +66,28 @@ class CplRecordBuilderTest extends TestCase
         $this->assertSame('03', substr($line, 434, 2));
         // Position 437-440: TERMS, N4, zero-filled.
         $this->assertSame('0006', substr($line, 436, 4));
+    }
+
+    public function testOldConversionFieldsAreLeftAlignedExceptOldSupplierReferenceNumber(): void
+    {
+        $line = $this->builder->record([
+            'old_supplier_branch_code' => 'HO',
+            'old_account_number' => 'LN-OLD-1',
+            'old_sub_account_number' => 'A1',
+            'old_supplier_reference_number' => 'AA0101',
+        ]);
+
+        // Position 449-456: OLD SUPPLIER BRANCH CODE, A8 -- left-aligned,
+        // same as BRANCH CODE itself (no right-align exception stipulated).
+        $this->assertSame('HO      ', substr($line, 448, 8));
+        // Position 457-481: OLD ACCOUNT NUMBER, A25 -- left-aligned.
+        $this->assertSame(str_pad('LN-OLD-1', 25, ' ', STR_PAD_RIGHT), substr($line, 456, 25));
+        // Position 482-485: OLD SUB-ACCOUNT NUMBER, A4 -- left-aligned.
+        $this->assertSame('A1  ', substr($line, 481, 4));
+        // Position 486-495: OLD SUPPLIER REFERENCE NUMBER, A10 -- right-aligned,
+        // the one conversion field that IS a Supplier Reference Number and
+        // so follows that field's explicit spec exception (p.16).
+        $this->assertSame('    AA0101', substr($line, 485, 10));
     }
 
     public function testMissingFieldsAreBlankOrZeroFilledPerAlignment(): void

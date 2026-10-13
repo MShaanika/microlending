@@ -20,11 +20,17 @@ class CplRecordBuilder
     /**
      * name => [start position (1-based), length, alignment].
      *
-     * Alignment: AL = alpha/left-aligned/space-filled (the default for text
-     * fields); AR = alpha-shaped but right-aligned/space-filled -- the
-     * spec's explicit exceptions for branch/account/sub-account codes,
-     * old-conversion fields, telephone numbers and postal codes, all of
-     * which say "do not zero fill or use preceding zeros"; NL = numeric but
+     * Alignment: AL = alpha/left-aligned/space-filled, the spec's default
+     * for every Alpha field (p.15: "Alpha fields must be left aligned
+     * unless stipulated otherwise") -- this includes branch/account/
+     * sub-account codes and their old-conversion counterparts, which the
+     * spec never lists an exception for, despite an earlier version of
+     * this file wrongly right-aligning them; AR = alpha-shaped but
+     * right-aligned/space-filled, reserved for the three places the spec
+     * *does* stipulate this exception by name: Supplier Reference Number
+     * (p.16, and by the same reasoning Old Supplier Reference Number),
+     * telephone numbers (p.33: "must not be zero filled") and postal codes
+     * (p.31/33: "may not be zero filled"); NL = numeric but
      * left-aligned/space-filled (NA ID number only -- the spec's own stated
      * exception); NR = numeric/right-aligned/zero-filled, the default for
      * every other numeric field (dates, balances, counts).
@@ -35,9 +41,9 @@ class CplRecordBuilder
         'na_id' => [15, 16, 'NL'],
         'gender' => [31, 1, 'AL'],
         'date_of_birth' => [32, 8, 'NR'],
-        'branch_code' => [40, 8, 'AR'],
-        'account_no' => [48, 25, 'AR'],
-        'sub_account_no' => [73, 4, 'AR'],
+        'branch_code' => [40, 8, 'AL'],
+        'account_no' => [48, 25, 'AL'],
+        'sub_account_no' => [73, 4, 'AL'],
         'surname' => [77, 25, 'AL'],
         'title' => [102, 5, 'AL'],
         'forename1' => [107, 14, 'AL'],
@@ -71,9 +77,9 @@ class CplRecordBuilder
         'repayment_frequency' => [435, 2, 'NR'],
         'terms' => [437, 4, 'NR'],
         'status_date' => [441, 8, 'NR'],
-        'old_supplier_branch_code' => [449, 8, 'AR'],
-        'old_account_number' => [457, 25, 'AR'],
-        'old_sub_account_number' => [482, 4, 'AR'],
+        'old_supplier_branch_code' => [449, 8, 'AL'],
+        'old_account_number' => [457, 25, 'AL'],
+        'old_sub_account_number' => [482, 4, 'AL'],
         'old_supplier_reference_number' => [486, 10, 'AR'],
         'home_telephone' => [496, 16, 'AR'],
         'cellular_telephone' => [512, 16, 'AR'],
