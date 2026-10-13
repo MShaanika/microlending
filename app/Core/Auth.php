@@ -29,6 +29,13 @@ class Auth
         if ($employee && (int) $employee['is_commission_agent'] === 1) {
             return '/my/referrals';
         }
+        // Marketing Officer (social_analytics access, no full applications.view)
+        // lives on Social & Web Analytics -- the staff dashboard's loan/
+        // collections KPIs aren't her job, same reasoning as the commission
+        // agent case above.
+        if (self::can('social_analytics.view') && !self::can('applications.view')) {
+            return '/social-analytics';
+        }
         return '/dashboard';
     }
 
