@@ -458,6 +458,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Employees', 'url' => url('/hrm/employees'), 'perm' => 'hrm.view'],
                 ['label' => 'Departments', 'url' => url('/hrm/departments'), 'perm' => 'hrm.view'],
                 ['label' => 'Designations', 'url' => url('/hrm/designations'), 'perm' => 'hrm.view'],
+                ['label' => 'Employment Contract Templates', 'url' => url('/hrm/employment-contract-templates'), 'perm' => 'hrm.manage'],
                 ['label' => 'Shifts', 'url' => url('/hrm/shifts'), 'perm' => 'hrm.view'],
                 ['label' => 'Document Types', 'url' => url('/hrm/document-types'), 'perm' => 'hrm.manage'],
               ]],

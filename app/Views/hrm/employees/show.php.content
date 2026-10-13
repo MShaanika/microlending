@@ -149,3 +149,56 @@ $statusBadge = ['Active' => 'success', 'On Leave' => 'warning', 'Suspended' => '
     </div>
   </div>
 </div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Employment Contracts</h5>
+    <p class="text-muted small">Duties pre-fill automatically from the employee's Designation (<a href="<?= url('/hrm/designations') ?>">manage duties per designation</a>). Name, Position and Salary come from this employee's own record -- only the dates below need typing.</p>
+
+    <?php if (Auth::can('hrm.manage') && !empty($contractTemplates)): ?>
+    <form method="post" action="<?= url('/hrm/employees/' . $e['id'] . '/contracts/generate') ?>" class="row g-2 align-items-end mb-3">
+      <?= csrf_field() ?>
+      <input type="hidden" name="template_id" value="<?= (int) $contractTemplates[0]['id'] ?>">
+      <div class="col-md-3">
+        <label class="form-label">Contract Date</label>
+        <input type="date" name="contract_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Term Start Date</label>
+        <input type="date" name="term_start_date" class="form-control" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Term End Date</label>
+        <input type="date" name="term_end_date" class="form-control" required>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-file-document-outline"></i> Generate Contract</button>
+      </div>
+    </form>
+    <?php elseif (empty($contractTemplates)): ?>
+      <div class="alert alert-warning small mb-3">No active Employment Contract template yet -- <a href="<?= url('/hrm/employment-contract-templates') ?>">add one</a> first.</div>
+    <?php endif; ?>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr><th>Term</th><th>Position</th><th>Salary</th><th>Generated</th><th></th></tr></thead>
+        <tbody>
+          <?php if (empty($contracts)): ?>
+            <tr><td colspan="5" class="text-center text-muted py-3">No contracts generated yet.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($contracts as $c): ?>
+            <tr>
+              <td><?= e(date('d M Y', strtotime($c['term_start_date']))) ?> &ndash; <?= e(date('d M Y', strtotime($c['term_end_date']))) ?></td>
+              <td><?= e($c['position_at_time']) ?></td>
+              <td>N$<?= number_format((float) $c['salary_at_time'], 2) ?></td>
+              <td class="text-muted small"><?= e(date('d M Y H:i', strtotime($c['generated_at']))) ?> <?= $c['generated_by_name'] ? 'by ' . e($c['generated_by_name']) : '' ?></td>
+              <td class="text-end">
+                <a href="<?= url('/hrm/employees/' . $e['id'] . '/contracts/' . $c['id'] . '/download') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-download"></i></a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

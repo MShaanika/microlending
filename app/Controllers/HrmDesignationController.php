@@ -111,6 +111,7 @@ class HrmDesignationController extends Controller
             'designation_name' => $name,
             'branch_id' => !empty($_POST['branch_id']) ? (int) $_POST['branch_id'] : null,
             'department_id' => !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null,
+            'standard_duties' => trim((string) ($_POST['standard_duties'] ?? '')) ?: null,
             'is_active' => 1,
             'created_by' => Auth::user()['id'] ?? null,
         ]);
@@ -200,6 +201,7 @@ class HrmDesignationController extends Controller
             'designation_name' => $name,
             'branch_id' => !empty($_POST['branch_id']) ? (int) $_POST['branch_id'] : null,
             'department_id' => !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null,
+            'standard_duties' => trim((string) ($_POST['standard_duties'] ?? '')) ?: null,
         ]);
 
         Audit::log('Update', 'HRM', 'Updated designation #' . $id . ' - ' . $name);

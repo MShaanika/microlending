@@ -56,6 +56,7 @@ use App\Controllers\SecurityRuleController;
 use App\Controllers\CompanySettingController;
 use App\Controllers\SocialAnalyticsController;
 use App\Controllers\HrmDepartmentController;
+use App\Controllers\EmployeeContractController;
 use App\Controllers\HrmDesignationController;
 use App\Controllers\HrmShiftController;
 use App\Controllers\HrmEmployeeController;
@@ -783,6 +784,11 @@ $router->post('/hrm/employees/{id}', [HrmEmployeeController::class, 'update']);
 $router->post('/hrm/employees/{id}/documents', [HrmEmployeeController::class, 'uploadDocument']);
 $router->get('/hrm/employees/{id}/documents/{documentId}/download', [HrmEmployeeController::class, 'downloadDocument']);
 $router->post('/hrm/employees/{id}/documents/{documentId}/delete', [HrmEmployeeController::class, 'deleteDocument']);
+$router->post('/hrm/employees/{id}/contracts/generate', [EmployeeContractController::class, 'generate']);
+$router->get('/hrm/employees/{id}/contracts/{contractId}/download', [EmployeeContractController::class, 'download']);
+
+$router->get('/hrm/employment-contract-templates', [EmployeeContractController::class, 'templateIndex']);
+$router->post('/hrm/employment-contract-templates/{id}/replace', [EmployeeContractController::class, 'replaceTemplate']);
 
 $router->get('/hrm/document-types', [HrmDocumentTypeController::class, 'index']);
 $router->get('/hrm/document-types/create', [HrmDocumentTypeController::class, 'create']);

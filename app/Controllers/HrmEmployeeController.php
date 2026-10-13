@@ -8,6 +8,8 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\Branch;
+use App\Models\EmployeeContract;
+use App\Models\EmploymentContractTemplate;
 use App\Models\HrmDepartment;
 use App\Models\HrmDesignation;
 use App\Models\HrmDocumentType;
@@ -28,6 +30,8 @@ class HrmEmployeeController extends Controller
     private HrmShift $shifts;
     private User $users;
     private HrmDocumentType $documentTypes;
+    private EmployeeContract $contracts;
+    private EmploymentContractTemplate $contractTemplates;
     private HrmEmployeeDocument $documents;
 
     public function __construct()
@@ -40,6 +44,8 @@ class HrmEmployeeController extends Controller
         $this->users = new User();
         $this->documentTypes = new HrmDocumentType();
         $this->documents = new HrmEmployeeDocument();
+        $this->contracts = new EmployeeContract();
+        $this->contractTemplates = new EmploymentContractTemplate();
     }
 
     public function index(): void
@@ -158,6 +164,8 @@ class HrmEmployeeController extends Controller
             'employee' => $employee,
             'documents' => $this->documents->forEmployee($id),
             'documentTypes' => $this->documentTypes->allTypes(),
+            'contracts' => $this->contracts->forEmployee($id),
+            'contractTemplates' => $this->contractTemplates->activeTemplates(),
         ];
 
         if ($this->isAjax()) {
