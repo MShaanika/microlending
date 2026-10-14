@@ -426,6 +426,7 @@ $router->post('/letters', [LetterController::class, 'store']);
 $router->post('/letters/{id}/fulfill', [LetterController::class, 'fulfill']);
 $router->post('/letters/{id}/generate', [LetterController::class, 'generate']);
 $router->get('/letters/{id}/download', [LetterController::class, 'download']);
+$router->post('/letters/{id}/email', [LetterController::class, 'sendEmail']);
 
 // Document Templates
 $router->get('/templates', [TemplateController::class, 'index']);

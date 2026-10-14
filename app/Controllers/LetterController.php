@@ -12,6 +12,7 @@ use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
 use App\Models\Loan;
 use App\Services\DocumentGenerationService;
+use App\Services\EmailSenderService;
 
 class LetterController extends Controller
 {
@@ -312,11 +313,7 @@ class LetterController extends Controller
         }
 
         $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-        $mime = match ($ext) {
-            'pdf' => 'application/pdf',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            default => 'application/octet-stream',
-        };
+        $mime = self::mimeFor($ext);
         $disposition = $ext === 'docx' ? 'attachment' : 'inline';
 
         header('Content-Type: ' . $mime);
@@ -324,5 +321,75 @@ class LetterController extends Controller
         header('Content-Length: ' . filesize($fullPath));
         readfile($fullPath);
         exit;
+    }
+
+    /**
+     * Emails the already-generated/uploaded letter as an attachment -- same
+     * file download() serves, just mailed instead of streamed to the
+     * browser. Recipient defaults to the borrower's own address in the
+     * view, but is freely editable there (e.g. a registered-mail proxy or
+     * a colleague), matching LoanController::emailStatement()'s pattern.
+     */
+    public function sendEmail(string $id): void
+    {
+        Auth::authorize('documents.send');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/letters');
+            return;
+        }
+
+        $document = $this->documents->find($id);
+        if (!$document || !$document['file_path']) {
+            Session::flash('error', 'Generate or upload the letter before emailing it.');
+            $this->redirect('/letters');
+            return;
+        }
+        $this->assertBranchAccess($document);
+
+        $recipient = trim($_POST['recipient_email'] ?? '');
+        if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Enter a valid email address.');
+            $this->redirect('/letters');
+            return;
+        }
+
+        $fullPath = STORAGE_PATH . '/' . $document['file_path'];
+        if (!is_file($fullPath)) {
+            Session::flash('error', 'File is missing from storage.');
+            $this->redirect('/letters');
+            return;
+        }
+
+        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+        $result = EmailSenderService::send(
+            $recipient,
+            $document['document_title'],
+            '<p>Please find attached your "' . htmlspecialchars($document['document_title'], ENT_QUOTES) . '".</p>',
+            $document['borrower_name'] ?? null,
+            true,
+            [['content' => file_get_contents($fullPath), 'filename' => basename($fullPath), 'mime' => self::mimeFor($ext)]]
+        );
+
+        if ($result['success']) {
+            $this->documents->markSent($id);
+            Audit::log('Email', 'Documents', '"' . $document['document_title'] . '" (#' . $id . ') emailed to ' . $recipient);
+            Session::flash('success', 'Letter emailed to ' . $recipient . '.');
+        } else {
+            Session::flash('error', 'Could not send email: ' . $result['error']);
+        }
+
+        $this->redirect('/letters');
+    }
+
+    private static function mimeFor(string $ext): string
+    {
+        return match ($ext) {
+            'pdf' => 'application/pdf',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            default => 'application/octet-stream',
+        };
     }
 }

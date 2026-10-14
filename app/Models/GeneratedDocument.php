@@ -24,7 +24,7 @@ class GeneratedDocument extends Model
 
     public function paginated(string $status = '', int $limit = 100, ?int $branchId = null): array
     {
-        $sql = "SELECT g.*, t.template_name, t.template_type, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS generated_by_name
+        $sql = "SELECT g.*, t.template_name, t.template_type, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.email AS borrower_email, u.name AS generated_by_name
                 FROM generated_documents g
                 JOIN document_templates t ON t.id = g.template_id
                 JOIN borrowers b ON b.id = g.borrower_id
@@ -50,7 +50,8 @@ class GeneratedDocument extends Model
     public function find(int $id): ?array
     {
         return $this->one(
-            "SELECT g.*, t.template_name, t.template_type, b.branch_id AS borrower_branch_id
+            "SELECT g.*, t.template_name, t.template_type, b.branch_id AS borrower_branch_id,
+                    CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.email AS borrower_email
              FROM generated_documents g
              LEFT JOIN document_templates t ON t.id = g.template_id
              LEFT JOIN borrowers b ON b.id = g.borrower_id
@@ -135,5 +136,16 @@ class GeneratedDocument extends Model
             'status' => 'Generated',
             'generated_by' => $staffId,
         ], 'id', $id);
+    }
+
+    /** Status only ever advances forward here -- a document already 'Signed' stays 'Signed' even if re-emailed. */
+    public function markSent(int $id): bool
+    {
+        $current = $this->scalar("SELECT status FROM generated_documents WHERE id = ?", [$id]);
+        $data = ['sent_at' => date('Y-m-d H:i:s')];
+        if ($current === 'Generated') {
+            $data['status'] = 'Sent';
+        }
+        return $this->update('generated_documents', $data, 'id', $id);
     }
 }
