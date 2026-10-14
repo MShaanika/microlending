@@ -5,30 +5,35 @@
     <h4 class="card-title mb-3">Edit User</h4>
 
     <!--
-      autocomplete="off" everywhere below is load-bearing, not boilerplate:
-      Chrome aggressively autofills generically-named fields like
-      name/username/email with whatever account the browser has saved for
-      those field names (typically the currently logged-in staff member's
-      own values) -- overwriting this specific employee's real data on
-      screen, and silently submitting the wrong values if the admin
-      doesn't notice and hits Save. This is NOT a server bug: confirmed by
-      querying the database directly for 3 different user ids showing a
-      staff member's report -- every row had its own real, distinct
-      name/username/email, but the Edit page displayed the same cached
-      values for all three. 2026-10-13.
+      autocomplete="off" alone is NOT load-bearing -- Chrome has ignored it
+      for its own Autofill (personal-info) heuristic for years, regardless
+      of the attribute's value; it only ever affected the separate Password
+      Manager prompt. That's why the 2026-10-13 fix (autocomplete="off"
+      everywhere) didn't hold: confirmed again by direct DB query the very
+      next day -- every user row still has its own real, distinct
+      name/username/email, but the Edit page kept showing one logged-in
+      staff member's own saved Autofill values on top of them, and a
+      careless Save would silently persist those wrong values onto
+      whichever user's row the URL actually pointed at (hence also looking
+      like "saves to the wrong user"). The only thing Chrome reliably
+      respects: a field marked readonly at render time, which Chrome's
+      Autofill engine skips entirely -- onfocus below removes it the
+      instant a real user actually interacts with the field, which Chrome
+      never simulates. autocomplete="off" is kept as a harmless second
+      layer, not the actual fix.
     -->
-    <form method="post" action="<?= url('/settings/users/' . $user['id']) ?>" autocomplete="off">
+    <form method="post" action="<?= url('/settings/users/' . $editUser['id']) ?>" autocomplete="off">
       <?= csrf_field() ?>
 
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Full Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" autocomplete="off" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= e($user['name']) ?>">
+          <input type="text" name="name" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= e($editUser['name']) ?>">
           <?php if (isset($errors['name'])): ?><div class="invalid-feedback d-block"><?= e($errors['name']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-6 mb-3">
           <label class="form-label">Username <span class="text-danger">*</span></label>
-          <input type="text" name="username" autocomplete="off" class="form-control <?= isset($errors['username']) ? 'is-invalid' : '' ?>" value="<?= e($user['username']) ?>">
+          <input type="text" name="username" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control <?= isset($errors['username']) ? 'is-invalid' : '' ?>" value="<?= e($editUser['username']) ?>">
           <?php if (isset($errors['username'])): ?><div class="invalid-feedback d-block"><?= e($errors['username']) ?></div><?php endif; ?>
         </div>
       </div>
@@ -36,12 +41,12 @@
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Email <span class="text-danger">*</span></label>
-          <input type="email" name="email" autocomplete="off" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= e($user['email']) ?>">
+          <input type="email" name="email" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= e($editUser['email']) ?>">
           <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-6 mb-3">
           <label class="form-label">Phone</label>
-          <input type="text" name="phone" autocomplete="off" class="form-control" value="<?= e($user['phone'] ?? '') ?>">
+          <input type="text" name="phone" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control" value="<?= e($editUser['phone'] ?? '') ?>">
         </div>
       </div>
 
@@ -50,7 +55,7 @@
           <label class="form-label">Job Title / Type</label>
           <select name="user_type" class="form-select">
             <?php foreach ($userTypes as $t): ?>
-              <option value="<?= e($t) ?>" <?= $user['user_type'] === $t ? 'selected' : '' ?>><?= e($t) ?></option>
+              <option value="<?= e($t) ?>" <?= $editUser['user_type'] === $t ? 'selected' : '' ?>><?= e($t) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -59,7 +64,7 @@
           <select name="branch_id" class="form-select">
             <option value="">-- none --</option>
             <?php foreach ($branches as $b): ?>
-              <option value="<?= (int) $b['id'] ?>" <?= (int) $user['branch_id'] === (int) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
+              <option value="<?= (int) $b['id'] ?>" <?= (int) $editUser['branch_id'] === (int) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -67,7 +72,7 @@
 
       <div class="mb-3">
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="bypass_ip_restriction" value="1" id="bypassIpRestriction" <?= !empty($user['bypass_ip_restriction']) ? 'checked' : '' ?>>
+          <input class="form-check-input" type="checkbox" name="bypass_ip_restriction" value="1" id="bypassIpRestriction" <?= !empty($editUser['bypass_ip_restriction']) ? 'checked' : '' ?>>
           <label class="form-check-label" for="bypassIpRestriction">Allow login from anywhere (ignores this user's branch IP restriction)</label>
         </div>
       </div>

@@ -4,19 +4,19 @@
   <div class="card-body">
     <h4 class="card-title mb-3">Add User</h4>
 
-    <!-- autocomplete="off" -- see edit.php.content's own note on why this matters: Chrome will otherwise autofill these generically-named fields with another saved account's values. -->
+    <!-- autocomplete="off" + readonly/onfocus -- see edit.php.content's own note: autocomplete="off" alone does NOT stop Chrome's Autofill from overwriting these generically-named fields with another saved account's values; readonly at render time (removed the instant a real user focuses the field) is the part Chrome actually respects. -->
     <form method="post" action="<?= url('/settings/users') ?>" autocomplete="off">
       <?= csrf_field() ?>
 
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Full Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" autocomplete="off" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= old('name', $old) ?>">
+          <input type="text" name="name" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control <?= isset($errors['name']) ? 'is-invalid' : '' ?>" value="<?= old('name', $old) ?>">
           <?php if (isset($errors['name'])): ?><div class="invalid-feedback d-block"><?= e($errors['name']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-6 mb-3">
           <label class="form-label">Username <span class="text-danger">*</span></label>
-          <input type="text" name="username" autocomplete="off" class="form-control <?= isset($errors['username']) ? 'is-invalid' : '' ?>" value="<?= old('username', $old) ?>">
+          <input type="text" name="username" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control <?= isset($errors['username']) ? 'is-invalid' : '' ?>" value="<?= old('username', $old) ?>">
           <?php if (isset($errors['username'])): ?><div class="invalid-feedback d-block"><?= e($errors['username']) ?></div><?php endif; ?>
         </div>
       </div>
@@ -24,20 +24,24 @@
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Email <span class="text-danger">*</span></label>
-          <input type="email" name="email" autocomplete="off" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= old('email', $old) ?>">
+          <input type="email" name="email" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= old('email', $old) ?>">
           <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
         </div>
         <div class="col-md-6 mb-3">
           <label class="form-label">Phone</label>
-          <input type="text" name="phone" autocomplete="off" class="form-control" value="<?= old('phone', $old) ?>">
+          <input type="text" name="phone" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="form-control" value="<?= old('phone', $old) ?>">
         </div>
       </div>
 
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Password <span class="text-danger">*</span></label>
-          <input type="password" name="password" class="form-control <?= isset($errors['password']) ? 'is-invalid' : '' ?>" autocomplete="new-password">
-          <?php if (isset($errors['password'])): ?><div class="invalid-feedback d-block"><?= e($errors['password']) ?></div><?php else: ?><div class="form-text">At least 8 characters.</div><?php endif; ?>
+          <div class="input-group">
+            <input type="password" name="password" id="newUserPassword" class="form-control <?= isset($errors['password']) ? 'is-invalid' : '' ?>" autocomplete="new-password">
+            <button class="btn btn-outline-secondary" type="button" id="toggleNewUserPassword" tabindex="-1" title="Show/hide password"><i class="mdi mdi-eye-outline"></i></button>
+            <button class="btn btn-outline-info" type="button" id="generateNewUserPassword" title="Generate a strong password"><i class="mdi mdi-dice-multiple-outline"></i> Generate</button>
+          </div>
+          <?php if (isset($errors['password'])): ?><div class="invalid-feedback d-block"><?= e($errors['password']) ?></div><?php else: ?><div class="form-text">At least 8 characters. "Generate" fills a strong random one and shows it so you can pass it on to the user.</div><?php endif; ?>
         </div>
         <div class="col-md-3 mb-3">
           <label class="form-label">Job Title / Type</label>
@@ -85,3 +89,16 @@
     </form>
   </div>
 </div>
+
+<script src="<?= asset('dist/js/password-tools.js') ?>"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.getElementById('newUserPassword');
+  var toggleBtn = document.getElementById('toggleNewUserPassword');
+  var generateBtn = document.getElementById('generateNewUserPassword');
+  var icon = toggleBtn ? toggleBtn.querySelector('i') : null;
+  var iconClasses = { masked: 'mdi-eye-outline', visible: 'mdi-eye-off-outline' };
+  window.PasswordTools.bindToggle(toggleBtn, [input], icon, iconClasses);
+  window.PasswordTools.bindGenerate(generateBtn, [input], icon, iconClasses);
+});
+</script>

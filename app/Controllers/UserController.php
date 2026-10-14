@@ -112,7 +112,17 @@ class UserController extends Controller
 
         $this->view('settings/users/edit', [
             'title' => 'Edit User',
-            'user' => $user,
+            // NOT 'user' -- layouts/main.php sets its own $user = Auth::user()
+            // for the topbar before this fragment is included, and extract()
+            // with EXTR_SKIP means the controller's value loses that
+            // collision silently (no warning, no error). 2026-10-14: this is
+            // the actual root cause of "Edit User shows/saves the logged-in
+            // admin's own data instead of the selected user" -- the
+            // 2026-10-13 cache-headers and autocomplete/readonly fixes were
+            // real improvements but didn't touch this, which is why the bug
+            // kept recurring. See reset_password() below and
+            // ProfileController for the same bug.
+            'editUser' => $user,
             'userTypes' => self::USER_TYPES,
             'roles' => $this->roles->allRoles(),
             'branches' => $this->branches->all(),
@@ -155,7 +165,7 @@ class UserController extends Controller
         if (!empty($errors)) {
             $this->view('settings/users/edit', [
                 'title' => 'Edit User',
-                'user' => array_merge($user, $_POST),
+                'editUser' => array_merge($user, $_POST),
                 'userTypes' => self::USER_TYPES,
                 'roles' => $this->roles->allRoles(),
                 'branches' => $this->branches->all(),
@@ -236,7 +246,7 @@ class UserController extends Controller
 
         $this->view('settings/users/reset_password', [
             'title' => 'Reset Password - ' . $user['name'],
-            'user' => $user,
+            'editUser' => $user, // see edit()'s comment -- not 'user', collides with layouts/main.php's own $user
             'errors' => [],
         ]);
     }
@@ -272,7 +282,7 @@ class UserController extends Controller
         if (!empty($errors)) {
             $this->view('settings/users/reset_password', [
                 'title' => 'Reset Password - ' . $user['name'],
-                'user' => $user,
+                'editUser' => $user, // see edit()'s comment -- not 'user', collides with layouts/main.php's own $user
                 'errors' => $errors,
             ]);
             return;

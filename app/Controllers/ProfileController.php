@@ -32,7 +32,17 @@ class ProfileController extends Controller
 
         $this->view('profile/edit', [
             'title' => 'My Profile',
-            'user' => $user,
+            // NOT 'user' -- layouts/main.php sets its own $user = Auth::user()
+            // (the session's narrower id/name/email/username/user_type/
+            // branch_id/permissions snapshot) right before this fragment is
+            // included, and extract()'s EXTR_SKIP means that silently wins
+            // over this controller's fuller DB row -- same root cause as
+            // UserController's "Edit User" bug. Here it happened to be
+            // harmless for name/email/username (same person either way) but
+            // genuinely broke phone (not in the session snapshot at all, so
+            // this field always rendered blank regardless of the real
+            // stored value).
+            'profileUser' => $user,
             'old' => [],
             'errors' => [],
             'passwordErrors' => [],
@@ -56,7 +66,7 @@ class ProfileController extends Controller
         if (!empty($errors)) {
             $this->view('profile/edit', [
                 'title' => 'My Profile',
-                'user' => array_merge($user, $_POST),
+                'profileUser' => array_merge($user, $_POST), // not 'user' -- see edit()'s comment
                 'old' => $_POST,
                 'errors' => $errors,
                 'passwordErrors' => [],
@@ -111,7 +121,7 @@ class ProfileController extends Controller
         if (!empty($errors)) {
             $this->view('profile/edit', [
                 'title' => 'My Profile',
-                'user' => $user,
+                'profileUser' => $user, // not 'user' -- see edit()'s comment
                 'old' => [],
                 'errors' => [],
                 'passwordErrors' => $errors,

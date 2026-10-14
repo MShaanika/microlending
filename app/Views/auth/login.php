@@ -74,7 +74,12 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
                     </div>
 
                     <div class="form-group mb-4">
-                        <input class="form-control" name="password" type="password" required placeholder="Password">
+                        <div class="input-group">
+                            <input class="form-control" name="password" id="loginPassword" type="password" required placeholder="Password">
+                            <button class="btn btn-outline-secondary" type="button" id="toggleLoginPassword" tabindex="-1" aria-label="Show/hide password">
+                                <i class="fa fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="form-group mb-3">
@@ -107,10 +112,17 @@ $primaryColor = $company['primary_color'] ?? '#25a9e0';
 
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') ?>"></script>
+<script src="<?= asset('dist/js/password-tools.js') ?>"></script>
 
 <script>
 $(function(){
     $('.preloader').fadeOut();
+});
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.getElementById('loginPassword');
+  var toggleBtn = document.getElementById('toggleLoginPassword');
+  var icon = toggleBtn ? toggleBtn.querySelector('i') : null;
+  window.PasswordTools.bindToggle(toggleBtn, [input], icon, { masked: 'fa-eye', visible: 'fa-eye-slash' });
 });
 </script>
 
