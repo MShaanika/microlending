@@ -1,6 +1,9 @@
 <?= flash_messages() ?>
 
-<?php $completedLoans = array_filter($loans, fn ($l) => $l['loan_status'] === 'Completed'); ?>
+<?php
+$completedLoans = array_filter($loans, fn ($l) => $l['loan_status'] === 'Completed');
+$arrearsLoans = array_filter($loans, fn ($l) => !empty($l['is_in_arrears']));
+?>
 
 <div class="card">
   <div class="card-body">
@@ -16,19 +19,32 @@
           <option value="">Select</option>
           <option value="Completion Letter" <?= (($old['letter_type'] ?? '') === 'Completion Letter') ? 'selected' : '' ?>>Completion Letter</option>
           <option value="Consolidation Letter" <?= (($old['letter_type'] ?? '') === 'Consolidation Letter') ? 'selected' : '' ?>>Consolidation Letter</option>
+          <option value="Final Notice of Default" <?= (($old['letter_type'] ?? '') === 'Final Notice of Default') ? 'selected' : '' ?>>Final Notice of Default</option>
         </select>
         <?php if (isset($errors['letter_type'])): ?><div class="invalid-feedback d-block"><?= e($errors['letter_type']) ?></div><?php endif; ?>
       </div>
 
       <div id="completion-wrap" style="display:none;" class="mb-3">
         <label class="form-label">Completed Loan <span class="text-danger">*</span></label>
-        <select name="loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
+        <select name="completion_loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
           <option value="">Select loan</option>
           <?php foreach ($completedLoans as $l): ?>
             <option value="<?= (int) $l['id'] ?>"><?= e($l['loan_no']) ?> - <?= e($l['borrower_name']) ?></option>
           <?php endforeach; ?>
         </select>
         <?php if (empty($completedLoans)): ?><p class="text-muted small mt-1">No completed loans yet.</p><?php endif; ?>
+      </div>
+
+      <div id="final-notice-wrap" style="display:none;" class="mb-3">
+        <label class="form-label">Loan In Arrears <span class="text-danger">*</span></label>
+        <select name="final_notice_loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
+          <option value="">Select loan</option>
+          <?php foreach ($arrearsLoans as $l): ?>
+            <option value="<?= (int) $l['id'] ?>"><?= e($l['loan_no']) ?> - <?= e($l['borrower_name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php if (empty($arrearsLoans)): ?><p class="text-muted small mt-1">No loans currently in arrears.</p><?php endif; ?>
+        <p class="text-muted small mt-1">Days overdue and the amount owed are pulled live from the schedule when the letter generates -- not entered here.</p>
       </div>
 
       <div id="consolidation-wrap" style="display:none;">
@@ -47,7 +63,7 @@
         </div>
         <div class="mb-3" id="consolidation-loan-wrap">
           <label class="form-label">Loan <span class="text-danger">*</span></label>
-          <select name="loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
+          <select name="consolidation_loan_id" class="form-select <?= isset($errors['loan_id']) ? 'is-invalid' : '' ?>">
             <option value="">Select loan</option>
             <?php foreach ($loans as $l): ?>
               <option value="<?= (int) $l['id'] ?>"><?= e($l['loan_no']) ?> - <?= e($l['borrower_name']) ?> (<?= e($l['loan_status']) ?>)</option>
@@ -83,6 +99,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   var typeSelect = document.getElementById('letter_type');
   var completionWrap = document.getElementById('completion-wrap');
+  var finalNoticeWrap = document.getElementById('final-notice-wrap');
   var consolidationWrap = document.getElementById('consolidation-wrap');
   var scopeOne = document.getElementById('scope-one');
   var scopeAll = document.getElementById('scope-all');
@@ -92,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function syncType() {
     var v = typeSelect.value;
     completionWrap.style.display = v === 'Completion Letter' ? '' : 'none';
+    finalNoticeWrap.style.display = v === 'Final Notice of Default' ? '' : 'none';
     consolidationWrap.style.display = v === 'Consolidation Letter' ? '' : 'none';
   }
 

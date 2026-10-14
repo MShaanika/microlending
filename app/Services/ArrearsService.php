@@ -99,6 +99,34 @@ class ArrearsService
     }
 
     /**
+     * Days in arrears and the actual amount currently overdue (every unpaid
+     * schedule row already past its due date -- principal, interest, fees,
+     * everything the client owes to catch up), for a single loan. Deliberately
+     * separate from loanOutstanding()/overdueLoans()'s outstanding_balance,
+     * which is the narrower GL-recognized figure (principal + levy + stamp
+     * only, interest/fees excluded by design -- see this class's docblock)
+     * used for bad-debt provisioning, not what a client-facing default
+     * notice should quote as "the amount to bring your account up to date".
+     */
+    public static function loanArrearsSummary(int $loanId, string $asOfDate): array
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT DATEDIFF(?, MIN(due_date)) AS days_in_arrears,
+                    COALESCE(SUM(total_due - total_paid), 0) AS arrears_amount
+             FROM loan_schedules
+             WHERE loan_id = ? AND due_date <= ? AND total_due > total_paid"
+        );
+        $stmt->execute([$asOfDate, $loanId, $asOfDate]);
+        $row = $stmt->fetch();
+
+        return [
+            'days_in_arrears' => max(0, (int) ($row['days_in_arrears'] ?? 0)),
+            'arrears_amount' => round((float) ($row['arrears_amount'] ?? 0), 2),
+        ];
+    }
+
+    /**
      * Same computation, but only for a single loan (used by the write-off
      * screen to show the current outstanding balance).
      */

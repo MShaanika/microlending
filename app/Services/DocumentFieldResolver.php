@@ -188,6 +188,29 @@ class DocumentFieldResolver
             case 'lender_name':
                 return self::lenderName();
 
+            case 'days_overdue':
+                return $loan ? (string) self::arrearsSummary($context)['days_in_arrears'] : null;
+
+            case 'overdue_amount':
+                $amount = $loan ? self::arrearsSummary($context)['arrears_amount'] : null;
+                return $amount === null ? null : format_money($amount);
+
+            case 'cure_deadline_date':
+                // 7 days' notice (the letter's own bracket note allows
+                // "5 to 7 days") -- used for both the "pay by" date and the
+                // final "if we don't hear from you by" date, since the
+                // letter gives one single deadline for both.
+                return date('j F Y', strtotime('+7 days'));
+
+            case 'credit_listing_years':
+                // NOT a confirmed regulatory figure -- flagged for the
+                // business to confirm the real credit bureau listing
+                // retention period before this letter is sent to a client.
+                return '2';
+
+            case 'sender_name':
+                return \App\Core\Auth::user()['name'] ?? '';
+
             case 'salary_formatted':
                 $application = $context['application'];
                 return $application && (float) $application['gross_salary'] > 0 ? format_money($application['gross_salary']) : null;
@@ -239,6 +262,11 @@ class DocumentFieldResolver
         $db = Database::connection();
         $name = $db->query("SELECT company_name FROM companies WHERE is_active = 1 ORDER BY id LIMIT 1")->fetchColumn();
         return $name ?: 'Solid Desert Cash Loan Express cc';
+    }
+
+    private static function arrearsSummary(array $context): array
+    {
+        return ArrearsService::loanArrearsSummary((int) $context['loan']['id'], date('Y-m-d'));
     }
 
     private static function outstandingBalance(array $context): ?float

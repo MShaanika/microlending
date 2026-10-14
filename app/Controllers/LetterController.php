@@ -101,14 +101,24 @@ class LetterController extends Controller
 
         $letterType = $_POST['letter_type'] ?? '';
         $scope = $_POST['consolidation_scope'] ?? 'one';
-        $loanId = (int) ($_POST['loan_id'] ?? 0);
+        // Each letter type's loan dropdown has its own POST field name --
+        // all three used to share name="loan_id", which a browser still
+        // submits even for the two wraps CSS hides (display:none doesn't
+        // exclude a field from form serialization), so PHP's $_POST silently
+        // kept whichever one happened to be LAST in the HTML, not whichever
+        // the visible wrap actually was. See letters/create.php.content.
+        $loanId = (int) match ($letterType) {
+            'Completion Letter' => $_POST['completion_loan_id'] ?? 0,
+            'Final Notice of Default' => $_POST['final_notice_loan_id'] ?? 0,
+            default => $_POST['consolidation_loan_id'] ?? 0,
+        };
         $borrowerId = (int) ($_POST['borrower_id'] ?? 0);
         $branchId = $this->scopeBranchId();
 
         $errors = [];
         $loan = null;
 
-        if (!in_array($letterType, ['Completion Letter', 'Consolidation Letter'], true)) {
+        if (!in_array($letterType, ['Completion Letter', 'Consolidation Letter', 'Final Notice of Default'], true)) {
             $errors['letter_type'] = 'Select a letter type.';
         }
 
@@ -116,6 +126,15 @@ class LetterController extends Controller
             $loan = $loanId ? $this->loans->find($loanId) : null;
             if (!$loan || $loan['loan_status'] !== 'Completed' || ($branchId !== null && (int) $loan['branch_id'] !== $branchId)) {
                 $errors['loan_id'] = 'Select one of the borrower\'s completed loans.';
+            }
+        } elseif ($letterType === 'Final Notice of Default') {
+            // Arrears, not loan_status, is the real-time signal (same
+            // criteria as ArrearsService::overdueLoans()) -- a loan can
+            // still be loan_status 'Active' while genuinely overdue.
+            $loan = $loanId ? $this->loans->find($loanId) : null;
+            $isInArrears = $loan && \App\Services\ArrearsService::loanArrearsSummary((int) $loan['id'], date('Y-m-d'))['days_in_arrears'] > 0;
+            if (!$loan || !$isInArrears || ($branchId !== null && (int) $loan['branch_id'] !== $branchId)) {
+                $errors['loan_id'] = 'Select one of the borrower\'s loans that is actually in arrears.';
             }
         } elseif ($letterType === 'Consolidation Letter' && $scope === 'one') {
             $loan = $loanId ? $this->loans->find($loanId) : null;
@@ -142,13 +161,18 @@ class LetterController extends Controller
 
         if ($letterType === 'Completion Letter') {
             $template = $this->templates->findByCode('COMPLETION_LETTER');
+        } elseif ($letterType === 'Final Notice of Default') {
+            $template = $this->templates->findByCode('FINAL_NOTICE_OF_DEFAULT');
         } else {
             $template = $this->templates->findByCode($scope === 'all' ? 'CONSOLIDATION_ALL_LOANS' : 'CONSOLIDATION_ONE_LOAN');
         }
 
-        $title = $letterType === 'Completion Letter'
-            ? 'Completion Letter - ' . $loan['loan_no']
-            : ($scope === 'all' ? 'Consolidation Letter - All Loans' : 'Consolidation Letter - ' . $loan['loan_no']);
+        $title = match (true) {
+            $letterType === 'Completion Letter' => 'Completion Letter - ' . $loan['loan_no'],
+            $letterType === 'Final Notice of Default' => 'Final Notice of Default - ' . $loan['loan_no'],
+            $scope === 'all' => 'Consolidation Letter - All Loans',
+            default => 'Consolidation Letter - ' . $loan['loan_no'],
+        };
 
         $documentId = $this->documents->create([
             'template_id' => $template['id'] ?? null,
