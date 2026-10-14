@@ -151,6 +151,51 @@ class Auth
     }
 
     /**
+     * Password-reset hierarchy (admin override only -- "Reset Password" on
+     * the Users list, which needs no current password; self-service
+     * "My Profile > Change Password" is untouched by this and always needs
+     * the current one regardless of role): a Super Admin's password --
+     * user_type, the same signal isSuperAdmin() uses, since that's the
+     * authoritative "is this person a Super Admin" column in this app, not
+     * every Super Admin-type user necessarily also holding the separate
+     * 'Super Admin' roles-table row -- can only be reset by a Developer,
+     * not even by another Super Admin. A Developer's own password works
+     * the same way: only another Developer can reset it. Everyone else
+     * (regular employees) can only be reset by a Super Admin or a
+     * Developer -- nobody else, even with admin.users, gets this.
+     */
+    public static function canResetPasswordOf(array $target): bool
+    {
+        $actor = self::user();
+        if (!$actor) {
+            return false;
+        }
+
+        $actorIsDeveloper = self::hasRole((int) $actor['id'], 'Developer');
+        $targetIsDeveloper = self::hasRole((int) ($target['id'] ?? 0), 'Developer');
+        $targetIsSuperAdmin = ($target['user_type'] ?? '') === 'Super Admin';
+
+        if ($targetIsDeveloper || $targetIsSuperAdmin) {
+            return $actorIsDeveloper;
+        }
+
+        return self::isSuperAdmin() || $actorIsDeveloper;
+    }
+
+    private static function hasRole(int $userId, string $roleName): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? AND r.role_name = ? LIMIT 1"
+        );
+        $stmt->execute([$userId, $roleName]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    /**
      * Swaps the active session's identity to $targetUserId, stashing the
      * real user under 'impersonator' so stopImpersonation() can restore it.
      * Nested impersonation is refused -- an impersonated session can't

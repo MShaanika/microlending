@@ -42,7 +42,9 @@
               <td><span class="badge bg-<?= $u['is_active'] ? 'success' : 'secondary' ?>"><?= $u['is_active'] ? 'Active' : 'Inactive' ?></span></td>
               <td class="text-end">
                 <a href="<?= url('/settings/users/' . $u['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil"></i></a>
-                <a href="<?= url('/settings/users/' . $u['id'] . '/reset-password') ?>" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-key"></i></a>
+                <?php if (\App\Core\Auth::canResetPasswordOf($u)): ?>
+                  <a href="<?= url('/settings/users/' . $u['id'] . '/reset-password') ?>" class="btn btn-sm btn-outline-warning" title="Reset Password"><i class="mdi mdi-key"></i></a>
+                <?php endif; ?>
                 <?php if (\App\Core\Auth::canLoginAsUser($u)): ?>
                   <form method="post" action="<?= url('/settings/users/' . $u['id'] . '/login-as') ?>" class="d-inline" onsubmit="return confirmSubmit(this, 'Log in as this user? You will be switched into their account until you return to yours.');">
                     <?= csrf_field() ?>

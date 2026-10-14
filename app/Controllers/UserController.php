@@ -244,6 +244,12 @@ class UserController extends Controller
             return;
         }
 
+        if (!Auth::canResetPasswordOf($user)) {
+            Session::flash('error', 'You are not authorized to reset this user\'s password.');
+            $this->redirect('/settings/users');
+            return;
+        }
+
         $this->view('settings/users/reset_password', [
             'title' => 'Reset Password - ' . $user['name'],
             'editUser' => $user, // see edit()'s comment -- not 'user', collides with layouts/main.php's own $user
@@ -265,6 +271,12 @@ class UserController extends Controller
         $user = $this->users->find($id);
         if (!$user) {
             Session::flash('error', 'User not found.');
+            $this->redirect('/settings/users');
+            return;
+        }
+
+        if (!Auth::canResetPasswordOf($user)) {
+            Session::flash('error', 'You are not authorized to reset this user\'s password.');
             $this->redirect('/settings/users');
             return;
         }
