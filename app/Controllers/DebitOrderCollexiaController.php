@@ -267,7 +267,7 @@ class DebitOrderCollexiaController extends Controller
             'debtorAccountNumber' => $debitOrder['account_number'],
             'debtorAccountType' => (int) $debitOrder['account_type'],
             'debtorBanId' => $banId,
-        ];
+        ] + self::mandateDebtorExtraFields($debitOrder);
 
         try {
             $client = new CollexiaEndoApiClient();
@@ -474,7 +474,7 @@ class DebitOrderCollexiaController extends Controller
             'debtorAccountNumber' => $debitOrder['account_number'],
             'debtorAccountType' => (int) $debitOrder['account_type'],
             'debtorBanId' => $banId,
-        ];
+        ] + self::mandateDebtorExtraFields($debitOrder);
 
         try {
             $client = new CollexiaEndoApiClient();
@@ -832,14 +832,22 @@ class DebitOrderCollexiaController extends Controller
 
         try {
             $client = new CollexiaEndoApiClient();
-            $client->updateInstallment([[
+            $installment = [
                 'intId' => $intId,
                 'trackingDate' => date('Ymd', strtotime($scheduledDate)),
                 'scheduledDate' => date('Ymd', strtotime($scheduledDate)),
                 'numberOfTrackingDays' => (int) $debitOrder['no_of_days_tracking'],
                 'installmentAmount' => $installmentAmount,
                 'collectionDay' => CollexiaV3Codes::collectionDay((int) date('j', strtotime($scheduledDate))),
-            ]], $this->frontEndUserName());
+            ];
+            // V4: "Update Installment -- Include debtorTelephone" (Desert
+            // Ledger Test Pack V4.0, Configuration sheet) -- debtorTelephone
+            // only, not dateOfBirth/gender, which are mandate-load-only per
+            // that same sheet.
+            if (!empty($debitOrder['phone'])) {
+                $installment['debtorTelephone'] = $debitOrder['phone'];
+            }
+            $client->updateInstallment([$installment], $this->frontEndUserName());
 
             $this->debitOrders->updateCollexiaApiState((int) $id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
             Audit::log('Update', 'Debit Orders', 'Rescheduled Collexia installment ' . $intId . ' for debit order #' . $id);
@@ -937,6 +945,32 @@ class DebitOrderCollexiaController extends Controller
     {
         $configured = $this->settings->frontEndUsername();
         return $configured !== '' ? $configured : (string) (Auth::user()['username'] ?? '');
+    }
+
+    /**
+     * V4 mandate load additions (Desert Ledger Test Pack V4.0, Configuration
+     * sheet: "Include dateOfBirth, gender, debtorTelephone where
+     * applicable") -- each one is genuinely optional data on a borrower
+     * (date_of_birth/gender can be blank on an older record), so each is
+     * only included when actually on file rather than sending a guessed or
+     * empty value. gender is a numeric code per Collexia (1=Male, 2=Female,
+     * confirmed directly, not from the spec); 'Other' has no agreed code so
+     * is left out like a blank gender would be.
+     */
+    private static function mandateDebtorExtraFields(array $debitOrder): array
+    {
+        $fields = [];
+        if (!empty($debitOrder['date_of_birth'])) {
+            $fields['dateOfBirth'] = date('Ymd', strtotime((string) $debitOrder['date_of_birth']));
+        }
+        $genderCode = ['Male' => 1, 'Female' => 2][$debitOrder['gender'] ?? ''] ?? null;
+        if ($genderCode !== null) {
+            $fields['gender'] = $genderCode;
+        }
+        if (!empty($debitOrder['phone'])) {
+            $fields['debtorTelephone'] = $debitOrder['phone'];
+        }
+        return $fields;
     }
 
     /**
