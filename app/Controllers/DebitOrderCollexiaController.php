@@ -923,14 +923,20 @@ class DebitOrderCollexiaController extends Controller
     /**
      * Collexia's frontEndUserName -- "the user on your system requesting"
      * an action (spec 9.4/9.10/9.16, Required; 9.2 Message Info,
-     * Conditional) -- not a Collexia-provisioned credential, the actual
-     * DesertLedger user who triggered this request. Every action method
-     * here runs behind Auth::authorize() first, so a logged-in user is
-     * always present.
+     * Conditional). Per the spec this should be the actual DesertLedger
+     * user who triggered the request, but Collexia has so far only
+     * provisioned a single value ("willemk", Configuration sheet, Desert
+     * Ledger Test Pack V4.0) -- not yet one per staff member -- so that
+     * configured value is used for every mandate action until individual
+     * employees get their own. Falls back to the logged-in staff member's
+     * own username if the setting is ever blank (every action method here
+     * runs behind Auth::authorize() first, so a logged-in user is always
+     * present).
      */
     private function frontEndUserName(): string
     {
-        return (string) (Auth::user()['username'] ?? '');
+        $configured = $this->settings->frontEndUsername();
+        return $configured !== '' ? $configured : (string) (Auth::user()['username'] ?? '');
     }
 
     /**

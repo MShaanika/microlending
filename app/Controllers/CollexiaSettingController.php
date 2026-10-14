@@ -11,7 +11,7 @@ use App\Models\CollexiaSetting;
 
 class CollexiaSettingController extends Controller
 {
-    /** Plain (non-secret) fields the manage form can write -- collexia_front_end_username is deliberately absent: removed from the UI, never written, existing stored value (if any) untouched. */
+    /** Plain (non-secret) fields the manage form can write. */
     private const KEYS = [
         'collexia_base_url',
         'collexia_merchant_gid',
@@ -19,6 +19,7 @@ class CollexiaSettingController extends Controller
         'collexia_system_username',
         'collexia_client_id',
         'collexia_max_single_mandate_amount',
+        'collexia_front_end_username',
     ];
 
     private CollexiaSetting $settings;

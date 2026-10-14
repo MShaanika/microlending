@@ -85,6 +85,20 @@ $statusBadge = [
 
       <div class="row">
         <div class="col-md-4 mb-3">
+          <label class="form-label">Front-End Username</label>
+          <input type="text" name="collexia_front_end_username" class="form-control" value="<?= e($settings['collexia_front_end_username'] ?? '') ?>" placeholder="e.g. willemk">
+          <div class="form-text">
+            The <code>frontEndUserName</code> sent with every mandate action, until individual staff get
+            their own Collexia-provisioned value -- Collexia's own spec calls this "the user on your
+            system requesting" the action, not a shared credential, but for now there's only one
+            provisioned value to send. Blank falls back to the logged-in staff member's own DesertLedger
+            username.
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
           <label class="form-label">
             Max Single Mandate Amount (N$)
             <span class="badge bg-info text-dark">UAT-only, per Collexia</span>

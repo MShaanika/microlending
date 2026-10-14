@@ -18,17 +18,22 @@ namespace App\Services;
  * in CollexiaClient -- every method below just builds a JSON body and
  * calls $this->client->post(), never curl directly.
  *
- * frontEndUserName is NOT a Collexia-provisioned credential and is never
- * read from settings -- it's an operational/audit identity, per spec
- * "Username of the user on the system that is requesting..." (9.4, 9.10,
- * 9.16 mark it Required; 9.2 Message Info marks it Conditional). Every
- * method below that sends it takes the caller's own username as a
- * parameter -- DebitOrderCollexiaController passes Auth::user()['username']
- * for every user-triggered action. mandateEnquiry() and installmentRequest()
- * genuinely have no frontEndUserName field at all per spec 9.6/9.12 and
- * never send one. downloadPayments() is the one exception: spec 9.18's own
- * comment says this field "will be the System Username ... provided to you
- * by Softsplice" -- i.e. the same value as systemUserName, not a per-user
+ * frontEndUserName is, per spec, "Username of the user on the system that
+ * is requesting..." (9.4, 9.10, 9.16 mark it Required; 9.2 Message Info
+ * marks it Conditional) -- an operational/audit identity, not one of
+ * CollexiaClient's actual API credentials. This class itself never reads
+ * it from settings; every method below that sends it just takes whatever
+ * string the caller passes. DebitOrderCollexiaController is the only
+ * caller, and -- since Collexia has so far only provisioned a single
+ * frontEndUserName value rather than one per staff member -- it passes
+ * CollexiaSetting::frontEndUsername() (falling back to the logged-in
+ * user's own username if unset) rather than Auth::user()['username']
+ * directly; see that controller's frontEndUserName() for the current
+ * rationale. mandateEnquiry() and installmentRequest() genuinely have no
+ * frontEndUserName field at all per spec 9.6/9.12 and never send one.
+ * downloadPayments() is the one exception: spec 9.18's own comment says
+ * this field "will be the System Username ... provided to you by
+ * Softsplice" -- i.e. the same value as systemUserName, not a per-user
  * identity -- which is exactly what a background cron job needs since
  * there is no logged-in user to attribute it to.
  *

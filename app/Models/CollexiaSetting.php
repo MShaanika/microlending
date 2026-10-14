@@ -22,6 +22,8 @@ class CollexiaSetting extends Model
         'collexia_client_id' => 'Client ID',
     ];
 
+    private const FRONT_END_USERNAME_KEY = 'collexia_front_end_username';
+
     private const PASSWORD_KEY = 'collexia_password';
     private const CLIENT_SECRET_KEY = 'collexia_client_secret';
 
@@ -74,6 +76,21 @@ class CollexiaSetting extends Model
     {
         $stored = $this->get($key);
         return $stored === '' ? null : Encryption::decrypt($stored);
+    }
+
+    /**
+     * The single Collexia-provisioned frontEndUserName used for every
+     * mandate action for now (Configuration sheet, Desert Ledger Test
+     * Pack V4.0, 2026-10-12: "Front-end username: willemk") -- not in
+     * BASE_FIELDS, so leaving it blank never blocks enabling EnDO; see
+     * DebitOrderCollexiaController::frontEndUserName() for the fallback to
+     * the logged-in staff member's own username when unset. Once Collexia
+     * provisions individual front-end usernames per employee, this becomes
+     * the shared default rather than the only value.
+     */
+    public function frontEndUsername(): string
+    {
+        return $this->get(self::FRONT_END_USERNAME_KEY);
     }
 
     public function isPasswordSet(): bool
