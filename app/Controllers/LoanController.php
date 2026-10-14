@@ -256,6 +256,11 @@ class LoanController extends Controller
         }
 
         $startDate = $_POST['start_date'] ?: date('Y-m-d');
+        // Defaults to Start Date itself (no automatic grace period) -- the
+        // form's own JS keeps it in sync with Start Date until the admin
+        // actually edits it, so a blank submission here only happens if JS
+        // didn't run, not as a real "I want no first due date" case.
+        $firstDueDate = $_POST['first_due_date'] ?: $startDate;
         $userId = Auth::user()['id'] ?? null;
 
         // Top-up mode: a loan disbursed this same calendar month with zero
@@ -340,7 +345,8 @@ class LoanController extends Controller
                 $topupInterest,
                 (float) $plan['admin_fee'],
                 $startDate,
-                $paymentDay
+                $paymentDay,
+                $firstDueDate
             );
             // Levy/duty stamp are calculated on just the new money, same as
             // the independent (different-plan) branch below and the
@@ -358,7 +364,8 @@ class LoanController extends Controller
                 $startDate,
                 $namfisaRate,
                 $dutyStampAmount,
-                $paymentDay
+                $paymentDay,
+                $firstDueDate
             );
         }
 

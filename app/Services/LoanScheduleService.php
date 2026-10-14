@@ -45,15 +45,16 @@ class LoanScheduleService
         string $startDate,
         float $namfisaLevyRate = 0,
         float $dutyStampAmount = 0,
-        ?int $paymentDay = null
+        ?int $paymentDay = null,
+        ?string $firstDueDate = null
     ): array {
         $termMonths = max(1, $termMonths);
         $namfisaLevy = round($principal * ($namfisaLevyRate / 100), 2);
         $dutyStamp = round($dutyStampAmount, 2);
 
         $result = match ($interestMethod) {
-            'Reducing Balance' => self::reducingBalance($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp, $paymentDay),
-            default => self::flat($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp, $paymentDay),
+            'Reducing Balance' => self::reducingBalance($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp, $paymentDay, $firstDueDate),
+            default => self::flat($principal, $termMonths, $annualInterestRate, $adminFee, $startDate, $namfisaLevy, $dutyStamp, $paymentDay, $firstDueDate),
         };
 
         $result['namfisa_levy'] = $namfisaLevy;
@@ -80,6 +81,33 @@ class LoanScheduleService
         return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, min($day, $daysInMonth)));
     }
 
+    /**
+     * Admin-chosen first installment date (loans/create.php.content's
+     * "First Payment Due Date", defaulting there to Start Date itself --
+     * no automatic grace period) takes installment 1 directly, with every
+     * later installment spaced out from THAT date instead of from
+     * $startDate -- not $startDate + N months, which is what every caller
+     * did unconditionally before this existed (and is still exactly what
+     * happens when $firstDueDate is null, e.g. every Reschedule/TopUp
+     * caller that doesn't have this concept).
+     */
+    private static function dueDateForPeriod(\DateTimeImmutable $startDate, ?\DateTimeImmutable $firstDueDate, int $period, int $anchorDay): \DateTimeImmutable
+    {
+        if ($firstDueDate === null) {
+            return self::nextDueDate($startDate, $period, $anchorDay);
+        }
+        return $period === 1 ? $firstDueDate : self::nextDueDate($firstDueDate, $period - 1, $anchorDay);
+    }
+
+    /** $paymentDay still wins when set; otherwise the day-of-month comes from whichever date installment 1 actually lands on, not always $startDate's. */
+    private static function resolveAnchorDay(\DateTimeImmutable $startDate, ?\DateTimeImmutable $firstDueDate, ?int $paymentDay): int
+    {
+        if ($paymentDay !== null) {
+            return $paymentDay;
+        }
+        return (int) ($firstDueDate ?? $startDate)->format('j');
+    }
+
     private static function flat(
         float $principal,
         int $termMonths,
@@ -88,7 +116,8 @@ class LoanScheduleService
         string $startDate,
         float $namfisaLevy,
         float $dutyStamp,
-        ?int $paymentDay = null
+        ?int $paymentDay = null,
+        ?string $firstDueDate = null
     ): array {
         $interestBasis = round($principal + $namfisaLevy + $dutyStamp, 2);
         $totalInterest = round($interestBasis * ($rate / 100), 2);
@@ -101,11 +130,12 @@ class LoanScheduleService
         $rows = [];
         $balance = $interestBasis;
         $date = new \DateTimeImmutable($startDate);
-        $anchorDay = $paymentDay ?? (int) $date->format('j');
+        $firstDue = $firstDueDate !== null ? new \DateTimeImmutable($firstDueDate) : null;
+        $anchorDay = self::resolveAnchorDay($date, $firstDue, $paymentDay);
 
         for ($period = 1; $period <= $termMonths; $period++) {
             $isLast = $period === $termMonths;
-            $due = self::nextDueDate($date, $period, $anchorDay);
+            $due = self::dueDateForPeriod($date, $firstDue, $period, $anchorDay);
 
             $principalDue = $isLast ? round($balance, 2) : $principalPerPeriod;
             $interestDue = $isLast ? round($totalInterest - ($interestPerPeriod * ($termMonths - 1)), 2) : $interestPerPeriod;
@@ -162,7 +192,8 @@ class LoanScheduleService
         float $totalInterest,
         float $adminFee,
         string $startDate,
-        ?int $paymentDay = null
+        ?int $paymentDay = null,
+        ?string $firstDueDate = null
     ): array {
         $termMonths = max(1, $termMonths);
         $totalInterest = round($totalInterest, 2);
@@ -175,11 +206,12 @@ class LoanScheduleService
         $rows = [];
         $balance = $principal;
         $date = new \DateTimeImmutable($startDate);
-        $anchorDay = $paymentDay ?? (int) $date->format('j');
+        $firstDue = $firstDueDate !== null ? new \DateTimeImmutable($firstDueDate) : null;
+        $anchorDay = self::resolveAnchorDay($date, $firstDue, $paymentDay);
 
         for ($period = 1; $period <= $termMonths; $period++) {
             $isLast = $period === $termMonths;
-            $due = self::nextDueDate($date, $period, $anchorDay);
+            $due = self::dueDateForPeriod($date, $firstDue, $period, $anchorDay);
 
             $principalDue = $isLast ? round($balance, 2) : $principalPerPeriod;
             $interestDue = $isLast ? round($totalInterest - ($interestPerPeriod * ($termMonths - 1)), 2) : $interestPerPeriod;
@@ -220,7 +252,8 @@ class LoanScheduleService
         string $startDate,
         float $namfisaLevy,
         float $dutyStamp,
-        ?int $paymentDay = null
+        ?int $paymentDay = null,
+        ?string $firstDueDate = null
     ): array {
         $interestBasis = round($principal + $namfisaLevy + $dutyStamp, 2);
         $monthlyRate = ($annualRate / 100) / 12;
@@ -236,12 +269,13 @@ class LoanScheduleService
         $balance = $interestBasis;
         $totalInterest = 0.0;
         $date = new \DateTimeImmutable($startDate);
-        $anchorDay = $paymentDay ?? (int) $date->format('j');
+        $firstDue = $firstDueDate !== null ? new \DateTimeImmutable($firstDueDate) : null;
+        $anchorDay = self::resolveAnchorDay($date, $firstDue, $paymentDay);
         $feePerPeriod = round($adminFee / $termMonths, 2);
 
         for ($period = 1; $period <= $termMonths; $period++) {
             $isLast = $period === $termMonths;
-            $due = self::nextDueDate($date, $period, $anchorDay);
+            $due = self::dueDateForPeriod($date, $firstDue, $period, $anchorDay);
 
             $opening = round($balance, 2);
             $interestDue = round($opening * $monthlyRate, 2);
