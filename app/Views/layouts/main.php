@@ -593,12 +593,18 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Security Rules', 'url' => url('/security/rules'), 'perm' => 'security.view'],
               ]],
             ]],
+            // Developer-only internal tooling -- see
+            // database/restrict_platform_nav_to_developer.sql for why
+            // Business Continuity and Decision Intelligence were tightened
+            // to match System Health/Error Tracking/Feature Flags, and why
+            // the old Integrations sub-group (Debit Order / Credit Bureau
+            // API status pages) was dropped here rather than permission-
+            // gated -- those two pages have real non-Developer visitors
+            // elsewhere (inline "set up API credentials" links, CPL UAT
+            // sign-off, Collections > Creditinfo) that must keep working.
             'Intelligence' => ['icon' => 'mdi-lightbulb-on', 'groups' => [
               'Management' => ['items' => [
                 ['label' => 'Decision Intelligence', 'url' => url('/intelligence'), 'perm' => 'intelligence.view'],
-              ]],
-              'Marketing' => ['items' => [
-                ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
               ]],
             ]],
             'System & Platform' => ['icon' => 'mdi-server', 'groups' => [
@@ -615,9 +621,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Business Continuity', 'url' => url('/continuity'), 'perm' => 'continuity.view'],
                 ['label' => 'Continuity Plans', 'url' => url('/continuity/plans'), 'perm' => 'continuity.view'],
               ]],
-              'Integrations' => ['items' => [
-                ['label' => 'Debit Order API Settings', 'url' => url('/collexia/settings'), 'perm' => 'collections.debit_orders'],
-                ['label' => 'Credit Bureau API Settings', 'url' => url('/creditinfo/settings'), 'perm' => 'applications.screen'],
+            ]],
+            'Marketing' => ['icon' => 'mdi-bullhorn', 'groups' => [
+              '_flat' => ['items' => [
+                ['label' => 'Social & Web Analytics', 'url' => url('/social-analytics'), 'perm' => 'social_analytics.view'],
               ]],
             ]],
             'Support' => ['icon' => 'mdi-ticket', 'groups' => [
