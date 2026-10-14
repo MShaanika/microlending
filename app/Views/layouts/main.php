@@ -596,12 +596,21 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             // Developer-only internal tooling -- see
             // database/restrict_platform_nav_to_developer.sql for why
             // Business Continuity and Decision Intelligence were tightened
-            // to match System Health/Error Tracking/Feature Flags, and why
-            // the old Integrations sub-group (Debit Order / Credit Bureau
-            // API status pages) was dropped here rather than permission-
-            // gated -- those two pages have real non-Developer visitors
-            // elsewhere (inline "set up API credentials" links, CPL UAT
-            // sign-off, Collections > Creditinfo) that must keep working.
+            // to match System Health/Error Tracking/Feature Flags.
+            //
+            // Integrations below is gated on admin.system_settings rather
+            // than collections.debit_orders/applications.screen -- those
+            // broader operational permissions are what Collector/Loan
+            // Officer day-to-day work and the CPL UAT sign-off / Collections
+            // > Creditinfo / inline "set up API credentials" links need, and
+            // must stay untouched (CollexiaSettingController::edit() /
+            // CreditinfoSettingController::edit() still authorize() against
+            // them, unchanged), but admin.system_settings is already the
+            // narrower permission those same controllers require to actually
+            // edit the credentials (manage()/update()), so gating the nav
+            // link on it shows these two entries to exactly the
+            // Admin/Developer/Super Admin tier that can use them, without
+            // reopening them to every debit-order/screening operator.
             'Intelligence' => ['icon' => 'mdi-lightbulb-on', 'groups' => [
               'Management' => ['items' => [
                 ['label' => 'Decision Intelligence', 'url' => url('/intelligence'), 'perm' => 'intelligence.view'],
@@ -620,6 +629,10 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
               'Business Continuity' => ['items' => [
                 ['label' => 'Business Continuity', 'url' => url('/continuity'), 'perm' => 'continuity.view'],
                 ['label' => 'Continuity Plans', 'url' => url('/continuity/plans'), 'perm' => 'continuity.view'],
+              ]],
+              'Integrations' => ['items' => [
+                ['label' => 'Debit Order API Settings', 'url' => url('/collexia/settings'), 'perm' => 'admin.system_settings'],
+                ['label' => 'Credit Bureau API Settings', 'url' => url('/creditinfo/settings'), 'perm' => 'admin.system_settings'],
               ]],
             ]],
             'Marketing' => ['icon' => 'mdi-bullhorn', 'groups' => [
