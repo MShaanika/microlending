@@ -78,8 +78,18 @@
         } else {
           el.value = value;
         }
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
+        // Select2 (applied sitewide to every <select>) only re-renders its
+        // own visible widget in response to a jQuery-triggered change, not
+        // a plain dispatchEvent -- without this, a restored value sits
+        // correctly on the real (but Select2-hidden) <select> while the
+        // widget on screen keeps showing its empty placeholder, which
+        // looks exactly like nothing was restored at all.
+        if (el.tagName === 'SELECT' && window.jQuery && jQuery(el).data('select2')) {
+          jQuery(el).val(el.value).trigger('change');
+        } else {
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       });
     });
   }

@@ -35,7 +35,20 @@
 
       <div id="existing-client-wrap" class="mb-3" style="display:none;">
         <label class="form-label">Select Borrower <span class="text-danger">*</span></label>
-        <select name="existing_borrower_id" class="form-select <?= isset($errors['existing_borrower_id']) ? 'is-invalid' : '' ?>" required>
+        <!--
+          No `required` here -- Select2 (applied sitewide to every <select>)
+          hides the real element (tabindex="-1", visually replaced by its
+          own widget), so when this is left empty and the form submits, the
+          browser can't focus it to show the native validation bubble and
+          throws "An invalid form control... is not focusable" in the
+          console instead, silently blocking the submit with no visible
+          feedback at all. Enforced instead the same way every other
+          conditionally-relevant required field on this form already is:
+          updateSubmitState() below (by value, not native validity) keeps
+          Save disabled until this has one, and storeForExistingBorrower()
+          rejects an empty/invalid selection server-side regardless.
+        -->
+        <select name="existing_borrower_id" data-js-required="1" class="form-select <?= isset($errors['existing_borrower_id']) ? 'is-invalid' : '' ?>">
           <option value="">Select borrower</option>
           <?php foreach ($existingBorrowers as $b): ?>
             <option value="<?= (int) $b['id'] ?>" <?= (($old['existing_borrower_id'] ?? '') == $b['id']) ? 'selected' : '' ?>>
@@ -688,7 +701,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function relevantRequiredFields() {
     var mode = currentMode();
-    return Array.from(form.querySelectorAll('[required]')).filter(function (el) {
+    // [data-js-required] alongside [required]: existing_borrower_id can't
+    // carry a real `required` attribute (Select2 hides the native <select>,
+    // which makes the browser's native validation try and fail to focus it
+    // on submit -- see its own comment in the markup above), so it's
+    // enforced here by value only, same as every tab-hidden required field
+    // already is.
+    return Array.from(form.querySelectorAll('[required], [data-js-required]')).filter(function (el) {
       var inNewClientTab = !!el.closest('.new-client-only');
       return mode === 'existing' ? !inNewClientTab : inNewClientTab;
     });
