@@ -23,6 +23,7 @@ class CollexiaSetting extends Model
     ];
 
     private const FRONT_END_USERNAME_KEY = 'collexia_front_end_username';
+    private const V4_FIELDS_KEY = 'collexia_v4_fields_enabled';
 
     private const PASSWORD_KEY = 'collexia_password';
     private const CLIENT_SECRET_KEY = 'collexia_client_secret';
@@ -91,6 +92,25 @@ class CollexiaSetting extends Model
     public function frontEndUsername(): string
     {
         return $this->get(self::FRONT_END_USERNAME_KEY);
+    }
+
+    /**
+     * Toggle, not a cutover: the V4 mandate-load additions (dateOfBirth/
+     * gender/debtorTelephone -- DebitOrderCollexiaController::
+     * mandateDebtorExtraFields()) are only actually SENT when this is on.
+     * Defaults off -- 2026-10-16 sandbox live-fire confirmed this specific
+     * Collexia environment rejects dateOfBirth outright ("9404 Unexpected
+     * field in input"), i.e. it isn't actually running V4 validation yet
+     * despite accepting real connections, so sending these fields broke
+     * EVERY mandate placement for a borrower with a date_of_birth on file,
+     * split or not. Flip this on per-environment only once Collexia
+     * confirms that environment genuinely accepts them -- falls back
+     * cleanly to the plain V3 mandate body when off, same as before these
+     * fields existed at all.
+     */
+    public function v4FieldsEnabled(): bool
+    {
+        return $this->get(self::V4_FIELDS_KEY) === 'on';
     }
 
     public function isPasswordSet(): bool

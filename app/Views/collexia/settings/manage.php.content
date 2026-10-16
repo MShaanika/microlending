@@ -36,6 +36,17 @@ $statusBadge = [
         <div class="form-text">Requires every field below. Rejected server-side if anything's missing.</div>
       </div>
 
+      <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="collexia_v4_fields_enabled" name="collexia_v4_fields_enabled" <?= ($settings['collexia_v4_fields_enabled'] ?? '') === 'on' ? 'checked' : '' ?>>
+        <label class="form-check-label" for="collexia_v4_fields_enabled">Send V4 mandate fields (dateOfBirth, gender, debtorTelephone)</label>
+        <div class="form-text">
+          Leave off until Collexia confirms this specific environment actually validates them -- 2026-10-16: sandbox
+          rejected <code>dateOfBirth</code> outright ("9404 Unexpected field in input") and every mandate placement
+          for a borrower with a date of birth on file failed, split or not. Off falls back cleanly to the plain V3
+          mandate body.
+        </div>
+      </div>
+
       <hr>
       <h5 class="mb-1">EnDO &mdash; Enhanced Debit Order</h5>
       <p class="text-muted small mb-3">Maps to <code>merchantGid</code>, <code>remoteGid</code>, <code>systemUserName</code>, and the OAuth <code>clientId</code>/<code>clientSecret</code> pair in every request. <code>Username</code>/<code>Password</code> also authenticate every request via HTTP Basic Auth.</p>

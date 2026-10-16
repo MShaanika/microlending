@@ -88,6 +88,13 @@ class CollexiaSettingController extends Controller
         $this->settings->setEncrypted('collexia_password', $_POST['collexia_password'] ?? '', $userId);
         $this->settings->setEncrypted('collexia_client_secret', $_POST['collexia_client_secret'] ?? '', $userId);
 
+        // Same unchecked-checkbox-sends-nothing handling as collexia_enabled
+        // above -- explicitly 'on'/'off', not left via the generic KEYS
+        // loop, so unchecking actually turns it off rather than silently
+        // doing nothing. See CollexiaSetting::v4FieldsEnabled()'s docblock
+        // for why this defaults off and what flipping it on means.
+        $this->settings->set('collexia_v4_fields_enabled', !empty($_POST['collexia_v4_fields_enabled']) ? 'on' : 'off', $userId);
+
         $wantsEnabled = !empty($_POST['collexia_enabled']);
 
         if ($wantsEnabled) {

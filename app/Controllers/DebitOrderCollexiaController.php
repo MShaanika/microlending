@@ -266,7 +266,7 @@ class DebitOrderCollexiaController extends Controller
             'debtorAccountNumber' => $debitOrder['account_number'],
             'debtorAccountType' => (int) $debitOrder['account_type'],
             'debtorBanId' => $banId,
-        ] + self::mandateDebtorExtraFields($debitOrder);
+        ] + ($this->settings->v4FieldsEnabled() ? self::mandateDebtorExtraFields($debitOrder) : []);
 
         try {
             $client = new CollexiaEndoApiClient();
@@ -510,7 +510,7 @@ class DebitOrderCollexiaController extends Controller
             'debtorAccountNumber' => $debitOrder['account_number'],
             'debtorAccountType' => (int) $debitOrder['account_type'],
             'debtorBanId' => $banId,
-        ] + self::mandateDebtorExtraFields($debitOrder);
+        ] + ($this->settings->v4FieldsEnabled() ? self::mandateDebtorExtraFields($debitOrder) : []);
 
         try {
             $client = new CollexiaEndoApiClient();
@@ -879,8 +879,9 @@ class DebitOrderCollexiaController extends Controller
             // V4: "Update Installment -- Include debtorTelephone" (Desert
             // Ledger Test Pack V4.0, Configuration sheet) -- debtorTelephone
             // only, not dateOfBirth/gender, which are mandate-load-only per
-            // that same sheet.
-            if (!empty($debitOrder['phone'])) {
+            // that same sheet. Gated the same way as mandate load's V4
+            // fields -- see CollexiaSetting::v4FieldsEnabled().
+            if ($this->settings->v4FieldsEnabled() && !empty($debitOrder['phone'])) {
                 $installment['debtorTelephone'] = $debitOrder['phone'];
             }
             $client->updateInstallment([$installment], $this->frontEndUserName());
