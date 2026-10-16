@@ -77,4 +77,39 @@ class DebitOrderCollexiaControllerMandateFieldsTest extends TestCase
         $fields = $this->call(['date_of_birth' => '1985-12-01']);
         $this->assertSame('19851201', $fields['dateOfBirth']);
     }
+
+    // --- splitSuffix() -- see its own docblock: a letter, never a digit,
+    // so a truncated userReference can never be misread as a real loan
+    // reference from this app's purely-numeric "SDLOAN%04d" scheme. ---
+
+    private function suffix(int $splitNo): string
+    {
+        $method = new \ReflectionMethod(DebitOrderCollexiaController::class, 'splitSuffix');
+        $method->setAccessible(true);
+        return $method->invoke(null, $splitNo);
+    }
+
+    public function testSplitOneIsLetterA(): void
+    {
+        $this->assertSame('A', $this->suffix(1));
+    }
+
+    public function testSplitTenIsLetterJ(): void
+    {
+        $this->assertSame('J', $this->suffix(10));
+    }
+
+    public function testEverySplitOneThroughTenIsADistinctLetter(): void
+    {
+        $suffixes = array_map(fn ($n) => $this->suffix($n), range(1, 10));
+        $this->assertSame(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], $suffixes);
+        $this->assertCount(10, array_unique($suffixes), 'Every split 1-10 must get its own distinct suffix.');
+    }
+
+    public function testSuffixIsNeverADigit(): void
+    {
+        foreach (range(1, 10) as $n) {
+            $this->assertFalse(ctype_digit($this->suffix($n)), "Split #$n's suffix must never be a digit -- see splitSuffix()'s docblock.");
+        }
+    }
 }

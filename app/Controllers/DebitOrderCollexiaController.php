@@ -161,11 +161,10 @@ class DebitOrderCollexiaController extends Controller
             $this->installmentTargets->snapshot((int) $id, $this->debitOrders->orderedUnpaidScheduleIds((int) $debitOrder['loan_id']));
         }
 
-        $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
         $clientNoBase = $debitOrder['borrower_no'];
         $userReferenceBase = $debitOrder['borrower_loan_ref_no'] ?: $debitOrder['debit_order_no'];
 
-        $result = $this->attemptSplitPlacement($debitOrder, $split, $banId, $clientNoBase, $userReferenceBase, $noOfInstallments);
+        $result = $this->attemptSplitPlacement($debitOrder, $split, $banId, $clientNoBase, $userReferenceBase);
         $this->rollupSplitStatus((int) $id);
 
         Audit::log('Update', 'Debit Orders', 'Retried Collexia split mandate placement for debit order #' . $id . ' split #' . $splitNo . ' -> ' . ($result['success'] ? 'submitted' : 'rejected'));
@@ -337,7 +336,6 @@ class DebitOrderCollexiaController extends Controller
     private function placeSplitMandate(array $debitOrder, int $banId): void
     {
         $id = (int) $debitOrder['id'];
-        $noOfInstallments = max(1, $this->debitOrders->remainingInstallments((int) $debitOrder['loan_id']));
         // See placeSingleMandate() -- clientNo is the client's own borrower_no,
         // userReference is the staff-recognised loan reference. Kept separate
         // here too rather than reusing one value for both spec concepts.
@@ -362,7 +360,7 @@ class DebitOrderCollexiaController extends Controller
         $placedSummary = [];
 
         foreach ($pending as $split) {
-            $result = $this->attemptSplitPlacement($debitOrder, $split, $banId, $clientNoBase, $userReferenceBase, $noOfInstallments);
+            $result = $this->attemptSplitPlacement($debitOrder, $split, $banId, $clientNoBase, $userReferenceBase);
             if ($result['success']) {
                 $placedSummary[] = 'split #' . (int) $split['split_no'] . ' ' . format_money((float) $split['leg_amount']);
             } else {
@@ -402,9 +400,19 @@ class DebitOrderCollexiaController extends Controller
      * 10543 "Duplicate...") gets a genuinely fresh reference to try
      * instead of recomputing the exact same one forever.
      *
+     * noOfInstallments is hardcoded to 1 (2026-10-16: was previously the
+     * loan's full remaining-installment count, e.g. 2 for a 2-month loan --
+     * applied unchanged to EVERY split leg, so Collexia registered each
+     * leg as its own recurring monthly mandate and would have collected
+     * each leg's amount again the following month, not once as intended.
+     * A split here represents dividing ONE installment across parallel
+     * legs for a one-time collection; placing next month's installment
+     * (split or not) is a separate, later action, not something this
+     * mandate should recur into on its own).
+     *
      * @return array{success: bool, message: string}
      */
-    private function attemptSplitPlacement(array $debitOrder, array $split, int $banId, string $clientNoBase, string $userReferenceBase, int $noOfInstallments): array
+    private function attemptSplitPlacement(array $debitOrder, array $split, int $banId, string $clientNoBase, string $userReferenceBase): array
     {
         $id = (int) $debitOrder['id'];
         $splitNo = (int) $split['split_no'];
@@ -445,21 +453,49 @@ class DebitOrderCollexiaController extends Controller
         // the human-recognisable loan reference for a retry specifically;
         // an unavoidable trade-off once uniqueness is what's actually
         // blocking the mandate.
+        //
+        // For a first attempt, userReference MUST still differ per split
+        // leg (confirmed: two concurrently-live mandates sharing one
+        // userReference get the same "Duplicate..." rejection as a retry
+        // does), and the field has a hard 10-character cap -- for a loan
+        // ref already at or near that length (e.g. "SDLOAN0005", 10 chars)
+        // there is no room left to add a differentiator without losing a
+        // real trailing digit. 2026-10-16: that digit was being replaced
+        // by splitSuffix()'s own digit/'X' ("SDLOAN0005" -> "SDLOAN0001"/
+        // "SDLOAN0002" for splits 1/2), which doesn't just look different
+        // per split -- "SDLOAN0001"/"SDLOAN0002" are themselves OTHER
+        // real loans' reference numbers in this app's purely-numeric
+        // "SDLOAN%04d" scheme, so Collexia's own records now show this
+        // payment under a reference that collides with a different real
+        // loan's. splitSuffix() now returns a LETTER ('A'-'J'), which
+        // this scheme can never generate on its own -- still loses the
+        // same trailing digit when the base is already at the cap, but
+        // whatever shows up can never be misread as a real loan number.
         $userReference = $isRetry
             ? 'R' . CollexiaClient::sastDateTimeParts()['time'] . $suffix
             : substr((string) $userReferenceBase, 0, 9) . $suffix;
 
         $mandate = [
-            'clientNo' => substr((string) $clientNoBase, 0, 14) . $suffix,
+            // NOT suffixed (unlike userReference) -- clientNo identifies
+            // the CLIENT (spec 9.3: "Alphanumeric number for your
+            // client"), not the specific mandate/contract, so every split
+            // leg of the same debit order -- and every other mandate this
+            // same borrower ever has -- correctly shares one clientNo,
+            // same as placeSingleMandate()'s non-split borrower_no. A
+            // per-split suffix here (2026-10-16: removed) made one real
+            // borrower look like two different Collexia clients.
+            'clientNo' => substr((string) $clientNoBase, 0, 15),
             // Same DesertLedger loan reference as the single-mandate
-            // path -- see placeSingleMandate()'s comment. Suffixed per
-            // split leg the same way clientNo already is, to stay
-            // within the field's 10-char limit while keeping each
-            // split traceable to its parent loan.
+            // path -- see placeSingleMandate()'s comment and this
+            // method's own docblock for why it still can't always be
+            // identical across split legs.
             'userReference' => $userReference,
             'frequencyCode' => 4,
             'installmentAmount' => $amount,
-            'noOfInstallments' => $noOfInstallments,
+            // Always 1 -- see this method's docblock. A split leg is one
+            // one-time collection of its share of a single installment,
+            // never a recurring series of its own.
+            'noOfInstallments' => 1,
             // Always the Remote GID, never 0 -- confirmed by Collexia.
             'origin' => (int) $this->settings->get('collexia_remote_gid'),
             'contractReference' => $contractReference,
@@ -998,10 +1034,20 @@ class DebitOrderCollexiaController extends Controller
         return $gidHex . $dateSeg . $tellerSeg;
     }
 
-    /** Single-character encoding of a split number (1-10) for the 14-char contract reference and the 15/10-char clientNo/userReference fields: '1'-'9' for splits 1-9, 'X' for split 10. */
+    /**
+     * Single-character encoding of a split number (1-10) for the 14-char
+     * contractReference and the 10-char userReference (clientNo is no
+     * longer suffixed -- see attemptSplitPlacement()). A letter, not a
+     * digit (2026-10-16, was '1'-'9'/'X'): this app's loan references are
+     * purely numeric ("SDLOAN%04d"), so a digit suffix on a truncated
+     * userReference could read as a real, different loan's reference --
+     * see attemptSplitPlacement()'s docblock for the real case this
+     * caused. A letter can never be mistaken for a continuation of that
+     * numeric scheme.
+     */
     private static function splitSuffix(int $splitNo): string
     {
-        return $splitNo <= 9 ? (string) $splitNo : 'X';
+        return chr(ord('A') + min(max($splitNo, 1), 10) - 1);
     }
 
     /**
