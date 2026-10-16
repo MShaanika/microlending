@@ -101,7 +101,12 @@ class AiBankStatementAnalyzer
     {
         $settings = new NotificationSetting();
         $apiKey = $settings->get('OPENAI_API_KEY');
-        $model = $settings->get('OPENAI_MODEL', 'gpt-4o-mini');
+        // 2026-10-16: gpt-4o/gpt-4o-mini/gpt-4.1/gpt-4.1-mini all retire
+        // 2027-01-14 (OpenAI's own deprecations page) -- gpt-6-luna is their
+        // listed replacement for all four, so it's the new default rather
+        // than carrying a dying model forward as the fallback for anyone
+        // who hasn't set OPENAI_MODEL explicitly.
+        $model = $settings->get('OPENAI_MODEL', 'gpt-6-luna');
 
         if ($apiKey === '') {
             return ['success' => false, 'error' => 'AI analysis is not configured yet -- add an API key under Settings > AI Settings.'];

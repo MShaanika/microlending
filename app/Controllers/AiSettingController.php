@@ -45,7 +45,11 @@ class AiSettingController extends Controller
         }
 
         $userId = Auth::user()['id'] ?? null;
-        $model = trim($_POST['openai_model'] ?? '') ?: 'gpt-4o-mini';
+        // See AiBankStatementAnalyzer's own comment -- gpt-4o-mini is one of
+        // the four models OpenAI is retiring 2027-01-14; gpt-6-luna is their
+        // listed replacement, so a blank submission now defaults to that
+        // instead of re-saving a dying model.
+        $model = trim($_POST['openai_model'] ?? '') ?: 'gpt-6-luna';
         $this->settings->set('OPENAI_MODEL', $model, 'AI', $userId);
 
         $apiKey = trim($_POST['openai_api_key'] ?? '');

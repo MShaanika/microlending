@@ -20,8 +20,11 @@
           </div>
           <div class="col-md-12">
             <label class="form-label small mb-0">Model</label>
-            <input type="text" name="openai_model" class="form-control form-control-sm" value="<?= e($ai['OPENAI_MODEL'] ?? 'gpt-4o-mini') ?>" placeholder="gpt-4o-mini">
-            <div class="form-text">gpt-4o-mini is cheaper and usually sufficient; use gpt-4o for higher accuracy on harder-to-read statements.</div>
+            <input type="text" name="openai_model" class="form-control form-control-sm" value="<?= e($ai['OPENAI_MODEL'] ?? 'gpt-6-luna') ?>" placeholder="gpt-6-luna">
+            <div class="form-text">
+              gpt-6-luna is OpenAI's own listed replacement for gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-4.1-mini, which all
+              retire 2027-01-14 -- those four should no longer be entered here.
+            </div>
           </div>
           <div class="col-12">
             <button type="submit" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save AI Settings</button>
