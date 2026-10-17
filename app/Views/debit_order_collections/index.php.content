@@ -25,6 +25,26 @@
       <p class="text-muted small">"Download Payments from Collexia" is configured but disabled -- <a href="<?= url('/collexia/settings') ?>">enable the integration</a> to use it.</p>
     <?php endif; ?>
 
+    <form method="get" action="<?= url('/debit-order-collections') ?>" class="row g-2 align-items-center mb-3">
+      <div class="col-md-4">
+        <select name="report_type" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <?php foreach (['Successful', 'SuccessfulDetail', 'SuccessfulSimplified', 'Unsuccessful', 'FailedValidation', 'Scheduled', 'ScheduledDetail', 'ScheduledForecast', 'CollexiaAPI', 'MandateAudit'] as $rt): ?>
+            <option value="<?= e($rt) ?>" <?= $reportType === $rt ? 'selected' : '' ?>><?= e(collexia_report_type_label($rt)) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="show_empty" name="show_empty" value="1" <?= $showEmpty ? 'checked' : '' ?>>
+          <label class="form-check-label small" for="show_empty">Show empty downloads (0 rows -- mostly Collexia API pulls that found nothing new)</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-outline-secondary btn-sm w-100"><i class="mdi mdi-magnify"></i> Filter</button>
+      </div>
+    </form>
+
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>

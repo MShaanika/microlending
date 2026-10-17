@@ -82,9 +82,15 @@ class DebitOrderCollectionController extends Controller
     public function index(): void
     {
         Auth::authorize('collections.debit_orders');
+
+        $reportType = trim((string) ($_GET['report_type'] ?? ''));
+        $showEmpty = !empty($_GET['show_empty']);
+
         $this->view('debit_order_collections/index', [
             'title' => 'Collection Reports',
-            'imports' => $this->imports->paginated(),
+            'imports' => $this->imports->paginated($reportType, !$showEmpty),
+            'reportType' => $reportType,
+            'showEmpty' => $showEmpty,
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'collexiaEnabled' => $this->collexiaSettings->isEnabled(),
             'collexiaConfigured' => $this->collexiaSettings->isConfigured(),
