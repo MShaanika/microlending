@@ -15,6 +15,7 @@ use App\Models\DebitOrderSplitLeg;
 use App\Services\CollexiaApiException;
 use App\Services\CollexiaClient;
 use App\Services\CollexiaEndoApiClient;
+use App\Services\CollexiaMandateCancellationService;
 use App\Services\CollexiaMandateStatusSyncService;
 use App\Support\CollexiaV3Codes;
 
@@ -702,105 +703,35 @@ class DebitOrderCollexiaController extends Controller
             return;
         }
 
-        if ((int) ($debitOrder['split_enabled'] ?? 0) === 1) {
-            $this->cancelSplitMandate($debitOrder);
-            $this->redirect('/debit-orders/' . $id);
-            return;
-        }
+        $result = (new CollexiaMandateCancellationService())->cancel($debitOrder);
 
-        if (!$debitOrder['collexia_api_contract_reference']) {
+        if (!$result['attempted']) {
             Session::flash('error', 'This mandate has not been placed yet.');
-            $this->redirect('/debit-orders/' . $id);
-            return;
-        }
-
-        try {
-            $client = new CollexiaEndoApiClient();
-            $result = $client->cancelMandate((string) $debitOrder['collexia_api_contract_reference'], $this->frontEndUserName());
-
-            $this->debitOrders->updateCollexiaApiState((int) $id, [
-                'collexia_api_status' => 'Cancelled',
-                'collexia_api_last_response' => json_encode($result),
-                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-            ]);
-
+        } elseif ($result['success']) {
             Audit::log('Update', 'Debit Orders', 'Cancelled Collexia API mandate for debit order #' . $id);
-            Session::flash('success', 'Mandate cancelled.');
-        } catch (\RuntimeException $e) {
-            Session::flash('error', $e->getMessage());
+            Session::flash('success', $result['message']);
+        } else {
+            Session::flash('error', $result['message']);
         }
 
         $this->redirect('/debit-orders/' . $id);
-    }
-
-    private function cancelSplitMandate(array $debitOrder): void
-    {
-        $id = (int) $debitOrder['id'];
-        $splits = $this->splitLegs->activeForDebitOrder($id);
-        $attempted = false;
-
-        foreach ($splits as $split) {
-            if ($split['collexia_api_status'] === 'Cancelled' || !$split['collexia_api_contract_reference']) {
-                continue;
-            }
-            $attempted = true;
-
-            try {
-                $client = new CollexiaEndoApiClient();
-                $result = $client->cancelMandate((string) $split['collexia_api_contract_reference'], $this->frontEndUserName());
-
-                $this->splitLegs->updateState($id, (int) $split['split_no'], [
-                    'collexia_api_status' => 'Cancelled',
-                    'collexia_api_last_response' => json_encode($result),
-                    'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-                ]);
-            } catch (\RuntimeException $e) {
-                Session::flash('error', $e->getMessage());
-                return;
-            }
-        }
-
-        if (!$attempted) {
-            Session::flash('error', 'This mandate has not been placed yet.');
-            return;
-        }
-
-        $this->rollupSplitStatus($id);
-
-        Audit::log('Update', 'Debit Orders', 'Cancelled split Collexia API mandate for debit order #' . $id);
-        Session::flash('success', 'Every live split transaction cancelled.');
     }
 
     /**
      * Rolls every live split's own status up onto
      * debit_orders.collexia_api_status so the existing single-badge summary
      * on debit_orders/show.php.content stays meaningful for split orders
-     * too -- worst-first: any Load Failed wins, else any Load Pending, else
-     * the splits' shared status if they agree, else Registered (the more
-     * actionable state) if they've drifted apart. Button visibility for
-     * split orders no longer depends on this rollup (see splitActionFlags()
-     * / DebitOrderController::show()) precisely because placement can now
-     * be incremental and this single value can't represent that -- it's
-     * purely a glanceable summary badge now. Splits already folded away by
-     * a merge are excluded; they're permanently Cancelled and irrelevant
-     * to the live rollup.
+     * too. Button visibility for split orders no longer depends on this
+     * rollup (see splitActionFlags() / DebitOrderController::show())
+     * precisely because placement can now be incremental and this single
+     * value can't represent that -- it's purely a glanceable summary badge
+     * now. See DebitOrderSplitLeg::computeRollupStatus() for the actual
+     * rule (including 'Mixed' for a genuinely divergent set of legs).
      */
     private function rollupSplitStatus(int $debitOrderId): void
     {
-        $statuses = array_column($this->splitLegs->activeForDebitOrder($debitOrderId), 'collexia_api_status');
-
-        if (in_array('Load Failed', $statuses, true)) {
-            $status = 'Load Failed';
-        } elseif (in_array('Load Pending', $statuses, true)) {
-            $status = 'Load Pending';
-        } elseif (!empty($statuses) && count(array_unique($statuses)) === 1) {
-            $status = $statuses[0];
-        } else {
-            $status = 'Registered';
-        }
-
         $this->debitOrders->updateCollexiaApiState($debitOrderId, [
-            'collexia_api_status' => $status,
+            'collexia_api_status' => $this->splitLegs->computeRollupStatus($debitOrderId),
             'collexia_api_synced_at' => date('Y-m-d H:i:s'),
         ]);
     }

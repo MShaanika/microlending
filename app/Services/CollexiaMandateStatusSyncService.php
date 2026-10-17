@@ -27,6 +27,13 @@ use App\Support\CollexiaV3Codes;
  * result (e.g. one split Completed, another still Active) means the debit
  * order as a whole isn't there yet, so its status is left untouched rather
  * than guessed from a partial picture.
+ *
+ * collexia_api_status (and, for a split, each leg's own copy) is ALSO kept
+ * current here now -- it used to only ever move on placement/cancel, so
+ * once Collexia's own mandate reached Completed or Cancelled it stayed
+ * frozen at "Registered" forever, which is exactly why a mandate could
+ * show status=Completed right next to collexia_api_status=Registered with
+ * Cancel/Reschedule still offered. See mapCollexiaApiStatus().
  */
 class CollexiaMandateStatusSyncService
 {
@@ -69,6 +76,7 @@ class CollexiaMandateStatusSyncService
         $mandateStatus = $this->mapMandateStatus($result);
         if ($mandateStatus !== null) {
             $update['status'] = $mandateStatus;
+            $update['collexia_api_status'] = self::mapCollexiaApiStatus($mandateStatus);
         }
 
         $this->debitOrders->updateCollexiaApiState((int) $debitOrder['id'], $update);
@@ -101,22 +109,37 @@ class CollexiaMandateStatusSyncService
                 return ['synced' => false, 'error' => $e->getMessage(), 'mandate_status' => null];
             }
 
-            $this->splitLegs->updateState($id, (int) $split['split_no'], [
-                'collexia_api_last_response' => json_encode($result),
-                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-            ]);
-
             $mandateStatus = $this->mapMandateStatus($result);
             if ($mandateStatus !== null) {
                 $mandateStatuses[] = $mandateStatus;
             }
+
+            $legUpdate = [
+                'collexia_api_last_response' => json_encode($result),
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            ];
+            if ($mandateStatus !== null) {
+                // This leg's own collexia_api_status moves on Collexia's
+                // authoritative word, same as the non-split path -- the
+                // rollup below (computeRollupStatus()) is only as honest
+                // as what each leg actually holds.
+                $legUpdate['collexia_api_status'] = self::mapCollexiaApiStatus($mandateStatus);
+            }
+            $this->splitLegs->updateState($id, (int) $split['split_no'], $legUpdate);
         }
 
         if (!$attempted) {
             return ['synced' => false, 'error' => 'No split transaction has been placed yet.', 'mandate_status' => null];
         }
 
-        $update = ['collexia_api_synced_at' => date('Y-m-d H:i:s')];
+        $update = [
+            'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            // Recomputed fresh from what every leg now actually holds
+            // (just updated above) -- this is what makes 'Mixed' show up
+            // here the moment two legs' real Collexia statuses diverge,
+            // rather than only at placement/retry time.
+            'collexia_api_status' => $this->splitLegs->computeRollupStatus($id),
+        ];
         $rolledUpStatus = null;
         if (count($mandateStatuses) === $eligibleCount && count(array_unique($mandateStatuses)) === 1) {
             $rolledUpStatus = $mandateStatuses[0];
@@ -148,5 +171,23 @@ class CollexiaMandateStatusSyncService
 
         $label = CollexiaV3Codes::MANDATE_STATUSES[(int) $mandate['status']] ?? null;
         return in_array($label, self::MAPPABLE_STATUSES, true) ? $label : null;
+    }
+
+    /**
+     * Maps a mapMandateStatus() result (debit_orders.status's own vocabulary:
+     * Active/Suspended/Cancelled/Completed) onto collexia_api_status's
+     * vocabulary (Not Placed/Load Pending/Registered/Load Failed/Cancelled/
+     * Uncertain/Completed/Mixed) -- Active and Suspended both mean the
+     * mandate still genuinely exists at Collexia (Suspended is a pause, not
+     * a stop), so both map to 'Registered'; status's own ENUM is what
+     * actually distinguishes Active from Suspended for anyone reading it.
+     */
+    private static function mapCollexiaApiStatus(string $mandateStatus): string
+    {
+        return match ($mandateStatus) {
+            'Cancelled' => 'Cancelled',
+            'Completed' => 'Completed',
+            default => 'Registered', // Active, Suspended
+        };
     }
 }

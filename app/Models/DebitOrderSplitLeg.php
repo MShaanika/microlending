@@ -32,6 +32,44 @@ class DebitOrderSplitLeg extends Model
         return $this->all("SELECT * FROM debit_order_split_legs WHERE debit_order_id = ? AND merged_into_id IS NULL ORDER BY split_no", [$debitOrderId]);
     }
 
+    /**
+     * Rolls every live split's own collexia_api_status up into a single
+     * summary value for debit_orders.collexia_api_status -- worst-first:
+     * any Load Failed wins (needs retry), else any Load Pending (in
+     * flight), else the legs' shared status when every one of them
+     * genuinely agrees (including Registered, Cancelled, Completed, or
+     * Uncertain when ALL legs independently reached that), else 'Mixed'
+     * when they've diverged in any other way (e.g. one Registered, one
+     * Cancelled). 'Mixed' deliberately replaces an earlier version of this
+     * logic that silently fell back to 'Registered' for any non-unanimous
+     * case not covered by the first two branches -- that hid a leg that
+     * had actually stopped collecting behind a falsely-reassuring status.
+     * Splits already folded away by a merge are excluded -- they're
+     * permanently Cancelled and irrelevant to the live rollup.
+     */
+    public function computeRollupStatus(int $debitOrderId): string
+    {
+        return self::rollupFromStatuses(array_column($this->activeForDebitOrder($debitOrderId), 'collexia_api_status'));
+    }
+
+    /** Pure rule behind computeRollupStatus() -- see that method's docblock. Static/public so it's testable without a DB. */
+    public static function rollupFromStatuses(array $statuses): string
+    {
+        if (empty($statuses)) {
+            return 'Not Placed';
+        }
+        if (in_array('Load Failed', $statuses, true)) {
+            return 'Load Failed';
+        }
+        if (in_array('Load Pending', $statuses, true)) {
+            return 'Load Pending';
+        }
+        if (count(array_unique($statuses)) === 1) {
+            return $statuses[0];
+        }
+        return 'Mixed';
+    }
+
     public function find(int $id): ?array
     {
         return $this->one("SELECT * FROM debit_order_split_legs WHERE id = ?", [$id]);

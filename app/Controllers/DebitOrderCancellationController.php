@@ -12,6 +12,7 @@ use App\Models\DebitOrder;
 use App\Models\DebitOrderCancellation;
 use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
+use App\Services\CollexiaMandateCancellationService;
 use App\Services\DocumentGenerationService;
 
 class DebitOrderCancellationController extends Controller
@@ -190,6 +191,24 @@ class DebitOrderCancellationController extends Controller
             return;
         }
         $this->assertBranchAccess($cancellation);
+
+        // Actually tell Collexia first -- approving used to only flip
+        // debit_orders.status locally, leaving a mandate that could still
+        // be actively collecting while DesertLedger showed "Cancelled". If
+        // Collexia's own cancel call fails, this request stays Pending
+        // (not silently marked Approved) so staff know to retry rather
+        // than assume collection has stopped.
+        if (!empty($cancellation['debit_order_id'])) {
+            $debitOrder = $this->debitOrders->find((int) $cancellation['debit_order_id']);
+            if ($debitOrder) {
+                $result = (new CollexiaMandateCancellationService())->cancel($debitOrder);
+                if (!$result['success']) {
+                    Session::flash('error', 'Could not approve -- Collexia rejected the mandate cancellation: ' . $result['message']);
+                    $this->redirect('/debit-order-cancellations/' . $id);
+                    return;
+                }
+            }
+        }
 
         $userId = Auth::user()['id'] ?? null;
         $this->cancellations->updateRecord($id, [

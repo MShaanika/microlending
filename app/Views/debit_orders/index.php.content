@@ -46,6 +46,8 @@
                 'Load Failed' => 'danger',
                 'Cancelled' => 'dark',
                 'Uncertain' => 'warning',
+                'Completed' => 'info',
+                'Mixed' => 'warning',
                 default => 'secondary',
               };
             ?>

@@ -49,6 +49,8 @@
                   'Load Pending' => 'warning',
                   'Load Failed' => 'danger',
                   'Cancelled' => 'dark',
+                  'Uncertain' => 'warning',
+                  'Completed' => 'info',
                   default => 'secondary',
                 };
                 $isMergeable = in_array((int) $s['id'], $mergeableIds, true);
