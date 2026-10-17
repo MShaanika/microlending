@@ -278,8 +278,15 @@ class DebitOrderController extends Controller
         ]);
 
         if ($splitEnabled) {
+            // This first batch of splits is for the loan's own first
+            // unpaid installment -- debit_amount is one installment's
+            // worth, divided across legs, not a per-loan total. See
+            // DebitOrderSplitLeg's own docblock for why every split leg
+            // needs its target schedule_id recorded directly, not inferred
+            // later from Collexia's own (always-1, per-leg) installmentNo.
+            $firstScheduleId = $this->debitOrders->orderedUnpaidScheduleIds($loanId)[0] ?? null;
             foreach ($splitAmounts as $i => $amount) {
-                $this->splitLegs->upsert($debitOrderId, $i + 1, $amount, $splitCount);
+                $this->splitLegs->upsert($debitOrderId, $i + 1, $amount, $splitCount, $firstScheduleId);
             }
             Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']
                 . ' split into ' . $splitCount . ' transaction(s): ' . implode(', ', array_map(fn ($a) => format_money($a), $splitAmounts)));
@@ -289,6 +296,121 @@ class DebitOrderController extends Controller
 
         Session::flash('success', 'Debit order registered.');
         $this->redirect('/debit-orders/' . $debitOrderId);
+    }
+
+    /**
+     * Step 1 of adding splits for the loan's NEXT not-yet-covered
+     * installment, under the SAME debit order -- a second debit order on
+     * this loan is blocked (liveForLoan()'s guard, would double-collect),
+     * so a multi-month split loan needs each month's splits added here
+     * once the previous month's are already placed, rather than a whole
+     * new registration.
+     */
+    public function addNextInstallmentSplitsForm(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->debitOrders->find((int) $id);
+        if (!$debitOrder) {
+            Session::flash('error', 'Debit order not found.');
+            $this->redirect('/debit-orders');
+            return;
+        }
+        $this->assertBranchAccess($debitOrder);
+
+        if (empty($debitOrder['split_enabled'])) {
+            Session::flash('error', 'This debit order was not registered as a split.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        $scheduleId = $this->splitLegs->nextUncoveredScheduleId((int) $id, (int) $debitOrder['loan_id']);
+        if (!$scheduleId) {
+            Session::flash('error', 'Every remaining installment on this loan already has split transactions set up.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        $this->view('debit_orders/add_installment_splits', [
+            'title' => 'Add Splits for Next Installment - ' . $debitOrder['debit_order_no'],
+            'debitOrder' => $debitOrder,
+            'schedule' => $this->loans->scheduleRow($scheduleId),
+            'errors' => [],
+            'old' => [],
+        ]);
+    }
+
+    public function addNextInstallmentSplitsStore(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/debit-orders/' . $id . '/next-installment-splits');
+            return;
+        }
+
+        $debitOrder = $this->debitOrders->find((int) $id);
+        if (!$debitOrder) {
+            Session::flash('error', 'Debit order not found.');
+            $this->redirect('/debit-orders');
+            return;
+        }
+        $this->assertBranchAccess($debitOrder);
+
+        if (empty($debitOrder['split_enabled'])) {
+            Session::flash('error', 'This debit order was not registered as a split.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
+        // Re-derived, not trusted from a hidden form field -- the loan's
+        // unpaid/covered state could have moved on since the form loaded.
+        $scheduleId = $this->splitLegs->nextUncoveredScheduleId((int) $id, (int) $debitOrder['loan_id']);
+        if (!$scheduleId) {
+            Session::flash('error', 'Every remaining installment on this loan already has split transactions set up.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+        $schedule = $this->loans->scheduleRow($scheduleId);
+
+        $splitCount = (int) ($_POST['split_count'] ?? 0);
+        $splitAmounts = array_map(fn ($a) => round((float) $a, 2), array_values($_POST['split_amounts'] ?? []));
+        $totalAmount = round((float) $schedule['total_due'] - (float) $schedule['total_paid'], 2);
+        $splitSum = round(array_sum($splitAmounts), 2);
+
+        $errors = [];
+        if ($splitCount < 1 || $splitCount > 10) {
+            $errors['split_count'] = 'Enter a number of splits between 1 and 10.';
+        } elseif (count($splitAmounts) !== $splitCount || in_array(true, array_map(fn ($a) => $a <= 0, $splitAmounts), true)) {
+            $errors['split_amounts'] = 'Enter a positive amount for every split.';
+        } elseif (abs($splitSum - $totalAmount) > 0.01) {
+            $errors['split_amounts'] = 'The split amounts (' . format_money($splitSum) . ') must add up to the outstanding amount for this installment (' . format_money($totalAmount) . ') exactly.';
+        }
+
+        if (!empty($errors)) {
+            $this->view('debit_orders/add_installment_splits', [
+                'title' => 'Add Splits for Next Installment - ' . $debitOrder['debit_order_no'],
+                'debitOrder' => $debitOrder,
+                'schedule' => $schedule,
+                'errors' => $errors,
+                'old' => $_POST,
+            ]);
+            return;
+        }
+
+        $startingSplitNo = $this->splitLegs->nextSplitNo((int) $id);
+        foreach ($splitAmounts as $i => $amount) {
+            // total_splits is scoped to THIS installment's own split set
+            // (count = $splitCount), not a running total across every
+            // month -- see DebitOrderSplitLeg::liveForSchedule()'s own
+            // docblock for why.
+            $this->splitLegs->upsert((int) $id, $startingSplitNo + $i, $amount, $splitCount, $scheduleId);
+        }
+
+        Audit::log('Create', 'Debit Orders', 'Added ' . $splitCount . ' split transaction(s) for debit order #' . $id
+            . ' installment #' . $schedule['installment_no'] . ' (due ' . $schedule['due_date'] . '): ' . implode(', ', array_map(fn ($a) => format_money($a), $splitAmounts)));
+        Session::flash('success', 'Splits added for installment #' . $schedule['installment_no'] . '. Use Place Mandate to send them to Collexia.');
+        $this->redirect('/debit-orders/' . $id . '/split-transactions');
     }
 
     public function show(string $id): void
@@ -314,6 +436,9 @@ class DebitOrderController extends Controller
             'anyUnsent' => (bool) array_filter($splitLegs, fn ($s) => in_array($s['collexia_api_status'], ['Not Placed', 'Load Failed'], true)),
             'anyLoadPending' => (bool) array_filter($splitLegs, fn ($s) => $s['collexia_api_status'] === 'Load Pending'),
             'anyLive' => (bool) array_filter($splitLegs, fn ($s) => in_array($s['collexia_api_status'], ['Registered', 'Load Pending'], true)),
+            'hasNextInstallment' => $debitOrder['split_enabled']
+                ? $this->splitLegs->nextUncoveredScheduleId((int) $id, (int) $debitOrder['loan_id']) !== null
+                : false,
         ];
 
         $this->view('debit_orders/show', [

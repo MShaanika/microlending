@@ -125,14 +125,26 @@ class CollexiaPaymentReconciliationService
                             'payment_date' => $paymentDate,
                             'payment_source' => 'Debit Order',
                             'bank_account_id' => $bankAccountId,
-                            'reference_no' => $contractReference . '-' . $installmentNo . ($splitNo !== null ? '-' . $splitNo : ''),
+                            // Collexia's own Statement Reference when
+                            // present -- the exact string that'll show on
+                            // the client's real bank statement, so Cash
+                            // Book / Loan Statement can actually be
+                            // reconciled against it line-by-line. Falls
+                            // back to the old internal reference only if
+                            // this particular response didn't include one.
+                            'reference_no' => $row['statementRef'] ?? ($contractReference . '-' . $installmentNo . ($splitNo !== null ? '-' . $splitNo : '')),
                             'payer_name' => $loan['borrower_name'] ?? ($row['clientSurname'] ?? null),
                             'notes' => 'Collexia EnDO API download: ' . ($row['statementRef'] ?? $contractReference),
                             'user_id' => $userId,
                         ];
 
                         if ($splitNo !== null) {
-                            $scheduleId = $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
+                            // The leg's own schedule_id (set at creation,
+                            // see DebitOrderSplitLeg) is unambiguous
+                            // regardless of which month it's for -- only
+                            // fall back to the old snapshot lookup for a
+                            // leg placed before that was tracked.
+                            $scheduleId = $mandate['schedule_id'] ?? $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
                             if ($scheduleId) {
                                 $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, $paymentAmount, $meta);
                                 $posted++;

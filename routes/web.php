@@ -235,6 +235,8 @@ $router->post('/debit-orders', [DebitOrderController::class, 'store']);
 $router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
 $router->get('/debit-orders/{id}/edit', [DebitOrderController::class, 'edit']);
 $router->post('/debit-orders/{id}', [DebitOrderController::class, 'update']);
+$router->get('/debit-orders/{id}/next-installment-splits', [DebitOrderController::class, 'addNextInstallmentSplitsForm']);
+$router->post('/debit-orders/{id}/next-installment-splits', [DebitOrderController::class, 'addNextInstallmentSplitsStore']);
 
 // Pay-cycle-aware collection date adjustments (Governance & Control /
 // Collections cross-cutting -- see database/pay_cycle_module.sql)

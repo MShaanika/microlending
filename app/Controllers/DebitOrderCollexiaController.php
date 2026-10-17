@@ -1186,6 +1186,26 @@ class DebitOrderCollexiaController extends Controller
             }
         }
 
+        // split_no is a GLOBAL sequence across every installment this
+        // debit order has ever split (so a later month's legs continue
+        // from wherever an earlier month's left off), but total_splits is
+        // scoped to just that one installment's own set (see
+        // DebitOrderSplitLeg::liveForSchedule()) -- so "#<split_no> of
+        // <total_splits>" alone can read as nonsense (e.g. "#3 of 2") once
+        // a second month exists. This gives each leg its position WITHIN
+        // its own installment's group instead, for an honest "#1 of 2" /
+        // "#2 of 2" per month.
+        $positionInInstallment = [];
+        $seenPerSchedule = [];
+        foreach ($splits as $s) {
+            if ($s['merged_into_id']) {
+                continue;
+            }
+            $key = $s['schedule_id'] ?? 'none';
+            $seenPerSchedule[$key] = ($seenPerSchedule[$key] ?? 0) + 1;
+            $positionInInstallment[(int) $s['id']] = $seenPerSchedule[$key];
+        }
+
         $this->view('debit_orders/split_transactions', [
             'title' => 'Split Transactions - ' . $debitOrder['debit_order_no'],
             'debitOrder' => $debitOrder,
@@ -1193,6 +1213,7 @@ class DebitOrderCollexiaController extends Controller
             'collectedBySplitNo' => $collectedBySplitNo,
             'mergeSources' => $mergeSources,
             'idToSplitNo' => $idToSplitNo,
+            'positionInInstallment' => $positionInInstallment,
             'mergeableIds' => $this->mergeableSplitIds((int) $id, $splits),
         ]);
     }

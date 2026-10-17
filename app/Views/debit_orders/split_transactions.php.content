@@ -24,6 +24,7 @@
             <tr>
               <th style="width:30px;"></th>
               <th>Split</th>
+              <th>Installment</th>
               <th>Client No</th>
               <th>Contract Reference</th>
               <th>Merchant System Contract No</th>
@@ -39,7 +40,7 @@
           </thead>
           <tbody>
             <?php if (empty($splits)): ?>
-              <tr><td colspan="13" class="text-center text-muted py-4">No split transactions found.</td></tr>
+              <tr><td colspan="14" class="text-center text-muted py-4">No split transactions found.</td></tr>
             <?php endif; ?>
             <?php foreach ($splits as $s): ?>
               <?php
@@ -66,7 +67,14 @@
                   <?php if ($isMergeResult): ?>
                     <span class="badge bg-info">Merged</span> <span class="small text-muted">(from #<?= implode(', #', $mergeSources[$s['id']]) ?>)</span>
                   <?php else: ?>
-                    #<?= (int) $s['split_no'] ?> of <?= (int) $s['total_splits'] ?>
+                    #<?= (int) ($positionInInstallment[(int) $s['id']] ?? $s['split_no']) ?> of <?= (int) $s['total_splits'] ?>
+                  <?php endif; ?>
+                </td>
+                <td class="small">
+                  <?php if (!empty($s['installment_no'])): ?>
+                    #<?= (int) $s['installment_no'] ?> &bull; <?= e(date('d M Y', strtotime($s['installment_due_date']))) ?>
+                  <?php else: ?>
+                    &mdash;
                   <?php endif; ?>
                 </td>
                 <td class="small"><?= !empty($s['collexia_client_no']) ? e($s['collexia_client_no']) : '&mdash;' ?></td>

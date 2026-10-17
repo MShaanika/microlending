@@ -248,14 +248,17 @@ class DebitOrderCollectionController extends Controller
                         ];
 
                         // A split's collection targets the exact
-                        // loan_schedules row snapshotted at placement time
-                        // (DebitOrderInstallmentTarget), same as the REST
-                        // Download Payments path -- otherwise
+                        // loan_schedules row the matched leg was created
+                        // against (DebitOrderSplitLeg::schedule_id), same
+                        // as the REST Download Payments path -- otherwise
                         // recordAndAllocate()'s FIFO could land it on the
                         // wrong row whenever the loan has arrears ahead of
-                        // the current installment.
+                        // the current installment, or (for a multi-month
+                        // split) the wrong month entirely. Falls back to
+                        // the old snapshot lookup only for a leg placed
+                        // before schedule_id was tracked.
                         if ($splitNo !== null) {
-                            $scheduleId = $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
+                            $scheduleId = $mandate['schedule_id'] ?? $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
                             if ($scheduleId) {
                                 $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, (float) $row['collection_amount'], $meta);
                                 $posted++;

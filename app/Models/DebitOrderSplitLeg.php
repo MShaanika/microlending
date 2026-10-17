@@ -23,7 +23,13 @@ class DebitOrderSplitLeg extends Model
     /** Every split for this debit order, including ones merged away -- full history, for the drill-down screen. */
     public function forDebitOrder(int $debitOrderId): array
     {
-        return $this->all("SELECT * FROM debit_order_split_legs WHERE debit_order_id = ? ORDER BY split_no", [$debitOrderId]);
+        return $this->all(
+            "SELECT sl.*, ls.installment_no, ls.due_date AS installment_due_date
+             FROM debit_order_split_legs sl
+             LEFT JOIN loan_schedules ls ON ls.id = sl.schedule_id
+             WHERE sl.debit_order_id = ? ORDER BY sl.split_no",
+            [$debitOrderId]
+        );
     }
 
     /** Only the currently-live splits (not folded into a later merge) -- what Place/Check/Sync/Cancel Mandate act on. */
@@ -100,12 +106,24 @@ class DebitOrderSplitLeg extends Model
         return $max ? ((int) $max + 1) : 1;
     }
 
-    /** Creates the split row at registration (or after a merge), or refreshes its amount on a retry after a prior failed attempt. */
-    public function upsert(int $debitOrderId, int $splitNo, float $amount, int $totalSplits): int
+    /**
+     * Creates the split row at registration (or after a merge), or
+     * refreshes its amount on a retry after a prior failed attempt.
+     * scheduleId is the specific loan_schedules row this leg's share
+     * belongs to -- see this class's own docblock and
+     * database/debit_order_split_leg_schedule_attribution.sql for why this
+     * (not Collexia's own always-1 per-leg installmentNo) is what makes
+     * multi-month splits attributable to the right month at all.
+     */
+    public function upsert(int $debitOrderId, int $splitNo, float $amount, int $totalSplits, ?int $scheduleId = null): int
     {
         $existing = $this->one("SELECT id FROM debit_order_split_legs WHERE debit_order_id = ? AND split_no = ?", [$debitOrderId, $splitNo]);
         if ($existing) {
-            $this->update('debit_order_split_legs', ['leg_amount' => $amount, 'total_splits' => $totalSplits], 'id', $existing['id']);
+            $data = ['leg_amount' => $amount, 'total_splits' => $totalSplits];
+            if ($scheduleId !== null) {
+                $data['schedule_id'] = $scheduleId;
+            }
+            $this->update('debit_order_split_legs', $data, 'id', $existing['id']);
             return (int) $existing['id'];
         }
         return $this->insert('debit_order_split_legs', [
@@ -113,7 +131,43 @@ class DebitOrderSplitLeg extends Model
             'split_no' => $splitNo,
             'total_splits' => $totalSplits,
             'leg_amount' => $amount,
+            'schedule_id' => $scheduleId,
         ]);
+    }
+
+    /**
+     * Live (not merged-away) splits sharing one target installment --
+     * total_splits is scoped per schedule_id, not per debit order, so a
+     * later month's "1 of 2" / "2 of 2" display never reads as part of an
+     * earlier month's split set just because they share a debit_order_id.
+     */
+    public function liveForSchedule(int $debitOrderId, int $scheduleId): array
+    {
+        return $this->all(
+            "SELECT * FROM debit_order_split_legs WHERE debit_order_id = ? AND schedule_id = ? AND merged_into_id IS NULL ORDER BY split_no",
+            [$debitOrderId, $scheduleId]
+        );
+    }
+
+    /**
+     * The loan's next unpaid installment that isn't already the target of
+     * a live split leg on this debit order -- what "Place Next
+     * Installment's Splits" registers against. Null once every unpaid
+     * installment is already covered (or the loan has none left).
+     */
+    public function nextUncoveredScheduleId(int $debitOrderId, int $loanId): ?int
+    {
+        $id = $this->scalar(
+            "SELECT ls.id FROM loan_schedules ls
+             WHERE ls.loan_id = ? AND ls.status != 'Paid'
+               AND ls.id NOT IN (
+                 SELECT schedule_id FROM debit_order_split_legs
+                 WHERE debit_order_id = ? AND merged_into_id IS NULL AND schedule_id IS NOT NULL
+               )
+             ORDER BY ls.installment_no LIMIT 1",
+            [$loanId, $debitOrderId]
+        );
+        return $id ? (int) $id : null;
     }
 
     public function updateState(int $debitOrderId, int $splitNo, array $data): bool

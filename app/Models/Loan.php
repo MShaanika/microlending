@@ -140,6 +140,11 @@ class Loan extends Model
         return $this->all("SELECT * FROM loan_schedules WHERE loan_id = ? ORDER BY installment_no", [$loanId]);
     }
 
+    public function scheduleRow(int $scheduleId): ?array
+    {
+        return $this->one("SELECT * FROM loan_schedules WHERE id = ?", [$scheduleId]);
+    }
+
     /** The date the loan's first installment is actually due -- used to default a new debit order's Start Date instead of "today", which drifts from the real schedule whenever a mandate is registered on a different day than the loan was disbursed. */
     public function firstScheduleDueDate(int $loanId): ?string
     {

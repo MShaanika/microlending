@@ -46,7 +46,7 @@ class CollexiaMandateLookupService
     }
 
     /**
-     * @return array{debit_order_id: ?int, loan_id: ?int, split_no: ?int}|null null if no mandate/split matches this reference at all.
+     * @return array{debit_order_id: ?int, loan_id: ?int, split_no: ?int, schedule_id: ?int}|null null if no mandate/split matches this reference at all.
      */
     public function resolve(string $contractReference): ?array
     {
@@ -57,12 +57,22 @@ class CollexiaMandateLookupService
         $mandate = $this->debitOrders->findByContractNo($contractReference)
             ?? $this->debitOrders->findByCollexiaApiContractReference($contractReference);
         if ($mandate) {
-            return ['debit_order_id' => (int) $mandate['id'], 'loan_id' => (int) $mandate['loan_id'], 'split_no' => null];
+            return ['debit_order_id' => (int) $mandate['id'], 'loan_id' => (int) $mandate['loan_id'], 'split_no' => null, 'schedule_id' => null];
         }
 
         $splitRow = $this->splitLegs->findByContractNo($contractReference);
         if ($splitRow) {
-            return ['debit_order_id' => (int) $splitRow['debit_order_id'], 'loan_id' => (int) $splitRow['loan_id'], 'split_no' => (int) $splitRow['split_no']];
+            return [
+                'debit_order_id' => (int) $splitRow['debit_order_id'],
+                'loan_id' => (int) $splitRow['loan_id'],
+                'split_no' => (int) $splitRow['split_no'],
+                // The leg's own unambiguous target -- see
+                // DebitOrderSplitLeg's own docblock for why this replaces
+                // the old installmentNo-keyed snapshot lookup. Null for a
+                // leg placed before this was tracked (falls back to the
+                // old lookup at the call site).
+                'schedule_id' => $splitRow['schedule_id'] !== null ? (int) $splitRow['schedule_id'] : null,
+            ];
         }
 
         return null;

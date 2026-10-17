@@ -198,8 +198,13 @@
     <?php if (!empty($debitOrder['split_enabled']) && !empty($splitLegs)): ?>
       <hr>
       <h6 class="mb-2">Split Transactions <span class="text-muted small fw-normal">(<?= count($splitLegs) ?> live)</span></h6>
-      <p class="text-muted small mb-2">This installment is split into <?= (int) ($splitLegs[0]['total_splits'] ?? count($splitLegs)) ?> transaction(s) -- each collects independently and is tracked separately, but all apply to the same monthly installment.</p>
-      <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-call-split"></i> View All Split Transactions</a>
+      <p class="text-muted small mb-2">Each split collects independently of its siblings and is tracked separately -- the full breakdown, including which installment each one belongs to, is on the Split Transactions page.</p>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-call-split"></i> View All Split Transactions</a>
+        <?php if (!empty($splitFlags['hasNextInstallment'])): ?>
+          <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/next-installment-splits') ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-calendar-plus"></i> Add Splits for Next Installment</a>
+        <?php endif; ?>
+      </div>
     <?php endif; ?>
 
     <?php if (empty($debitOrder['split_enabled']) && !empty($loanSchedule) && in_array($debitOrder['collexia_api_status'] ?? '', ['Registered', 'Load Pending'], true)): ?>

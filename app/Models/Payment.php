@@ -557,11 +557,22 @@ class Payment extends Model
             ];
         }
 
+        // The payment's OWN reference_no (when set -- e.g. Collexia's
+        // Statement Reference for a debit-order collection, the exact
+        // string the client will see on their real bank statement) rather
+        // than always the loan number. This is what the Cash Book and the
+        // Loan Statement both display, so a reconciling bank statement can
+        // actually be matched line-by-line -- previously this was
+        // hardcoded to loan_no regardless of what reference_no held,
+        // which is also why two split legs of the same loan looked
+        // identical here even though they had distinct references.
+        $paymentReferenceNo = $this->scalar("SELECT reference_no FROM payments WHERE id = ?", [$paymentId]);
+
         $journal->post(
             'PAYMENT_RECEIVED',
             'payments',
             $paymentId,
-            $loan['loan_no'],
+            $paymentReferenceNo ?: $loan['loan_no'],
             'Payment collected for ' . $loan['loan_no'],
             $lines,
             $userId,
