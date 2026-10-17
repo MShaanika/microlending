@@ -11,12 +11,26 @@ namespace App\Services;
  */
 class CollexiaApiException extends \RuntimeException
 {
-    /** @param array<int, array{rcoId?: int, code?: string, message?: string, detail?: string}> $errors */
-    public function __construct(
-        private readonly array $errors,
-        private readonly ?int $httpStatus,
-        private readonly ?string $summary,
-    ) {
+    /** @var array<int, array{rcoId?: int, code?: string, message?: string, detail?: string}> */
+    private array $errors;
+    private ?int $httpStatus;
+    private ?string $summary;
+
+    /**
+     * @param array<int, array{rcoId?: int, code?: string, message?: string, detail?: string}> $errors
+     *
+     * Plain (non-promoted, non-readonly) properties -- this app's local dev
+     * PHP is 8.0, which doesn't support readonly promoted properties
+     * (8.1+ only); this class failed to even PARSE there (confirmed via
+     * php -l), fatally crashing any code path that threw it, though it's
+     * fine on sandbox/production (both run 8.1+ -- this exact exception
+     * has rendered live there earlier in this app's history).
+     */
+    public function __construct(array $errors, ?int $httpStatus, ?string $summary)
+    {
+        $this->errors = $errors;
+        $this->httpStatus = $httpStatus;
+        $this->summary = $summary;
         $first = $errors[0] ?? [];
         $text = trim(($first['code'] ?? '') . ' ' . ($first['message'] ?? $summary ?? 'Mandate placement API error'));
         parent::__construct($text, (int) ($first['rcoId'] ?? 0));

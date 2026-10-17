@@ -14,8 +14,7 @@
       <?= csrf_field() ?>
       <div id="merge-hidden-fields"></div>
 
-      <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-        <p class="text-muted small mb-0">Tick two or more transactions below, still awaiting or mid-collection, to merge them into one.</p>
+      <div class="d-flex justify-content-end align-items-center mt-3 mb-2">
         <button type="button" id="merge-selected-btn" class="btn btn-outline-primary btn-sm" disabled data-bs-toggle="modal" data-bs-target="#mergeConfirmModal"><i class="mdi mdi-call-merge"></i> Merge Selected</button>
       </div>
 
@@ -25,17 +24,22 @@
             <tr>
               <th style="width:30px;"></th>
               <th>Split</th>
-              <th>Reference</th>
+              <th>Client No</th>
+              <th>Contract Reference</th>
+              <th>Merchant System Contract No</th>
+              <th>Next Date For Collection</th>
+              <th>Collection Day</th>
+              <th>Frequency</th>
               <th>Amount</th>
+              <th class="text-center">No. Inst.</th>
               <th>Status</th>
-              <th>Collection Date</th>
               <th>Created</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($splits)): ?>
-              <tr><td colspan="8" class="text-center text-muted py-4">No split transactions found.</td></tr>
+              <tr><td colspan="13" class="text-center text-muted py-4">No split transactions found.</td></tr>
             <?php endif; ?>
             <?php foreach ($splits as $s): ?>
               <?php
@@ -63,15 +67,20 @@
                     #<?= (int) $s['split_no'] ?> of <?= (int) $s['total_splits'] ?>
                   <?php endif; ?>
                 </td>
+                <td class="small"><?= !empty($s['collexia_client_no']) ? e($s['collexia_client_no']) : '&mdash;' ?></td>
                 <td class="small"><?= $s['collexia_api_contract_reference'] ? e($s['collexia_api_contract_reference']) : '&mdash;' ?></td>
+                <td class="small"><?= !empty($s['collexia_user_reference']) ? e($s['collexia_user_reference']) : '&mdash;' ?></td>
+                <td><?= $collectedDate ? e(date('d M Y', strtotime($collectedDate))) : '&mdash;' ?></td>
+                <td><?= \App\Support\CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']) ?></td>
+                <td>Monthly</td>
                 <td><?= format_money($s['leg_amount']) ?></td>
+                <td class="text-center">1</td>
                 <td>
                   <span class="badge bg-<?= $statusBadge ?>"><?= e($s['collexia_api_status']) ?></span>
                   <?php if ($s['merged_into_id']): ?>
                     <div class="small text-muted">&rarr; merged into #<?= (int) ($idToSplitNo[$s['merged_into_id']] ?? '?') ?></div>
                   <?php endif; ?>
                 </td>
-                <td><?= $collectedDate ? e(date('d M Y', strtotime($collectedDate))) : '&mdash;' ?></td>
                 <td class="small text-muted"><?= e(date('d M Y H:i', strtotime($s['created_at']))) ?></td>
                 <td>
                   <?php if (!$s['merged_into_id'] && in_array($s['collexia_api_status'], ['Not Placed', 'Load Failed'], true)): ?>
@@ -80,6 +89,11 @@
                       data-split-no="<?= (int) $s['split_no'] ?>">
                       <i class="mdi mdi-refresh"></i> Retry Placement
                     </button>
+                  <?php endif; ?>
+                  <?php if (!$s['merged_into_id'] && in_array($s['collexia_api_status'], ['Registered', 'Load Pending'], true)): ?>
+                    <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/installments') ?>" class="btn btn-sm btn-outline-secondary">
+                      <i class="mdi mdi-calendar-edit"></i> Reschedule
+                    </a>
                   <?php endif; ?>
                   <?php if ($isMergeResult && $s['collexia_api_status'] === 'Load Failed'): ?>
                     <button type="button" class="btn btn-sm btn-outline-secondary unmerge-btn"

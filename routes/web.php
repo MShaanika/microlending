@@ -333,6 +333,9 @@ $router->get('/debit-orders/{id}/split-transactions', [DebitOrderCollexiaControl
 $router->post('/debit-orders/{id}/split-transactions/merge', [DebitOrderCollexiaController::class, 'mergeSplits']);
 $router->post('/debit-orders/{id}/split-transactions/{splitNo}/place', [DebitOrderCollexiaController::class, 'placeSingleSplitMandate']);
 $router->post('/debit-orders/{id}/split-transactions/{splitNo}/unmerge', [DebitOrderCollexiaController::class, 'unmergeSplit']);
+$router->get('/debit-orders/{id}/split-transactions/{splitNo}/installments', [DebitOrderCollexiaController::class, 'splitInstallments']);
+$router->post('/debit-orders/{id}/split-transactions/{splitNo}/installments/update', [DebitOrderCollexiaController::class, 'updateSplitInstallment']);
+$router->post('/debit-orders/{id}/split-transactions/{splitNo}/installments/cancel', [DebitOrderCollexiaController::class, 'cancelSplitInstallment']);
 
 $router->get('/debit-orders/{id}/cancel', [DebitOrderCancellationController::class, 'create']);
 $router->get('/debit-order-cancellations', [DebitOrderCancellationController::class, 'index']);
