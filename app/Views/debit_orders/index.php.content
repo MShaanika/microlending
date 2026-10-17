@@ -5,7 +5,7 @@
   <div class="card-body">
     <h4 class="card-title mb-3">Debit Orders</h4>
 
-    <form method="get" action="<?= url('/debit-orders') ?>" class="row g-2 mb-3">
+    <form method="get" action="<?= url('/debit-orders') ?>" class="row g-2 mb-3 align-items-end">
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
@@ -13,6 +13,14 @@
             <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
           <?php endforeach; ?>
         </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Created From</label>
+        <input type="date" name="from_date" class="form-control" value="<?= e($fromDate ?? '') ?>">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Created To</label>
+        <input type="date" name="to_date" class="form-control" value="<?= e($toDate ?? '') ?>">
       </div>
       <div class="col-md-2">
         <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
@@ -25,12 +33,12 @@
           <tr>
             <th>Debit Order No</th><th>Loan</th><th>Borrower</th><th>Bank</th><th>Amount</th>
             <th>Client No</th><th>Contract Reference</th><th>Merchant System Contract No</th><th>API Status</th>
-            <th>Status</th><th class="text-end">Action</th>
+            <th>Status</th><th>Created</th><th class="text-end">Action</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($debitOrders)): ?>
-            <tr><td colspan="11" class="text-center text-muted py-4">No debit orders registered yet.</td></tr>
+            <tr><td colspan="12" class="text-center text-muted py-4">No debit orders registered yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($debitOrders as $d): ?>
             <?php
@@ -62,6 +70,7 @@
               <td class="small"><?= !empty($d['collexia_user_reference']) ? e($d['collexia_user_reference']) : '&mdash;' ?></td>
               <td><span class="badge bg-<?= $apiBadge ?>"><?= e($d['collexia_api_status'] ?? 'Not Placed') ?></span></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
+              <td class="small text-nowrap"><?= e(date('d M Y', strtotime($d['created_at']))) ?></td>
               <td class="text-end">
                 <a href="<?= url('/debit-orders/' . $d['id']) ?>" class="btn btn-sm btn-outline-info" title="View"><i class="mdi mdi-eye"></i></a>
                 <?php if (!empty($d['split_enabled'])): ?>

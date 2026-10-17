@@ -72,10 +72,14 @@ class DebitOrderController extends Controller
     {
         Auth::authorize('collections.debit_orders');
         $status = trim((string) ($_GET['status'] ?? ''));
+        $fromDate = trim((string) ($_GET['from_date'] ?? ''));
+        $toDate = trim((string) ($_GET['to_date'] ?? ''));
         $this->view('debit_orders/index', [
             'title' => 'Debit Orders',
-            'debitOrders' => $this->debitOrders->paginated($status, $this->indexBranchId()),
+            'debitOrders' => $this->debitOrders->paginated($status, $this->indexBranchId(), $fromDate ?: null, $toDate ?: null),
             'status' => $status,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
         ]);
     }
 

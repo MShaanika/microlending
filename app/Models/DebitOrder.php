@@ -6,7 +6,8 @@ use App\Core\Model;
 
 class DebitOrder extends Model
 {
-    public function paginated(string $status = '', ?int $branchId = null): array
+    /** $fromDate/$toDate filter on created_at (when the debit order was registered), inclusive on both ends. */
+    public function paginated(string $status = '', ?int $branchId = null, ?string $fromDate = null, ?string $toDate = null): array
     {
         $sql = "SELECT d.*, l.loan_no, l.branch_id AS loan_branch_id, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
                 FROM debit_orders d
@@ -21,6 +22,14 @@ class DebitOrder extends Model
         if ($branchId !== null) {
             $sql .= " AND l.branch_id = ?";
             $params[] = $branchId;
+        }
+        if ($fromDate !== null) {
+            $sql .= " AND d.created_at >= ?";
+            $params[] = $fromDate . ' 00:00:00';
+        }
+        if ($toDate !== null) {
+            $sql .= " AND d.created_at <= ?";
+            $params[] = $toDate . ' 23:59:59';
         }
         $sql .= " ORDER BY d.id DESC LIMIT 200";
         return $this->all($sql, $params);
