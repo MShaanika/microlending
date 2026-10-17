@@ -272,6 +272,7 @@ class DebitOrderCollectionController extends Controller
                     'debit_order_id' => $debitOrderId,
                     'loan_id' => $loanId,
                     'merchant_system_contract_no' => $reference,
+                    'statement_reference' => $row['statement_reference'] ?? null,
                     'installment_no' => $row['installment_no'],
                     'split_no' => $splitNo,
                     'scheduled_date' => $row['scheduled_date'],
@@ -301,6 +302,7 @@ class DebitOrderCollectionController extends Controller
                     // own longer StatementReference is deliberately NOT
                     // used here, it would silently overflow.
                     'merchant_system_contract_no' => $reference !== '' ? $reference : ($row['merchant_client_no'] ?? $row['client_number'] ?? null),
+                    'statement_reference' => $row['statement_reference'] ?? null,
                     'installment_no' => $row['installment_no'] ?? null,
                     'split_no' => $splitNo,
                     'scheduled_date' => $row['scheduled_date'] ?? null,

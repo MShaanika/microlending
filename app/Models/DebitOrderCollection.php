@@ -9,8 +9,9 @@ class DebitOrderCollection extends Model
     public function forImport(int $importId): array
     {
         return $this->all(
-            "SELECT c.*, l.loan_no FROM debit_order_collections c
+            "SELECT c.*, l.loan_no, d.bank_name, d.branch_code FROM debit_order_collections c
              LEFT JOIN loans l ON l.id = c.loan_id
+             LEFT JOIN debit_orders d ON d.id = c.debit_order_id
              WHERE c.import_id = ? ORDER BY c.id",
             [$importId]
         );

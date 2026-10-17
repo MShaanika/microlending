@@ -153,6 +153,7 @@ class CollexiaPaymentReconciliationService
                 'debit_order_id' => $debitOrderId,
                 'loan_id' => $loanId,
                 'merchant_system_contract_no' => $contractReference,
+                'statement_reference' => $row['statementRef'] ?? null,
                 'installment_no' => $installmentNo ?: null,
                 'split_no' => $splitNo,
                 'scheduled_date' => null,

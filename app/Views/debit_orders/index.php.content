@@ -22,11 +22,15 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Debit Order No</th><th>Loan</th><th>Borrower</th><th>Bank</th><th>Debit Day</th><th>Amount</th><th>Status</th><th class="text-end">Action</th></tr>
+          <tr>
+            <th>Debit Order No</th><th>Loan</th><th>Borrower</th><th>Bank</th><th>Amount</th>
+            <th>Client No</th><th>Contract Reference</th><th>Merchant System Contract No</th><th>API Status</th>
+            <th>Status</th><th class="text-end">Action</th>
+          </tr>
         </thead>
         <tbody>
           <?php if (empty($debitOrders)): ?>
-            <tr><td colspan="8" class="text-center text-muted py-4">No debit orders registered yet.</td></tr>
+            <tr><td colspan="11" class="text-center text-muted py-4">No debit orders registered yet.</td></tr>
           <?php endif; ?>
           <?php foreach ($debitOrders as $d): ?>
             <?php
@@ -36,14 +40,25 @@
                 'Suspended' => 'warning',
                 default => 'secondary',
               };
+              $apiBadge = match ($d['collexia_api_status'] ?? 'Not Placed') {
+                'Registered' => 'success',
+                'Load Pending' => 'warning',
+                'Load Failed' => 'danger',
+                'Cancelled' => 'dark',
+                'Uncertain' => 'warning',
+                default => 'secondary',
+              };
             ?>
             <tr>
               <td><?= e($d['debit_order_no']) ?></td>
               <td><?= e($d['loan_no']) ?></td>
               <td><?= e($d['borrower_name']) ?></td>
               <td><?= e($d['bank_name']) ?></td>
-              <td><?= (int) $d['debit_day'] ?></td>
               <td><?= format_money($d['debit_amount']) ?></td>
+              <td class="small"><?= !empty($d['collexia_client_no']) ? e($d['collexia_client_no']) : '&mdash;' ?></td>
+              <td class="small"><?= $d['collexia_api_contract_reference'] ? e($d['collexia_api_contract_reference']) : '&mdash;' ?></td>
+              <td class="small"><?= !empty($d['collexia_user_reference']) ? e($d['collexia_user_reference']) : '&mdash;' ?></td>
+              <td><span class="badge bg-<?= $apiBadge ?>"><?= e($d['collexia_api_status'] ?? 'Not Placed') ?></span></td>
               <td><span class="badge bg-<?= $badge ?>"><?= e($d['status']) ?></span></td>
               <td class="text-end">
                 <a href="<?= url('/debit-orders/' . $d['id']) ?>" class="btn btn-sm btn-outline-info" title="View"><i class="mdi mdi-eye"></i></a>
