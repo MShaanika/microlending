@@ -76,6 +76,13 @@
 
         <form method="post" action="<?= url('/notifications/settings/sms') ?>" class="row g-2 mb-3">
           <?= csrf_field() ?>
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" name="sms_payment_reminders_enabled" id="smsPaymentRemindersEnabled" value="1" <?= ($sms['SMS_PAYMENT_REMINDERS_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+              <label class="form-check-label" for="smsPaymentRemindersEnabled">Send automated payment reminder / arrears SMS</label>
+            </div>
+            <div class="form-text mb-2">Off by default. Acknowledgement SMS (application approved/rejected/received, refund approved) always send regardless of this -- this only gates the daily due-soon and overdue reminder texts.</div>
+          </div>
           <div class="col-md-12">
             <label class="form-label small mb-0">Account SID</label>
             <input type="text" name="twilio_account_sid" class="form-control form-control-sm" value="<?= e($sms['TWILIO_ACCOUNT_SID'] ?? '') ?>" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">

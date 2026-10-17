@@ -18,13 +18,15 @@ use App\Services\PaymentReminderService;
 
 $summary = PaymentReminderService::run();
 
-$summaryLine = sprintf(
-    "[%s] Due-soon: %d sent, %d skipped. Overdue: %d sent, %d skipped.\n",
-    date('Y-m-d H:i:s'),
-    $summary['due_soon_sent'],
-    $summary['due_soon_skipped'],
-    $summary['overdue_sent'],
-    $summary['overdue_skipped']
-);
+$summaryLine = $summary['enabled']
+    ? sprintf(
+        "[%s] Due-soon: %d sent, %d skipped. Overdue: %d sent, %d skipped.\n",
+        date('Y-m-d H:i:s'),
+        $summary['due_soon_sent'],
+        $summary['due_soon_skipped'],
+        $summary['overdue_sent'],
+        $summary['overdue_skipped']
+    )
+    : sprintf("[%s] Skipped -- automated SMS reminders are disabled (Notifications > Settings).\n", date('Y-m-d H:i:s'));
 \App\Core\JobHeartbeat::ping('send_payment_reminders', $summaryLine, 1440);
 echo $summaryLine;

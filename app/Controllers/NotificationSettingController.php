@@ -82,6 +82,11 @@ class NotificationSettingController extends Controller
         $fields = [
             'TWILIO_ACCOUNT_SID' => trim($_POST['twilio_account_sid'] ?? ''),
             'TWILIO_MESSAGING_SERVICE_SID' => trim($_POST['twilio_messaging_service_sid'] ?? ''),
+            // Same unchecked-checkbox-sends-nothing handling as
+            // ai_voice_enabled above -- explicitly 'on'/'off' in the
+            // fields loop so unchecking actually disables it rather than
+            // silently leaving the previous value in place.
+            'SMS_PAYMENT_REMINDERS_ENABLED' => isset($_POST['sms_payment_reminders_enabled']) ? '1' : '0',
         ];
 
         foreach ($fields as $key => $value) {

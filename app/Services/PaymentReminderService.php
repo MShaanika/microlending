@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\NotificationSetting;
 use App\Models\PaymentReminderLog;
 
 /**
@@ -17,6 +18,15 @@ use App\Models\PaymentReminderLog;
  * OVERDUE_RESEND_AFTER_DAYS while the installment stays unpaid, so a
  * borrower is nudged periodically rather than nagged daily or forgotten
  * after a single notice.
+ *
+ * Gated by notification_settings.SMS_PAYMENT_REMINDERS_ENABLED (2026-10-17,
+ * client request: SMS should go out only for acknowledgements, not
+ * automated reminders) -- defaults OFF when unset, same as
+ * AI_VOICE_ENABLED's own default-off pattern, so this is a deliberate
+ * opt-in rather than something that silently starts texting borrowers.
+ * This gate affects ONLY this one entry point; acknowledgement SMS
+ * (application approved/rejected/received, refund approved) are sent from
+ * entirely separate controller call sites and are never touched by it.
  */
 class PaymentReminderService
 {
@@ -25,12 +35,18 @@ class PaymentReminderService
     private const ACTIVE_LOAN_STATUSES = "('Active','Current')";
 
     /**
-     * @return array{due_soon_sent: int, due_soon_skipped: int, overdue_sent: int, overdue_skipped: int}
+     * @return array{due_soon_sent: int, due_soon_skipped: int, overdue_sent: int, overdue_skipped: int, enabled: bool}
      */
     public static function run(?int $userId = null): array
     {
+        $summary = ['due_soon_sent' => 0, 'due_soon_skipped' => 0, 'overdue_sent' => 0, 'overdue_skipped' => 0, 'enabled' => true];
+
+        if ((new NotificationSetting())->get('SMS_PAYMENT_REMINDERS_ENABLED', '0') !== '1') {
+            $summary['enabled'] = false;
+            return $summary;
+        }
+
         $log = new PaymentReminderLog();
-        $summary = ['due_soon_sent' => 0, 'due_soon_skipped' => 0, 'overdue_sent' => 0, 'overdue_skipped' => 0];
 
         foreach (self::dueSoonInstallments() as $row) {
             if ($log->find((int) $row['id'], 'DueSoon')) {
