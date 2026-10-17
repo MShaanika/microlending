@@ -29,26 +29,32 @@
       // to misread as "nothing is registered" without this note.
       $usingApiPath = !empty($debitOrder['split_enabled']) || ($debitOrder['collexia_api_status'] ?? 'Not Placed') !== 'Not Placed';
     ?>
-    <p class="mb-1 mt-2">
-      <strong>Batch Registration <span class="text-muted small fw-normal">(legacy bulk-file method)</span>:</strong>
-      <span class="badge bg-<?= $debitOrder['collexia_status'] === 'Registered' ? 'success' : 'secondary' ?>"><?= e($debitOrder['collexia_status']) ?></span>
-      <?php if ($debitOrder['merchant_system_contract_no']): ?>
-        <span class="text-muted small">Contract No: <?= e($debitOrder['merchant_system_contract_no']) ?></span>
-      <?php endif; ?>
-      <?php if ($usingApiPath && $debitOrder['collexia_status'] !== 'Registered'): ?>
-        <div class="text-muted small">Not used for this mandate -- see <strong>API Registration</strong> below for its real status.</div>
-      <?php endif; ?>
-    </p>
-
-    <hr>
-    <p class="mb-1"><strong>Bank:</strong> <?= e($debitOrder['bank_name']) ?></p>
-    <p class="mb-1"><strong>Account:</strong> <?= e($debitOrder['account_name']) ?: '&mdash;' ?> &mdash; <?= e($debitOrder['account_number']) ?> <?= $debitOrder['branch_code'] ? '(' . e($debitOrder['branch_code']) . ')' : '' ?></p>
-    <p class="mb-1"><strong>Debit Day:</strong> <?= (int) $debitOrder['debit_day'] ?> of each month</p>
-    <p class="mb-1"><strong>Debit Amount:</strong> <?= format_money($debitOrder['debit_amount']) ?></p>
-    <p class="mb-1"><strong>Start Date:</strong> <?= e(date('d M Y', strtotime($debitOrder['start_date']))) ?></p>
-    <?php if ($debitOrder['end_date']): ?>
-      <p class="mb-1"><strong>End Date:</strong> <?= e(date('d M Y', strtotime($debitOrder['end_date']))) ?></p>
-    <?php endif; ?>
+    <div class="table-responsive mt-2">
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr>
+            <th style="width:200px;">Batch Registration <span class="text-muted small fw-normal d-block">(legacy bulk-file method)</span></th>
+            <td>
+              <span class="badge bg-<?= $debitOrder['collexia_status'] === 'Registered' ? 'success' : 'secondary' ?>"><?= e($debitOrder['collexia_status']) ?></span>
+              <?php if ($debitOrder['merchant_system_contract_no']): ?>
+                <span class="text-muted small ms-2">Contract No: <?= e($debitOrder['merchant_system_contract_no']) ?></span>
+              <?php endif; ?>
+              <?php if ($usingApiPath && $debitOrder['collexia_status'] !== 'Registered'): ?>
+                <div class="text-muted small mt-1">Not used for this mandate -- see <strong>API Registration</strong> below for its real status.</div>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <tr><th>Bank</th><td><?= e($debitOrder['bank_name']) ?></td></tr>
+          <tr><th>Account</th><td><?= e($debitOrder['account_name']) ?: '&mdash;' ?> &mdash; <?= e($debitOrder['account_number']) ?> <?= $debitOrder['branch_code'] ? '(' . e($debitOrder['branch_code']) . ')' : '' ?></td></tr>
+          <tr><th>Debit Day</th><td><?= (int) $debitOrder['debit_day'] ?> of each month</td></tr>
+          <tr><th>Debit Amount</th><td><?= format_money($debitOrder['debit_amount']) ?></td></tr>
+          <tr><th>Start Date</th><td><?= e(date('d M Y', strtotime($debitOrder['start_date']))) ?></td></tr>
+          <?php if ($debitOrder['end_date']): ?>
+            <tr><th>End Date</th><td><?= e(date('d M Y', strtotime($debitOrder['end_date']))) ?></td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
 
     <?php if ($pendingCancellation): ?>
       <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-0">
@@ -103,17 +109,29 @@
       </p>
     <?php endif; ?>
 
-    <?php if (!empty($debitOrder['collexia_client_no'])): ?>
-      <p class="mb-1 small"><strong>Collexia Client No:</strong> <?= e($debitOrder['collexia_client_no']) ?></p>
-    <?php endif; ?>
-    <?php if ($debitOrder['collexia_api_contract_reference']): ?>
-      <p class="mb-1 small"><strong>Collexia Contract Reference:</strong> <?= e($debitOrder['collexia_api_contract_reference']) ?></p>
-    <?php endif; ?>
-    <?php if (!empty($debitOrder['collexia_user_reference'])): ?>
-      <p class="mb-1 small"><strong>Collexia Merchant System Contract No:</strong> <?= e($debitOrder['collexia_user_reference']) ?></p>
-    <?php endif; ?>
-    <?php if ($debitOrder['collexia_api_synced_at']): ?>
-      <p class="mb-2 small text-muted">Last synced <?= e(date('d M Y H:i', strtotime($debitOrder['collexia_api_synced_at']))) ?></p>
+    <?php
+      $hasApiDetails = !empty($debitOrder['collexia_client_no']) || $debitOrder['collexia_api_contract_reference']
+        || !empty($debitOrder['collexia_user_reference']) || $debitOrder['collexia_api_synced_at'];
+    ?>
+    <?php if ($hasApiDetails): ?>
+      <div class="table-responsive mb-2">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <?php if (!empty($debitOrder['collexia_client_no'])): ?>
+              <tr><th style="width:260px;" class="small">Collexia Client No</th><td class="small"><?= e($debitOrder['collexia_client_no']) ?></td></tr>
+            <?php endif; ?>
+            <?php if ($debitOrder['collexia_api_contract_reference']): ?>
+              <tr><th class="small">Collexia Contract Reference</th><td class="small"><?= e($debitOrder['collexia_api_contract_reference']) ?></td></tr>
+            <?php endif; ?>
+            <?php if (!empty($debitOrder['collexia_user_reference'])): ?>
+              <tr><th class="small">Collexia Merchant System Contract No</th><td class="small"><?= e($debitOrder['collexia_user_reference']) ?></td></tr>
+            <?php endif; ?>
+            <?php if ($debitOrder['collexia_api_synced_at']): ?>
+              <tr><th class="small">Last Synced</th><td class="small text-muted"><?= e(date('d M Y H:i', strtotime($debitOrder['collexia_api_synced_at']))) ?></td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
     <?php endif; ?>
 
     <div class="d-flex gap-2 flex-wrap">
