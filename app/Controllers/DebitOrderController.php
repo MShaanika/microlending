@@ -325,6 +325,13 @@ class DebitOrderController extends Controller
             'editable' => DebitOrder::isEditable($debitOrder),
             'splitLegs' => $splitLegs,
             'splitFlags' => $splitFlags,
+            // The loan's own schedule -- shown as an "Installments Covered"
+            // breakdown on this page so staff can see every installment
+            // this one mandate's noOfInstallments collects (e.g. this
+            // month AND next), the same way the loan's own Amortization
+            // Schedule does, without needing a second debit order (which
+            // would double-collect -- see liveForLoan()'s own guard).
+            'loanSchedule' => $this->loans->schedule((int) $debitOrder['loan_id']),
         ]);
     }
 

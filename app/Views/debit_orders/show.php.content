@@ -201,5 +201,37 @@
       <p class="text-muted small mb-2">This installment is split into <?= (int) ($splitLegs[0]['total_splits'] ?? count($splitLegs)) ?> transaction(s) -- each collects independently and is tracked separately, but all apply to the same monthly installment.</p>
       <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-call-split"></i> View All Split Transactions</a>
     <?php endif; ?>
+
+    <?php if (empty($debitOrder['split_enabled']) && !empty($loanSchedule) && in_array($debitOrder['collexia_api_status'] ?? '', ['Registered', 'Load Pending'], true)): ?>
+      <hr>
+      <h6 class="mb-2">Installments Covered <span class="text-muted small fw-normal">(<?= count($loanSchedule) ?>)</span></h6>
+      <p class="text-muted small mb-2">This one mandate collects every installment below on its own (Frequency: Monthly) -- no second debit order is needed for next month's installment; registering one would double-collect (see the guard above).</p>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr><th>#</th><th>Due Date</th><th>Amount</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach ($loanSchedule as $row): ?>
+              <?php
+                $scheduleBadge = match ($row['status']) {
+                  'Paid' => 'success',
+                  'Partial' => 'info',
+                  'In Arrears' => 'danger',
+                  'Written Off' => 'dark',
+                  default => 'warning',
+                };
+              ?>
+              <tr>
+                <td><?= (int) $row['installment_no'] ?></td>
+                <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
+                <td><?= format_money($row['total_due']) ?></td>
+                <td><span class="badge bg-<?= $scheduleBadge ?>"><?= e($row['status']) ?></span></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
   </div>
 </div>
