@@ -145,9 +145,26 @@ class Loan extends Model
         return $this->one("SELECT * FROM loan_schedules WHERE id = ?", [$scheduleId]);
     }
 
-    /** The date the loan's first installment is actually due -- used to default a new debit order's Start Date instead of "today", which drifts from the real schedule whenever a mandate is registered on a different day than the loan was disbursed. */
+    /**
+     * The due date of the loan's first installment that is still unpaid --
+     * used to default a new debit order's Start Date instead of "today",
+     * which drifts from the real schedule whenever a mandate is registered
+     * on a different day than the loan was disbursed. Must skip Paid rows:
+     * a mandate registered after installment 1 was already settled (e.g.
+     * Helenna Nashinwe, 2026-10-18) would otherwise default to a date in the
+     * past, and Collexia would roll the first collection forward to
+     * "as soon as possible" instead of the real next due date. Falls back
+     * to the very first row only when every installment is already Paid.
+     */
     public function firstScheduleDueDate(int $loanId): ?string
     {
+        $date = $this->scalar(
+            "SELECT due_date FROM loan_schedules WHERE loan_id = ? AND status != 'Paid' ORDER BY installment_no LIMIT 1",
+            [$loanId]
+        );
+        if ($date) {
+            return $date;
+        }
         return $this->scalar(
             "SELECT due_date FROM loan_schedules WHERE loan_id = ? ORDER BY installment_no LIMIT 1",
             [$loanId]
