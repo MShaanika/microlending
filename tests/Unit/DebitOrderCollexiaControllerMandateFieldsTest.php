@@ -106,9 +106,16 @@ class DebitOrderCollexiaControllerMandateFieldsTest extends TestCase
         $this->assertCount(10, array_unique($suffixes), 'Every split 1-10 must get its own distinct suffix.');
     }
 
+    public function testEverySplitOneThroughTwentySixIsADistinctLetter(): void
+    {
+        $suffixes = array_map(fn ($n) => $this->suffix($n), range(1, 26));
+        $this->assertCount(26, array_unique($suffixes));
+        $this->assertSame('Z', $this->suffix(26));
+    }
+
     public function testSuffixIsNeverADigit(): void
     {
-        foreach (range(1, 10) as $n) {
+        foreach (range(1, 26) as $n) {
             $this->assertFalse(ctype_digit($this->suffix($n)), "Split #$n's suffix must never be a digit -- see splitSuffix()'s docblock.");
         }
     }

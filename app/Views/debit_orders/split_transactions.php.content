@@ -80,8 +80,16 @@
                 <td class="small"><?= !empty($s['collexia_client_no']) ? e($s['collexia_client_no']) : '&mdash;' ?></td>
                 <td class="small"><?= $s['collexia_api_contract_reference'] ? e($s['collexia_api_contract_reference']) : '&mdash;' ?></td>
                 <td class="small"><?= !empty($s['collexia_user_reference']) ? e($s['collexia_user_reference']) : '&mdash;' ?></td>
-                <td><?= $collectedDate ? e(date('d M Y', strtotime($collectedDate))) : '&mdash;' ?></td>
-                <td><?= \App\Support\CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']) ?></td>
+                <td>
+                  <?php if ($collectedDate): ?>
+                    <?= e(date('d M Y', strtotime($collectedDate))) ?>
+                  <?php elseif (!empty($s['collection_date'])): ?>
+                    <?= e(date('d M Y', strtotime($s['collection_date']))) ?> <span class="small text-muted">(planned)</span>
+                  <?php else: ?>
+                    &mdash;
+                  <?php endif; ?>
+                </td>
+                <td><?= \App\Support\CollexiaV3Codes::collectionDay(!empty($s['collection_date']) ? (int) date('j', strtotime($s['collection_date'])) : (int) $debitOrder['debit_day']) ?></td>
                 <td>Monthly</td>
                 <td><?= format_money($s['leg_amount']) ?></td>
                 <td class="text-center">1</td>

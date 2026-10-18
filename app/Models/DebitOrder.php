@@ -127,6 +127,23 @@ class DebitOrder extends Model
         );
     }
 
+    /**
+     * Every installment still owing money on this loan, oldest first, with
+     * what's actually outstanding on each -- what the "one mandate per
+     * scheduled installment" registration form lists and places. Skips Paid
+     * rows and any row with nothing left to collect.
+     */
+    public function unpaidInstallments(int $loanId): array
+    {
+        return $this->all(
+            "SELECT id, installment_no, due_date, status, ROUND(total_due - total_paid, 2) AS outstanding
+             FROM loan_schedules
+             WHERE loan_id = ? AND status != 'Paid' AND (total_due - total_paid) > 0
+             ORDER BY installment_no",
+            [$loanId]
+        );
+    }
+
     public function nextCollectionDate(int $loanId): ?string
     {
         $date = $this->scalar("SELECT MIN(due_date) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);

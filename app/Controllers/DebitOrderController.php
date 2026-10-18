@@ -128,6 +128,7 @@ class DebitOrderController extends Controller
             'loan' => $loan,
             'old' => $old,
             'firstDueDate' => $firstDueDate,
+            'installments' => $this->debitOrders->unpaidInstallments((int) $loanId),
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
             'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
@@ -204,6 +205,11 @@ class DebitOrderController extends Controller
             return;
         }
 
+        if (($_POST['mode'] ?? '') === 'per_installment') {
+            $this->storePerInstallment($loan);
+            return;
+        }
+
         $errors = [];
         foreach (['bank_code', 'account_number', 'debit_day', 'debit_amount', 'start_date'] as $field) {
             if (trim((string) ($_POST[$field] ?? '')) === '') {
@@ -244,6 +250,7 @@ class DebitOrderController extends Controller
                 'loan' => $loan,
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
+                'installments' => $this->debitOrders->unpaidInstallments($loanId),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
                 'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
@@ -299,6 +306,132 @@ class DebitOrderController extends Controller
         }
 
         Session::flash('success', 'Debit order registered.');
+        $this->redirect('/debit-orders/' . $debitOrderId);
+    }
+
+    /**
+     * "One mandate per scheduled installment" registration: every selected
+     * unpaid installment becomes its own one-time Collexia mandate
+     * (a split leg with total_splits=1 and its own schedule_id), collected
+     * on that installment's own amortization date -- not one recurring
+     * mandate whose monthly rule only approximates the schedule. Reuses the
+     * split-leg machinery end to end, so placement, status sync,
+     * cancellation and payment reconciliation (by schedule_id) already
+     * work unchanged. With place_now set, the legs are sent to Collexia
+     * straight away.
+     */
+    private function storePerInstallment(array $loan): void
+    {
+        $loanId = (int) $loan['id'];
+        $installments = $this->debitOrders->unpaidInstallments($loanId);
+        $byId = [];
+        foreach ($installments as $row) {
+            $byId[(int) $row['id']] = $row;
+        }
+
+        $errors = [];
+        foreach (['bank_code', 'account_number'] as $field) {
+            if (trim((string) ($_POST[$field] ?? '')) === '') {
+                $errors[$field] = 'This field is required.';
+            }
+        }
+        if (!empty($_POST['bank_code']) && !isset(CollexiaCodes::BANKS[$_POST['bank_code']])) {
+            $errors['bank_code'] = 'Select a valid bank.';
+        }
+
+        // A date Collexia can accept: strictly in the future (it rejects
+        // anything else with 10567). An installment due today or earlier
+        // can't be collected on its due date any more, so it defaults to
+        // the earliest valid date instead and the form says so.
+        $earliest = date('Y-m-d', strtotime('+1 day'));
+        $selectedIds = array_values(array_unique(array_map('intval', (array) ($_POST['installment_ids'] ?? []))));
+        $legs = [];
+        foreach ($selectedIds as $scheduleId) {
+            if (!isset($byId[$scheduleId])) {
+                continue;
+            }
+            $row = $byId[$scheduleId];
+            $posted = trim((string) (($_POST['collection_dates'][$scheduleId] ?? '')));
+            $date = $posted !== '' ? $posted : max((string) $row['due_date'], $earliest);
+            $parsed = \DateTime::createFromFormat('Y-m-d', $date);
+            if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+                $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' has an invalid collection date.';
+                break;
+            }
+            if ($date < $earliest) {
+                $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' must be collected on a future date (' . date('d M Y', strtotime($earliest)) . ' or later).';
+                break;
+            }
+            $legs[] = ['schedule_id' => $scheduleId, 'installment_no' => (int) $row['installment_no'], 'amount' => round((float) $row['outstanding'], 2), 'date' => $date];
+        }
+        if (empty($errors['installments'])) {
+            if (!$legs) {
+                $errors['installments'] = 'Tick at least one installment to collect.';
+            } elseif (count($legs) > 26) {
+                $errors['installments'] = 'At most 26 installments can be placed on one debit order.';
+            }
+        }
+
+        if (!empty($errors)) {
+            $this->view('debit_orders/create', [
+                'title' => 'Register Debit Order - ' . $loan['loan_no'],
+                'loan' => $loan,
+                'old' => $_POST,
+                'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
+                'installments' => $installments,
+                'errors' => $errors,
+                'banks' => CollexiaCodes::BANKS,
+                'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
+            ]);
+            return;
+        }
+
+        usort($legs, fn ($a, $b) => $a['installment_no'] <=> $b['installment_no']);
+        $first = $legs[0];
+        $trackingDays = max(1, min(14, (int) ($_POST['no_of_days_tracking'] ?? 3)));
+
+        $debitOrderId = $this->debitOrders->create([
+            'borrower_id' => $loan['borrower_id'],
+            'loan_id' => $loanId,
+            'debit_order_no' => generate_reference('DO'),
+            'bank_name' => CollexiaCodes::BANKS[$_POST['bank_code']],
+            'account_name' => trim($_POST['account_name'] ?? '') ?: null,
+            'account_number' => trim($_POST['account_number']),
+            'branch_code' => trim($_POST['branch_code'] ?? '') ?: null,
+            'debit_day' => (int) date('j', strtotime($first['date'])),
+            'debit_amount' => $first['amount'],
+            'start_date' => $first['date'],
+            'status' => 'Active',
+            'id_type' => 1,
+            'account_type' => (int) ($_POST['account_type'] ?? 1),
+            'bank_code' => $_POST['bank_code'],
+            'no_of_days_tracking' => $trackingDays,
+            'split_enabled' => 1,
+            'created_by' => Auth::user()['id'] ?? null,
+        ]);
+        $this->debitOrders->updateRecord($debitOrderId, [
+            'merchant_system_contract_no' => sprintf('SD%08d', $debitOrderId),
+        ]);
+
+        $summary = [];
+        foreach ($legs as $i => $leg) {
+            $this->splitLegs->upsert($debitOrderId, $i + 1, $leg['amount'], 1, $leg['schedule_id'], $leg['date']);
+            $summary[] = '#' . $leg['installment_no'] . ' ' . format_money($leg['amount']) . ' on ' . $leg['date'];
+        }
+
+        Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']
+            . ' as one mandate per scheduled installment: ' . implode('; ', $summary));
+
+        $collexia = new CollexiaSetting();
+        if (!empty($_POST['place_now']) && $collexia->isEnabled() && $collexia->isConfigured()) {
+            Session::flash('success', 'Debit order registered with ' . count($legs) . ' installment(s). Sending them to Collexia now.');
+            // Same POST, same CSRF token -- placeMandate() validates it
+            // itself, places every leg, then redirects to the debit order.
+            (new DebitOrderCollexiaController())->placeMandate((string) $debitOrderId);
+            return;
+        }
+
+        Session::flash('success', 'Debit order registered with ' . count($legs) . ' installment(s). Use Place Mandate to send them to Collexia.');
         $this->redirect('/debit-orders/' . $debitOrderId);
     }
 

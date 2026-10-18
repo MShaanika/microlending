@@ -115,13 +115,16 @@ class DebitOrderSplitLeg extends Model
      * (not Collexia's own always-1 per-leg installmentNo) is what makes
      * multi-month splits attributable to the right month at all.
      */
-    public function upsert(int $debitOrderId, int $splitNo, float $amount, int $totalSplits, ?int $scheduleId = null): int
+    public function upsert(int $debitOrderId, int $splitNo, float $amount, int $totalSplits, ?int $scheduleId = null, ?string $collectionDate = null): int
     {
         $existing = $this->one("SELECT id FROM debit_order_split_legs WHERE debit_order_id = ? AND split_no = ?", [$debitOrderId, $splitNo]);
         if ($existing) {
             $data = ['leg_amount' => $amount, 'total_splits' => $totalSplits];
             if ($scheduleId !== null) {
                 $data['schedule_id'] = $scheduleId;
+            }
+            if ($collectionDate !== null) {
+                $data['collection_date'] = $collectionDate;
             }
             $this->update('debit_order_split_legs', $data, 'id', $existing['id']);
             return (int) $existing['id'];
@@ -132,6 +135,7 @@ class DebitOrderSplitLeg extends Model
             'total_splits' => $totalSplits,
             'leg_amount' => $amount,
             'schedule_id' => $scheduleId,
+            'collection_date' => $collectionDate,
         ]);
     }
 

@@ -501,7 +501,17 @@ class DebitOrderCollexiaController extends Controller
         // an installment not due for another month.
         $scheduleId = $split['schedule_id'] ?? null;
         $firstCollectionDate = $debitOrder['start_date'];
-        if ($scheduleId) {
+        $collectionDay = CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']);
+        if (!empty($split['collection_date'])) {
+            // "One mandate per scheduled installment" legs carry their own
+            // exact collection date (the installment's due date, or the
+            // earliest valid future date if it's already past due) -- the
+            // day-of-month rule follows that same date, not the debit
+            // order's single debit_day, since every installment can fall
+            // on a different day.
+            $firstCollectionDate = $split['collection_date'];
+            $collectionDay = CollexiaV3Codes::collectionDay((int) date('j', strtotime((string) $firstCollectionDate)));
+        } elseif ($scheduleId) {
             $schedule = $this->loans->scheduleRow((int) $scheduleId);
             if ($schedule) {
                 $firstCollectionDate = $schedule['due_date'];
@@ -525,7 +535,7 @@ class DebitOrderCollexiaController extends Controller
             'magId' => CollexiaV3Codes::MAG_ID_ENDO,
             'initialAmount' => 0,
             'firstCollectionDate' => date('Ymd', strtotime((string) $firstCollectionDate)),
-            'collectionDay' => CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']),
+            'collectionDay' => $collectionDay,
             'numberOfTrackingDays' => (int) $debitOrder['no_of_days_tracking'],
             'debtorAccountName' => $debitOrder['account_name'] ?: $debitOrder['borrower_name'],
             'debtorIdentificationType' => 1,
@@ -1166,7 +1176,10 @@ class DebitOrderCollexiaController extends Controller
      */
     private static function splitSuffix(int $splitNo): string
     {
-        return chr(ord('A') + min(max($splitNo, 1), 10) - 1);
+        // A-Z (26 legs): a debit order registered as one mandate per
+        // scheduled installment needs one leg per remaining installment,
+        // which can exceed the old 10-leg ceiling.
+        return chr(ord('A') + min(max($splitNo, 1), 26) - 1);
     }
 
     /**

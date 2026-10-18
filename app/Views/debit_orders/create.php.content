@@ -9,7 +9,18 @@
       <?= csrf_field() ?>
       <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
 
-      <p class="text-muted small">This mandate will be included in the next "Debit Order Run" you submit.</p>
+      <?php $mode = (string) old('mode', $old, 'per_installment'); $installments = $installments ?? []; ?>
+      <div class="border rounded p-3 mb-3">
+        <div class="fw-semibold mb-2">How should this loan be collected?</div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="mode" id="mode_per_installment" value="per_installment" <?= $mode !== 'legacy' ? 'checked' : '' ?>>
+          <label class="form-check-label" for="mode_per_installment"><strong>One mandate per scheduled installment</strong> (recommended) &mdash; every unpaid installment below is sent to Collexia as its own mandate and collected exactly on its schedule date.</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="mode" id="mode_legacy" value="legacy" <?= $mode === 'legacy' ? 'checked' : '' ?>>
+          <label class="form-check-label" for="mode_legacy">Single recurring mandate, or split one installment into several parts</label>
+        </div>
+      </div>
 
       <div class="row">
         <div class="col-md-4 mb-3">
@@ -43,18 +54,18 @@
           <label class="form-label">Branch Code</label>
           <input type="text" name="branch_code" class="form-control" value="<?= old('branch_code', $old) ?>">
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 mb-3 legacy-only">
           <label class="form-label">Debit Day (1-31) <span class="text-danger">*</span></label>
           <input type="number" min="1" max="31" name="debit_day" class="form-control <?= isset($errors['debit_day']) ? 'is-invalid' : '' ?>" value="<?= old('debit_day', $old, (string) $loan['payment_day']) ?>">
           <?php if (isset($errors['debit_day'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_day']) ?></div><?php endif; ?>
           <div class="form-text">Day 31 maps to the "Last Day" code.</div>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 mb-3 legacy-only">
           <label class="form-label">Debit Amount <span class="text-danger">*</span></label>
           <input type="number" step="0.01" id="debit_amount" name="debit_amount" class="form-control <?= isset($errors['debit_amount']) ? 'is-invalid' : '' ?>" value="<?= old('debit_amount', $old, (string) $loan['installment_amount']) ?>">
           <?php if (isset($errors['debit_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['debit_amount']) ?></div><?php endif; ?>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 mb-3 legacy-only">
           <label class="form-label">Start Date <span class="text-danger">*</span></label>
           <input type="date" id="start_date" name="start_date" min="<?= e(date('Y-m-d')) ?>" data-first-due="<?= e($firstDueDate ?? '') ?>" class="form-control <?= isset($errors['start_date']) ? 'is-invalid' : '' ?>" value="<?= old('start_date', $old, date('Y-m-d')) ?>">
           <?php if (isset($errors['start_date'])): ?><div class="invalid-feedback d-block"><?= e($errors['start_date']) ?></div><?php endif; ?>
@@ -71,6 +82,42 @@
         </div>
       </div>
 
+      <div id="per_installment_panel" class="mb-3">
+        <?php if (isset($errors['installments'])): ?><div class="alert alert-danger py-2"><?= e($errors['installments']) ?></div><?php endif; ?>
+        <?php if (empty($installments)): ?>
+          <div class="alert alert-warning">This loan has no unpaid installments left to collect.</div>
+        <?php else: ?>
+          <?php $tomorrow = date('Y-m-d', strtotime('+1 day')); $posted = (array) ($old['installment_ids'] ?? []); $postedDates = (array) ($old['collection_dates'] ?? []); ?>
+          <div class="fw-semibold mb-1">Installments to collect <span class="text-muted small fw-normal">(none of these has a mandate yet)</span></div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead><tr><th style="width:40px"><input type="checkbox" id="inst_all" checked></th><th>#</th><th>Scheduled Date</th><th class="text-end">Amount</th><th>Collect On</th><th>Note</th></tr></thead>
+              <tbody>
+              <?php foreach ($installments as $row): ?>
+                <?php
+                  $sid = (int) $row['id'];
+                  $pastDue = $row['due_date'] < $tomorrow;
+                  $defaultDate = $pastDue ? $tomorrow : $row['due_date'];
+                  $checked = empty($posted) ? true : in_array((string) $sid, array_map('strval', $posted), true);
+                  $dateVal = $postedDates[$sid] ?? $defaultDate;
+                ?>
+                <tr>
+                  <td><input type="checkbox" class="inst-check" name="installment_ids[]" value="<?= $sid ?>" <?= $checked ? 'checked' : '' ?>></td>
+                  <td><?= (int) $row['installment_no'] ?></td>
+                  <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
+                  <td class="text-end"><?= format_money((float) $row['outstanding']) ?></td>
+                  <td><input type="date" name="collection_dates[<?= $sid ?>]" min="<?= e($tomorrow) ?>" value="<?= e($dateVal) ?>" class="form-control form-control-sm" style="max-width:170px"></td>
+                  <td class="small text-muted"><?= $pastDue ? 'Already due -- moved to the earliest date Collexia accepts' : ($row['status'] === 'Partial' ? 'Partly paid -- only the balance is collected' : 'On schedule') ?></td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+          <div class="form-text">Each ticked installment is sent to Collexia as its own one-time mandate for the amount shown, collected on the date in &ldquo;Collect On&rdquo;. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
+        <?php endif; ?>
+      </div>
+
+      <div id="legacy_split_section">
       <div class="form-check mb-2">
         <input type="checkbox" name="split_enabled" value="1" id="split_enabled" class="form-check-input" <?= old('split_enabled', $old) ? 'checked' : '' ?>>
         <label class="form-check-label" for="split_enabled">Split this installment into multiple transactions</label>
@@ -91,8 +138,10 @@
         <?php if (isset($errors['split_amounts'])): ?><div class="text-danger small mb-2"><?= e($errors['split_amounts']) ?></div><?php endif; ?>
         <div id="split_rows"></div>
       </div>
+      </div>
 
-      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Register Debit Order</button>
+      <button type="submit" name="place_now" value="1" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-send"></i> Register &amp; Send to Collexia</button>
+      <button type="submit" class="btn btn-outline-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Register Only</button>
       <a href="<?= url('/loans/' . $loan['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>
@@ -173,7 +222,7 @@
   var form = startDateInput ? startDateInput.closest('form') : null;
   if (form && startDateInput && startDateInput.dataset.firstDue) {
     form.addEventListener('submit', function (e) {
-      if (startDateInput.value !== startDateInput.dataset.firstDue) {
+      if (document.getElementById('mode_legacy').checked && startDateInput.value !== startDateInput.dataset.firstDue) {
         var ok = confirm(
           'This Start Date (' + startDateInput.value + ') does not match the loan\'s first installment due date (' +
           startDateInput.dataset.firstDue + ').\n\nCollexia will round this to the nearest matching Debit Day, ' +
@@ -183,6 +232,22 @@
           e.preventDefault();
         }
       }
+    });
+  }
+  function applyMode() {
+    var legacy = document.getElementById('mode_legacy').checked;
+    document.querySelectorAll('.legacy-only').forEach(function (el) { el.classList.toggle('d-none', !legacy); });
+    document.getElementById('legacy_split_section').classList.toggle('d-none', !legacy);
+    document.getElementById('per_installment_panel').classList.toggle('d-none', legacy);
+  }
+  document.getElementById('mode_legacy').addEventListener('change', applyMode);
+  document.getElementById('mode_per_installment').addEventListener('change', applyMode);
+  applyMode();
+
+  var allBox = document.getElementById('inst_all');
+  if (allBox) {
+    allBox.addEventListener('change', function () {
+      document.querySelectorAll('.inst-check').forEach(function (c) { c.checked = allBox.checked; });
     });
   }
 })();
