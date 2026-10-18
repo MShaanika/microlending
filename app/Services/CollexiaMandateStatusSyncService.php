@@ -37,7 +37,17 @@ use App\Support\CollexiaV3Codes;
  */
 class CollexiaMandateStatusSyncService
 {
-    private const SPLIT_LIVE_STATUSES = ['Load Pending', 'Registered'];
+    /**
+     * 'Cancelled' is included here (not just 'Load Pending'/'Registered')
+     * so a split leg whose parent debit order was JUST cancelled still
+     * gets re-enquired -- see DebitOrder::dueForCollexiaStatusSync()'s own
+     * docblock for why trusting the cancel API's ack forever was a real
+     * gap. This stays bounded to a short window, not a permanent re-poll
+     * of every old cancellation, because this loop is only ever reached
+     * for debit orders that query already restricts to 'Active'/
+     * 'Suspended' or recently-cancelled.
+     */
+    private const SPLIT_LIVE_STATUSES = ['Load Pending', 'Registered', 'Cancelled'];
     private const MAPPABLE_STATUSES = ['Active', 'Suspended', 'Cancelled', 'Completed'];
 
     private DebitOrder $debitOrders;

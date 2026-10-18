@@ -163,11 +163,27 @@ class DebitOrder extends Model
      * bin/sync_collexia_mandate_status.php -- the scheduled equivalent of
      * clicking "Sync Status" on every eligible debit order.
      */
+    /**
+     * Also re-checks a JUST-cancelled debit order (status='Cancelled' AND
+     * collexia_api_synced_at within the last 3 days) -- found 2026-10-18
+     * auditing debit order #3 (Helenna Nashinwe): once status flips to
+     * 'Cancelled' it used to drop out of this sweep forever, so DesertLedger
+     * trusted Collexia's /mandates/cancel acknowledgment as proof the
+     * mandate was actually gone and never looked again. That ack only
+     * confirms Collexia received the request, not that it finished
+     * processing it (same async-batch pattern as mandate placement). The
+     * 3-day window is enough for the normal multi-times-a-day cron cadence
+     * to catch a delayed failure while it's still actionable, without
+     * polling every long-settled cancellation forever.
+     */
     public function dueForCollexiaStatusSync(): array
     {
         return $this->all(
             "SELECT * FROM debit_orders
-             WHERE status IN ('Active', 'Suspended')
+             WHERE (
+                    status IN ('Active', 'Suspended')
+                 OR (status = 'Cancelled' AND collexia_api_synced_at >= DATE_SUB(NOW(), INTERVAL 3 DAY))
+               )
                AND (collexia_api_contract_reference IS NOT NULL OR split_enabled = 1)
              ORDER BY id"
         );

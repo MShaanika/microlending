@@ -12,6 +12,7 @@ use App\Models\DebitOrder;
 use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderInstallmentTarget;
 use App\Models\DebitOrderSplitLeg;
+use App\Models\Loan;
 use App\Services\CollexiaApiException;
 use App\Services\CollexiaClient;
 use App\Services\CollexiaEndoApiClient;
@@ -65,6 +66,7 @@ class DebitOrderCollexiaController extends Controller
     private DebitOrderInstallmentTarget $installmentTargets;
     private DebitOrderCollection $collections;
     private CollexiaSetting $settings;
+    private Loan $loans;
 
     /** Statuses a split can still be pushed to Collexia from, or merged away from without needing an API cancel first. */
     private const SPLIT_UNSENT_STATUSES = ['Not Placed', 'Load Failed'];
@@ -78,6 +80,7 @@ class DebitOrderCollexiaController extends Controller
         $this->installmentTargets = new DebitOrderInstallmentTarget();
         $this->collections = new DebitOrderCollection();
         $this->settings = new CollexiaSetting();
+        $this->loans = new Loan();
     }
 
     /**
@@ -484,6 +487,27 @@ class DebitOrderCollexiaController extends Controller
         // non-split path.
         $clientNo = substr((string) $clientNoBase, 0, 15);
 
+        // Found 2026-10-18 on debit order #3 (Helenna Nashinwe, loan
+        // LN-261016-7A1D55): this used to always fall back to the debit
+        // order's own start_date below, which is only correct for the
+        // very first month's splits (where start_date IS the first
+        // installment's due date). Every later month added via "Add
+        // Splits for Next Installment" carries its own schedule_id
+        // already -- use THAT installment's real due_date so Collexia
+        // schedules the first (and, since noOfInstallments is always 1,
+        // only) collection attempt on the actual amortization date
+        // instead of defaulting to "as soon as possible", which is what
+        // produced a live mandate collecting two days after placement for
+        // an installment not due for another month.
+        $scheduleId = $split['schedule_id'] ?? null;
+        $firstCollectionDate = $debitOrder['start_date'];
+        if ($scheduleId) {
+            $schedule = $this->loans->scheduleRow((int) $scheduleId);
+            if ($schedule) {
+                $firstCollectionDate = $schedule['due_date'];
+            }
+        }
+
         $mandate = [
             'clientNo' => $clientNo,
             // Unique per split leg -- see this method's docblock above for
@@ -500,7 +524,7 @@ class DebitOrderCollexiaController extends Controller
             'contractReference' => $contractReference,
             'magId' => CollexiaV3Codes::MAG_ID_ENDO,
             'initialAmount' => 0,
-            'firstCollectionDate' => date('Ymd', strtotime((string) $debitOrder['start_date'])),
+            'firstCollectionDate' => date('Ymd', strtotime((string) $firstCollectionDate)),
             'collectionDay' => CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']),
             'numberOfTrackingDays' => (int) $debitOrder['no_of_days_tracking'],
             'debtorAccountName' => $debitOrder['account_name'] ?: $debitOrder['borrower_name'],
