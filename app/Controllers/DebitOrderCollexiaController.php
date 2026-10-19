@@ -938,6 +938,54 @@ class DebitOrderCollexiaController extends Controller
     }
 
     /**
+     * One Collexia mandate and every installment it carries -- the page an
+     * installment on the debit order opens. For an installment that was split
+     * it also links to the sibling mandate(s) carrying the other part(s), so
+     * staff can walk installment -> mandate -> every installment in it.
+     */
+    public function mandate(string $id, string $splitNo): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        $split = $this->findLiveSplitOr404((int) $id, (int) $splitNo, '/debit-orders/' . $id . '/split-transactions');
+        if (!$split) {
+            return;
+        }
+
+        $carriers = $this->laneInstallments->carriersBySchedule((int) $id);
+        $schedule = [];
+        foreach ($this->loans->schedule((int) $debitOrder['loan_id']) as $row) {
+            $schedule[(int) $row['id']] = $row;
+        }
+
+        $items = [];
+        foreach ($carriers as $scheduleId => $list) {
+            foreach ($list as $c) {
+                if ((int) $c['leg_id'] !== (int) $split['id']) {
+                    continue;
+                }
+                $items[] = $c + [
+                    'loan_installment_no' => $schedule[$scheduleId]['installment_no'] ?? null,
+                    'due_date' => $schedule[$scheduleId]['due_date'] ?? null,
+                    'loan_status' => $schedule[$scheduleId]['status'] ?? null,
+                    'siblings' => array_values(array_filter($list, fn ($o) => (int) $o['leg_id'] !== (int) $split['id'])),
+                ];
+            }
+        }
+        usort($items, fn ($a, $b) => (int) $a['mandate_installment_no'] <=> (int) $b['mandate_installment_no']);
+
+        $this->view('debit_orders/mandate', [
+            'title' => 'Mandate ' . (int) $split['split_no'] . ' - ' . $debitOrder['debit_order_no'],
+            'debitOrder' => $debitOrder,
+            'split' => $split,
+            'items' => $items,
+        ]);
+    }
+
+    /**
      * Split-leg counterpart to installments() above -- a split debit order
      * has one Collexia mandate PER live leg, each with its own
      * contractReference, so rescheduling has to be scoped to a single leg

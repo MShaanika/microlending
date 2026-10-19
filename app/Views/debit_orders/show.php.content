@@ -207,6 +207,53 @@
       </div>
     <?php endif; ?>
 
+    <?php if (!empty($debitOrder['split_enabled']) && !empty($loanSchedule)): ?>
+      <hr>
+      <h6 class="mb-2">Installments <span class="text-muted small fw-normal">&mdash; open an installment to see the mandate that carries it</span></h6>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead>
+            <tr><th>#</th><th>Due Date</th><th>Amount</th><th>Loan Status</th><th>Mandate(s)</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach ($loanSchedule as $row): ?>
+              <?php
+                $carried = ($carriers ?? [])[(int) $row['id']] ?? [];
+                if (!$carried && $row['status'] === 'Paid') {
+                    continue;
+                }
+                $scheduleBadge = match ($row['status']) {
+                  'Paid' => 'success',
+                  'Partial' => 'info',
+                  'In Arrears' => 'danger',
+                  'Written Off' => 'dark',
+                  default => 'warning',
+                };
+              ?>
+              <tr>
+                <td><?= (int) $row['installment_no'] ?></td>
+                <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
+                <td><?= format_money($row['total_due']) ?></td>
+                <td><span class="badge bg-<?= $scheduleBadge ?>"><?= e($row['status']) ?></span></td>
+                <td>
+                  <?php if (!$carried): ?>
+                    <span class="text-muted small">Not placed with Collexia yet</span>
+                  <?php else: ?>
+                    <?php if (count($carried) > 1): ?><span class="badge bg-info me-1">split in <?= count($carried) ?></span><?php endif; ?>
+                    <?php foreach ($carried as $c): ?>
+                      <a class="btn btn-sm btn-outline-primary py-0" href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $c['split_no']) ?>">
+                        Mandate <?= (int) $c['split_no'] ?> &middot; <?= format_money((float) $c['amount']) ?>
+                      </a>
+                    <?php endforeach; ?>
+                  <?php endif; ?>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+
     <?php if (empty($debitOrder['split_enabled']) && !empty($loanSchedule) && in_array($debitOrder['collexia_api_status'] ?? '', ['Registered', 'Load Pending'], true)): ?>
       <hr>
       <h6 class="mb-2">Installments Covered <span class="text-muted small fw-normal">(<?= count($loanSchedule) ?>)</span></h6>

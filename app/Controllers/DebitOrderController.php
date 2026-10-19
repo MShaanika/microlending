@@ -632,6 +632,10 @@ class DebitOrderController extends Controller
             // Schedule does, without needing a second debit order (which
             // would double-collect -- see liveForLoan()'s own guard).
             'loanSchedule' => $this->loans->schedule((int) $debitOrder['loan_id']),
+            // Which mandate(s) carry each installment -- the page links each
+            // installment to them (and from there to every installment the
+            // mandate carries).
+            'carriers' => $debitOrder['split_enabled'] ? $this->laneInstallments->carriersBySchedule((int) $id) : [],
         ]);
     }
 

@@ -174,6 +174,26 @@ class CollexiaLaneFlowTest extends TestCase
         $this->assertSame([null, null, null], $applied, 'Nothing is marked applied after a failure');
     }
 
+    public function testEachInstallmentListsEveryMandateThatCarriesIt(): void
+    {
+        $built = $this->buildLane();
+        $laneRows = new DebitOrderSplitLegInstallment();
+
+        // A second mandate (part 2) carrying only installments 2 and 3 of the loan.
+        $legs = new DebitOrderSplitLeg();
+        $secondId = $legs->upsert($this->debitOrderId, 2, 13.79, 2, null, '2026-12-17');
+        $laneRows->add($secondId, 1, $this->scheduleIds[1], '2026-12-17', 13.79);
+        $laneRows->add($secondId, 2, $this->scheduleIds[2], '2027-01-17', 13.79);
+
+        $carriers = $laneRows->carriersBySchedule($this->debitOrderId);
+
+        $this->assertCount(1, $carriers[$this->scheduleIds[0]], 'An unsplit installment has a single mandate');
+        $this->assertCount(2, $carriers[$this->scheduleIds[1]], 'A split installment lists both mandates');
+        $this->assertSame([1, 2], array_map(fn ($c) => (int) $c['split_no'], $carriers[$this->scheduleIds[1]]));
+        $this->assertSame((int) $built['leg']['id'], (int) $carriers[$this->scheduleIds[0]][0]['leg_id']);
+        $this->assertSame(2, (int) $carriers[$this->scheduleIds[2]][1]['mandate_installment_no'], 'Installment 3 of the loan is the second installment inside mandate 2');
+    }
+
     public function testNextUncoveredInstallmentSkipsEverythingALaneCarries(): void
     {
         $this->buildLane();

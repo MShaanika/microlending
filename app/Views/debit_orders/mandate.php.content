@@ -1,0 +1,84 @@
+<?= flash_messages() ?>
+<?php
+  $statusBadge = match ($split['collexia_api_status']) {
+    'Registered' => 'success',
+    'Load Pending' => 'warning',
+    'Load Failed' => 'danger',
+    'Cancelled' => 'dark',
+    'Uncertain' => 'warning',
+    'Completed' => 'info',
+    default => 'secondary',
+  };
+  $live = in_array($split['collexia_api_status'], ['Registered', 'Load Pending'], true);
+?>
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+      <div>
+        <h4 class="card-title mb-1">Mandate <?= (int) $split['split_no'] ?></h4>
+        <p class="text-muted small mb-0">
+          <?= e($debitOrder['debit_order_no']) ?>
+          <?php if ($split['collexia_api_contract_reference']): ?> &bull; Contract reference <?= e($split['collexia_api_contract_reference']) ?><?php endif; ?>
+          <?php if (!empty($split['collexia_client_no'])): ?> &bull; Client No <?= e($split['collexia_client_no']) ?><?php endif; ?>
+        </p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <span class="badge bg-<?= $statusBadge ?> align-self-center"><?= e($split['collexia_api_status']) ?></span>
+        <a href="<?= url('/debit-orders/' . $debitOrder['id']) ?>" class="btn btn-outline-secondary btn-sm">Back to Debit Order</a>
+        <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions') ?>" class="btn btn-outline-secondary btn-sm">All Mandates</a>
+        <?php if ($live && $split['collexia_api_contract_reference']): ?>
+          <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $split['split_no'] . '/installments') ?>" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-calendar-edit"></i> Reschedule / Cancel an Installment</a>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <p class="mb-3">
+      This mandate carries <strong><?= count($items) ?> installment<?= count($items) === 1 ? '' : 's' ?></strong>,
+      collected monthly, each on its own date.
+    </p>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>In Mandate</th><th>Loan Installment</th><th>Due Date</th><th>Collect On</th><th class="text-end">Amount</th><th>Dates</th><th>Also Carried By</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($items)): ?>
+            <tr><td colspan="7" class="text-center text-muted py-4">This mandate has no installments recorded.</td></tr>
+          <?php endif; ?>
+          <?php foreach ($items as $i): ?>
+            <?php $collectOn = $i['collexia_date'] ?: $i['planned_date']; ?>
+            <tr>
+              <td>#<?= (int) $i['mandate_installment_no'] ?> of <?= count($items) ?></td>
+              <td>#<?= (int) $i['loan_installment_no'] ?></td>
+              <td><?= $i['due_date'] ? e(date('d M Y', strtotime($i['due_date']))) : '&mdash;' ?></td>
+              <td><?= $collectOn ? e(date('d M Y', strtotime($collectOn))) : '&mdash;' ?></td>
+              <td class="text-end"><?= format_money((float) $i['amount']) ?></td>
+              <td class="small">
+                <?php if ($i['applied_at'] === null && $i['collexia_date'] === null && $split['collexia_api_status'] !== 'Cancelled'): ?>
+                  <span class="text-muted">being confirmed with Collexia</span>
+                <?php elseif ($i['collexia_date'] !== null && $i['collexia_date'] !== $i['planned_date']): ?>
+                  <span class="text-warning">Collexia holds <?= e(date('d M Y', strtotime($i['collexia_date']))) ?>, planned <?= e(date('d M Y', strtotime($i['planned_date']))) ?></span>
+                <?php else: ?>
+                  <span class="text-success">confirmed</span>
+                <?php endif; ?>
+              </td>
+              <td class="small">
+                <?php if (empty($i['siblings'])): ?>
+                  <span class="text-muted">&mdash; (not split)</span>
+                <?php else: ?>
+                  <?php foreach ($i['siblings'] as $s): ?>
+                    <a href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no']) ?>">Mandate <?= (int) $s['split_no'] ?> (<?= format_money((float) $s['amount']) ?>)</a><br>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted small mb-0">An installment that was split is carried by one mandate per part, all collected on the same date; each part&rsquo;s other mandate is listed under &ldquo;Also Carried By&rdquo;.</p>
+  </div>
+</div>

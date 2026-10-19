@@ -89,15 +89,37 @@ class DebitOrderSplitLegInstallment extends Model
         );
     }
 
-    /** Every loan_schedules id carried by a still-live (not merged, not cancelled) lane of this debit order. */
-    public function liveCoveredScheduleIds(int $debitOrderId): array
+    /**
+     * Which Collexia mandate(s) carry each loan installment of this debit
+     * order -- one entry for an unsplit installment, several when it was
+     * split (each part rides in its own mandate). Covers both a lane (an
+     * installment of a mandate carrying several) and a one-off leg (a
+     * mandate for a single installment).
+     *
+     * @return array<int, array<int, array>> carriers grouped by loan_schedules id, mandates in split_no order
+     */
+    public function carriersBySchedule(int $debitOrderId): array
     {
-        return array_map('intval', array_column($this->all(
-            "SELECT DISTINCT li.schedule_id
+        $rows = $this->all(
+            "SELECT li.schedule_id, sl.id AS leg_id, sl.split_no, sl.total_splits, sl.collexia_api_contract_reference AS contract_reference,
+                    sl.collexia_api_status AS status, li.installment_no AS mandate_installment_no,
+                    li.planned_date, li.collexia_date, li.planned_amount AS amount, li.applied_at
              FROM debit_order_split_leg_installments li
              JOIN debit_order_split_legs sl ON sl.id = li.leg_id
-             WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL AND sl.collexia_api_status != 'Cancelled'",
-            [$debitOrderId]
-        ), 'schedule_id'));
+             WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL
+             UNION ALL
+             SELECT sl.schedule_id, sl.id, sl.split_no, sl.total_splits, sl.collexia_api_contract_reference,
+                    sl.collexia_api_status, 1, sl.collection_date, NULL, sl.leg_amount, NULL
+             FROM debit_order_split_legs sl
+             WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL AND sl.schedule_id IS NOT NULL
+             ORDER BY schedule_id, split_no",
+            [$debitOrderId, $debitOrderId]
+        );
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[(int) $row['schedule_id']][] = $row;
+        }
+        return $grouped;
     }
 }
