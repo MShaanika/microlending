@@ -362,13 +362,36 @@ class DebitOrderController extends Controller
                 $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' must be collected on a future date (' . date('d M Y', strtotime($earliest)) . ' or later).';
                 break;
             }
-            $legs[] = ['schedule_id' => $scheduleId, 'installment_no' => (int) $row['installment_no'], 'amount' => round((float) $row['outstanding'], 2), 'date' => $date];
+            // Optionally divide this installment into parts -- every part is
+            // its own mandate, collected on this same installment date.
+            $outstanding = round((float) $row['outstanding'], 2);
+            $parts = max(1, (int) ($_POST['split_counts'][$scheduleId] ?? 1));
+            if ($parts > 10) {
+                $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' can be split into at most 10 parts.';
+                break;
+            }
+            if ($parts === 1) {
+                $amounts = [$outstanding];
+            } else {
+                $amounts = array_map(fn ($a) => round((float) $a, 2), array_values((array) ($_POST['split_amounts'][$scheduleId] ?? [])));
+                if (count($amounts) !== $parts || in_array(true, array_map(fn ($a) => $a <= 0, $amounts), true)) {
+                    $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ': enter a positive amount for every part.';
+                    break;
+                }
+                if (abs(round(array_sum($amounts), 2) - $outstanding) > 0.01) {
+                    $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ': the parts (' . format_money(round(array_sum($amounts), 2)) . ') must add up to the installment amount (' . format_money($outstanding) . ') exactly.';
+                    break;
+                }
+            }
+            foreach ($amounts as $partIndex => $partAmount) {
+                $legs[] = ['schedule_id' => $scheduleId, 'installment_no' => (int) $row['installment_no'], 'amount' => $partAmount, 'date' => $date, 'parts' => $parts, 'installment_amount' => $outstanding];
+            }
         }
         if (empty($errors['installments'])) {
             if (!$legs) {
                 $errors['installments'] = 'Tick at least one installment to collect.';
             } elseif (count($legs) > 26) {
-                $errors['installments'] = 'At most 26 installments can be placed on one debit order.';
+                $errors['installments'] = 'At most 26 mandates (installments plus their parts) can be placed on one debit order.';
             }
         }
 
@@ -399,7 +422,7 @@ class DebitOrderController extends Controller
             'account_number' => trim($_POST['account_number']),
             'branch_code' => trim($_POST['branch_code'] ?? '') ?: null,
             'debit_day' => (int) date('j', strtotime($first['date'])),
-            'debit_amount' => $first['amount'],
+            'debit_amount' => $first['installment_amount'],
             'start_date' => $first['date'],
             'status' => 'Active',
             'id_type' => 1,
@@ -415,23 +438,23 @@ class DebitOrderController extends Controller
 
         $summary = [];
         foreach ($legs as $i => $leg) {
-            $this->splitLegs->upsert($debitOrderId, $i + 1, $leg['amount'], 1, $leg['schedule_id'], $leg['date']);
-            $summary[] = '#' . $leg['installment_no'] . ' ' . format_money($leg['amount']) . ' on ' . $leg['date'];
+            $this->splitLegs->upsert($debitOrderId, $i + 1, $leg['amount'], $leg['parts'], $leg['schedule_id'], $leg['date']);
+            $summary[] = '#' . $leg['installment_no'] . ($leg['parts'] > 1 ? ' (part)' : '') . ' ' . format_money($leg['amount']) . ' on ' . $leg['date'];
         }
 
         Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']
-            . ' as one mandate per scheduled installment: ' . implode('; ', $summary));
+            . ' as one mandate per scheduled installment (' . count($legs) . ' mandate(s)): ' . implode('; ', $summary));
 
         $collexia = new CollexiaSetting();
         if (!empty($_POST['place_now']) && $collexia->isEnabled() && $collexia->isConfigured()) {
-            Session::flash('success', 'Debit order registered with ' . count($legs) . ' installment(s). Sending them to Collexia now.');
+            Session::flash('success', 'Debit order registered with ' . count($legs) . ' mandate(s). Sending them to Collexia now.');
             // Same POST, same CSRF token -- placeMandate() validates it
             // itself, places every leg, then redirects to the debit order.
             (new DebitOrderCollexiaController())->placeMandate((string) $debitOrderId);
             return;
         }
 
-        Session::flash('success', 'Debit order registered with ' . count($legs) . ' installment(s). Use Place Mandate to send them to Collexia.');
+        Session::flash('success', 'Debit order registered with ' . count($legs) . ' mandate(s). Use Place Mandate to send them to Collexia.');
         $this->redirect('/debit-orders/' . $debitOrderId);
     }
 

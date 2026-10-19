@@ -87,11 +87,11 @@
         <?php if (empty($installments)): ?>
           <div class="alert alert-warning">This loan has no unpaid installments left to collect.</div>
         <?php else: ?>
-          <?php $tomorrow = date('Y-m-d', strtotime('+1 day')); $posted = (array) ($old['installment_ids'] ?? []); $postedDates = (array) ($old['collection_dates'] ?? []); ?>
+          <?php $tomorrow = date('Y-m-d', strtotime('+1 day')); $posted = (array) ($old['installment_ids'] ?? []); $postedDates = (array) ($old['collection_dates'] ?? []); $postedCounts = (array) ($old['split_counts'] ?? []); $postedAmounts = (array) ($old['split_amounts'] ?? []); ?>
           <div class="fw-semibold mb-1">Installments to collect <span class="text-muted small fw-normal">(none of these has a mandate yet)</span></div>
           <div class="table-responsive">
             <table class="table table-sm align-middle">
-              <thead><tr><th style="width:40px"><input type="checkbox" id="inst_all" checked></th><th>#</th><th>Scheduled Date</th><th class="text-end">Amount</th><th>Collect On</th><th>Note</th></tr></thead>
+              <thead><tr><th style="width:40px"><input type="checkbox" id="inst_all" checked></th><th>#</th><th>Scheduled Date</th><th class="text-end">Amount</th><th>Collect On</th><th>Parts</th><th>Note</th></tr></thead>
               <tbody>
               <?php foreach ($installments as $row): ?>
                 <?php
@@ -100,6 +100,7 @@
                   $defaultDate = $pastDue ? $tomorrow : $row['due_date'];
                   $checked = empty($posted) ? true : in_array((string) $sid, array_map('strval', $posted), true);
                   $dateVal = $postedDates[$sid] ?? $defaultDate;
+                  $partCount = max(1, min(10, (int) ($postedCounts[$sid] ?? 1)));
                 ?>
                 <tr>
                   <td><input type="checkbox" class="inst-check" name="installment_ids[]" value="<?= $sid ?>" <?= $checked ? 'checked' : '' ?>></td>
@@ -107,13 +108,21 @@
                   <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
                   <td class="text-end"><?= format_money((float) $row['outstanding']) ?></td>
                   <td><input type="date" name="collection_dates[<?= $sid ?>]" min="<?= e($tomorrow) ?>" value="<?= e($dateVal) ?>" class="form-control form-control-sm" style="max-width:170px"></td>
+                  <td><input type="number" min="1" max="10" name="split_counts[<?= $sid ?>]" value="<?= $partCount ?>" class="form-control form-control-sm part-count" style="max-width:70px" data-sid="<?= $sid ?>" title="Divide this installment into parts, all collected on the same date"></td>
                   <td class="small text-muted"><?= $pastDue ? 'Already due -- moved to the earliest date Collexia accepts' : ($row['status'] === 'Partial' ? 'Partly paid -- only the balance is collected' : 'On schedule') ?></td>
+                </tr>
+                <tr class="parts-row d-none" id="parts_row_<?= $sid ?>" data-sid="<?= $sid ?>" data-outstanding="<?= e((string) $row['outstanding']) ?>" data-old="<?= e(json_encode(array_map('strval', array_values((array) ($postedAmounts[$sid] ?? []))))) ?>">
+                  <td></td>
+                  <td colspan="6">
+                    <div class="small text-muted mb-1">Parts of installment #<?= (int) $row['installment_no'] ?> &mdash; each is its own mandate, all collected on the date above. <span class="fw-semibold">Remaining to allocate: <span class="parts-remaining">&mdash;</span></span></div>
+                    <div class="parts-inputs d-flex flex-wrap gap-2"></div>
+                  </td>
                 </tr>
               <?php endforeach; ?>
               </tbody>
             </table>
           </div>
-          <div class="form-text">Each ticked installment is sent to Collexia as its own one-time mandate for the amount shown, collected on the date in &ldquo;Collect On&rdquo;. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
+          <div class="form-text">Each ticked installment is sent to Collexia as its own one-time mandate for the amount shown, collected on the date in &ldquo;Collect On&rdquo;. Set Parts above 1 to divide an installment into several mandates that are all collected on that same date. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
         <?php endif; ?>
       </div>
 
@@ -243,6 +252,50 @@
   document.getElementById('mode_legacy').addEventListener('change', applyMode);
   document.getElementById('mode_per_installment').addEventListener('change', applyMode);
   applyMode();
+
+  function moneyFmt(n) { return (Math.round(n * 100) / 100).toFixed(2); }
+  function renderParts(sid) {
+    var input = document.querySelector('.part-count[data-sid="' + sid + '"]');
+    var row = document.getElementById('parts_row_' + sid);
+    if (!input || !row) { return; }
+    var count = Math.max(1, Math.min(10, parseInt(input.value, 10) || 1));
+    input.value = count;
+    if (count === 1) { row.classList.add('d-none'); row.querySelector('.parts-inputs').innerHTML = ''; return; }
+    var outstanding = parseFloat(row.dataset.outstanding) || 0;
+    var box = row.querySelector('.parts-inputs');
+    var old = []; try { old = JSON.parse(row.dataset.old || '[]'); } catch (e) {}
+    var existing = Array.prototype.map.call(box.querySelectorAll('input'), function (i) { return i.value; });
+    var base = Math.floor(outstanding / count * 100) / 100;
+    box.innerHTML = '';
+    for (var i = 0; i < count; i++) {
+      var v = existing.length === count ? existing[i] : (old.length === count ? old[i] : moneyFmt(i === count - 1 ? outstanding - base * (count - 1) : base));
+      var el = document.createElement('input');
+      el.type = 'number'; el.step = '0.01'; el.min = '0.01'; el.required = true;
+      el.name = 'split_amounts[' + sid + '][]'; el.value = v;
+      el.className = 'form-control form-control-sm'; el.style.maxWidth = '110px';
+      box.appendChild(el);
+    }
+    row.classList.remove('d-none');
+    recalcParts(sid);
+  }
+  function recalcParts(sid) {
+    var row = document.getElementById('parts_row_' + sid);
+    if (!row) { return; }
+    var outstanding = parseFloat(row.dataset.outstanding) || 0;
+    var sum = 0;
+    row.querySelectorAll('.parts-inputs input').forEach(function (i) { sum += parseFloat(i.value) || 0; });
+    var rem = Math.round((outstanding - sum) * 100) / 100;
+    var el = row.querySelector('.parts-remaining');
+    el.textContent = 'N$' + moneyFmt(rem);
+    el.className = 'parts-remaining ' + (Math.abs(rem) < 0.01 ? 'text-success' : 'text-danger');
+  }
+  document.querySelectorAll('.part-count').forEach(function (i) {
+    i.addEventListener('input', function () { renderParts(i.dataset.sid); });
+    renderParts(i.dataset.sid);
+  });
+  document.querySelectorAll('.parts-row').forEach(function (r) {
+    r.addEventListener('input', function (e) { if (e.target.name && e.target.name.indexOf('split_amounts') === 0) { recalcParts(r.dataset.sid); } });
+  });
 
   var allBox = document.getElementById('inst_all');
   if (allBox) {
