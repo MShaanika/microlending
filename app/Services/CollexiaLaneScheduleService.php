@@ -40,29 +40,33 @@ class CollexiaLaneScheduleService
     }
 
     /**
-     * @return array{success: bool, updated: int, message: string}
+     * rejected = Collexia answered with an API error (it refused the change,
+     * e.g. two installments of one mandate on the same date) as opposed to a
+     * network/config failure that is worth retrying unchanged.
+     *
+     * @return array{success: bool, updated: int, message: string, rejected: bool}
      */
     public function apply(array $leg, array $debitOrder, string $frontEndUserName): array
     {
         $legId = (int) $leg['id'];
         $rows = $this->laneInstallments->forLeg($legId);
         if (!$rows) {
-            return ['success' => true, 'updated' => 0, 'message' => ''];
+            return ['success' => true, 'updated' => 0, 'message' => '', 'rejected' => false];
         }
 
         $pending = array_filter($rows, fn ($r) => $r['applied_at'] === null);
         if (!$pending) {
-            return ['success' => true, 'updated' => 0, 'message' => ''];
+            return ['success' => true, 'updated' => 0, 'message' => '', 'rejected' => false];
         }
         if (empty($leg['collexia_api_contract_reference'])) {
-            return ['success' => false, 'updated' => 0, 'message' => 'This lane has not been placed yet.'];
+            return ['success' => false, 'updated' => 0, 'message' => 'This lane has not been placed yet.', 'rejected' => false];
         }
 
         try {
             $client = ($this->clientFactory)();
             $response = $client->installmentRequest((string) $leg['collexia_api_contract_reference']);
         } catch (\RuntimeException $e) {
-            return ['success' => false, 'updated' => 0, 'message' => $e->getMessage()];
+            return ['success' => false, 'updated' => 0, 'message' => $e->getMessage(), 'rejected' => false];
         }
 
         $actual = self::actualInstallments($response['installments'] ?? []);
@@ -101,7 +105,7 @@ class CollexiaLaneScheduleService
             try {
                 $client->updateInstallment(array_values($updates), $frontEndUserName);
             } catch (\RuntimeException $e) {
-                return ['success' => false, 'updated' => 0, 'message' => $e->getMessage()];
+                return ['success' => false, 'updated' => 0, 'message' => $e->getMessage(), 'rejected' => $e instanceof CollexiaApiException];
             }
         }
 
@@ -115,7 +119,7 @@ class CollexiaLaneScheduleService
             }
         }
 
-        return ['success' => true, 'updated' => count($updates), 'message' => ''];
+        return ['success' => true, 'updated' => count($updates), 'message' => '', 'rejected' => false];
     }
 
     /**

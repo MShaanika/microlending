@@ -62,6 +62,66 @@ class SplitLanePlanner
     }
 
     /**
+     * Everything in ONE mandate: every installment of the loan, with each part
+     * of a split installment as its own installment of that same mandate on
+     * the same collection date. Three installments with the middle one split
+     * in two is one mandate of four installments. Same output shape as plan()
+     * (a list with a single lane) so callers store and place it identically.
+     *
+     * Whether Collexia accepts two installments of one mandate on the same
+     * date is its call; when it refuses, the caller falls back to plan()
+     * (one mandate per part) -- see DebitOrderCollexiaController.
+     *
+     * @param array<int, array{schedule_id: int, loan_installment_no: int, date: string, amounts: float[]}> $installments
+     */
+    public static function planSingle(array $installments): array
+    {
+        $entries = [];
+        foreach ($installments as $row) {
+            foreach ($row['amounts'] as $amount) {
+                $entries[] = [
+                    'installment_no' => count($entries) + 1,
+                    'schedule_id' => (int) $row['schedule_id'],
+                    'loan_installment_no' => (int) $row['loan_installment_no'],
+                    'date' => $row['date'],
+                    'amount' => round((float) $amount, 2),
+                ];
+            }
+        }
+        if (!$entries) {
+            return [];
+        }
+
+        return [[
+            'lane' => 1,
+            'amount' => max(array_column($entries, 'amount')),
+            'first_date' => $entries[0]['date'],
+            'installments' => $entries,
+        ]];
+    }
+
+    /**
+     * The inverse: the plan() input rebuilt from a stored mandate's installment
+     * rows (debit_order_split_leg_installments), so a single mandate Collexia
+     * refused can be re-planned as one mandate per part without asking staff
+     * to re-enter anything.
+     *
+     * @param array<int, array{schedule_id: mixed, loan_installment_no: mixed, planned_date: string, planned_amount: mixed}> $laneRows in Collexia installment order
+     */
+    public static function rowsFromLaneRows(array $laneRows): array
+    {
+        $rows = [];
+        foreach ($laneRows as $row) {
+            $key = (int) $row['schedule_id'];
+            if (!isset($rows[$key])) {
+                $rows[$key] = ['schedule_id' => $key, 'loan_installment_no' => (int) $row['loan_installment_no'], 'date' => $row['planned_date'], 'amounts' => []];
+            }
+            $rows[$key]['amounts'][] = round((float) $row['planned_amount'], 2);
+        }
+        return array_values($rows);
+    }
+
+    /**
      * Which of a mandate's installments need a Collexia update to match the
      * plan: any whose scheduled date or amount differs from what Collexia
      * currently holds. Both lists are keyed by Collexia's installment number.
@@ -77,7 +137,13 @@ class SplitLanePlanner
             if (!isset($actual[$no])) {
                 continue;
             }
-            if ($actual[$no]['date'] !== $plan['date'] || abs($actual[$no]['amount'] - $plan['amount']) > 0.004) {
+            // Collexia does not process on a Sunday and moves such an installment to the
+            // Monday itself -- that is not a mismatch worth fighting every run.
+            $acceptable = [$plan['date']];
+            if ((int) date('N', strtotime($plan['date'])) === 7) {
+                $acceptable[] = date('Y-m-d', strtotime($plan['date'] . ' +1 day'));
+            }
+            if (!in_array($actual[$no]['date'], $acceptable, true) || abs($actual[$no]['amount'] - $plan['amount']) > 0.004) {
                 $needs[] = (int) $no;
             }
         }

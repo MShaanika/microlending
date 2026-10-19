@@ -79,12 +79,12 @@ class SplitLanePlannerTest extends TestCase
         $planned = [
             1 => ['date' => '2026-11-17', 'amount' => 27.57],
             2 => ['date' => '2026-12-17', 'amount' => 17.57],
-            3 => ['date' => '2027-01-17', 'amount' => 27.57],
+            3 => ['date' => '2027-01-19', 'amount' => 27.57],
         ];
         $actual = [
             1 => ['date' => '2026-11-17', 'amount' => 27.57],
             2 => ['date' => '2026-12-17', 'amount' => 27.57],
-            3 => ['date' => '2027-01-18', 'amount' => 27.57],
+            3 => ['date' => '2027-01-20', 'amount' => 27.57],
         ];
         $this->assertSame([2, 3], SplitLanePlanner::installmentsNeedingUpdate($planned, $actual));
         $this->assertSame([], SplitLanePlanner::installmentsNeedingUpdate($planned, $planned));
@@ -101,5 +101,50 @@ class SplitLanePlannerTest extends TestCase
         $this->assertSame('2026-11-17', $actual[1]['date']);
         $this->assertSame('2026-12-17', $actual[2]['date']);
         $this->assertSame(11, $actual[2]['intId']);
+    }
+    public function testSingleMandateCarriesEverythingWithSplitPartsAsExtraInstallments(): void
+    {
+        $lanes = SplitLanePlanner::planSingle([
+            $this->row(5, 2, '2026-11-17', [13.78, 13.79]),
+            $this->row(6, 3, '2026-12-17', [27.57]),
+            $this->row(7, 4, '2027-01-17', [9.19, 9.19, 9.19]),
+        ]);
+
+        $this->assertCount(1, $lanes, 'One mandate, however many parts');
+        $entries = $lanes[0]['installments'];
+        $this->assertSame([1, 2, 3, 4, 5, 6], array_column($entries, 'installment_no'));
+        $this->assertSame([5, 5, 6, 7, 7, 7], array_column($entries, 'schedule_id'), 'Parts of one installment point at the same loan installment');
+        $this->assertSame([13.78, 13.79, 27.57, 9.19, 9.19, 9.19], array_column($entries, 'amount'));
+        $this->assertSame('2026-11-17', $entries[1]['date'], 'A part keeps its own installment date');
+        $this->assertSame(27.57, $lanes[0]['amount']);
+        $this->assertSame([], SplitLanePlanner::planSingle([]));
+    }
+
+    public function testASingleMandateCanBeReplannedAsOneMandatePerPart(): void
+    {
+        $single = SplitLanePlanner::planSingle([
+            $this->row(5, 2, '2026-11-17', [13.78, 13.79]),
+            $this->row(6, 3, '2026-12-17', [27.57]),
+        ]);
+        $laneRows = array_map(fn ($e) => [
+            'schedule_id' => $e['schedule_id'], 'loan_installment_no' => $e['loan_installment_no'],
+            'planned_date' => $e['date'], 'planned_amount' => $e['amount'],
+        ], $single[0]['installments']);
+
+        $lanes = SplitLanePlanner::plan(SplitLanePlanner::rowsFromLaneRows($laneRows));
+
+        $this->assertCount(2, $lanes, 'Two parts for installment 2 become two mandates');
+        $this->assertSame([13.78, 27.57], array_column($lanes[0]['installments'], 'amount'));
+        $this->assertSame([13.79], array_column($lanes[1]['installments'], 'amount'));
+    }
+    public function testASundayInstallmentCollexiaMovedToMondayIsNotAMismatch(): void
+    {
+        $planned = [1 => ['date' => '2027-01-17', 'amount' => 27.57]];   // a Sunday
+        $this->assertSame([], SplitLanePlanner::installmentsNeedingUpdate($planned, [1 => ['date' => '2027-01-18', 'amount' => 27.57]]));
+        $this->assertSame([1], SplitLanePlanner::installmentsNeedingUpdate($planned, [1 => ['date' => '2027-01-19', 'amount' => 27.57]]), 'Only the next day is accepted');
+        $this->assertSame([1], SplitLanePlanner::installmentsNeedingUpdate($planned, [1 => ['date' => '2027-01-18', 'amount' => 27.00]]), 'An amount difference still counts');
+
+        $weekday = [1 => ['date' => '2027-01-19', 'amount' => 27.57]];   // a Tuesday: no tolerance
+        $this->assertSame([1], SplitLanePlanner::installmentsNeedingUpdate($weekday, [1 => ['date' => '2027-01-20', 'amount' => 27.57]]));
     }
 }

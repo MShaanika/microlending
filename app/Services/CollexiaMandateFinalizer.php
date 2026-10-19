@@ -41,11 +41,16 @@ class CollexiaMandateFinalizer
     }
 
     /**
-     * @return array{checked: int, registered: int, failed: int, pending: int, warnings: string[]}
+     * rejected lists the mandates (leg rows) Collexia registered but then REFUSED
+     * to set to their planned dates/amounts -- e.g. two installments of one
+     * mandate on the same date. The caller decides what to do about those
+     * (DebitOrderCollexiaController re-places them as one mandate per part).
+     *
+     * @return array{checked: int, registered: int, failed: int, pending: int, warnings: string[], rejected: array<int, array>}
      */
     public function finalizeDebitOrder(array $debitOrder, string $frontEndUserName, int $maxPendingMinutes = 15): array
     {
-        $result = ['checked' => 0, 'registered' => 0, 'failed' => 0, 'pending' => 0, 'warnings' => []];
+        $result = ['checked' => 0, 'registered' => 0, 'failed' => 0, 'pending' => 0, 'warnings' => [], 'rejected' => []];
         $id = (int) $debitOrder['id'];
 
         foreach ($this->splitLegs->activeForDebitOrder($id) as $leg) {
@@ -76,6 +81,9 @@ class CollexiaMandateFinalizer
                     $applied = (new CollexiaLaneScheduleService($this->clientFactory))->apply($leg, $debitOrder, $frontEndUserName);
                     if (!$applied['success']) {
                         $result['warnings'][] = 'Mandate ' . (int) $leg['split_no'] . ' dates/amounts: ' . $applied['message'];
+                        if ($applied['rejected']) {
+                            $result['rejected'][] = $leg;
+                        }
                     }
                 }
                 continue;

@@ -246,10 +246,23 @@
                   <?php if (!$carried): ?>
                     <span class="text-muted small">Not placed with Collexia yet</span>
                   <?php else: ?>
+                    <?php
+                      // One link per MANDATE: parts of a split installment that ride in the
+                      // same mandate are totalled under it.
+                      $byMandate = [];
+                      foreach ($carried as $c) {
+                          $key = (int) $c['leg_id'];
+                          if (!isset($byMandate[$key])) {
+                              $byMandate[$key] = ['split_no' => (int) $c['split_no'], 'amount' => 0.0, 'parts' => 0];
+                          }
+                          $byMandate[$key]['amount'] += (float) $c['amount'];
+                          $byMandate[$key]['parts']++;
+                      }
+                    ?>
                     <?php if (count($carried) > 1): ?><span class="badge bg-info me-1">split in <?= count($carried) ?></span><?php endif; ?>
-                    <?php foreach ($carried as $c): ?>
-                      <a class="btn btn-sm btn-outline-primary py-0" href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $c['split_no']) ?>">
-                        Mandate <?= (int) $c['split_no'] ?> &middot; <?= format_money((float) $c['amount']) ?>
+                    <?php foreach ($byMandate as $m): ?>
+                      <a class="btn btn-sm btn-outline-primary py-0" href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . $m['split_no']) ?>">
+                        Mandate <?= $m['split_no'] ?> &middot; <?= format_money($m['amount']) ?><?= $m['parts'] > 1 ? ' (' . $m['parts'] . ' parts)' : '' ?>
                       </a>
                     <?php endforeach; ?>
                   <?php endif; ?>

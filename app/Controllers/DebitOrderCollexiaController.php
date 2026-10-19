@@ -22,6 +22,7 @@ use App\Services\CollexiaMandateCancellationService;
 use App\Services\CollexiaMandateFinalizer;
 use App\Services\CollexiaMandateStatusSyncService;
 use App\Support\CollexiaV3Codes;
+use App\Support\SplitLanePlanner;
 
 /**
  * Wires CollexiaEndoApiClient's mandate lifecycle (place/confirm/status/
@@ -121,7 +122,7 @@ class DebitOrderCollexiaController extends Controller
 
         if ((int) ($debitOrder['split_enabled'] ?? 0) === 1) {
             $this->placeSplitMandate($debitOrder, $banId);
-            $this->finalizeAfterPlacement($debitOrder);
+            $this->finalizeAfterPlacement($debitOrder, $banId);
         } else {
             $this->placeSingleMandate($debitOrder, $banId);
         }
@@ -130,21 +131,78 @@ class DebitOrderCollexiaController extends Controller
     }
 
     /**
-     * Right after placement, asks Collexia to confirm the new mandates and
-     * sets every installment to its exact date and amount, waiting a short
-     * while (up to ~20 seconds) because Collexia confirms asynchronously. If
-     * some are still confirming when it gives up they stay Load Pending and
+     * Right after placement, asks Collexia to confirm the new mandate and sets
+     * every installment to its exact date and amount, waiting a short while
+     * (up to ~20 seconds) because Collexia confirms asynchronously. If some are
+     * still confirming when it gives up they stay Load Pending and
      * bin/finalize_pending_collexia_mandates.php finishes them within minutes,
      * so staff never have to remember a separate "Check Final Fate" click.
+     *
+     * The loan goes to Collexia as ONE mandate with the split parts as extra
+     * installments on the same dates. If Collexia refuses to set those dates
+     * (it answered with an API error, not a network failure), the mandate is
+     * cancelled and the loan is re-placed as one mandate per split part --
+     * automatically, once.
      */
-    private function finalizeAfterPlacement(array $debitOrder): void
+    private function finalizeAfterPlacement(array $debitOrder, int $banId): void
+    {
+        $round = $this->waitForFinalization($debitOrder);
+        $registered = $round['registered'];
+        $failed = $round['failed'];
+        $pending = $round['pending'];
+        $warnings = $round['warnings'];
+        $separated = 0;
+
+        if ($round['rejected']) {
+            $registered -= count($round['rejected']); // registered, but then refused -- replaced below
+            $warnings = [];
+            foreach ($round['rejected'] as $refused) {
+                $fallback = $this->replaceWithSeparateMandates($debitOrder, $refused, $banId);
+                if ($fallback['ok']) {
+                    $separated += $fallback['mandates'];
+                } else {
+                    $warnings[] = $fallback['message'];
+                }
+            }
+            if ($separated > 0) {
+                $second = $this->waitForFinalization($debitOrder);
+                $registered += $second['registered'];
+                $failed += $second['failed'];
+                $pending = $second['pending'];
+                $warnings = array_merge($warnings, $second['warnings']);
+            }
+        }
+
+        if (!empty(($_SESSION['_flash']['error'] ?? null)) || ($registered + $pending + $failed + $separated) === 0) {
+            return; // placement itself already reported a problem, or nothing was waiting
+        }
+
+        $prefix = $separated > 0
+            ? 'Collexia would not accept installments that share a date inside one mandate, so this loan was placed as ' . $separated . ' separate mandates (one per split part) instead. '
+            : '';
+
+        if ($pending === 0 && $failed === 0 && !$warnings) {
+            Session::flash('success', $prefix . $registered . ' mandate(s) confirmed with Collexia and every installment set to its exact date and amount.');
+        } elseif ($pending > 0 && $failed === 0) {
+            Session::flash('success', $prefix . $registered . ' mandate(s) confirmed; ' . $pending . ' still being confirmed by Collexia -- they will finish automatically within a few minutes.');
+        } elseif ($failed > 0) {
+            Session::flash('error', $prefix . $failed . ' mandate(s) were not accepted by Collexia. See Split Transactions for details.');
+        } else {
+            Session::flash('error', $prefix . $registered . ' mandate(s) confirmed, but some dates/amounts could not be set yet (' . implode('; ', $warnings) . ') -- they will be retried automatically.');
+        }
+    }
+
+    /**
+     * One pass of "ask Collexia, wait, ask again" over this debit order's
+     * Load Pending mandates.
+     *
+     * @return array{registered: int, failed: int, pending: int, warnings: string[], rejected: array<int, array>}
+     */
+    private function waitForFinalization(array $debitOrder): array
     {
         $finalizer = new CollexiaMandateFinalizer();
         $user = $this->frontEndUserName();
-        $registered = 0;
-        $failed = 0;
-        $pending = 0;
-        $warnings = [];
+        $totals = ['registered' => 0, 'failed' => 0, 'pending' => 0, 'warnings' => [], 'rejected' => []];
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
             if ($attempt > 0) {
@@ -152,31 +210,108 @@ class DebitOrderCollexiaController extends Controller
             }
             $fresh = $this->debitOrders->find((int) $debitOrder['id']);
             if (!$fresh) {
-                return;
+                break;
             }
             $result = $finalizer->finalizeDebitOrder($fresh, $user);
-            $registered += $result['registered'];
-            $failed += $result['failed'];
-            $warnings = array_merge($warnings, $result['warnings']);
-            $pending = $result['pending'];
-            if ($result['checked'] === 0 || $pending === 0) {
+            $totals['registered'] += $result['registered'];
+            $totals['failed'] += $result['failed'];
+            $totals['warnings'] = array_merge($totals['warnings'], $result['warnings']);
+            $totals['rejected'] = array_merge($totals['rejected'], $result['rejected']);
+            $totals['pending'] = $result['pending'];
+            if ($result['checked'] === 0 || $result['pending'] === 0) {
                 break;
             }
         }
 
-        if (!empty(($_SESSION['_flash']['error'] ?? null)) || ($registered + $pending + $failed) === 0) {
-            return; // placement itself already reported a problem, or nothing was waiting
+        return $totals;
+    }
+
+    /**
+     * A single mandate Collexia refused (see finalizeAfterPlacement()),
+     * re-placed as one mandate per split part: the refused mandate is
+     * cancelled at Collexia, the loan's installments are re-planned from what
+     * that mandate carried (nothing for staff to re-enter), and the new
+     * mandates are placed. The refused row is kept as a record, folded into the
+     * first new mandate so it drops out of every live list.
+     *
+     * @return array{ok: bool, message: string, mandates: int}
+     */
+    private function replaceWithSeparateMandates(array $debitOrder, array $leg, int $banId): array
+    {
+        $id = (int) $debitOrder['id'];
+        $lanes = SplitLanePlanner::plan(SplitLanePlanner::rowsFromLaneRows($this->laneInstallments->forLeg((int) $leg['id'])));
+        if (count($lanes) < 2) {
+            return ['ok' => false, 'message' => 'Mandate ' . (int) $leg['split_no'] . ' has no split parts to separate.', 'mandates' => 0];
         }
 
-        if ($pending === 0 && $failed === 0 && !$warnings) {
-            Session::flash('success', $registered . ' mandate(s) confirmed with Collexia and every installment set to its exact date and amount.');
-        } elseif ($pending > 0) {
-            Session::flash('success', $registered . ' mandate(s) confirmed; ' . $pending . ' still being confirmed by Collexia -- they will finish automatically within a few minutes.');
-        } elseif ($failed > 0) {
-            Session::flash('error', $failed . ' mandate(s) were not accepted by Collexia. See Split Transactions for details.');
-        } else {
-            Session::flash('error', $registered . ' mandate(s) confirmed, but some dates/amounts could not be set yet (' . implode('; ', $warnings) . ') -- they will be retried automatically.');
+        try {
+            (new CollexiaEndoApiClient())->cancelMandate((string) $leg['collexia_api_contract_reference'], $this->frontEndUserName());
+        } catch (\RuntimeException $e) {
+            return ['ok' => false, 'message' => 'Could not cancel the refused mandate at Collexia: ' . $e->getMessage(), 'mandates' => 0];
         }
+
+        $splitNo = $this->splitLegs->nextSplitNo($id);
+        $firstNew = null;
+        foreach ($lanes as $lane) {
+            $newLegId = $this->splitLegs->upsert($id, $splitNo, $lane['amount'], count($lanes), null, $lane['first_date']);
+            foreach ($lane['installments'] as $item) {
+                $this->laneInstallments->add($newLegId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount']);
+            }
+            $firstNew ??= $newLegId;
+            $splitNo++;
+        }
+
+        $this->splitLegs->updateById((int) $leg['id'], [
+            'collexia_api_status' => 'Cancelled',
+            'merged_into_id' => $firstNew,
+            'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+            'collexia_api_last_response' => json_encode(['note' => 'Cancelled and replaced by one mandate per split part: Collexia would not set the planned dates/amounts on a single mandate.']),
+        ]);
+        Audit::log('Update', 'Debit Orders', 'Debit order #' . $id . ' mandate ' . (int) $leg['split_no'] . ' refused by Collexia; re-placed as ' . count($lanes) . ' separate mandates (one per split part)');
+
+        $this->placeSplitMandate($debitOrder, $banId);
+
+        return ['ok' => true, 'message' => '', 'mandates' => count($lanes)];
+    }
+
+    /**
+     * Staff-triggered version of the same fallback, for a single mandate that
+     * Collexia registered but would not set to its planned dates/amounts after
+     * the page had stopped waiting (the automatic retry keeps being refused).
+     */
+    public function separateMandate(string $id, string $splitNo): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        $redirectTo = '/debit-orders/' . $id . '/split-transactions/' . $splitNo;
+        if (!$this->verifyCsrfOrRedirect($id, $redirectTo)) {
+            return;
+        }
+        $split = $this->findLiveSplitOr404((int) $id, (int) $splitNo, '/debit-orders/' . $id . '/split-transactions');
+        if (!$split) {
+            return;
+        }
+        if (!in_array($split['collexia_api_status'], ['Registered', 'Load Pending'], true) || !$this->laneInstallments->isLane((int) $split['id'])) {
+            Session::flash('error', 'Only a live mandate carrying split installments can be separated.');
+            $this->redirect($redirectTo);
+            return;
+        }
+        $banId = $this->resolveBanIdOrFlash($debitOrder, $redirectTo);
+        if (!$banId) {
+            return;
+        }
+
+        $result = $this->replaceWithSeparateMandates($debitOrder, $split, $banId);
+        if ($result['ok']) {
+            $round = $this->waitForFinalization($debitOrder);
+            Session::flash('success', 'Re-placed as ' . $result['mandates'] . ' separate mandates (one per split part); ' . $round['registered'] . ' confirmed' . ($round['pending'] > 0 ? ', ' . $round['pending'] . ' still confirming (they finish automatically).' : '.'));
+        } else {
+            Session::flash('error', $result['message']);
+        }
+        $this->redirect('/debit-orders/' . $id . '/split-transactions');
     }
 
     /**
@@ -1019,10 +1154,22 @@ class DebitOrderCollexiaController extends Controller
                 if ((int) $c['leg_id'] !== (int) $split['id']) {
                     continue;
                 }
+                // The parts of a split installment that ride in THIS mandate
+                // (each is its own installment of it, on the same date).
+                $sameMandate = array_values(array_filter($list, fn ($o) => (int) $o['leg_id'] === (int) $split['id']));
+                usort($sameMandate, fn ($a, $b) => (int) $a['mandate_installment_no'] <=> (int) $b['mandate_installment_no']);
+                $position = 1;
+                foreach ($sameMandate as $index => $o) {
+                    if ((int) $o['mandate_installment_no'] === (int) $c['mandate_installment_no']) {
+                        $position = $index + 1;
+                    }
+                }
                 $items[] = $c + [
                     'loan_installment_no' => $schedule[$scheduleId]['installment_no'] ?? null,
                     'due_date' => $schedule[$scheduleId]['due_date'] ?? null,
                     'loan_status' => $schedule[$scheduleId]['status'] ?? null,
+                    'parts' => count($sameMandate),
+                    'part_no' => $position,
                     'siblings' => array_values(array_filter($list, fn ($o) => (int) $o['leg_id'] !== (int) $split['id'])),
                 ];
             }

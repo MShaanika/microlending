@@ -264,6 +264,96 @@ class CollexiaLaneFlowTest extends TestCase
         $this->assertSame('Load Failed', (new DebitOrderSplitLeg())->activeForDebitOrder($this->debitOrderId)[0]['collexia_api_status']);
     }
 
+    private function refusingFakeClient(\Throwable $error): object
+    {
+        return new class($error) {
+            public function __construct(private \Throwable $error)
+            {
+            }
+
+            public function installmentRequest(string $ref): array
+            {
+                return ['installments' => [
+                    ['intId' => 1, 'installmentNo' => 1, 'scheduledDate' => '20261117', 'installmentAmount' => 27.57, 'status' => 1],
+                    ['intId' => 2, 'installmentNo' => 2, 'scheduledDate' => '20261217', 'installmentAmount' => 27.57, 'status' => 1],
+                    ['intId' => 3, 'installmentNo' => 3, 'scheduledDate' => '20270117', 'installmentAmount' => 27.57, 'status' => 1],
+                ]];
+            }
+
+            public function updateInstallment(array $installments, string $user): array
+            {
+                throw $this->error;
+            }
+        };
+    }
+
+    public function testACollexiaRefusalIsReportedAsARefusalButANetworkFailureIsNot(): void
+    {
+        $built = $this->buildLane();
+        $refusal = new \App\Services\CollexiaApiException([['rcoId' => 10568, 'code' => 'E', 'message' => 'Update declined']], 400, 'declined');
+
+        $refused = (new CollexiaLaneScheduleService(fn () => $this->refusingFakeClient($refusal)))->apply($built['leg'], $built['debitOrder'], 'tester');
+        $this->assertFalse($refused['success']);
+        $this->assertTrue($refused['rejected'], 'An API error means Collexia refused the change');
+
+        $network = (new CollexiaLaneScheduleService(fn () => $this->refusingFakeClient(new \RuntimeException('Failed to reach the Collexia API'))))->apply($built['leg'], $built['debitOrder'], 'tester');
+        $this->assertFalse($network['success']);
+        $this->assertFalse($network['rejected'], 'A network failure is retried unchanged, never treated as a refusal');
+    }
+
+    public function testFinalizerReportsTheMandateCollexiaRefusedSoItCanBeReplaced(): void
+    {
+        $built = $this->buildLane();
+        (new DebitOrderSplitLeg())->updateState($this->debitOrderId, 1, ['collexia_api_status' => 'Load Pending', 'collexia_api_synced_at' => date('Y-m-d H:i:s')]);
+        $refusal = new \App\Services\CollexiaApiException([['rcoId' => 10568, 'code' => 'E', 'message' => 'Update declined']], 400, 'declined');
+        $client = new class($refusal) {
+            public function __construct(private \Throwable $error)
+            {
+            }
+
+            public function requestFinalFate(string $ref, string $user): array
+            {
+                return ['mandateLoaded' => true];
+            }
+
+            public function installmentRequest(string $ref): array
+            {
+                return ['installments' => [['intId' => 1, 'installmentNo' => 1, 'scheduledDate' => '20261118', 'installmentAmount' => 27.57, 'status' => 1]]];
+            }
+
+            public function updateInstallment(array $installments, string $user): array
+            {
+                throw $this->error;
+            }
+        };
+
+        $result = (new \App\Services\CollexiaMandateFinalizer(fn () => $client))->finalizeDebitOrder($built['debitOrder'], 'tester');
+
+        $this->assertSame(1, $result['registered']);
+        $this->assertCount(1, $result['rejected']);
+        $this->assertSame((int) $built['leg']['id'], (int) $result['rejected'][0]['id']);
+    }
+
+    public function testTwoInstallmentsOfOneMandateCanSettleTheSameLoanInstallment(): void
+    {
+        $built = $this->buildLane();
+        $this->db->prepare('DELETE FROM debit_order_split_leg_installments WHERE leg_id = ?')->execute([(int) $built['leg']['id']]);
+        $rows = new DebitOrderSplitLegInstallment();
+        $rows->add((int) $built['leg']['id'], 1, $this->scheduleIds[0], '2026-11-17', 13.78);
+        $rows->add((int) $built['leg']['id'], 2, $this->scheduleIds[0], '2026-11-17', 13.79);
+        $rows->add((int) $built['leg']['id'], 3, $this->scheduleIds[1], '2026-12-17', 27.57);
+
+        $lookup = new CollexiaMandateLookupService();
+        $mandate = $lookup->resolve($built['leg']['collexia_api_contract_reference']);
+        $this->assertSame($this->scheduleIds[0], $lookup->scheduleIdFor($mandate, 1));
+        $this->assertSame($this->scheduleIds[0], $lookup->scheduleIdFor($mandate, 2), 'Both parts settle the same loan installment');
+        $this->assertSame($this->scheduleIds[1], $lookup->scheduleIdFor($mandate, 3));
+
+        $carriers = $rows->carriersBySchedule($this->debitOrderId);
+        $this->assertCount(2, $carriers[$this->scheduleIds[0]]);
+        $this->assertSame((int) $built['leg']['id'], (int) $carriers[$this->scheduleIds[0]][0]['leg_id']);
+        $this->assertSame((int) $built['leg']['id'], (int) $carriers[$this->scheduleIds[0]][1]['leg_id'], 'Same mandate carries both parts');
+    }
     public function testNextUncoveredInstallmentSkipsEverythingALaneCarries(): void
     {
         $this->buildLane();

@@ -321,21 +321,6 @@ class DebitOrderController extends Controller
     }
 
     /**
-     * Every selected unpaid installment goes into ONE Collexia mandate per
-     * split part (a "lane"): three installments with no split are a single
-     * mandate carrying all three, and three installments each split in two
-     * are two mandates of three installments each -- not six one-off
-     * mandates. Installments needn't be split alike; see SplitLanePlanner.
-     *
-     * Each lane is a debit_order_split_legs row with no single schedule_id; the
-     * installments it carries (and the exact date/amount each should collect)
-     * live in debit_order_split_leg_installments. Collexia loads a mandate
-     * with a monthly rule and one amount, so once it confirms registration
-     * CollexiaLaneScheduleService moves each installment to its true
-     * amortization date and amount. With place_now set, the lanes are sent
-     * to Collexia straight away.
-     */
-    /**
      * Where the loan now disagrees with what its live mandates will still
      * collect: an upcoming installment whose balance changed since the
      * mandate was placed (a part payment, a reschedule, a top-up), or one that
@@ -376,6 +361,23 @@ class DebitOrderController extends Controller
         return $this->collexiaSettings->isEnabled() && $this->collexiaSettings->isConfigured();
     }
 
+    /**
+     * Every selected unpaid installment goes into ONE Collexia mandate, and
+     * each part of a split installment is simply one more installment of that
+     * same mandate on the same collection date: three installments with one of
+     * them split in two is a single mandate of four installments. The mandate
+     * is stored as one split-leg row with no schedule_id of its own; the
+     * installments it carries (and the exact date/amount each should collect)
+     * live in debit_order_split_leg_installments, and several of them may
+     * point at the same loan installment (its parts).
+     *
+     * Collexia loads a mandate with a monthly rule and one amount, so once it
+     * confirms registration CollexiaLaneScheduleService moves each installment
+     * to its true date and amount. If Collexia REFUSES that (for example two
+     * installments of one mandate on the same date) the controller re-places
+     * the loan as one mandate per split part. With place_now set, everything is
+     * sent to Collexia straight away.
+     */
     private function storePerInstallment(array $loan): void
     {
         $loanId = (int) $loan['id'];
@@ -465,7 +467,11 @@ class DebitOrderController extends Controller
 
         usort($planRows, fn ($a, $b) => $a['loan_installment_no'] <=> $b['loan_installment_no']);
         $first = $planRows[0];
-        $lanes = SplitLanePlanner::plan($planRows);
+        // ONE mandate carrying every installment, split parts included (each
+        // part is another installment of the same mandate on the same date).
+        // If Collexia refuses that, DebitOrderCollexiaController falls back to
+        // one mandate per part (SplitLanePlanner::plan()) by itself.
+        $lanes = SplitLanePlanner::planSingle($planRows);
         $trackingDays = max(1, min(14, (int) ($_POST['no_of_days_tracking'] ?? 3)));
 
         $debitOrderId = $this->debitOrders->create([
