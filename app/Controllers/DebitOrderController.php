@@ -133,6 +133,7 @@ class DebitOrderController extends Controller
             'old' => $old,
             'firstDueDate' => $firstDueDate,
             'installments' => $this->debitOrders->unpaidInstallments((int) $loanId),
+            'collexiaReady' => $this->collexiaApiReady(),
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
             'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
@@ -209,7 +210,12 @@ class DebitOrderController extends Controller
             return;
         }
 
-        if (($_POST['mode'] ?? '') === 'per_installment') {
+        // With the Collexia API connected there is only one shape: every
+        // installment in one mandate per split part (see storePerInstallment()).
+        // The single-recurring-mandate / one-installment-split form below stays
+        // only for tenants without the API, whose mandates go out in the manual
+        // debit order batch file instead.
+        if ($this->collexiaApiReady() || ($_POST['mode'] ?? '') === 'per_installment') {
             $this->storePerInstallment($loan);
             return;
         }
@@ -255,6 +261,7 @@ class DebitOrderController extends Controller
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
                 'installments' => $this->debitOrders->unpaidInstallments($loanId),
+                'collexiaReady' => $this->collexiaApiReady(),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
                 'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,
@@ -328,6 +335,12 @@ class DebitOrderController extends Controller
      * amortization date and amount. With place_now set, the lanes are sent
      * to Collexia straight away.
      */
+    /** True when this tenant places mandates through the Collexia API (enabled and configured). */
+    private function collexiaApiReady(): bool
+    {
+        return $this->collexiaSettings->isEnabled() && $this->collexiaSettings->isConfigured();
+    }
+
     private function storePerInstallment(array $loan): void
     {
         $loanId = (int) $loan['id'];
@@ -407,6 +420,7 @@ class DebitOrderController extends Controller
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
                 'installments' => $installments,
+                'collexiaReady' => $this->collexiaApiReady(),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
                 'accountTypes' => CollexiaCodes::ACCOUNT_TYPES,

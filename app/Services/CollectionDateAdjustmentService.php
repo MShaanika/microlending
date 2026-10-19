@@ -133,6 +133,15 @@ class CollectionDateAdjustmentService
                 );
                 $legStmt->execute([$debitOrder['id']]);
                 $legs = array_column($legStmt->fetchAll(), 'id');
+                // Only the mandates that actually carry THIS installment: a lane
+                // carries several installments, a part of a split installment
+                // only its own. Where the carriers aren't recorded (a leg that
+                // predates them) every live leg is kept, as before.
+                $carriers = (new \App\Models\DebitOrderSplitLegInstallment())->carriersBySchedule((int) $debitOrder['id'])[(int) $row['schedule_id']] ?? [];
+                if ($carriers) {
+                    $carrierIds = array_map('intval', array_column($carriers, 'leg_id'));
+                    $legs = array_values(array_filter($legs, fn ($id) => in_array((int) $id, $carrierIds, true)));
+                }
                 if (empty($legs)) {
                     continue;
                 }

@@ -10,6 +10,10 @@
       <input type="hidden" name="loan_id" value="<?= (int) $loan['id'] ?>">
 
       <?php $mode = (string) old('mode', $old, 'per_installment'); $installments = $installments ?? []; ?>
+      <?php if (!empty($collexiaReady)): ?>
+        <input type="hidden" name="mode" value="per_installment">
+        <div class="alert alert-info py-2 small">Every unpaid installment below is loaded into one Collexia mandate (one per split part) and collected exactly on its schedule date.</div>
+      <?php else: ?>
       <div class="border rounded p-3 mb-3">
         <div class="fw-semibold mb-2">How should this loan be collected?</div>
         <div class="form-check">
@@ -21,6 +25,7 @@
           <label class="form-check-label" for="mode_legacy">Single recurring mandate, or split one installment into several parts</label>
         </div>
       </div>
+      <?php endif; ?>
 
       <div class="row">
         <div class="col-md-4 mb-3">
@@ -231,7 +236,7 @@
   var form = startDateInput ? startDateInput.closest('form') : null;
   if (form && startDateInput && startDateInput.dataset.firstDue) {
     form.addEventListener('submit', function (e) {
-      if (document.getElementById('mode_legacy').checked && startDateInput.value !== startDateInput.dataset.firstDue) {
+      if (document.getElementById('mode_legacy') && document.getElementById('mode_legacy').checked && startDateInput.value !== startDateInput.dataset.firstDue) {
         var ok = confirm(
           'This Start Date (' + startDateInput.value + ') does not match the loan\'s first installment due date (' +
           startDateInput.dataset.firstDue + ').\n\nCollexia will round this to the nearest matching Debit Day, ' +
@@ -244,13 +249,16 @@
     });
   }
   function applyMode() {
-    var legacy = document.getElementById('mode_legacy').checked;
+    var legacyRadio = document.getElementById('mode_legacy');
+    var legacy = !!(legacyRadio && legacyRadio.checked);
     document.querySelectorAll('.legacy-only').forEach(function (el) { el.classList.toggle('d-none', !legacy); });
     document.getElementById('legacy_split_section').classList.toggle('d-none', !legacy);
     document.getElementById('per_installment_panel').classList.toggle('d-none', legacy);
   }
-  document.getElementById('mode_legacy').addEventListener('change', applyMode);
-  document.getElementById('mode_per_installment').addEventListener('change', applyMode);
+  ['mode_legacy', 'mode_per_installment'].forEach(function (id) {
+    var radio = document.getElementById(id);
+    if (radio) { radio.addEventListener('change', applyMode); }
+  });
   applyMode();
 
   function moneyFmt(n) { return (Math.round(n * 100) / 100).toFixed(2); }
