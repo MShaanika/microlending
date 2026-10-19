@@ -128,6 +128,14 @@ class CollexiaMandateStatusSyncService
                 'collexia_api_last_response' => json_encode($result),
                 'collexia_api_synced_at' => date('Y-m-d H:i:s'),
             ];
+            // Collexia's own collection date for this leg's one installment is
+            // the truth -- it can differ from what we sent (a reschedule made
+            // directly in the Collexia portal, or a weekend/holiday moved to
+            // the next business day).
+            $scheduledDate = self::scheduledDateFromEnquiry($result);
+            if ($scheduledDate !== null) {
+                $legUpdate['collection_date'] = $scheduledDate;
+            }
             if ($mandateStatus !== null) {
                 // This leg's own collexia_api_status moves on Collexia's
                 // authoritative word, same as the non-split path -- the
@@ -159,6 +167,24 @@ class CollexiaMandateStatusSyncService
         $this->debitOrders->updateCollexiaApiState($id, $update);
 
         return ['synced' => true, 'error' => null, 'mandate_status' => $rolledUpStatus];
+    }
+
+    /** The scheduleDate (YYYY-MM-DD) of a one-installment mandate's installment, or null if the response doesn't carry one. */
+    public static function scheduledDateFromEnquiry(array $result): ?string
+    {
+        $mandate = $result['mandate'] ?? null;
+        if (is_array($mandate) && isset($mandate[0]) && is_array($mandate[0])) {
+            $mandate = $mandate[0];
+        }
+        $installments = is_array($mandate) ? ($mandate['installments'] ?? []) : [];
+        if (count($installments) !== 1) {
+            return null;
+        }
+        $raw = (string) ($installments[0]['scheduleDate'] ?? '');
+        if (!preg_match('/^(\d{4})(\d{2})(\d{2})$/', $raw, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+            return null;
+        }
+        return $m[1] . '-' . $m[2] . '-' . $m[3];
     }
 
     /**

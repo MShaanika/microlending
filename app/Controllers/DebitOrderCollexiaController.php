@@ -1004,8 +1004,14 @@ class DebitOrderCollexiaController extends Controller
             }
             $client->updateInstallment([$installment], $this->frontEndUserName());
 
-            $this->splitLegs->updateState((int) $id, (int) $splitNo, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
-            Audit::log('Update', 'Debit Orders', 'Rescheduled Collexia installment ' . $intId . ' for debit order #' . $id . ' split #' . $splitNo);
+            // A split leg is always one single installment, so the date just
+            // accepted by Collexia IS this leg's collection date -- keep our
+            // own record in step instead of leaving the old date on screen.
+            $this->splitLegs->updateState((int) $id, (int) $splitNo, [
+                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
+                'collection_date' => date('Y-m-d', strtotime($scheduledDate)),
+            ]);
+            Audit::log('Update', 'Debit Orders', 'Rescheduled Collexia installment ' . $intId . ' for debit order #' . $id . ' split #' . $splitNo . ' to ' . $scheduledDate);
             Session::flash('success', 'Installment reschedule submitted.');
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
