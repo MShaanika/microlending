@@ -12,8 +12,10 @@ use App\Models\CollexiaSetting;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderCancellation;
 use App\Models\DebitOrderSplitLeg;
+use App\Models\DebitOrderSplitLegInstallment;
 use App\Models\Loan;
 use App\Support\CollexiaCodes;
+use App\Support\SplitLanePlanner;
 
 /**
  * Registers a borrower's recurring debit order mandate against a loan. This
@@ -26,6 +28,7 @@ class DebitOrderController extends Controller
     private DebitOrder $debitOrders;
     private DebitOrderCancellation $cancellations;
     private DebitOrderSplitLeg $splitLegs;
+    private DebitOrderSplitLegInstallment $laneInstallments;
     private Loan $loans;
     private Borrower $borrowers;
     private CollexiaSetting $collexiaSettings;
@@ -35,6 +38,7 @@ class DebitOrderController extends Controller
         $this->debitOrders = new DebitOrder();
         $this->cancellations = new DebitOrderCancellation();
         $this->splitLegs = new DebitOrderSplitLeg();
+        $this->laneInstallments = new DebitOrderSplitLegInstallment();
         $this->loans = new Loan();
         $this->borrowers = new Borrower();
         $this->collexiaSettings = new CollexiaSetting();
@@ -310,15 +314,19 @@ class DebitOrderController extends Controller
     }
 
     /**
-     * "One mandate per scheduled installment" registration: every selected
-     * unpaid installment becomes its own one-time Collexia mandate
-     * (a split leg with total_splits=1 and its own schedule_id), collected
-     * on that installment's own amortization date -- not one recurring
-     * mandate whose monthly rule only approximates the schedule. Reuses the
-     * split-leg machinery end to end, so placement, status sync,
-     * cancellation and payment reconciliation (by schedule_id) already
-     * work unchanged. With place_now set, the legs are sent to Collexia
-     * straight away.
+     * Every selected unpaid installment goes into ONE Collexia mandate per
+     * split part (a "lane"): three installments with no split are a single
+     * mandate carrying all three, and three installments each split in two
+     * are two mandates of three installments each -- not six one-off
+     * mandates. Installments needn't be split alike; see SplitLanePlanner.
+     *
+     * Each lane is a debit_order_split_legs row with no single schedule_id; the
+     * installments it carries (and the exact date/amount each should collect)
+     * live in debit_order_split_leg_installments. Collexia loads a mandate
+     * with a monthly rule and one amount, so once it confirms registration
+     * CollexiaLaneScheduleService moves each installment to its true
+     * amortization date and amount. With place_now set, the lanes are sent
+     * to Collexia straight away.
      */
     private function storePerInstallment(array $loan): void
     {
@@ -345,7 +353,7 @@ class DebitOrderController extends Controller
         // the earliest valid date instead and the form says so.
         $earliest = date('Y-m-d', strtotime('+1 day'));
         $selectedIds = array_values(array_unique(array_map('intval', (array) ($_POST['installment_ids'] ?? []))));
-        $legs = [];
+        $planRows = [];
         foreach ($selectedIds as $scheduleId) {
             if (!isset($byId[$scheduleId])) {
                 continue;
@@ -362,8 +370,9 @@ class DebitOrderController extends Controller
                 $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' must be collected on a future date (' . date('d M Y', strtotime($earliest)) . ' or later).';
                 break;
             }
-            // Optionally divide this installment into parts -- every part is
-            // its own mandate, collected on this same installment date.
+            // Optionally divide this installment into parts. Part N of every
+            // installment travels in the same mandate (lane N), so each part is
+            // collected on this same installment date.
             $outstanding = round((float) $row['outstanding'], 2);
             $parts = max(1, (int) ($_POST['split_counts'][$scheduleId] ?? 1));
             if ($parts > 10) {
@@ -383,15 +392,11 @@ class DebitOrderController extends Controller
                     break;
                 }
             }
-            foreach ($amounts as $partIndex => $partAmount) {
-                $legs[] = ['schedule_id' => $scheduleId, 'installment_no' => (int) $row['installment_no'], 'amount' => $partAmount, 'date' => $date, 'parts' => $parts, 'installment_amount' => $outstanding];
-            }
+            $planRows[] = ['schedule_id' => $scheduleId, 'loan_installment_no' => (int) $row['installment_no'], 'date' => $date, 'amounts' => $amounts, 'outstanding' => $outstanding];
         }
         if (empty($errors['installments'])) {
-            if (!$legs) {
+            if (!$planRows) {
                 $errors['installments'] = 'Tick at least one installment to collect.';
-            } elseif (count($legs) > 26) {
-                $errors['installments'] = 'At most 26 mandates (installments plus their parts) can be placed on one debit order.';
             }
         }
 
@@ -409,8 +414,9 @@ class DebitOrderController extends Controller
             return;
         }
 
-        usort($legs, fn ($a, $b) => $a['installment_no'] <=> $b['installment_no']);
-        $first = $legs[0];
+        usort($planRows, fn ($a, $b) => $a['loan_installment_no'] <=> $b['loan_installment_no']);
+        $first = $planRows[0];
+        $lanes = SplitLanePlanner::plan($planRows);
         $trackingDays = max(1, min(14, (int) ($_POST['no_of_days_tracking'] ?? 3)));
 
         $debitOrderId = $this->debitOrders->create([
@@ -422,7 +428,7 @@ class DebitOrderController extends Controller
             'account_number' => trim($_POST['account_number']),
             'branch_code' => trim($_POST['branch_code'] ?? '') ?: null,
             'debit_day' => (int) date('j', strtotime($first['date'])),
-            'debit_amount' => $first['installment_amount'],
+            'debit_amount' => $first['outstanding'],
             'start_date' => $first['date'],
             'status' => 'Active',
             'id_type' => 1,
@@ -436,25 +442,34 @@ class DebitOrderController extends Controller
             'merchant_system_contract_no' => sprintf('SD%08d', $debitOrderId),
         ]);
 
+        // One leg per lane = one Collexia mandate carrying every installment
+        // that has that part. The leg itself has no single schedule_id --
+        // each of its installments is mapped to its loan installment in
+        // debit_order_split_leg_installments instead.
         $summary = [];
-        foreach ($legs as $i => $leg) {
-            $this->splitLegs->upsert($debitOrderId, $i + 1, $leg['amount'], $leg['parts'], $leg['schedule_id'], $leg['date']);
-            $summary[] = '#' . $leg['installment_no'] . ($leg['parts'] > 1 ? ' (part)' : '') . ' ' . format_money($leg['amount']) . ' on ' . $leg['date'];
+        foreach ($lanes as $lane) {
+            $legId = $this->splitLegs->upsert($debitOrderId, $lane['lane'], $lane['amount'], count($lanes), null, $lane['first_date']);
+            $items = [];
+            foreach ($lane['installments'] as $item) {
+                $this->laneInstallments->add($legId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount']);
+                $items[] = '#' . $item['loan_installment_no'] . ' ' . format_money($item['amount']) . ' on ' . $item['date'];
+            }
+            $summary[] = 'lane ' . $lane['lane'] . ' [' . implode(', ', $items) . ']';
         }
 
         Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']
-            . ' as one mandate per scheduled installment (' . count($legs) . ' mandate(s)): ' . implode('; ', $summary));
+            . ' as ' . count($lanes) . ' mandate(s), each carrying every installment: ' . implode('; ', $summary));
 
         $collexia = new CollexiaSetting();
         if (!empty($_POST['place_now']) && $collexia->isEnabled() && $collexia->isConfigured()) {
-            Session::flash('success', 'Debit order registered with ' . count($legs) . ' mandate(s). Sending them to Collexia now.');
+            Session::flash('success', 'Debit order registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s). Sending to Collexia now.');
             // Same POST, same CSRF token -- placeMandate() validates it
             // itself, places every leg, then redirects to the debit order.
             (new DebitOrderCollexiaController())->placeMandate((string) $debitOrderId);
             return;
         }
 
-        Session::flash('success', 'Debit order registered with ' . count($legs) . ' mandate(s). Use Place Mandate to send them to Collexia.');
+        Session::flash('success', 'Debit order registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s). Use Place Mandate to send them to Collexia.');
         $this->redirect('/debit-orders/' . $debitOrderId);
     }
 

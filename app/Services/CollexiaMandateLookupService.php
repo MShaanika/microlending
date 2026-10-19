@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\DebitOrder;
+use App\Models\DebitOrderInstallmentTarget;
 use App\Models\DebitOrderSplitLeg;
+use App\Models\DebitOrderSplitLegInstallment;
 
 /**
  * Resolves a contract reference from ANY Collexia report/response
@@ -38,15 +40,39 @@ class CollexiaMandateLookupService
 {
     private DebitOrder $debitOrders;
     private DebitOrderSplitLeg $splitLegs;
+    private DebitOrderSplitLegInstallment $laneInstallments;
+    private DebitOrderInstallmentTarget $installmentTargets;
 
     public function __construct()
     {
         $this->debitOrders = new DebitOrder();
         $this->splitLegs = new DebitOrderSplitLeg();
+        $this->laneInstallments = new DebitOrderSplitLegInstallment();
+        $this->installmentTargets = new DebitOrderInstallmentTarget();
     }
 
     /**
-     * @return array{debit_order_id: ?int, loan_id: ?int, split_no: ?int, schedule_id: ?int}|null null if no mandate/split matches this reference at all.
+     * Which loan_schedules row a collected installment settles, for a matched split mandate: the leg's own
+     * single schedule_id (a one-off leg), else -- for a lane carrying several installments -- the lane's
+     * installment-number mapping, else the debit order's original installment snapshot (legs placed before
+     * either existed). Null when none of them know, so the collection is recorded unposted for review.
+     */
+    public function scheduleIdFor(array $mandate, int $installmentNo): ?int
+    {
+        if (!empty($mandate['schedule_id'])) {
+            return (int) $mandate['schedule_id'];
+        }
+        if (!empty($mandate['leg_id'])) {
+            $id = $this->laneInstallments->scheduleIdFor((int) $mandate['leg_id'], $installmentNo);
+            if ($id) {
+                return $id;
+            }
+        }
+        return $this->installmentTargets->scheduleIdFor((int) $mandate['debit_order_id'], $installmentNo);
+    }
+
+    /**
+     * @return array{debit_order_id: ?int, loan_id: ?int, split_no: ?int, schedule_id: ?int, leg_id: ?int}|null null if no mandate/split matches this reference at all.
      */
     public function resolve(string $contractReference): ?array
     {
@@ -57,7 +83,7 @@ class CollexiaMandateLookupService
         $mandate = $this->debitOrders->findByContractNo($contractReference)
             ?? $this->debitOrders->findByCollexiaApiContractReference($contractReference);
         if ($mandate) {
-            return ['debit_order_id' => (int) $mandate['id'], 'loan_id' => (int) $mandate['loan_id'], 'split_no' => null, 'schedule_id' => null];
+            return ['debit_order_id' => (int) $mandate['id'], 'loan_id' => (int) $mandate['loan_id'], 'split_no' => null, 'schedule_id' => null, 'leg_id' => null];
         }
 
         $splitRow = $this->splitLegs->findByContractNo($contractReference);
@@ -66,6 +92,7 @@ class CollexiaMandateLookupService
                 'debit_order_id' => (int) $splitRow['debit_order_id'],
                 'loan_id' => (int) $splitRow['loan_id'],
                 'split_no' => (int) $splitRow['split_no'],
+                'leg_id' => (int) $splitRow['id'],
                 // The leg's own unambiguous target -- see
                 // DebitOrderSplitLeg's own docblock for why this replaces
                 // the old installmentNo-keyed snapshot lookup. Null for a

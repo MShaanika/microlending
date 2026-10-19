@@ -14,7 +14,7 @@
         <div class="fw-semibold mb-2">How should this loan be collected?</div>
         <div class="form-check">
           <input class="form-check-input" type="radio" name="mode" id="mode_per_installment" value="per_installment" <?= $mode !== 'legacy' ? 'checked' : '' ?>>
-          <label class="form-check-label" for="mode_per_installment"><strong>One mandate per scheduled installment</strong> (recommended) &mdash; every unpaid installment below is sent to Collexia as its own mandate and collected exactly on its schedule date.</label>
+          <label class="form-check-label" for="mode_per_installment"><strong>All installments in one mandate</strong> (recommended) &mdash; every unpaid installment below goes to Collexia in a single mandate (one per split part) and is collected exactly on its schedule date.</label>
         </div>
         <div class="form-check">
           <input class="form-check-input" type="radio" name="mode" id="mode_legacy" value="legacy" <?= $mode === 'legacy' ? 'checked' : '' ?>>
@@ -114,7 +114,7 @@
                 <tr class="parts-row d-none" id="parts_row_<?= $sid ?>" data-sid="<?= $sid ?>" data-outstanding="<?= e((string) $row['outstanding']) ?>" data-old="<?= e(json_encode(array_map('strval', array_values((array) ($postedAmounts[$sid] ?? []))))) ?>">
                   <td></td>
                   <td colspan="6">
-                    <div class="small text-muted mb-1">Parts of installment #<?= (int) $row['installment_no'] ?> &mdash; each is its own mandate, all collected on the date above. <span class="fw-semibold">Remaining to allocate: <span class="parts-remaining">&mdash;</span></span></div>
+                    <div class="small text-muted mb-1">Parts of installment #<?= (int) $row['installment_no'] ?> &mdash; each part travels in its own mandate together with the same part of the other installments, and all are collected on the date above. <span class="fw-semibold">Remaining to allocate: <span class="parts-remaining">&mdash;</span></span></div>
                     <div class="parts-inputs d-flex flex-wrap gap-2"></div>
                   </td>
                 </tr>
@@ -122,7 +122,7 @@
               </tbody>
             </table>
           </div>
-          <div class="form-text">Each ticked installment is sent to Collexia as its own one-time mandate for the amount shown, collected on the date in &ldquo;Collect On&rdquo;. Set Parts above 1 to divide an installment into several mandates that are all collected on that same date. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
+          <div class="form-text">All ticked installments are loaded into one Collexia mandate, then each is set to the amount shown and collected on the date in &ldquo;Collect On&rdquo;. Set Parts above 1 to divide an installment: part 1 of every installment goes in one mandate, part 2 in another, and so on, all collected on that installment's date. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
         <?php endif; ?>
       </div>
 

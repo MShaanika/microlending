@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\CollexiaSetting;
 use App\Models\DebitOrder;
 use App\Models\DebitOrderSplitLeg;
+use App\Models\DebitOrderSplitLegInstallment;
 use App\Support\CollexiaV3Codes;
 
 /**
@@ -52,11 +54,15 @@ class CollexiaMandateStatusSyncService
 
     private DebitOrder $debitOrders;
     private DebitOrderSplitLeg $splitLegs;
+    private DebitOrderSplitLegInstallment $laneInstallments;
+    private CollexiaSetting $settings;
 
     public function __construct()
     {
         $this->debitOrders = new DebitOrder();
         $this->splitLegs = new DebitOrderSplitLeg();
+        $this->laneInstallments = new DebitOrderSplitLegInstallment();
+        $this->settings = new CollexiaSetting();
     }
 
     /**
@@ -144,6 +150,7 @@ class CollexiaMandateStatusSyncService
                 $legUpdate['collexia_api_status'] = self::mapCollexiaApiStatus($mandateStatus);
             }
             $this->splitLegs->updateState($id, (int) $split['split_no'], $legUpdate);
+            $this->syncLane($split, $debitOrder, $result, $mandateStatus);
         }
 
         if (!$attempted) {
@@ -167,6 +174,39 @@ class CollexiaMandateStatusSyncService
         $this->debitOrders->updateCollexiaApiState($id, $update);
 
         return ['synced' => true, 'error' => null, 'mandate_status' => $rolledUpStatus];
+    }
+
+    /**
+     * A lane (one mandate carrying several loan installments): record each
+     * installment's real date as Collexia now holds it, and -- once the
+     * mandate is Active -- finish moving any installment that hasn't yet been
+     * set to its exact planned date/amount (the same step Check Final Fate
+     * runs, repeated here so a transient failure there heals on its own).
+     */
+    private function syncLane(array $leg, array $debitOrder, array $enquiry, ?string $mandateStatus): void
+    {
+        $rows = $this->laneInstallments->forLeg((int) $leg['id']);
+        if (!$rows) {
+            return;
+        }
+
+        $mandate = $enquiry['mandate'] ?? [];
+        if (isset($mandate[0]) && is_array($mandate[0])) {
+            $mandate = $mandate[0];
+        }
+        $actual = CollexiaLaneScheduleService::actualInstallments(is_array($mandate) ? ($mandate['installments'] ?? []) : []);
+        foreach ($rows as $row) {
+            $no = (int) $row['installment_no'];
+            if (isset($actual[$no])) {
+                $this->laneInstallments->setCollexiaDate((int) $leg['id'], $no, $actual[$no]['date']);
+            }
+        }
+
+        $unapplied = array_filter($rows, fn ($r) => $r['applied_at'] === null);
+        $user = $this->settings->frontEndUsername();
+        if ($unapplied && $mandateStatus === 'Active' && $user !== '') {
+            (new CollexiaLaneScheduleService())->apply($leg, $debitOrder, $user);
+        }
     }
 
     /** The scheduleDate (YYYY-MM-DD) of a one-installment mandate's installment, or null if the response doesn't carry one. */

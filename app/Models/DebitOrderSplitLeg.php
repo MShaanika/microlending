@@ -168,8 +168,13 @@ class DebitOrderSplitLeg extends Model
                  SELECT schedule_id FROM debit_order_split_legs
                  WHERE debit_order_id = ? AND merged_into_id IS NULL AND schedule_id IS NOT NULL
                )
+               AND ls.id NOT IN (
+                 SELECT li.schedule_id FROM debit_order_split_leg_installments li
+                 JOIN debit_order_split_legs sl ON sl.id = li.leg_id
+                 WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL
+               )
              ORDER BY ls.installment_no LIMIT 1",
-            [$loanId, $debitOrderId]
+            [$loanId, $debitOrderId, $debitOrderId]
         );
         return $id ? (int) $id : null;
     }

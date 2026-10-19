@@ -264,7 +264,7 @@ class DebitOrderCollectionController extends Controller
                         // the old snapshot lookup only for a leg placed
                         // before schedule_id was tracked.
                         if ($splitNo !== null) {
-                            $scheduleId = $mandate['schedule_id'] ?? $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
+                            $scheduleId = $this->mandateLookup->scheduleIdFor($mandate, $installmentNo);
                             if ($scheduleId) {
                                 $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, (float) $row['collection_amount'], $meta);
                                 $posted++;

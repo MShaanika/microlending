@@ -56,6 +56,8 @@
                 };
                 $isMergeable = in_array((int) $s['id'], $mergeableIds, true);
                 $collectedDate = $collectedBySplitNo[(int) $s['split_no']] ?? null;
+                // A lane = one mandate carrying several loan installments.
+                $lane = ($laneInstallments ?? [])[(int) $s['id']] ?? [];
               ?>
               <tr class="<?= $s['merged_into_id'] ? 'text-muted' : '' ?>">
                 <td>
@@ -66,12 +68,18 @@
                 <td>
                   <?php if ($isMergeResult): ?>
                     <span class="badge bg-info">Merged</span> <span class="small text-muted">(from #<?= implode(', #', $mergeSources[$s['id']]) ?>)</span>
+                  <?php elseif ($lane): ?>
+                    Part <?= (int) $s['split_no'] ?> of <?= (int) $s['total_splits'] ?>
                   <?php else: ?>
                     #<?= (int) ($positionInInstallment[(int) $s['id']] ?? $s['split_no']) ?> of <?= (int) $s['total_splits'] ?>
                   <?php endif; ?>
                 </td>
                 <td class="small">
-                  <?php if (!empty($s['installment_no'])): ?>
+                  <?php if ($lane): ?>
+                    <?php foreach ($lane as $li): ?>
+                      <div>#<?= (int) $li['loan_installment_no'] ?> &bull; <?= e(date('d M Y', strtotime($li['collexia_date'] ?: $li['planned_date']))) ?> &bull; <?= format_money((float) $li['planned_amount']) ?><?= $li['applied_at'] === null ? ' <span class="text-muted">(date being confirmed)</span>' : '' ?></div>
+                    <?php endforeach; ?>
+                  <?php elseif (!empty($s['installment_no'])): ?>
                     #<?= (int) $s['installment_no'] ?> &bull; <?= e(date('d M Y', strtotime($s['installment_due_date']))) ?>
                   <?php else: ?>
                     &mdash;
@@ -83,6 +91,8 @@
                 <td>
                   <?php if ($collectedDate): ?>
                     <?= e(date('d M Y', strtotime($collectedDate))) ?>
+                  <?php elseif ($lane): ?>
+                    <?= e(date('d M Y', strtotime($lane[0]['collexia_date'] ?: $lane[0]['planned_date']))) ?> <span class="small text-muted">(first)</span>
                   <?php elseif (!empty($s['collection_date'])): ?>
                     <?= e(date('d M Y', strtotime($s['collection_date']))) ?> <span class="small text-muted">(planned)</span>
                   <?php else: ?>
@@ -92,7 +102,7 @@
                 <td><?= \App\Support\CollexiaV3Codes::collectionDay(!empty($s['collection_date']) ? (int) date('j', strtotime($s['collection_date'])) : (int) $debitOrder['debit_day']) ?></td>
                 <td>Monthly</td>
                 <td><?= format_money($s['leg_amount']) ?></td>
-                <td class="text-center">1</td>
+                <td class="text-center"><?= $lane ? count($lane) : 1 ?></td>
                 <td>
                   <span class="badge bg-<?= $statusBadge ?>"><?= e($s['collexia_api_status']) ?></span>
                   <?php if ($s['merged_into_id']): ?>

@@ -144,7 +144,7 @@ class CollexiaPaymentReconciliationService
                             // regardless of which month it's for -- only
                             // fall back to the old snapshot lookup for a
                             // leg placed before that was tracked.
-                            $scheduleId = $mandate['schedule_id'] ?? $this->installmentTargets->scheduleIdFor((int) $debitOrderId, $installmentNo);
+                            $scheduleId = $this->lookup->scheduleIdFor($mandate, $installmentNo);
                             if ($scheduleId) {
                                 $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, $paymentAmount, $meta);
                                 $posted++;

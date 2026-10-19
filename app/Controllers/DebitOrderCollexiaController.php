@@ -12,10 +12,12 @@ use App\Models\DebitOrder;
 use App\Models\DebitOrderCollection;
 use App\Models\DebitOrderInstallmentTarget;
 use App\Models\DebitOrderSplitLeg;
+use App\Models\DebitOrderSplitLegInstallment;
 use App\Models\Loan;
 use App\Services\CollexiaApiException;
 use App\Services\CollexiaClient;
 use App\Services\CollexiaEndoApiClient;
+use App\Services\CollexiaLaneScheduleService;
 use App\Services\CollexiaMandateCancellationService;
 use App\Services\CollexiaMandateStatusSyncService;
 use App\Support\CollexiaV3Codes;
@@ -67,6 +69,7 @@ class DebitOrderCollexiaController extends Controller
     private DebitOrderCollection $collections;
     private CollexiaSetting $settings;
     private Loan $loans;
+    private DebitOrderSplitLegInstallment $laneInstallments;
 
     /** Statuses a split can still be pushed to Collexia from, or merged away from without needing an API cancel first. */
     private const SPLIT_UNSENT_STATUSES = ['Not Placed', 'Load Failed'];
@@ -81,6 +84,7 @@ class DebitOrderCollexiaController extends Controller
         $this->collections = new DebitOrderCollection();
         $this->settings = new CollexiaSetting();
         $this->loans = new Loan();
+        $this->laneInstallments = new DebitOrderSplitLegInstallment();
     }
 
     /**
@@ -502,7 +506,17 @@ class DebitOrderCollexiaController extends Controller
         $scheduleId = $split['schedule_id'] ?? null;
         $firstCollectionDate = $debitOrder['start_date'];
         $collectionDay = CollexiaV3Codes::collectionDay((int) $debitOrder['debit_day']);
-        if (!empty($split['collection_date'])) {
+        // A lane carries SEVERAL loan installments in this one mandate (see
+        // SplitLanePlanner): Collexia is told how many, loaded from the first
+        // one's date, and CollexiaLaneScheduleService moves each to its exact
+        // date/amount once the mandate is confirmed registered.
+        $laneRows = $this->laneInstallments->forLeg((int) $split['id']);
+        $noOfInstallments = 1;
+        if ($laneRows) {
+            $noOfInstallments = count($laneRows);
+            $firstCollectionDate = $laneRows[0]['planned_date'];
+            $collectionDay = CollexiaV3Codes::collectionDay((int) date('j', strtotime((string) $firstCollectionDate)));
+        } elseif (!empty($split['collection_date'])) {
             // "One mandate per scheduled installment" legs carry their own
             // exact collection date (the installment's due date, or the
             // earliest valid future date if it's already past due) -- the
@@ -525,10 +539,9 @@ class DebitOrderCollexiaController extends Controller
             'userReference' => $userReference,
             'frequencyCode' => 4,
             'installmentAmount' => $amount,
-            // Always 1 -- see this method's docblock. A split leg is one
-            // one-time collection of its share of a single installment,
-            // never a recurring series of its own.
-            'noOfInstallments' => 1,
+            // 1 for a one-off split leg (see this method's docblock); for a
+            // lane, how many loan installments it carries.
+            'noOfInstallments' => $noOfInstallments,
             // Always the Remote GID, never 0 -- confirmed by Collexia.
             'origin' => (int) $this->settings->get('collexia_remote_gid'),
             'contractReference' => $contractReference,
@@ -651,6 +664,7 @@ class DebitOrderCollexiaController extends Controller
         $attempted = false;
         $allLoaded = true;
         $anyAuthOutstanding = false;
+        $laneWarnings = [];
 
         foreach ($splits as $split) {
             // Also re-checks a Load Failed split, as long as it has a
@@ -679,6 +693,15 @@ class DebitOrderCollexiaController extends Controller
                     'collexia_api_synced_at' => date('Y-m-d H:i:s'),
                 ]);
                 $allLoaded = $allLoaded && $loaded;
+
+                // A lane is now registered with Collexia's own approximate
+                // schedule -- move each installment to its exact date/amount.
+                if ($loaded && $this->laneInstallments->isLane((int) $split['id'])) {
+                    $applied = (new CollexiaLaneScheduleService())->apply($split, $debitOrder, $this->frontEndUserName());
+                    if (!$applied['success']) {
+                        $laneWarnings[] = 'Split #' . (int) $split['split_no'] . ': ' . $applied['message'];
+                    }
+                }
             } catch (\RuntimeException $e) {
                 Session::flash('error', $e->getMessage());
                 return;
@@ -694,7 +717,8 @@ class DebitOrderCollexiaController extends Controller
 
         Audit::log('Update', 'Debit Orders', 'Checked Collexia final fate for split debit order #' . $id);
         Session::flash($allLoaded ? 'success' : 'error', $allLoaded
-            ? ('All submitted split transactions confirmed registered.' . ($anyAuthOutstanding ? ' At least one still has authorization outstanding -- Collexia has not yet confirmed the debtor/bank has authorized it.' : ''))
+            ? ('All submitted split transactions confirmed registered.' . ($anyAuthOutstanding ? ' At least one still has authorization outstanding -- Collexia has not yet confirmed the debtor/bank has authorized it.' : '')
+                . ($laneWarnings ? ' The exact installment dates/amounts could not be applied yet (' . implode('; ', $laneWarnings) . ') -- they will be retried automatically by the next status sync.' : ''))
             : 'At least one split transaction did not register. See Split Transactions for details.');
     }
 
@@ -1004,13 +1028,30 @@ class DebitOrderCollexiaController extends Controller
             }
             $client->updateInstallment([$installment], $this->frontEndUserName());
 
-            // A split leg is always one single installment, so the date just
-            // accepted by Collexia IS this leg's collection date -- keep our
-            // own record in step instead of leaving the old date on screen.
-            $this->splitLegs->updateState((int) $id, (int) $splitNo, [
-                'collexia_api_synced_at' => date('Y-m-d H:i:s'),
-                'collection_date' => date('Y-m-d', strtotime($scheduledDate)),
-            ]);
+            // Keep our own record in step with what Collexia just accepted,
+            // instead of leaving the old date on screen. A one-off leg has a
+            // single collection_date; a lane carries several installments,
+            // so the one that was moved is looked up by its Collexia id.
+            $legUpdate = ['collexia_api_synced_at' => date('Y-m-d H:i:s')];
+            $newDate = date('Y-m-d', strtotime($scheduledDate));
+            if ($this->laneInstallments->isLane((int) $split['id'])) {
+                try {
+                    $current = CollexiaLaneScheduleService::actualInstallments(
+                        $client->installmentRequest((string) $split['collexia_api_contract_reference'])['installments'] ?? []
+                    );
+                    foreach ($current as $no => $entry) {
+                        if ($entry['intId'] === $intId) {
+                            $this->laneInstallments->setPlanned((int) $split['id'], $no, $newDate, $installmentAmount);
+                        }
+                    }
+                } catch (\RuntimeException $e) {
+                    // The reschedule itself already succeeded at Collexia; the
+                    // next status sync reads the true date back.
+                }
+            } else {
+                $legUpdate['collection_date'] = $newDate;
+            }
+            $this->splitLegs->updateState((int) $id, (int) $splitNo, $legUpdate);
             Audit::log('Update', 'Debit Orders', 'Rescheduled Collexia installment ' . $intId . ' for debit order #' . $id . ' split #' . $splitNo . ' to ' . $scheduledDate);
             Session::flash('success', 'Installment reschedule submitted.');
         } catch (\RuntimeException $e) {
@@ -1257,6 +1298,7 @@ class DebitOrderCollexiaController extends Controller
             'mergeSources' => $mergeSources,
             'idToSplitNo' => $idToSplitNo,
             'positionInInstallment' => $positionInInstallment,
+            'laneInstallments' => $this->laneInstallments->forLegs(array_map(fn ($s) => (int) $s['id'], $splits)),
             'mergeableIds' => $this->mergeableSplitIds((int) $id, $splits),
         ]);
     }
@@ -1281,6 +1323,11 @@ class DebitOrderCollexiaController extends Controller
                 continue;
             }
             if ($this->splitLegs->hasPostedCollection($debitOrderId, (int) $s['split_no'])) {
+                continue;
+            }
+            // A lane carries several installments with their own amounts --
+            // folding two lanes into one would have to re-plan every one.
+            if ($this->laneInstallments->isLane((int) $s['id'])) {
                 continue;
             }
             $ids[] = (int) $s['id'];
