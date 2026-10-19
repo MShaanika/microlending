@@ -19,6 +19,7 @@ use App\Services\CollexiaClient;
 use App\Services\CollexiaEndoApiClient;
 use App\Services\CollexiaLaneScheduleService;
 use App\Services\CollexiaMandateCancellationService;
+use App\Services\CollexiaMandateFinalizer;
 use App\Services\CollexiaMandateStatusSyncService;
 use App\Support\CollexiaV3Codes;
 
@@ -120,11 +121,62 @@ class DebitOrderCollexiaController extends Controller
 
         if ((int) ($debitOrder['split_enabled'] ?? 0) === 1) {
             $this->placeSplitMandate($debitOrder, $banId);
+            $this->finalizeAfterPlacement($debitOrder);
         } else {
             $this->placeSingleMandate($debitOrder, $banId);
         }
 
         $this->redirect('/debit-orders/' . $id);
+    }
+
+    /**
+     * Right after placement, asks Collexia to confirm the new mandates and
+     * sets every installment to its exact date and amount, waiting a short
+     * while (up to ~20 seconds) because Collexia confirms asynchronously. If
+     * some are still confirming when it gives up they stay Load Pending and
+     * bin/finalize_pending_collexia_mandates.php finishes them within minutes,
+     * so staff never have to remember a separate "Check Final Fate" click.
+     */
+    private function finalizeAfterPlacement(array $debitOrder): void
+    {
+        $finalizer = new CollexiaMandateFinalizer();
+        $user = $this->frontEndUserName();
+        $registered = 0;
+        $failed = 0;
+        $pending = 0;
+        $warnings = [];
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            if ($attempt > 0) {
+                sleep(4);
+            }
+            $fresh = $this->debitOrders->find((int) $debitOrder['id']);
+            if (!$fresh) {
+                return;
+            }
+            $result = $finalizer->finalizeDebitOrder($fresh, $user);
+            $registered += $result['registered'];
+            $failed += $result['failed'];
+            $warnings = array_merge($warnings, $result['warnings']);
+            $pending = $result['pending'];
+            if ($result['checked'] === 0 || $pending === 0) {
+                break;
+            }
+        }
+
+        if (!empty(($_SESSION['_flash']['error'] ?? null)) || ($registered + $pending + $failed) === 0) {
+            return; // placement itself already reported a problem, or nothing was waiting
+        }
+
+        if ($pending === 0 && $failed === 0 && !$warnings) {
+            Session::flash('success', $registered . ' mandate(s) confirmed with Collexia and every installment set to its exact date and amount.');
+        } elseif ($pending > 0) {
+            Session::flash('success', $registered . ' mandate(s) confirmed; ' . $pending . ' still being confirmed by Collexia -- they will finish automatically within a few minutes.');
+        } elseif ($failed > 0) {
+            Session::flash('error', $failed . ' mandate(s) were not accepted by Collexia. See Split Transactions for details.');
+        } else {
+            Session::flash('error', $registered . ' mandate(s) confirmed, but some dates/amounts could not be set yet (' . implode('; ', $warnings) . ') -- they will be retried automatically.');
+        }
     }
 
     /**

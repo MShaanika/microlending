@@ -32,6 +32,16 @@ class DebitOrderSplitLeg extends Model
         );
     }
 
+    /** Debit orders with at least one live mandate still waiting for Collexia to confirm it (Load Pending) -- what the automatic finaliser walks through. */
+    public function debitOrderIdsWithPendingLoad(): array
+    {
+        return array_map('intval', array_column($this->all(
+            "SELECT DISTINCT debit_order_id FROM debit_order_split_legs
+             WHERE collexia_api_status = 'Load Pending' AND collexia_api_contract_reference IS NOT NULL AND merged_into_id IS NULL
+             ORDER BY debit_order_id"
+        ), 'debit_order_id'));
+    }
+
     /** Only the currently-live splits (not folded into a later merge) -- what Place/Check/Sync/Cancel Mandate act on. */
     public function activeForDebitOrder(int $debitOrderId): array
     {

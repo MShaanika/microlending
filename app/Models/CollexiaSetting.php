@@ -202,10 +202,12 @@ class CollexiaSetting extends Model
      * (2026-09-15, via their product contact) this limit is a
      * sandbox/UAT-only restriction and will not apply once live in
      * production. This is a locally-configured, deliberately conservative
-     * safety limit (default N$1,000) for testing against the UAT
-     * environment -- blank it out in Settings before going live so
-     * production placements are never blocked by a UAT-only restriction.
-     * Returns null once blanked (no local limit enforced).
+     * safety limit for testing against the UAT environment, set
+     * explicitly in Settings -- there is NO default limit any more (changed
+     * 2026-10-19: a default of N$1,000 silently blocked real production
+     * loans with larger installments, since an unsaved or migrated-in value
+     * kept applying a UAT-only restriction). Returns null when unset or
+     * blank (no local limit enforced).
      */
     public function maxSingleMandateAmount(): ?float
     {
@@ -217,7 +219,7 @@ class CollexiaSetting extends Model
         // NULL, so a genuine blank correctly returns null here instead of
         // silently falling back to the default.
         if (!array_key_exists('collexia_max_single_mandate_amount', $all)) {
-            return 1000.00;
+            return null;
         }
         $value = trim((string) $all['collexia_max_single_mandate_amount']);
         return $value === '' ? null : (float) $value;

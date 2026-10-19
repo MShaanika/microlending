@@ -194,6 +194,76 @@ class CollexiaLaneFlowTest extends TestCase
         $this->assertSame(2, (int) $carriers[$this->scheduleIds[2]][1]['mandate_installment_no'], 'Installment 3 of the loan is the second installment inside mandate 2');
     }
 
+    private function pendingFakeClient(bool $loaded): object
+    {
+        return new class($loaded) {
+            public array $updates = [];
+
+            public function __construct(private bool $loaded)
+            {
+            }
+
+            public function requestFinalFate(string $ref, string $user): array
+            {
+                return $this->loaded ? ['mandateLoaded' => true, 'mandateLoadedResponseCode' => '00'] : ['mandateLoaded' => false, 'mandateLoadedResponseCode' => '99'];
+            }
+
+            public function installmentRequest(string $ref): array
+            {
+                return ['installments' => [
+                    ['intId' => 1, 'installmentNo' => 1, 'scheduledDate' => '20261117', 'installmentAmount' => 27.57, 'status' => 1],
+                    ['intId' => 2, 'installmentNo' => 2, 'scheduledDate' => '20261217', 'installmentAmount' => 27.57, 'status' => 1],
+                    ['intId' => 3, 'installmentNo' => 3, 'scheduledDate' => '20270117', 'installmentAmount' => 27.57, 'status' => 1],
+                ]];
+            }
+
+            public function updateInstallment(array $installments, string $user): array
+            {
+                $this->updates = $installments;
+                return [];
+            }
+        };
+    }
+
+    public function testFinalizerRegistersAPendingLaneAndSetsItsExactAmounts(): void
+    {
+        $built = $this->buildLane();
+        (new DebitOrderSplitLeg())->updateState($this->debitOrderId, 1, ['collexia_api_status' => 'Load Pending', 'collexia_api_synced_at' => date('Y-m-d H:i:s')]);
+        $fake = $this->pendingFakeClient(true);
+
+        $result = (new \App\Services\CollexiaMandateFinalizer(fn () => $fake))->finalizeDebitOrder($built['debitOrder'], 'tester');
+
+        $this->assertSame(1, $result['registered']);
+        $this->assertSame(0, $result['pending']);
+        $leg = (new DebitOrderSplitLeg())->activeForDebitOrder($this->debitOrderId)[0];
+        $this->assertSame('Registered', $leg['collexia_api_status']);
+        $this->assertSame([3], array_map(fn ($u) => $u['intId'], $fake->updates), 'Only the installment whose amount differs (27.56) is updated');
+        $this->assertNotContains(null, array_column((new DebitOrderSplitLegInstallment())->forLeg((int) $leg['id']), 'applied_at'));
+    }
+
+    public function testFinalizerLeavesAMandateCollexiaHasNotConfirmedYetAsPending(): void
+    {
+        $built = $this->buildLane();
+        (new DebitOrderSplitLeg())->updateState($this->debitOrderId, 1, ['collexia_api_status' => 'Load Pending', 'collexia_api_synced_at' => date('Y-m-d H:i:s')]);
+
+        $result = (new \App\Services\CollexiaMandateFinalizer(fn () => $this->pendingFakeClient(false)))->finalizeDebitOrder($built['debitOrder'], 'tester');
+
+        $this->assertSame(1, $result['pending']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertSame('Load Pending', (new DebitOrderSplitLeg())->activeForDebitOrder($this->debitOrderId)[0]['collexia_api_status'], 'Just submitted, so it is not declared failed');
+    }
+
+    public function testFinalizerOnlyDeclaresFailureAfterItHasBeenPendingTooLong(): void
+    {
+        $built = $this->buildLane();
+        (new DebitOrderSplitLeg())->updateState($this->debitOrderId, 1, ['collexia_api_status' => 'Load Pending', 'collexia_api_synced_at' => date('Y-m-d H:i:s', strtotime('-30 minutes'))]);
+
+        $result = (new \App\Services\CollexiaMandateFinalizer(fn () => $this->pendingFakeClient(false)))->finalizeDebitOrder($built['debitOrder'], 'tester');
+
+        $this->assertSame(1, $result['failed']);
+        $this->assertSame('Load Failed', (new DebitOrderSplitLeg())->activeForDebitOrder($this->debitOrderId)[0]['collexia_api_status']);
+    }
+
     public function testNextUncoveredInstallmentSkipsEverythingALaneCarries(): void
     {
         $this->buildLane();

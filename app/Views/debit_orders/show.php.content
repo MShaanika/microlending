@@ -210,6 +210,13 @@
     <?php if (!empty($debitOrder['split_enabled']) && !empty($loanSchedule)): ?>
       <hr>
       <h6 class="mb-2">Installments <span class="text-muted small fw-normal">&mdash; open an installment to see the mandate that carries it</span></h6>
+      <?php if (!empty($scheduleDrift)): ?>
+        <div class="alert alert-warning py-2 small">
+          <strong>The loan has changed since these mandates were placed.</strong> A mandate keeps the amounts it was placed with and does not follow later changes to the loan.
+          <ul class="mb-1"><?php foreach ($scheduleDrift as $finding): ?><li><?= e($finding) ?></li><?php endforeach; ?></ul>
+          Cancel the mandates and register the loan again so they match.
+        </div>
+      <?php endif; ?>
       <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">
           <thead>

@@ -335,6 +335,41 @@ class DebitOrderController extends Controller
      * amortization date and amount. With place_now set, the lanes are sent
      * to Collexia straight away.
      */
+    /**
+     * Where the loan now disagrees with what its live mandates will still
+     * collect: an upcoming installment whose balance changed since the
+     * mandate was placed (a part payment, a reschedule, a top-up), or one that
+     * is already paid but is still scheduled to collect. A mandate is fixed at
+     * the moment it is placed and never follows later changes to the loan, so
+     * staff need to see this rather than discover it as a wrong collection.
+     * Only upcoming installments are compared -- one whose collect-on date has
+     * passed has already been processed by Collexia.
+     *
+     * @return string[] human-readable findings, empty when everything agrees
+     */
+    private function scheduleDrift(array $loanSchedule, array $carriers): array
+    {
+        $today = date('Y-m-d');
+        $findings = [];
+        foreach ($loanSchedule as $row) {
+            $live = array_filter($carriers[(int) $row['id']] ?? [], function ($c) use ($today) {
+                $date = $c['collexia_date'] ?: $c['planned_date'];
+                return in_array($c['status'], ['Registered', 'Load Pending'], true) && $date && $date > $today;
+            });
+            if (!$live) {
+                continue;
+            }
+            $collects = round(array_sum(array_column($live, 'amount')), 2);
+            $owes = round(max(0, (float) $row['total_due'] - (float) $row['total_paid']), 2);
+            if ($row['status'] === 'Paid' || $owes < 0.005) {
+                $findings[] = 'Installment #' . (int) $row['installment_no'] . ' is already paid but its mandate is still scheduled to collect ' . format_money($collects) . '.';
+            } elseif (abs($collects - $owes) > 0.01) {
+                $findings[] = 'Installment #' . (int) $row['installment_no'] . ' now owes ' . format_money($owes) . ' but its mandate(s) will collect ' . format_money($collects) . '.';
+            }
+        }
+        return $findings;
+    }
+
     /** True when this tenant places mandates through the Collexia API (enabled and configured). */
     private function collexiaApiReady(): bool
     {
@@ -630,6 +665,8 @@ class DebitOrderController extends Controller
                 : false,
         ];
 
+        $carriers = $debitOrder['split_enabled'] ? $this->laneInstallments->carriersBySchedule((int) $id) : [];
+
         $this->view('debit_orders/show', [
             'title' => 'Debit Order ' . $debitOrder['debit_order_no'],
             'debitOrder' => $debitOrder,
@@ -649,7 +686,8 @@ class DebitOrderController extends Controller
             // Which mandate(s) carry each installment -- the page links each
             // installment to them (and from there to every installment the
             // mandate carries).
-            'carriers' => $debitOrder['split_enabled'] ? $this->laneInstallments->carriersBySchedule((int) $id) : [],
+            'carriers' => $carriers,
+            'scheduleDrift' => $this->scheduleDrift($this->loans->schedule((int) $debitOrder['loan_id']), $carriers),
         ]);
     }
 
