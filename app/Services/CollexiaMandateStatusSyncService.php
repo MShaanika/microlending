@@ -52,6 +52,16 @@ class CollexiaMandateStatusSyncService
     private const SPLIT_LIVE_STATUSES = ['Load Pending', 'Registered', 'Cancelled'];
     private const MAPPABLE_STATUSES = ['Active', 'Suspended', 'Cancelled', 'Completed'];
 
+    /**
+     * Collexia installment statuses that are FINAL (the installment is done: Cancelled, Insufficient
+     * Funds, Completed, Rejected, Disputed) versus IN FLIGHT (Active, In Tracking, Validated, Not
+     * Validated, Submitted). Collexia does not roll a contract up to Completed itself -- confirmed by
+     * Collexia (Donna, 2026-10-21): the contract's final fate is derived on our side from the final
+     * fate of ALL its installments. Any status in neither list is treated as still in flight.
+     */
+    public const FINAL_INSTALLMENT_STATUSES = [2, 3, 6, 8, 10];
+    public const IN_FLIGHT_INSTALLMENT_STATUSES = [1, 5, 14, 15, 16];
+
     private DebitOrder $debitOrders;
     private DebitOrderSplitLeg $splitLegs;
     private DebitOrderSplitLegInstallment $laneInstallments;
@@ -246,9 +256,43 @@ class CollexiaMandateStatusSyncService
         }
 
         $label = CollexiaV3Codes::MANDATE_STATUSES[(int) $mandate['status']] ?? null;
-        return in_array($label, self::MAPPABLE_STATUSES, true) ? $label : null;
+        $label = in_array($label, self::MAPPABLE_STATUSES, true) ? $label : null;
+
+        // Collexia keeps a contract Active after every installment has reached a final result, so
+        // an Active contract is promoted to Completed from its installments' final fate. Only ever
+        // promotes Active: Cancelled, Suspended and Collexia's own Completed are taken as reported.
+        if ($label === 'Active' && self::contractFinalFate($mandate) === 'Completed') {
+            return 'Completed';
+        }
+        return $label;
     }
 
+    /**
+     * The contract status implied by its installments (Collexia's rule):
+     *   ALL installments in a final status (2,3,6,8,10) -> 'Completed'; anything still in flight -> 'Active'.
+     * One installment in a final status (e.g. 3, Insufficient Funds) completes a one-installment contract.
+     * Returns null when the response carries no installments, or fewer than the contract's own
+     * noOfInstallments (a partial list must never complete a contract that still has installments to come).
+     *
+     * @param array $mandate one Mandate Enquiry mandate (the element, not the wrapper)
+     */
+    public static function contractFinalFate(array $mandate): ?string
+    {
+        $installments = $mandate['installments'] ?? null;
+        if (!is_array($installments) || $installments === []) {
+            return null;
+        }
+        $expected = (int) ($mandate['noOfInstallments'] ?? 0);
+        if ($expected > 0 && count($installments) < $expected) {
+            return null;
+        }
+        foreach ($installments as $installment) {
+            if (!in_array((int) ($installment['status'] ?? 0), self::FINAL_INSTALLMENT_STATUSES, true)) {
+                return 'Active';
+            }
+        }
+        return 'Completed';
+    }
     /**
      * Maps a mapMandateStatus() result (debit_orders.status's own vocabulary:
      * Active/Suspended/Cancelled/Completed) onto collexia_api_status's
