@@ -63,6 +63,92 @@ class CplUatTestDataService
     }
 
     /**
+     * Five synthetic Monthly records for the full sign-off file Creditinfo
+     * asked for ("at least 5 contract rows"): a current multi-month loan, a
+     * multi-month loan in arrears, a one-month loan, a closed account (C)
+     * and a written-off account (W). Spread over the three approved test
+     * IDs, so an ID carries more than one account -- as a real consumer can.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function monthlyTestRecords(string $monthEnd): array
+    {
+        $ids = self::UAT_TEST_IDS;
+        $base = $this->monthlyTestRecord($monthEnd);
+
+        $arrears = array_merge($base, [
+            'na_id' => $ids[1],
+            'gender' => 'F',
+            'date_of_birth' => '19800504',
+            'account_no' => 'UATTEST-MONTHLY-002',
+            'forename1' => 'Arrears',
+            'forename2' => 'Account',
+            'title' => 'MS',
+            'owner_tenant' => 'O',
+            'current_balance' => 3600,
+            'amount_overdue' => 900,
+            'months_in_arrears' => 1,
+            'opening_balance' => 6000,
+            'instalment_amount' => 1000,
+            'cellular_telephone' => '0817654321',
+        ]);
+
+        $oneMonth = array_merge($base, [
+            'na_id' => $ids[2],
+            'account_no' => 'UATTEST-MONTHLY-003',
+            'forename1' => 'One',
+            'forename2' => 'Month',
+            'type_of_account' => 'M',
+            'terms' => 0,
+            'date_account_opened' => date('Y-m-d', strtotime('-20 days', strtotime($monthEnd))),
+            'date_of_last_payment' => '',
+            'opening_balance' => 1500,
+            'current_balance' => 1500,
+            'instalment_amount' => 1500,
+            'cellular_telephone' => '0812345678',
+        ]);
+
+        $closed = array_merge($base, [
+            'na_id' => $ids[0],
+            'account_no' => 'UATTEST-MONTHLY-004',
+            'forename1' => 'Closed',
+            'forename2' => 'Account',
+            'date_account_opened' => date('Y-m-d', strtotime('-8 months', strtotime($monthEnd))),
+            'date_of_last_payment' => $monthEnd,
+            'opening_balance' => 4000,
+            'current_balance' => 0,
+            'instalment_amount' => 0,
+            'amount_overdue' => 0,
+            'months_in_arrears' => 0,
+            'status_code' => 'C',
+            'status_date' => $monthEnd,
+        ]);
+
+        $writtenOff = array_merge($base, [
+            'na_id' => $ids[1],
+            'gender' => 'F',
+            'date_of_birth' => '19800504',
+            'account_no' => 'UATTEST-MONTHLY-005',
+            'forename1' => 'Written',
+            'forename2' => 'Off',
+            'title' => 'MS',
+            'date_account_opened' => date('Y-m-d', strtotime('-12 months', strtotime($monthEnd))),
+            'date_of_last_payment' => date('Y-m-d', strtotime('-6 months', strtotime($monthEnd))),
+            'opening_balance' => 3000,
+            'current_balance' => 2200,
+            // Creditinfo rule CUSTNAM074: a Written Off account must still carry an Instalment Amount > 0.
+            'instalment_amount' => 500,
+            'amount_overdue' => 2200,
+            'months_in_arrears' => 6,
+            'status_code' => 'W',
+            'status_date' => $monthEnd,
+            'cellular_telephone' => '0817654321',
+        ]);
+
+        return [$base, $arrears, $oneMonth, $closed, $writtenOff];
+    }
+
+    /**
      * Two synthetic Daily records: a new Registration (Account Type M, one
      * month, using the second approved test ID) and a Closure of an
      * existing account (Account Type P, using the third approved test ID)

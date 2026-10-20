@@ -84,6 +84,14 @@ class CplValidationService
             }
         }
 
+        // Creditinfo rule CUSTNAM074 (found in the 2026-10 sign-off test, where a written-off record
+        // with Instalment Amount 0 was rejected): a Written Off (W) or Terms Extended / rescheduled (E)
+        // account must still report an Instalment Amount greater than 0, even though other status codes
+        // zero the financial fields.
+        if (in_array($fields['status_code'] ?? '', ['W', 'E'], true) && (int) ($fields['instalment_amount'] ?? 0) <= 0) {
+            $add('BLOCKING', 'instalment_amount', 'Instalment Amount must be greater than 0 when the status is Written Off (W) or Terms Extended (E) -- Creditinfo rule CUSTNAM074.');
+        }
+
         if ($accountType === 'M' && (int) ($fields['terms'] ?? 0) !== 0) {
             $add('BLOCKING', 'terms', 'Account Type M must always report Terms as 0000 (one-month loan).');
         }

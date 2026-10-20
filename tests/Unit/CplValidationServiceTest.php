@@ -98,6 +98,21 @@ class CplValidationServiceTest extends TestCase
         $this->assertFalse($this->hasIssue($issues, 'BLOCKING', 'instalment_amount'));
     }
 
+    public function testWrittenOffOrTermsExtendedStatusRequiresAnInstalmentAmountAboveZero(): void
+    {
+        foreach (['W', 'E'] as $code) {
+            $zero = $this->validator->validate($this->validRecord(['status_code' => $code, 'instalment_amount' => 0]));
+            $this->assertTrue($this->hasIssue($zero, 'BLOCKING', 'instalment_amount'), "status {$code} with instalment 0 must block (CUSTNAM074)");
+
+            $ok = $this->validator->validate($this->validRecord(['status_code' => $code, 'instalment_amount' => 500]));
+            $this->assertFalse($this->hasIssue($ok, 'BLOCKING', 'instalment_amount'), "status {$code} with instalment 500 must pass");
+        }
+
+        // Closed accounts legitimately report 0.
+        $closed = $this->validator->validate($this->validRecord(['status_code' => 'C', 'instalment_amount' => 0]));
+        $this->assertFalse($this->hasIssue($closed, 'BLOCKING', 'instalment_amount'));
+    }
+
     public function testIncomeWithoutFrequencyIsAWarningNotBlocking(): void
     {
         $issues = $this->validator->validate($this->validRecord(['income' => 8500, 'income_frequency' => '']));

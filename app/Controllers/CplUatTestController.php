@@ -118,14 +118,17 @@ class CplUatTestController extends Controller
         }
 
         $monthEnd = date('Y-m-d', strtotime('last day of this month'));
-        $fields = (new CplUatTestDataService())->monthlyTestRecord($monthEnd);
         $validator = new CplValidationService();
-        $issues = $validator->validate($fields);
-        $status = $validator->overallStatus($issues);
-        $blockingCount = $status === 'Blocking Error' ? 1 : 0;
-        $warningCount = $status === 'Warning' ? 1 : 0;
-
-        $testRecords = [['fields' => $fields, 'issues' => $issues, 'status' => $status]];
+        $testRecords = [];
+        $blockingCount = 0;
+        $warningCount = 0;
+        foreach ((new CplUatTestDataService())->monthlyTestRecords($monthEnd) as $fields) {
+            $issues = $validator->validate($fields);
+            $status = $validator->overallStatus($issues);
+            $blockingCount += $status === 'Blocking Error' ? 1 : 0;
+            $warningCount += $status === 'Warning' ? 1 : 0;
+            $testRecords[] = ['fields' => $fields, 'issues' => $issues, 'status' => $status];
+        }
 
         $existing = $this->batches->findByTypeAndMonth('Monthly', $monthEnd, true);
         $data = [
@@ -133,7 +136,7 @@ class CplUatTestController extends Controller
             'is_uat_test' => 1,
             'month_end' => $monthEnd,
             'status' => $blockingCount > 0 ? 'Draft' : 'Ready for Review',
-            'total_records' => 1,
+            'total_records' => count($testRecords),
             'blocking_error_count' => $blockingCount,
             'warning_count' => $warningCount,
             'generated_by' => Auth::user()['id'] ?? null,

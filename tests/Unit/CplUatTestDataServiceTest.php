@@ -32,6 +32,20 @@ class CplUatTestDataServiceTest extends TestCase
         $this->assertSame([], array_values($blocking));
     }
 
+    public function testFiveRecordMonthlyFileHasNoBlockingErrorsAndCoversEveryScenario(): void
+    {
+        $records = $this->service->monthlyTestRecords('2026-09-30');
+        $this->assertCount(5, $records);
+        foreach ($records as $record) {
+            $this->assertSame([], array_values(array_filter($this->validator->validate($record), fn ($i) => $i['severity'] === 'BLOCKING')), $record['account_no']);
+            $this->assertContains($record['na_id'], CplUatTestDataService::UAT_TEST_IDS);
+        }
+        $this->assertCount(5, array_unique(array_column($records, 'account_no')));
+        $statuses = array_map(fn ($r) => $r['status_code'] ?? '', $records);
+        $this->assertContains('C', $statuses);
+        $this->assertContains('W', $statuses);
+    }
+
     public function testDailyTestRecordsHaveNoBlockingValidationErrors(): void
     {
         [$registration, $closure] = $this->service->dailyTestRecords('2026-09-15');

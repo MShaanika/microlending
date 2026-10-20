@@ -411,9 +411,26 @@ class CplExporter
                 $fields['current_balance'] = 0;
                 $fields['months_in_arrears'] = 0;
             }
+
+            $fields['instalment_amount'] = self::instalmentForStatus($statusResult['status_code'], (int) ($fields['instalment_amount'] ?? 0), $row);
         }
 
         return $fields;
+    }
+
+    /**
+     * Creditinfo rule CUSTNAM074: a Written Off (W) or Terms Extended (E) account must report an
+     * Instalment Amount greater than 0. The loan's own agreed instalment is reported as-is; when
+     * rounding to whole dollars gave 0 (an instalment under N$0.50) it is rounded UP instead. A loan
+     * with no instalment on record stays 0 and is stopped by CplValidationService, never invented.
+     */
+    public static function instalmentForStatus(string $statusCode, int $current, array $row): int
+    {
+        if (!in_array($statusCode, ['W', 'E'], true) || $current > 0) {
+            return $current;
+        }
+        $raw = (float) ($row['installment_amount'] ?? 0);
+        return $raw > 0 ? (int) ceil($raw) : 0;
     }
 
     public function buildMonthly(string $monthEnd, ?string $supplierRef = null, ?string $tradingName = null): string

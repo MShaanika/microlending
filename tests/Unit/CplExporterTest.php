@@ -73,4 +73,12 @@ class CplExporterTest extends TestCase
         $this->assertSame('061123456', $fields['home_telephone']);
         $this->assertSame('Teacher', $fields['occupation']);
     }
+    public function testWrittenOffOrExtendedAccountNeverReportsAZeroInstalment(): void
+    {
+        $this->assertSame(500, CplExporter::instalmentForStatus('W', 500, ['installment_amount' => 500]));
+        $this->assertSame(1, CplExporter::instalmentForStatus('W', 0, ['installment_amount' => 0.40]), 'rounded UP, never down to 0');
+        $this->assertSame(28, CplExporter::instalmentForStatus('E', 0, ['installment_amount' => 27.57]));
+        $this->assertSame(0, CplExporter::instalmentForStatus('W', 0, ['installment_amount' => 0]), 'no instalment on record: left for validation, not invented');
+        $this->assertSame(0, CplExporter::instalmentForStatus('C', 0, ['installment_amount' => 900]), 'closed accounts keep their zeroed instalment');
+    }
 }
