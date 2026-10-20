@@ -362,4 +362,90 @@ class CollexiaLaneFlowTest extends TestCase
             'Every unpaid installment is already carried by the lane'
         );
     }
+    /** A fake Collexia holding one 3-installment mandate: cancelInstallment() flips an installment to Cancelled (2). */
+    private function cancellableFake(int $mandateStatus = 2): object
+    {
+        return new class($mandateStatus) {
+            public array $statuses = [1 => 1, 2 => 1, 3 => 1];
+
+            public function __construct(public int $mandateStatus)
+            {
+            }
+
+            public function cancelInstallment(string $ref, int $no, string $user): array
+            {
+                $this->statuses[$no] = 2;
+                return [];
+            }
+
+            public function mandateEnquiry(array $filters): array
+            {
+                $dates = [1 => '20261117', 2 => '20261217', 3 => '20270117'];
+                $amounts = [1 => 27.57, 2 => 27.57, 3 => 27.56];
+                $installments = [];
+                foreach ($this->statuses as $no => $status) {
+                    $installments[] = ['noOfInstallment' => $no, 'status' => $status, 'scheduleDate' => $dates[$no], 'installmentAmount' => $amounts[$no]];
+                }
+                return ['mandate' => [['status' => $this->mandateStatus, 'noOfInstallments' => 3, 'installments' => $installments]]];
+            }
+
+            public function installmentRequest(string $ref): array
+            {
+                return ['installments' => [
+                    ['intId' => 101, 'installmentNo' => 1, 'scheduledDate' => '20261117', 'installmentAmount' => 27.57, 'status' => $this->statuses[1]],
+                    ['intId' => 102, 'installmentNo' => 2, 'scheduledDate' => '20261217', 'installmentAmount' => 27.57, 'status' => $this->statuses[2]],
+                    ['intId' => 103, 'installmentNo' => 3, 'scheduledDate' => '20270117', 'installmentAmount' => 27.56, 'status' => $this->statuses[3]],
+                ]];
+            }
+
+            public function updateInstallment(array $installments, string $user): array
+            {
+                return [];
+            }
+        };
+    }
+
+    private function debitOrderStatus(): string
+    {
+        return (string) $this->db->query('SELECT status FROM debit_orders WHERE id = ' . (int) $this->debitOrderId)->fetchColumn();
+    }
+
+    /** Collexia's three scenarios, through the app: in flight stays Active, one still live stays Active, the last cancelled makes the contract Completed. */
+    public function testCancellingInstallmentsOneByOneCompletesTheContractOnlyWhenEveryInstallmentIsFinal(): void
+    {
+        $built = $this->buildLane();
+        $fake = $this->cancellableFake();
+        $service = new \App\Services\CollexiaInstallmentCancellationService(fn () => $fake);
+        $ref = $built['leg']['collexia_api_contract_reference'];
+
+        // Scenario A: nothing cancelled, every installment in flight.
+        (new \App\Services\CollexiaMandateStatusSyncService(fn () => $fake))->syncDebitOrder($built['debitOrder']);
+        $this->assertSame('Active', $this->debitOrderStatus());
+
+        // Scenario B: installments cancelled while at least one is still in flight (Collexia's "Use Case 2").
+        $first = $service->cancel($built['debitOrder'], $ref, 1, 'tester', 0);
+        $this->assertFalse($first['completed']);
+        $this->assertSame('Active', $this->debitOrderStatus());
+        $second = $service->cancel($built['debitOrder'], $ref, 2, 'tester', 0);
+        $this->assertFalse($second['completed']);
+        $this->assertSame('Active', $this->debitOrderStatus());
+
+        // Scenario C: the last live installment is cancelled, so every installment is final.
+        $last = $service->cancel($built['debitOrder'], $ref, 3, 'tester', 0);
+        $this->assertTrue($last['completed']);
+        $this->assertSame('Active', $last['status_before']);
+        $this->assertSame('Completed', $last['status_after']);
+        $this->assertSame('Completed', $this->debitOrderStatus());
+        $this->assertNull($last['sync_error']);
+    }
+
+    public function testACancelledMandateStaysCancelledEvenThoughEveryInstallmentIsFinal(): void
+    {
+        $built = $this->buildLane();
+        $fake = $this->cancellableFake(4);
+        $fake->statuses = [1 => 2, 2 => 2, 3 => 2];
+
+        (new \App\Services\CollexiaMandateStatusSyncService(fn () => $fake))->syncDebitOrder($built['debitOrder']);
+        $this->assertSame('Cancelled', $this->debitOrderStatus());
+    }
 }

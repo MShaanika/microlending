@@ -20,6 +20,7 @@ use App\Services\CollexiaEndoApiClient;
 use App\Services\CollexiaLaneScheduleService;
 use App\Services\CollexiaMandateCancellationService;
 use App\Services\CollexiaMandateFinalizer;
+use App\Services\CollexiaInstallmentCancellationService;
 use App\Services\CollexiaMandateStatusSyncService;
 use App\Support\CollexiaV3Codes;
 use App\Support\SplitLanePlanner;
@@ -1111,12 +1112,10 @@ class DebitOrderCollexiaController extends Controller
         }
 
         try {
-            $client = new CollexiaEndoApiClient();
-            $client->cancelInstallment((string) $debitOrder['collexia_api_contract_reference'], $installmentNo, $this->frontEndUserName());
+            $outcome = (new CollexiaInstallmentCancellationService())->cancel($debitOrder, (string) $debitOrder['collexia_api_contract_reference'], $installmentNo, $this->frontEndUserName());
 
-            $this->debitOrders->updateCollexiaApiState((int) $id, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
             Audit::log('Update', 'Debit Orders', 'Cancelled Collexia installment #' . $installmentNo . ' for debit order #' . $id);
-            Session::flash('success', 'Installment #' . $installmentNo . ' cancelled.');
+            Session::flash('success', self::installmentCancelledMessage($installmentNo, $outcome));
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
@@ -1338,17 +1337,27 @@ class DebitOrderCollexiaController extends Controller
         }
 
         try {
-            $client = new CollexiaEndoApiClient();
-            $client->cancelInstallment((string) $split['collexia_api_contract_reference'], $installmentNo, $this->frontEndUserName());
+            $outcome = (new CollexiaInstallmentCancellationService())->cancel($debitOrder, (string) $split['collexia_api_contract_reference'], $installmentNo, $this->frontEndUserName());
 
-            $this->splitLegs->updateState((int) $id, (int) $splitNo, ['collexia_api_synced_at' => date('Y-m-d H:i:s')]);
             Audit::log('Update', 'Debit Orders', 'Cancelled Collexia installment #' . $installmentNo . ' for debit order #' . $id . ' split #' . $splitNo);
-            Session::flash('success', 'Installment #' . $installmentNo . ' cancelled.');
+            Session::flash('success', self::installmentCancelledMessage($installmentNo, $outcome));
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
         }
 
         $this->redirect($redirectTo);
+    }
+
+    /** The flash text after cancelling one installment: says so when that was the last live one and the contract is now Completed. */
+    private static function installmentCancelledMessage(int $installmentNo, array $outcome): string
+    {
+        $message = 'Installment #' . $installmentNo . ' cancelled.';
+        if ($outcome['completed']) {
+            $message .= ' Every installment on this mandate is now final, so the debit order is Completed.';
+        } elseif ($outcome['sync_error'] !== null) {
+            $message .= ' (The contract status could not be refreshed just now; the scheduled sync will update it.)';
+        }
+        return $message;
     }
 
     /** Finds a live (not merged-away) split leg by split_no, flashing+redirecting on failure -- same pattern as loadOr404(). */

@@ -66,9 +66,12 @@ class CollexiaMandateStatusSyncService
     private DebitOrderSplitLeg $splitLegs;
     private DebitOrderSplitLegInstallment $laneInstallments;
     private CollexiaSetting $settings;
+    /** @var callable */
+    private $clientFactory;
 
-    public function __construct()
+    public function __construct(?callable $clientFactory = null)
     {
+        $this->clientFactory = $clientFactory ?? fn () => new CollexiaEndoApiClient();
         $this->debitOrders = new DebitOrder();
         $this->splitLegs = new DebitOrderSplitLeg();
         $this->laneInstallments = new DebitOrderSplitLegInstallment();
@@ -89,7 +92,7 @@ class CollexiaMandateStatusSyncService
         }
 
         try {
-            $client = new CollexiaEndoApiClient();
+            $client = ($this->clientFactory)();
             $result = $client->mandateEnquiry(['contractReference' => $debitOrder['collexia_api_contract_reference']]);
         } catch (\RuntimeException $e) {
             return ['synced' => false, 'error' => $e->getMessage(), 'mandate_status' => null];
@@ -129,7 +132,7 @@ class CollexiaMandateStatusSyncService
             $attempted = true;
 
             try {
-                $client = new CollexiaEndoApiClient();
+                $client = ($this->clientFactory)();
                 $result = $client->mandateEnquiry(['contractReference' => $split['collexia_api_contract_reference']]);
             } catch (\RuntimeException $e) {
                 return ['synced' => false, 'error' => $e->getMessage(), 'mandate_status' => null];
@@ -215,7 +218,7 @@ class CollexiaMandateStatusSyncService
         $unapplied = array_filter($rows, fn ($r) => $r['applied_at'] === null);
         $user = $this->settings->frontEndUsername();
         if ($unapplied && $mandateStatus === 'Active' && $user !== '') {
-            (new CollexiaLaneScheduleService())->apply($leg, $debitOrder, $user);
+            (new CollexiaLaneScheduleService($this->clientFactory))->apply($leg, $debitOrder, $user);
         }
     }
 
