@@ -294,7 +294,7 @@ function mlsToggleReportPeriod(type) {
     <div class="card h-100">
       <div class="card-header"><strong>Active Loans</strong></div>
       <div class="card-body">
-        <p class="text-muted small">Snapshot as of <?= e(date('d M Y', strtotime($period['end']))) ?> (end of the selected period) &mdash; every currently outstanding loan, whether or not it's overdue.</p>
+        <p class="text-muted small">Snapshot as of <?= e(date('d M Y', strtotime($period['end']))) ?> (end of the selected period) &mdash; every currently outstanding loan, whether or not it's overdue.<?php if ($period['end'] > date('Y-m-d')) : ?> Arrears are measured as of today (<?= e(date('d M Y')) ?>), because an installment is only late once its due date has passed.<?php endif; ?></p>
         <table class="table table-bordered no-datatable">
           <thead><tr><th></th><th class="text-end">No. of Loans</th><th class="text-end">Outstanding (N$)</th></tr></thead>
           <tbody>

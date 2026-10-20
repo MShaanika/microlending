@@ -263,7 +263,7 @@ class LoanReportService
         $totalOutstanding = self::sumOutstanding($db, $activeLoanIds);
 
         $arrearsLoanIds = array_values(array_intersect(
-            array_map('intval', array_column(ArrearsService::overdueLoans($asOfDate), 'loan_id')),
+            array_map('intval', array_column(ArrearsService::overdueLoans(self::arrearsAsOf($asOfDate)), 'loan_id')),
             $activeLoanIds
         ));
         $arrearsOutstanding = self::sumOutstanding($db, $arrearsLoanIds);
@@ -276,6 +276,19 @@ class LoanReportService
             'current_count' => count($activeLoanIds) - count($arrearsLoanIds),
             'current_outstanding' => round($totalOutstanding - $arrearsOutstanding, 2),
         ];
+    }
+
+    /**
+     * The date arrears are measured at. A report period can end in the future (e.g. the whole of
+     * October, viewed on the 18th), but an installment is only late once its due date has passed --
+     * measuring at the period end flagged loans whose installments simply hadn't fallen due yet
+     * (reported 2026-10-18: a loan with nothing overdue showed as "In Arrears"). So arrears are
+     * never measured later than today.
+     */
+    public static function arrearsAsOf(string $asOfDate, ?string $today = null): string
+    {
+        $today = $today ?? date('Y-m-d');
+        return $asOfDate > $today ? $today : $asOfDate;
     }
 
     private static function sumOutstanding(\PDO $db, array $loanIds): float

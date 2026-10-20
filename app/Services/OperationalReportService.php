@@ -27,7 +27,7 @@ class OperationalReportService
             $buckets[$b] = ['bucket' => $b, 'count' => 0, 'value' => 0.0];
         }
 
-        foreach (ArrearsService::overdueLoans($asOfDate) as $row) {
+        foreach (ArrearsService::overdueLoans(LoanReportService::arrearsAsOf($asOfDate)) as $row) {
             if ($branchId !== null && (int) $row['branch_id'] !== $branchId) {
                 continue;
             }
