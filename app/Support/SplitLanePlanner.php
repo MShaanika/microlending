@@ -101,6 +101,68 @@ class SplitLanePlanner
     }
 
     /**
+     * Merges two or more PARTS of one loan installment inside a lane that has not been sent to Collexia yet: the parts become a single
+     * installment of their combined amount. The first selected part is kept (it holds the position and the date), the others are dropped,
+     * and the lane's own installment numbers are closed up 1..n. The mandate's loaded amount stays the largest single installment, which is
+     * the convention plan() uses so a later per-installment update never has to go up.
+     *
+     * Pure: no database. The caller applies the returned plan.
+     *
+     * @param array<int, array{id: int, installment_no: int, schedule_id: int, planned_date: string, planned_amount: mixed}> $rows the lane's rows, in installment order
+     * @param int[] $mergeIds ids of the rows to merge
+     * @return array{error: ?string, rows: array<int, array{id: int, installment_no: int, schedule_id: int, planned_date: string, planned_amount: float}>, deleted: int[], amount: float}
+     */
+    public static function mergeParts(array $rows, array $mergeIds): array
+    {
+        $fail = static fn (string $why) => ['error' => $why, 'rows' => [], 'deleted' => [], 'amount' => 0.0];
+
+        $mergeIds = array_values(array_unique(array_map('intval', $mergeIds)));
+        if (count($mergeIds) < 2) {
+            return $fail('Select at least two parts to merge.');
+        }
+
+        $byId = [];
+        foreach ($rows as $row) {
+            $byId[(int) $row['id']] = $row;
+        }
+        $selected = [];
+        foreach ($mergeIds as $id) {
+            if (!isset($byId[$id])) {
+                return $fail('One of the selected parts is not part of this mandate.');
+            }
+            $selected[] = $byId[$id];
+        }
+
+        if (count(array_unique(array_map(static fn ($r) => (int) $r['schedule_id'], $selected))) !== 1) {
+            return $fail('Only parts of the same loan installment can be merged.');
+        }
+
+        usort($selected, static fn ($a, $b) => (int) $a['installment_no'] <=> (int) $b['installment_no']);
+        $keepId = (int) $selected[0]['id'];
+        $total = round(array_sum(array_map(static fn ($r) => (float) $r['planned_amount'], $selected)), 2);
+        $deleted = array_values(array_diff($mergeIds, [$keepId]));
+        sort($deleted);
+
+        $out = [];
+        $no = 0;
+        foreach ($rows as $row) {
+            $id = (int) $row['id'];
+            if (in_array($id, $deleted, true)) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id,
+                'installment_no' => ++$no,
+                'schedule_id' => (int) $row['schedule_id'],
+                'planned_date' => (string) $row['planned_date'],
+                'planned_amount' => $id === $keepId ? $total : round((float) $row['planned_amount'], 2),
+            ];
+        }
+
+        return ['error' => null, 'rows' => $out, 'deleted' => $deleted, 'amount' => max(array_column($out, 'planned_amount'))];
+    }
+
+    /**
      * The inverse: the plan() input rebuilt from a stored mandate's installment
      * rows (debit_order_split_leg_installments), so a single mandate Collexia
      * refused can be re-planned as one mandate per part without asking staff

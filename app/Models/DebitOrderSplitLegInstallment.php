@@ -63,6 +63,30 @@ class DebitOrderSplitLegInstallment extends Model
         return $id ? (int) $id : null;
     }
 
+    /**
+     * Applies a merged plan from SplitLanePlanner::mergeParts() to one lane: drops the merged-away parts, updates amounts and closes up the
+     * installment numbers. All in one transaction. installment_no is unique per lane, so the numbers are first moved out of the way and then
+     * set, never overwritten in place.
+     *
+     * @param array<int, array{id: int, installment_no: int, planned_amount: float}> $rows the lane's remaining rows with their new numbers
+     * @param int[] $deletedIds
+     */
+    public function applyMerge(int $legId, array $rows, array $deletedIds): void
+    {
+        $this->transaction(function () use ($legId, $rows, $deletedIds) {
+            foreach ($deletedIds as $id) {
+                $this->query('DELETE FROM debit_order_split_leg_installments WHERE id = ? AND leg_id = ?', [(int) $id, $legId]);
+            }
+            $this->query('UPDATE debit_order_split_leg_installments SET installment_no = installment_no + 1000 WHERE leg_id = ?', [$legId]);
+            foreach ($rows as $row) {
+                $this->query(
+                    'UPDATE debit_order_split_leg_installments SET installment_no = ?, planned_amount = ? WHERE id = ? AND leg_id = ?',
+                    [(int) $row['installment_no'], round((float) $row['planned_amount'], 2), (int) $row['id'], $legId]
+                );
+            }
+        });
+    }
+
     public function isLane(int $legId): bool
     {
         return (bool) $this->scalar("SELECT 1 FROM debit_order_split_leg_installments WHERE leg_id = ? LIMIT 1", [$legId]);

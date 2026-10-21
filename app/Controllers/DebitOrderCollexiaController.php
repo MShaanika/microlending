@@ -1701,6 +1701,83 @@ class DebitOrderCollexiaController extends Controller
     }
 
     /**
+     * Merges two or more PARTS of one loan installment inside a mandate (lane) that has NOT been sent to Collexia yet (Not Placed / Load Failed).
+     * Since Oct 19 a loan registers as one mandate whose split installments are extra installments on the same date; the old merge only combined
+     * separate mandates and refused these, so there was nothing to select. Here the plan is edited in place: the chosen parts become one
+     * installment of their combined amount and the numbers are closed up. Nothing is sent to or cancelled at Collexia, and the total to collect
+     * is unchanged. A mandate that is already live at Collexia is refused: merging there means cancelling and re-placing it.
+     */
+    public function mergeParts(string $id, string $splitNo): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->loadOr404($id);
+        if (!$debitOrder) {
+            return;
+        }
+        $redirectTo = '/debit-orders/' . $id . '/split-transactions';
+        if (!$this->verifyCsrfOrRedirect($id, $redirectTo)) {
+            return;
+        }
+        $split = $this->findLiveSplitOr404((int) $id, (int) $splitNo, $redirectTo);
+        if (!$split) {
+            return;
+        }
+
+        if (!in_array($split['collexia_api_status'], self::SPLIT_UNSENT_STATUSES, true)) {
+            Session::flash('error', 'Split #' . (int) $split['split_no'] . ' is already placed with Collexia, so its parts cannot be merged here. It would have to be cancelled and placed again.');
+            $this->redirect($redirectTo);
+            return;
+        }
+        $laneRows = $this->laneInstallments->forLeg((int) $split['id']);
+        if ($laneRows === []) {
+            Session::flash('error', 'Split #' . (int) $split['split_no'] . ' does not carry split installments.');
+            $this->redirect($redirectTo);
+            return;
+        }
+        foreach ($laneRows as $r) {
+            if (!empty($r['applied_at'])) {
+                Session::flash('error', 'Split #' . (int) $split['split_no'] . ' has already been confirmed with Collexia, so its parts cannot be merged here.');
+                $this->redirect($redirectTo);
+                return;
+            }
+        }
+
+        $partIds = array_values(array_filter(array_map('intval', (array) ($_POST['part_ids'] ?? []))));
+        $merged = SplitLanePlanner::mergeParts($laneRows, $partIds);
+        if ($merged['error'] !== null) {
+            Session::flash('error', $merged['error']);
+            $this->redirect($redirectTo);
+            return;
+        }
+
+        $before = [];
+        foreach ($laneRows as $r) {
+            if (in_array((int) $r['id'], $partIds, true)) {
+                $before[] = '#' . (int) $r['loan_installment_no'] . ' ' . format_money($r['planned_amount']);
+            }
+        }
+        $keptId = (int) (array_values(array_diff($partIds, $merged['deleted']))[0] ?? 0);
+        $combined = 0.0;
+        foreach ($merged['rows'] as $r) {
+            if ((int) $r['id'] === $keptId) {
+                $combined = (float) $r['planned_amount'];
+            }
+        }
+
+        $this->laneInstallments->applyMerge((int) $split['id'], $merged['rows'], $merged['deleted']);
+        $this->splitLegs->updateById((int) $split['id'], ['leg_amount' => $merged['amount']]);
+
+        Audit::log(
+            'Update',
+            'Debit Orders',
+            'Merged ' . count($partIds) . ' parts (' . implode(' + ', $before) . ' = ' . format_money($combined) . ') of one installment on split #' . (int) $split['split_no']
+                . ' of debit order #' . $id . ' (' . $debitOrder['debit_order_no'] . '). Not yet placed with Collexia; total to collect unchanged.'
+        );
+        Session::flash('success', count($partIds) . ' parts merged into one installment of ' . format_money($combined) . '. The mandate now carries ' . count($merged['rows']) . ' installments; place it when ready.');
+        $this->redirect($redirectTo);
+    }
+
+    /**
      * Recovers from a merge that turned out to combine too much (e.g.
      * rejected with "10569 Mandate amount limit exceeded") -- only usable
      * on a merged split that Load Failed, since its sources were already

@@ -147,4 +147,63 @@ class SplitLanePlannerTest extends TestCase
         $weekday = [1 => ['date' => '2027-01-19', 'amount' => 27.57]];   // a Tuesday: no tolerance
         $this->assertSame([1], SplitLanePlanner::installmentsNeedingUpdate($weekday, [1 => ['date' => '2027-01-20', 'amount' => 27.57]]));
     }
+
+    /** DO-261021-6BA700's lane exactly as stored: instalment 2 in three parts, 3 whole, 4 in three parts, 5 whole. */
+    private function helenaLane(): array
+    {
+        $r = static fn (int $id, int $no, int $sched, string $date, float $amt) => ['id' => $id, 'installment_no' => $no, 'schedule_id' => $sched, 'planned_date' => $date, 'planned_amount' => $amt];
+        return [
+            $r(101, 1, 20, '2026-11-17', 8.52), $r(102, 2, 20, '2026-11-17', 8.52), $r(103, 3, 20, '2026-11-17', 8.53),
+            $r(104, 4, 21, '2026-12-17', 27.57),
+            $r(105, 5, 22, '2027-01-18', 9.19), $r(106, 6, 22, '2027-01-18', 9.19), $r(107, 7, 22, '2027-01-18', 9.19),
+            $r(108, 8, 23, '2027-02-17', 27.56),
+        ];
+    }
+
+    public function testMergingAllThreePartsOfAnInstallmentCombinesThemAndClosesUpTheNumbers(): void
+    {
+        $merged = SplitLanePlanner::mergeParts($this->helenaLane(), [101, 102, 103]);
+
+        $this->assertNull($merged['error']);
+        $this->assertSame([102, 103], $merged['deleted']);
+        $this->assertSame([1, 2, 3, 4, 5, 6], array_column($merged['rows'], 'installment_no'), 'numbers closed up with no gaps');
+        $this->assertSame([101, 104, 105, 106, 107, 108], array_column($merged['rows'], 'id'));
+        $this->assertSame(25.57, $merged['rows'][0]['planned_amount'], '8.52 + 8.52 + 8.53');
+        $this->assertSame('2026-11-17', $merged['rows'][0]['planned_date']);
+        $this->assertSame(27.57, $merged['amount'], 'mandate stays loaded at its largest installment');
+        $this->assertSame(round(25.57 + 27.57 + 9.19 * 3 + 27.56, 2), round(array_sum(array_column($merged['rows'], 'planned_amount')), 2), 'the money to be collected is unchanged');
+    }
+
+    public function testMergingTwoOfThreePartsLeavesTheThirdAlone(): void
+    {
+        $merged = SplitLanePlanner::mergeParts($this->helenaLane(), [105, 107]);
+
+        $this->assertNull($merged['error']);
+        $this->assertSame([107], $merged['deleted'], 'the later part is dropped, the first kept');
+        $amounts = array_column($merged['rows'], 'planned_amount', 'id');
+        $this->assertSame(18.38, $amounts[105], '9.19 + 9.19');
+        $this->assertSame(9.19, $amounts[106], 'the untouched part is unchanged');
+    }
+
+    public function testPartsOfDifferentInstallmentsCannotBeMerged(): void
+    {
+        $merged = SplitLanePlanner::mergeParts($this->helenaLane(), [103, 104]);
+        $this->assertSame('Only parts of the same loan installment can be merged.', $merged['error']);
+        $this->assertSame([], $merged['rows']);
+    }
+
+    public function testNeedsTwoPartsAndOnlyPartsOfThisMandate(): void
+    {
+        $this->assertNotNull(SplitLanePlanner::mergeParts($this->helenaLane(), [101])['error']);
+        $this->assertNotNull(SplitLanePlanner::mergeParts($this->helenaLane(), [101, 101])['error'], 'the same part twice is still one part');
+        $this->assertNotNull(SplitLanePlanner::mergeParts($this->helenaLane(), [101, 999])['error'], 'a row from another mandate');
+        $this->assertNotNull(SplitLanePlanner::mergeParts($this->helenaLane(), [])['error']);
+    }
+
+    public function testMergingTheSelectionInAnyOrderKeepsTheEarliestPart(): void
+    {
+        $merged = SplitLanePlanner::mergeParts($this->helenaLane(), [103, 101, 102]);
+        $this->assertSame([102, 103], $merged['deleted']);
+        $this->assertSame(25.57, $merged['rows'][0]['planned_amount']);
+    }
 }
