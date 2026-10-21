@@ -72,6 +72,19 @@ class RescheduleService
     }
 
     /**
+     * Everything the borrower still owes on the loan -- principal, interest, fees, levy, duty stamp and penalty not yet paid. The same
+     * figure every other screen and report calls "outstanding" (the sum of what each schedule row has fallen due for less what it has
+     * received). Display only: the new schedule is still recalculated on outstandingPrincipal() (see preview()).
+     */
+    public static function totalOutstanding(int $loanId): float
+    {
+        $db = Database::connection();
+        $stmt = $db->prepare('SELECT COALESCE(SUM(total_due - total_paid), 0) FROM loan_schedules WHERE loan_id = ?');
+        $stmt->execute([$loanId]);
+        return round((float) $stmt->fetchColumn(), 2);
+    }
+
+    /**
      * Count of installment_no slots that stay occupied by the loan's
      * existing rows -- both already-Paid rows AND Partial rows (which
      * implement() closes out in place rather than deleting, so they keep

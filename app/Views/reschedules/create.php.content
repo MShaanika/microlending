@@ -20,8 +20,9 @@
       </div>
       <div class="col-md-4">
         <div class="p-3 border rounded border-info">
-          <div class="text-muted small">Outstanding Principal</div>
-          <div class="fs-5 fw-bold"><?= format_money($outstandingBalance) ?></div>
+          <div class="text-muted small">Total Outstanding</div>
+          <div class="fs-5 fw-bold"><?= format_money($totalOutstanding ?? $outstandingBalance) ?></div>
+          <?php if (isset($totalOutstanding)): ?><div class="text-muted small">of which principal <?= format_money($outstandingBalance) ?> (the new schedule is recalculated on the principal)</div><?php endif; ?>
         </div>
       </div>
     </div>

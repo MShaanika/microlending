@@ -143,4 +143,12 @@ class RescheduleNumberingTest extends TestCase
 
         $this->assertSame(range(1, 12), $this->numbers($loanId));
     }
+
+    public function testTotalOutstandingIsEverythingOwedWhilePrincipalIsOnlyThePrincipalPart(): void
+    {
+        $loanId = $this->makeLoan('Upfront');
+        // Rows 2-5 each still owe 2,628.08 (principal 2,021.60 + interest 606.48); row 1 is fully paid.
+        $this->assertSame(10512.32, RescheduleService::totalOutstanding($loanId), 'the whole amount owed');
+        $this->assertSame(8086.40, RescheduleService::outstandingPrincipal($loanId), 'the principal part only, which the new schedule is recalculated on');
+    }
 }
