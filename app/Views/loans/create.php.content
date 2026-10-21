@@ -126,6 +126,13 @@
 
 <script>
 (function () {
+  // jQuery is loaded at the bottom of the layout, AFTER this inline script runs, so anything called while the page is still
+  // parsing (e.g. a borrower pre-selected from an application) must not touch it. Once jQuery exists this refreshes select2's
+  // cached option list after a native rebuild; before that there is nothing to refresh -- select2 reads the options when it initialises.
+  function notifySelect2(el) {
+    if (window.jQuery) { window.jQuery(el).trigger('change'); }
+  }
+
   var plansByProduct = <?= json_encode(array_reduce($products, function ($carry, $p) {
       $carry[$p['id']] = array_map(function ($pl) {
           return ['id' => $pl['id'], 'label' => $pl['plan_name'] . ' (' . $pl['months'] . ' mo, ' . $pl['interest_rate'] . '%)'];
@@ -142,7 +149,7 @@
     planSelect.innerHTML = '';
     if (!plans.length) {
       planSelect.innerHTML = '<option value="">No plans for this product</option>';
-      jQuery(planSelect).trigger('change');
+      notifySelect2(planSelect);
       return;
     }
     planSelect.innerHTML = '<option value="">Select plan</option>';
@@ -154,7 +161,7 @@
       planSelect.appendChild(opt);
     });
     // Refreshes select2's cached option list after the native rebuild above.
-    jQuery(planSelect).trigger('change');
+    notifySelect2(planSelect);
   }
 
   // The jQuery-bound listener this needs (select2 notifies of a value
@@ -200,7 +207,7 @@
     if (!loans.length) {
       existingLoanSelect.innerHTML = '<option value="">No active loans for this borrower</option>';
       existingLoanHint.textContent = '';
-      jQuery(existingLoanSelect).trigger('change');
+      notifySelect2(existingLoanSelect);
       return;
     }
     existingLoanSelect.innerHTML = '<option value="">Select active loan</option>';
@@ -214,7 +221,7 @@
       existingLoanSelect.appendChild(opt);
     });
     // Refreshes select2's cached option list after the native rebuild above.
-    jQuery(existingLoanSelect).trigger('change');
+    notifySelect2(existingLoanSelect);
   }
 
   function updateModeUI() {
