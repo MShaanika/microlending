@@ -134,6 +134,7 @@ class LoanController extends Controller
             'products' => $this->products->activeWithPlans(),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'activeLoansByBorrower' => $this->buildActiveLoansByBorrower($scopeBranchId),
+            'blockedTopupLoansByBorrower' => $this->buildBlockedTopupLoansByBorrower($scopeBranchId),
             'preselected_borrower_id' => $preselectedBorrowerId,
             'application_id' => $applicationId,
             'old' => $old,
@@ -156,6 +157,35 @@ class LoanController extends Controller
                 'loan_no' => $l['loan_no'],
                 'principal_amount' => (float) $l['principal_amount'],
                 'start_date' => $l['start_date'],
+            ];
+        }
+        return $map;
+    }
+
+    /**
+     * borrower_id => [{loan_no, reason}] for Active/Current loans that are NOT offered for a top-up, so the form can say why instead of
+     * leaving the picker empty. The only way an Active loan is excluded is an implemented reschedule (see Loan::activeLoansForTopup() and the
+     * same rule enforced again in store()). Display only -- this adds no rule.
+     */
+    private function buildBlockedTopupLoansByBorrower(?int $branchId = null): array
+    {
+        $db = \App\Core\Database::connection();
+        $sql = "SELECT l.borrower_id, l.loan_no FROM loans l
+                WHERE l.loan_status IN ('Active','Current')
+                  AND EXISTS (SELECT 1 FROM loan_reschedules r WHERE r.loan_id = l.id AND r.status = 'Implemented')";
+        $params = [];
+        if ($branchId !== null) {
+            $sql .= ' AND l.branch_id = ?';
+            $params[] = $branchId;
+        }
+        $stmt = $db->prepare($sql . ' ORDER BY l.id DESC');
+        $stmt->execute($params);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $map[(int) $row['borrower_id']][] = [
+                'loan_no' => $row['loan_no'],
+                'reason' => 'has been rescheduled and can no longer be topped up -- use Reschedule instead',
             ];
         }
         return $map;
@@ -247,6 +277,7 @@ class LoanController extends Controller
                 'products' => $this->products->activeWithPlans(),
                 'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
                 'activeLoansByBorrower' => $this->buildActiveLoansByBorrower($scopeBranchId),
+            'blockedTopupLoansByBorrower' => $this->buildBlockedTopupLoansByBorrower($scopeBranchId),
                 'preselected_borrower_id' => (int) ($_POST['borrower_id'] ?? 0),
                 'application_id' => (int) ($_POST['application_id'] ?? 0),
                 'old' => $_POST,

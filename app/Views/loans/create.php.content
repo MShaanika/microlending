@@ -56,6 +56,27 @@
           <?php if (isset($errors['existing_loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['existing_loan_id']) ?></div><?php endif; ?>
         </div>
 
+        <div class="col-12 mb-3" id="topup_restricted_card" style="display:none;">
+          <div class="border border-danger rounded p-3" role="alert">
+            <div class="d-flex align-items-center mb-1">
+              <i class="mdi mdi-alert-outline text-danger fs-4 me-2"></i>
+              <h5 class="mb-0">Loan Top-Up Restricted</h5>
+            </div>
+            <div class="text-muted small mb-2">Eligibility requirement not met</div>
+            <p class="mb-2" id="topup_restricted_text"></p>
+            <ul class="small mb-2" id="topup_restricted_list"></ul>
+            <details class="small">
+              <summary class="text-primary" style="cursor:pointer;">Top-up rules</summary>
+              <ul class="mt-2 mb-0">
+                <li>A top-up is made on one of the client's <strong>active</strong> loans.</li>
+                <li>A loan that has been <strong>rescheduled</strong> can no longer be topped up &mdash; use Reschedule instead.</li>
+                <li>On a loan disbursed this month with no payment yet (and not Upfront interest), the top-up is combined into that same loan.</li>
+                <li>Otherwise the top-up is created as a separate loan linked to the original.</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+
         <div class="col-md-6 mb-3 topup-only" style="display:none;">
           <label class="form-label">Bank Account <span class="text-muted small">(if the top-up consolidates)</span></label>
           <select name="bank_account_id" class="form-select">
@@ -133,6 +154,12 @@
     if (window.jQuery) { window.jQuery(el).trigger('change'); }
   }
 
+  // Why a top-up is not possible for the chosen borrower (display only -- the rules themselves are unchanged).
+  var blockedTopupByBorrower = <?= json_encode($blockedTopupLoansByBorrower ?? new \stdClass()) ?>;
+  var topupCard = document.getElementById('topup_restricted_card');
+  var topupCardText = document.getElementById('topup_restricted_text');
+  var topupCardList = document.getElementById('topup_restricted_list');
+
   var plansByProduct = <?= json_encode(array_reduce($products, function ($carry, $p) {
       $carry[$p['id']] = array_map(function ($pl) {
           return ['id' => $pl['id'], 'label' => $pl['plan_name'] . ' (' . $pl['months'] . ' mo, ' . $pl['interest_rate'] . '%)'];
@@ -208,6 +235,7 @@
       existingLoanSelect.innerHTML = '<option value="">No active loans for this borrower</option>';
       existingLoanHint.textContent = '';
       notifySelect2(existingLoanSelect);
+      renderTopupCard();
       return;
     }
     existingLoanSelect.innerHTML = '<option value="">Select active loan</option>';
@@ -222,6 +250,30 @@
     });
     // Refreshes select2's cached option list after the native rebuild above.
     notifySelect2(existingLoanSelect);
+    renderTopupCard();
+  }
+
+  function renderTopupCard() {
+    if (!topupCard) return;
+    var checked = document.querySelector('input[name="loan_mode"]:checked');
+    var isTopup = !!checked && checked.value === 'topup';
+    var borrowerId = borrowerSelect.value;
+    var eligible = activeLoansByBorrower[borrowerId] || [];
+    if (!isTopup || !borrowerId || eligible.length) {
+      topupCard.style.display = 'none';
+      return;
+    }
+    var blocked = blockedTopupByBorrower[borrowerId] || [];
+    topupCardText.textContent = blocked.length
+      ? 'The client is currently not eligible for a loan top-up: none of their loans can be topped up.'
+      : 'The client is currently not eligible for a loan top-up because they have no active loan to top up.';
+    topupCardList.innerHTML = '';
+    blocked.forEach(function (b) {
+      var li = document.createElement('li');
+      li.textContent = 'Loan ' + b.loan_no + ' ' + b.reason + '.';
+      topupCardList.appendChild(li);
+    });
+    topupCard.style.display = '';
   }
 
   function updateModeUI() {
@@ -230,6 +282,7 @@
     topupOnlyEls.forEach(function (el) { el.style.display = isTopup ? '' : 'none'; });
     existingLoanSelect.required = isTopup;
     amountLabel.textContent = isTopup ? 'Top-up Amount' : 'Principal Amount';
+    renderTopupCard();
   }
 
   // renderExistingLoans() is bound to borrowerSelect further down, inside
