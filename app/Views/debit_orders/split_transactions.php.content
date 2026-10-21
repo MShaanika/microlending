@@ -1,3 +1,28 @@
+<style>
+  /* Split transactions: the instalments a mandate carries, grouped per loan instalment. */
+  .lane-cell { min-width: 330px; }
+  .lane-box { max-width: 420px; }
+  .lane-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
+  .lane-title { font-weight: 600; font-size: .85rem; }
+  .lane-summary { font-size: .8rem; color: #5b6b7b; margin-bottom: .5rem; min-height: 1.1rem; }
+  .lane-summary.is-ready { color: #0b6b3a; font-weight: 600; }
+  .lane-group { border: 1px solid #dbe3ea; border-radius: .4rem; margin-bottom: .5rem; background: #fff; overflow: hidden; }
+  .lane-group.is-split { border-left: 4px solid #1e9fd6; }
+  .lane-head { display: flex; align-items: center; gap: .5rem; padding: .4rem .6rem; background: #f6f9fb; flex-wrap: wrap; }
+  .lane-group.is-whole .lane-head { background: #fff; }
+  .lane-inst { font-weight: 600; }
+  .lane-date { color: #5b6b7b; font-size: .8rem; }
+  .lane-badge { font-size: .68rem; }
+  .lane-total { margin-left: auto; font-weight: 600; }
+  .lane-part { display: flex; align-items: center; gap: .6rem; margin: 0; padding: .45rem .6rem .45rem 1rem; border-top: 1px solid #eef2f6; cursor: pointer; }
+  .lane-part:hover { background: #f3f9fd; }
+  .lane-part.is-selected { background: #e3f3fc; }
+  .part-checkbox { width: 1.3rem; height: 1.3rem; flex: 0 0 auto; margin: 0; cursor: pointer; accent-color: #1e9fd6; border: 2px solid #5b6b7b; }
+  .part-chip { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 600; color: #fff; }
+  .part-1 { background: #1e9fd6; } .part-2 { background: #7c5cff; } .part-3 { background: #e8871e; } .part-4 { background: #2e9d5b; }
+  .part-amt { margin-left: auto; font-weight: 600; }
+  .lane-note { font-size: .75rem; color: #7b8996; margin-top: .25rem; }
+</style>
 <?= flash_messages() ?>
 
 <div class="card">
@@ -14,7 +39,7 @@
       <?= csrf_field() ?>
       <div id="merge-hidden-fields"></div>
 
-      <div class="d-flex justify-content-end align-items-center mt-3 mb-2">
+      <div class="d-flex justify-content-end align-items-center mt-3 mb-2<?= empty($mergeableIds) ? ' d-none' : '' ?>">
         <button type="button" id="merge-selected-btn" class="btn btn-outline-primary btn-sm" disabled data-bs-toggle="modal" data-bs-target="#mergeConfirmModal"><i class="mdi mdi-call-merge"></i> Merge Selected</button>
       </div>
 
@@ -69,37 +94,82 @@
                   <?php if ($isMergeResult): ?>
                     <span class="badge bg-info">Merged</span> <span class="small text-muted">(from #<?= implode(', #', $mergeSources[$s['id']]) ?>)</span>
                   <?php elseif ($lane): ?>
-                    Part <?= (int) $s['split_no'] ?> of <?= (int) $s['total_splits'] ?>
+                    <?php $laneCarriesParts = (bool) array_filter(array_count_values(array_map(fn ($r) => (int) $r['schedule_id'], $lane)), fn ($n) => $n > 1); ?>
+                    <?php if ($laneCarriesParts): ?>
+                      <strong>Mandate <?= (int) $s['split_no'] ?></strong>
+                      <div class="text-muted small">one mandate, split parts inside</div>
+                    <?php else: ?>
+                      Part <?= (int) $s['split_no'] ?> of <?= (int) $s['total_splits'] ?>
+                    <?php endif; ?>
                   <?php else: ?>
                     #<?= (int) ($positionInInstallment[(int) $s['id']] ?? $s['split_no']) ?> of <?= (int) $s['total_splits'] ?>
                   <?php endif; ?>
                 </td>
-                <td class="small">
+                <td class="small lane-cell">
                   <?php if ($lane): ?>
                     <?php
                       // Parts of one installment can be merged while the mandate has NOT gone to Collexia (nothing to cancel there).
                       $canMergeParts = !$s['merged_into_id'] && in_array($s['collexia_api_status'], ['Not Placed', 'Load Failed'], true)
                         && !array_filter($lane, fn ($r) => $r['applied_at'] !== null);
-                      $partsPerSchedule = array_count_values(array_map(fn ($r) => (int) $r['schedule_id'], $lane));
-                      $hasSplitParts = max($partsPerSchedule) > 1;
+                      $groups = [];
+                      foreach ($lane as $li) {
+                        $groups[(int) $li['schedule_id']][] = $li;
+                      }
+                      $hasSplitParts = (bool) array_filter($groups, fn ($g) => count($g) > 1);
+                      $datesPending = (bool) array_filter($lane, fn ($r) => $r['applied_at'] === null);
                     ?>
-                    <?php foreach ($lane as $li): ?>
-                      <div>
-                        <?php if ($canMergeParts && ($partsPerSchedule[(int) $li['schedule_id']] ?? 0) > 1): ?>
-                          <input type="checkbox" class="form-check-input part-checkbox me-1" value="<?= (int) $li['id'] ?>" data-leg="<?= (int) $s['id'] ?>" data-schedule="<?= (int) $li['schedule_id'] ?>" data-amount="<?= e($li['planned_amount']) ?>" data-label="#<?= (int) $li['loan_installment_no'] ?>" aria-label="Select this part of installment <?= (int) $li['loan_installment_no'] ?> to merge">
+                    <div class="lane-box">
+                      <div class="lane-toolbar">
+                        <span class="lane-title"><?= count($lane) ?> installment<?= count($lane) === 1 ? '' : 's' ?> in this mandate</span>
+                        <?php if ($canMergeParts && $hasSplitParts): ?>
+                          <button type="button" class="btn btn-sm btn-primary merge-parts-btn" disabled data-leg="<?= (int) $s['id'] ?>"
+                            data-url="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/merge-parts') ?>">
+                            <i class="mdi mdi-call-merge"></i> Merge selected parts
+                          </button>
                         <?php endif; ?>
-                        #<?= (int) $li['loan_installment_no'] ?> &bull; <?= e(date('d M Y', strtotime($li['collexia_date'] ?: $li['planned_date']))) ?> &bull; <?= format_money((float) $li['planned_amount']) ?><?= $li['applied_at'] === null ? ' <span class="text-muted">(date being confirmed)</span>' : '' ?>
                       </div>
-                    <?php endforeach; ?>
-                    <?php if ($canMergeParts && $hasSplitParts): ?>
-                      <button type="button" class="btn btn-sm btn-outline-primary mt-1 merge-parts-btn" disabled data-leg="<?= (int) $s['id'] ?>"
-                        data-url="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . (int) $s['split_no'] . '/merge-parts') ?>">
-                        <i class="mdi mdi-call-merge"></i> Merge selected parts
-                      </button>
-                      <div class="text-muted" style="font-size:.75rem;">Tick two or more parts of the same installment.</div>
-                    <?php elseif ($hasSplitParts): ?>
-                      <div class="text-muted" style="font-size:.75rem;">Parts can only be merged before the mandate is placed with Collexia.</div>
-                    <?php endif; ?>
+                      <?php if ($canMergeParts && $hasSplitParts): ?>
+                        <div class="lane-summary" data-leg="<?= (int) $s['id'] ?>">Tick two or more parts of the <strong>same</strong> installment, then merge them into one.</div>
+                      <?php elseif ($hasSplitParts): ?>
+                        <div class="lane-summary">Parts can only be merged before the mandate is placed with Collexia.</div>
+                      <?php endif; ?>
+
+                      <?php foreach ($groups as $parts): ?>
+                        <?php
+                          $count = count($parts);
+                          $groupTotal = round(array_sum(array_map(fn ($r) => (float) $r['planned_amount'], $parts)), 2);
+                          $first = $parts[0];
+                          $when = date('d M Y', strtotime($first['collexia_date'] ?: $first['planned_date']));
+                        ?>
+                        <div class="lane-group <?= $count > 1 ? 'is-split' : 'is-whole' ?>">
+                          <div class="lane-head">
+                            <span class="lane-inst">Installment <?= (int) $first['loan_installment_no'] ?></span>
+                            <span class="lane-date"><i class="mdi mdi-calendar-blank-outline"></i> <?= e($when) ?></span>
+                            <?php if ($count > 1): ?>
+                              <span class="badge bg-info lane-badge">Split in <?= $count ?></span>
+                            <?php else: ?>
+                              <span class="badge bg-light text-muted border lane-badge">Whole</span>
+                            <?php endif; ?>
+                            <span class="lane-total"><?= format_money($groupTotal) ?></span>
+                          </div>
+                          <?php if ($count > 1): ?>
+                            <?php foreach ($parts as $idx => $li): ?>
+                              <label class="lane-part">
+                                <?php if ($canMergeParts): ?>
+                                  <input type="checkbox" class="part-checkbox" value="<?= (int) $li['id'] ?>" data-leg="<?= (int) $s['id'] ?>" data-schedule="<?= (int) $li['schedule_id'] ?>" data-amount="<?= e($li['planned_amount']) ?>" data-label="#<?= (int) $li['loan_installment_no'] ?>" aria-label="Select part <?= $idx + 1 ?> of installment <?= (int) $li['loan_installment_no'] ?>">
+                                <?php endif; ?>
+                                <span class="part-chip part-<?= ($idx % 4) + 1 ?>">Part <?= $idx + 1 ?> of <?= $count ?></span>
+                                <span class="part-amt"><?= format_money((float) $li['planned_amount']) ?></span>
+                              </label>
+                            <?php endforeach; ?>
+                          <?php endif; ?>
+                        </div>
+                      <?php endforeach; ?>
+
+                      <?php if ($datesPending): ?>
+                        <div class="lane-note">Collection dates are confirmed with Collexia after the mandate is placed.</div>
+                      <?php endif; ?>
+                    </div>
                   <?php elseif (!empty($s['installment_no'])): ?>
                     #<?= (int) $s['installment_no'] ?> &bull; <?= e(date('d M Y', strtotime($s['installment_due_date']))) ?>
                   <?php else: ?>
@@ -282,13 +352,30 @@
   }
   function refresh(leg) {
     var btn = document.querySelector('.merge-parts-btn[data-leg="' + leg + '"]');
+    var summary = document.querySelector('.lane-summary[data-leg="' + leg + '"]');
+    document.querySelectorAll('.part-checkbox[data-leg="' + leg + '"]').forEach(function (cb) {
+      var row = cb.closest('.lane-part');
+      if (row) row.classList.toggle('is-selected', cb.checked);
+    });
     if (!btn) return;
     var sel = selectedFor(leg);
     var schedules = {};
-    sel.forEach(function (cb) { schedules[cb.getAttribute('data-schedule')] = true; });
+    var total = 0;
+    sel.forEach(function (cb) { schedules[cb.getAttribute('data-schedule')] = true; total += parseFloat(cb.getAttribute('data-amount')); });
     var sameInstallment = Object.keys(schedules).length === 1;
-    btn.disabled = !(sel.length >= 2 && sameInstallment);
+    var ready = sel.length >= 2 && sameInstallment;
+    btn.disabled = !ready;
     btn.title = sel.length >= 2 && !sameInstallment ? 'Select parts of the same installment only' : '';
+    if (summary) {
+      summary.classList.toggle('is-ready', ready);
+      if (ready) {
+        summary.textContent = sel.length + ' parts of installment ' + sel[0].getAttribute('data-label').replace('#', '') + ' selected \u2014 they will become one ' + money(total) + ' installment.';
+      } else if (sel.length >= 2) {
+        summary.textContent = 'Those parts belong to different installments. Select parts of the same installment only.';
+      } else {
+        summary.textContent = 'Tick two or more parts of the same installment, then merge them into one.';
+      }
+    }
   }
   document.querySelectorAll('.part-checkbox').forEach(function (cb) {
     cb.addEventListener('change', function () { refresh(cb.getAttribute('data-leg')); });
@@ -300,11 +387,10 @@
       var total = 0;
       sel.forEach(function (cb) { total += parseFloat(cb.getAttribute('data-amount')); });
       var parts = sel.map(function (cb) { return money(parseFloat(cb.getAttribute('data-amount'))); }).join(' + ');
-      if (!window.confirm('Merge these parts of installment ' + sel[0].getAttribute('data-label') + ' into one?
-
-' + parts + ' = ' + money(total) + '
-
-Nothing has been sent to Collexia yet, and the total to collect does not change.')) return;
+      var message = 'Merge these parts of installment ' + sel[0].getAttribute('data-label') + ' into one?\n\n'
+        + parts + ' = ' + money(total) + '\n\n'
+        + 'Nothing has been sent to Collexia yet, and the total to collect does not change.';
+      if (!window.confirm(message)) return;
       var fields = document.getElementById('merge-parts-fields');
       fields.innerHTML = '';
       sel.forEach(function (cb) {
