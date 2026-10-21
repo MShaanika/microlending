@@ -77,11 +77,23 @@ class RescheduleService
      * implement() closes out in place rather than deleting, so they keep
      * their installment_no). The new schedule must be numbered starting
      * after this count, or it collides with unique_loan_installment.
+     *
+     * An Upfront loan keeps EVERY row: implement() closes its Pending rows out in
+     * place too (their interest was recognised in full at disbursement, and every
+     * row has an interest_accruals FK, so none can be deleted). For such a loan all
+     * existing rows stay occupied, not just the Paid/Partial ones -- counting only
+     * those numbered the new schedule from a slot a retained Pending row still held
+     * (loan 8: "Duplicate entry '8-2' for key 'unique_loan_installment'").
+     * implement() re-derives the real next number itself at the moment it runs.
      */
     public static function retainedInstallmentCount(int $loanId): int
     {
         $db = Database::connection();
-        $stmt = $db->prepare("SELECT COUNT(*) FROM loan_schedules WHERE loan_id = ? AND status IN ('Paid', 'Partial')");
+        $method = $db->prepare('SELECT interest_recognition_method FROM loans WHERE id = ?');
+        $method->execute([$loanId]);
+        $keepsEveryRow = ($method->fetchColumn() ?: 'Progressive') === 'Upfront';
+
+        $stmt = $db->prepare('SELECT COUNT(*) FROM loan_schedules WHERE loan_id = ?' . ($keepsEveryRow ? '' : " AND status IN ('Paid', 'Partial')"));
         $stmt->execute([$loanId]);
         return (int) $stmt->fetchColumn();
     }
@@ -230,6 +242,18 @@ class RescheduleService
                 );
             }
 
+            // The numbers stored with the approved plan were fixed when the reschedule was drafted. Whatever the loan has done
+            // since (a payment, a row closed out, an Upfront loan keeping all its rows), the rows that REALLY remain now are the
+            // only ones that matter -- so number the new schedule straight after the highest one still present.
+            $maxStmt = $db->prepare('SELECT COALESCE(MAX(installment_no), 0) FROM loan_schedules WHERE loan_id = ?');
+            $maxStmt->execute([$loanId]);
+            $retainedRows = (int) $maxStmt->fetchColumn();
+            $nextNo = $retainedRows + 1;
+            foreach ($newRows as &$newRow) {
+                $newRow['installment_no'] = $nextNo++;
+            }
+            unset($newRow);
+
             $loanModel->insertScheduleRows($loanId, $newRows);
             $rescheduleSchedules->activateForReschedule((int) $reschedule['id']);
 
@@ -244,7 +268,7 @@ class RescheduleService
             $newTotalPayable = round((float) $totalStmt->fetchColumn(), 2);
 
             $loanModel->updateFields($loanId, [
-                'term_months' => count($newRows) + self::retainedInstallmentCount($loanId),
+                'term_months' => $retainedRows + count($newRows),
                 'installment_amount' => $reschedule['new_installment_amount'],
                 'payment_day' => $reschedule['new_payment_day'] ?: null,
                 'maturity_date' => $reschedule['new_maturity_date'],
