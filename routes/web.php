@@ -226,6 +226,7 @@ $router->post('/reschedules', [RescheduleController::class, 'store']);
 $router->get('/reschedules/{id}', [RescheduleController::class, 'show']);
 $router->post('/reschedules/{id}/approve', [RescheduleController::class, 'approve']);
 $router->post('/reschedules/{id}/reject', [RescheduleController::class, 'reject']);
+$router->post('/reschedules/{id}/cancel', [RescheduleController::class, 'cancel']);
 $router->post('/reschedules/{id}/implement', [RescheduleController::class, 'implement']);
 $router->get('/reschedules/{id}/generate-letter', [RescheduleController::class, 'generateLetter']);
 

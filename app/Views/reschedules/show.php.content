@@ -73,7 +73,7 @@
       <?php endif; ?>
     </div>
     <?php if ($reschedule['rejection_reason']): ?>
-      <p class="mb-1 text-danger"><strong>Rejection Reason:</strong> <?= e($reschedule['rejection_reason']) ?></p>
+      <p class="mb-1 text-danger"><strong><?= $reschedule['status'] === 'Cancelled' ? 'Cancellation Reason' : 'Rejection Reason' ?>:</strong> <?= e($reschedule['rejection_reason']) ?></p>
     <?php endif; ?>
 
     <div class="d-flex gap-2 flex-wrap mt-3">
@@ -88,12 +88,23 @@
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-calendar-sync"></i> Implement</button>
         </form>
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancelForm"><i class="mdi mdi-cancel"></i> Cancel Reschedule</button>
       <?php elseif ($reschedule['status'] === 'Implemented'): ?>
         <a href="<?= url('/loans/' . $reschedule['loan_id']) ?>" class="btn btn-outline-primary"><i class="mdi mdi-eye"></i> View Loan</a>
         <a href="<?= url('/reschedules/' . $reschedule['id'] . '/generate-letter') ?>" class="btn btn-outline-secondary"><i class="mdi mdi-file-document"></i> Generate Letter</a>
       <?php endif; ?>
       <a href="<?= url('/reschedules') ?>" class="btn btn-outline-secondary">Back to List</a>
     </div>
+
+    <?php if ($reschedule['status'] === 'Approved'): ?>
+      <div class="collapse mt-3" id="cancelForm">
+        <form method="post" action="<?= url('/reschedules/' . $reschedule['id'] . '/cancel') ?>" onsubmit="return confirmSubmit(this, 'Cancel this approved reschedule? The loan will stay exactly as it is.');">
+          <?= csrf_field() ?>
+          <textarea name="cancel_reason" class="form-control form-control-sm mb-2" rows="2" placeholder="Reason for cancelling (required)" required minlength="5"></textarea>
+          <button type="submit" class="btn btn-sm btn-danger">Confirm Cancellation</button>
+        </form>
+      </div>
+    <?php endif; ?>
 
     <?php if ($reschedule['status'] === 'Pending'): ?>
       <div class="collapse mt-3" id="rejectForm">

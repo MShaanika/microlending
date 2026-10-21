@@ -347,6 +347,49 @@ class RescheduleController extends Controller
         $this->redirect('/reschedules/' . $id);
     }
 
+    /**
+     * Withdraws a reschedule that has NOT been implemented -- Pending or Approved. A Pending one can already be rejected, but an Approved one had
+     * no way out (it could only be implemented), so an approved plan with a mistake in it (a waiver entered in error, say) stayed on the loan as a
+     * live option. Cancelling changes nothing on the loan itself: no schedule, balance or accounting entry is touched, because nothing was applied.
+     * An implemented reschedule can never be cancelled here.
+     */
+    public function cancel(string $id): void
+    {
+        Auth::authorize('reschedules.approve');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/reschedules/' . $id);
+            return;
+        }
+
+        $reschedule = $this->reschedules->find($id);
+        if (!$reschedule || !in_array($reschedule['status'], ['Pending', 'Approved'], true)) {
+            Session::flash('error', 'Only a reschedule that has not been implemented can be cancelled.');
+            $this->redirect('/reschedules/' . $id);
+            return;
+        }
+        $this->assertBranchAccess($reschedule);
+
+        $reason = trim((string) ($_POST['cancel_reason'] ?? ''));
+        if (mb_strlen($reason) < 5) {
+            Session::flash('error', 'Give a reason for cancelling (at least 5 characters).');
+            $this->redirect('/reschedules/' . $id);
+            return;
+        }
+
+        $this->reschedules->updateRecord($id, [
+            'status' => 'Cancelled',
+            'reviewed_by' => Auth::user()['id'] ?? null,
+            'reviewed_at' => date('Y-m-d H:i:s'),
+            'rejection_reason' => $reason,
+        ]);
+        Audit::log('Cancel', 'Reschedules', 'Cancelled ' . $reschedule['status'] . ' reschedule #' . $id . ' (' . $reschedule['reschedule_no'] . ') for loan #' . $reschedule['loan_id'] . ': ' . $reason);
+        Session::flash('success', 'Reschedule cancelled. The loan is unchanged.');
+        $this->redirect('/reschedules/' . $id);
+    }
+
     public function implement(string $id): void
     {
         Auth::authorize('reschedules.implement');
