@@ -144,8 +144,14 @@ class BorrowerController extends Controller
         $idNumber = trim($_POST['id_number'] ?? '');
         if ($idNumber !== '' && $this->borrowers->idNumberExists($idNumber)) {
             $errors['id_number'] = 'A borrower with this ID number already exists. Use "Existing Client" to add documents for them instead.';
-        } elseif ($idNumber !== '' && $this->applications->hasOpenApplicationForIdNumber($idNumber)) {
-            $errors['id_number'] = 'An application for this ID number is already in progress.';
+        } elseif ($idNumber !== '' && ($open = $this->applications->openApplicationForIdNumber($idNumber)) !== null) {
+            // Name the blocking application: "New Client" saves an application first and only creates the borrower when that
+            // application is approved and converted, so a person added earlier is usually sitting in Lending > Applications.
+            $errors['id_number'] = sprintf(
+                'An application for this ID number is already in progress (%s, status: %s). Open it under Lending > Applications to approve and convert it, or cancel it there if it was entered by mistake.',
+                $open['application_no'],
+                $open['status']
+            );
         }
 
         $documentErrors = $this->validateDocumentUploads($_FILES['documents'] ?? []);

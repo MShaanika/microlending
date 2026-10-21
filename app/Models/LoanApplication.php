@@ -76,10 +76,28 @@ class LoanApplication extends Model
      */
     public function hasOpenApplicationForIdNumber(string $idNumber): bool
     {
-        return (bool) $this->scalar(
-            "SELECT 1 FROM loan_applications
+        return $this->openApplicationForIdNumber($idNumber) !== null;
+    }
+
+    /**
+     * Whether the duplicate-application rule is enforced. On by default; the Owner can switch it off (system setting
+     * 'block_duplicate_open_applications' = '0') for as long as it is in the way, and back on by setting it to '1' or deleting the row.
+     */
+    public function duplicateRuleEnabled(): bool
+    {
+        return ((new SystemSetting())->get('block_duplicate_open_applications', '1') ?? '1') !== '0';
+    }
+
+    /** The in-flight application blocking a new one for this ID number (most recent first), so the message can say which. Null when the rule is switched off. */
+    public function openApplicationForIdNumber(string $idNumber): ?array
+    {
+        if (!$this->duplicateRuleEnabled()) {
+            return null;
+        }
+        return $this->one(
+            "SELECT id, application_no, status, created_at FROM loan_applications
              WHERE applicant_id_number = ? AND status NOT IN ('Rejected', 'Cancelled', 'Converted to Loan')
-             LIMIT 1",
+             ORDER BY id DESC LIMIT 1",
             [$idNumber]
         );
     }
