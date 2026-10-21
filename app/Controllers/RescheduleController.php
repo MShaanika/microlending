@@ -278,6 +278,8 @@ class RescheduleController extends Controller
             'totalPayable' => $totalPayable,
             'collectedSoFar' => $collectedSoFar,
             'currentOutstandingBalance' => round($totalPayable - $collectedSoFar, 2),
+            // Before implementation the figures above are the PLAN, not the loan: what the borrower owes TODAY is on the live schedule.
+            'owedToday' => RescheduleService::totalOutstanding((int) $reschedule['loan_id']),
         ]);
     }
 

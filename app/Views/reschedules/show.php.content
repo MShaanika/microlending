@@ -52,9 +52,17 @@
     <div class="border rounded p-3 mt-3">
       <h5 class="mb-2">Collection Status &amp; Balances</h5>
       <div class="row gy-1">
-        <div class="col-md-4"><strong>Total Payable (Sum of all installments):</strong> <?= format_money($totalPayable) ?></div>
-        <div class="col-md-4"><strong>Collected so far (Cash received):</strong> <?= format_money($collectedSoFar) ?></div>
-        <div class="col-md-4"><strong>Current Outstanding Balance:</strong> <?= format_money($currentOutstandingBalance) ?></div>
+        <?php if ($isLive): ?>
+          <div class="col-md-4"><strong>Total Payable (Sum of all installments):</strong> <?= format_money($totalPayable) ?></div>
+          <div class="col-md-4"><strong>Collected so far (Cash received):</strong> <?= format_money($collectedSoFar) ?></div>
+          <div class="col-md-4"><strong>Current Outstanding Balance:</strong> <?= format_money($currentOutstandingBalance) ?></div>
+        <?php else: ?>
+          <?php $changeAfter = round($currentOutstandingBalance - $owedToday, 2); ?>
+          <div class="col-md-4"><strong>Current Outstanding Balance (owed today):</strong> <?= format_money($owedToday) ?></div>
+          <div class="col-md-4"><strong>Outstanding after this reschedule:</strong> <?= format_money($currentOutstandingBalance) ?></div>
+          <div class="col-md-4"><strong>Difference:</strong> <?= abs($changeAfter) < 0.005 ? 'none' : (($changeAfter < 0 ? '&minus; ' : '+ ') . format_money(abs($changeAfter))) ?>
+            <?php if ((float) $reschedule['waived_amount'] > 0): ?><span class="text-muted small">(includes a waiver of <?= format_money($reschedule['waived_amount']) ?>)</span><?php endif; ?></div>
+        <?php endif; ?>
       </div>
       <?php $percent = $totalPayable > 0 ? min(100, round($collectedSoFar / $totalPayable * 100)) : 0; ?>
       <div class="progress mt-2" style="height: 20px;">

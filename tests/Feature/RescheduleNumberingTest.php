@@ -151,4 +151,14 @@ class RescheduleNumberingTest extends TestCase
         $this->assertSame(10512.32, RescheduleService::totalOutstanding($loanId), 'the whole amount owed');
         $this->assertSame(8086.40, RescheduleService::outstandingPrincipal($loanId), 'the principal part only, which the new schedule is recalculated on');
     }
+
+    public function testWithNoWaiverTheNewPlanTotalsExactlyWhatIsOwedToday(): void
+    {
+        $loanId = $this->makeLoan('Upfront');
+        $loan = $this->db->query('SELECT * FROM loans WHERE id = ' . $loanId)->fetch();
+        $none = RescheduleService::preview($loan, 'Flat', 10, 0.0, '2026-10-21');
+        $this->assertSame(10512.32, round(array_sum(array_column($none['rows'], 'total_due')), 2), 'N$8,086.40 principal + 30% flat interest = what is owed today');
+        $waived = RescheduleService::preview($loan, 'Flat', 10, 1500.0, '2026-10-21');
+        $this->assertSame(8562.32, round(array_sum(array_column($waived['rows'], 'total_due')), 2), 'a N$1,500 waiver is what produced the 8,562.32 shown on reschedule #2');
+    }
 }
