@@ -206,7 +206,7 @@ class MandateReplacementTest extends TestCase
         $own->execute(['Edited loan #' . $loan['id'] . '9 by hand', json_encode(['loan_id' => (int) ($loan['id'] . '9')])]);
         $this->auditIds[] = (int) $this->db->lastInsertId();
 
-        $events = LoanTimelineService::forLoan($loan['id']);
+        $events = LoanTimelineService::forLoan($loan['id'], null, 0);   // offset pinned: the test asserts exact times
         $kinds = array_unique(array_column($events, 'kind'));
         foreach (['loan', 'status', 'reschedule', 'debit_order', 'audit'] as $expected) {
             $this->assertContains($expected, $kinds, "the timeline has $expected entries");
@@ -225,5 +225,26 @@ class MandateReplacementTest extends TestCase
         $this->assertSame('2030-01-01 10:00:00', $events[0]['at']);
         $this->assertNotEmpty($other);
         $this->assertNotEmpty($titles);
+    }
+
+    public function testEventsStampedByTheTwoClocksLineUpOnTheApplicationsClock(): void
+    {
+        // Loan 9 on production: the database clock runs 6 hours behind the application's. The same payment was logged by the application at
+        // 12:10 and by the audit trail (database clock) at 06:10 -- two entries, 6 hours apart. On one clock they must sit together.
+        $loan = $this->makeLoan();
+        $this->db->prepare("INSERT INTO payments (loan_id, borrower_id, branch_id, payment_no, payment_date, payment_source, amount_received, status, posted_at)
+                            SELECT id, borrower_id, branch_id, ?, '2030-01-01', 'Cash', 100, 'Posted', '2030-01-01 12:10:45' FROM loans WHERE id = ?")
+            ->execute(['PMT-CLOCK-' . uniqid(), $loan['id']]);
+        $this->db->prepare("INSERT INTO audit_logs (action, module_name, description, metadata, created_at) VALUES ('Create', 'Collections', 'Recorded payment for the clock test', ?, '2030-01-01 06:10:45')")
+            ->execute([json_encode(['loan_id' => $loan['id']])]);
+        $this->auditIds[] = (int) $this->db->lastInsertId();
+
+        $events = LoanTimelineService::forLoan($loan['id'], null, 6 * 3600);
+        $payment = array_values(array_filter($events, fn ($e) => $e['kind'] === 'payment'))[0];
+        $audit = array_values(array_filter($events, fn ($e) => $e['kind'] === 'audit' && str_contains($e['detail'], 'clock test')))[0];
+
+        $this->assertSame('2030-01-01 12:10:45', $payment['at'], 'application-stamped: unchanged');
+        $this->assertSame('2030-01-01 12:10:45', $audit['at'], 'database-stamped: shifted onto the application clock');
+        $this->db->exec("DELETE FROM payments WHERE payment_no LIKE 'PMT-CLOCK-%'");
     }
 }

@@ -20,7 +20,7 @@ class LoanTimelineService
     /**
      * @return array<int, array{at: string, kind: string, title: string, detail: string, actor: string, link: ?string}> newest first
      */
-    public static function forLoan(int $loanId, ?\PDO $db = null): array
+    public static function forLoan(int $loanId, ?\PDO $db = null, ?int $clockOffset = null): array
     {
         $db ??= Database::connection();
         $q = function (string $sql, array $params = []) use ($db): array {
@@ -29,6 +29,14 @@ class LoanTimelineService
             return $stmt->fetchAll(\PDO::FETCH_ASSOC);
         };
         $money = fn ($v) => 'N$' . number_format((float) $v, 2);
+
+        // TWO CLOCKS. Some columns are stamped by the application (payments.posted_at, reschedule approved/implemented_at, disbursed_at) and
+        // others by the database (every created_at, the audit trail, the loan status history). On this host the two differ by hours, so
+        // sorted raw the same event appears twice, hours apart. Everything is put on the APPLICATION's clock -- the one the screens treat as
+        // "now" -- by shifting database-stamped times by the measured difference (rounded to 15 minutes, so query latency never shows).
+        $dbNow = strtotime((string) $db->query('SELECT NOW()')->fetchColumn());
+        $offset = $clockOffset ?? (int) (round((time() - $dbNow) / 900) * 900);   // $clockOffset: a test can pin the difference
+        $dbClock = fn (?string $t) => $t ? date('Y-m-d H:i:s', strtotime($t) + $offset) : null;
 
         $loan = $q('SELECT l.*, u.name AS creator FROM loans l LEFT JOIN users u ON u.id = l.created_by WHERE l.id = ?', [$loanId])[0] ?? null;
         if (!$loan) {
@@ -42,11 +50,11 @@ class LoanTimelineService
             }
         };
 
-        $add($loan['created_at'], 'loan', 'Loan created', $money($loan['principal_amount']) . ' · ' . $loan['loan_no'], $loan['creator']);
+        $add($dbClock($loan['created_at']), 'loan', 'Loan created', $money($loan['principal_amount']) . ' · ' . $loan['loan_no'], $loan['creator']);
 
         foreach ($q('SELECT h.*, u.name FROM loan_status_history h LEFT JOIN users u ON u.id = h.changed_by WHERE h.loan_id = ?', [$loanId]) as $h) {
             $title = ($h['old_status'] && $h['old_status'] !== $h['new_status']) ? $h['old_status'] . ' → ' . $h['new_status'] : $h['new_status'];
-            $add($h['changed_at'], 'status', $title, (string) $h['notes'], $h['name']);
+            $add($dbClock($h['changed_at']), 'status', $title, (string) $h['notes'], $h['name']);
         }
 
         $reschedules = $q(
@@ -62,14 +70,14 @@ class LoanTimelineService
             $rescheduleIds[] = (int) $r['id'];
             $link = '/reschedules/' . (int) $r['id'];
             $no = $r['reschedule_no'];
-            $add($r['created_at'], 'reschedule', 'Reschedule requested (' . $no . ')',
+            $add($dbClock($r['created_at']), 'reschedule', 'Reschedule requested (' . $no . ')',
                 $r['old_term_months'] . ' → ' . $r['new_term_months'] . ' months, instalment ' . $money($r['old_installment_amount']) . ' → ' . $money($r['new_installment_amount'])
                 . ((float) $r['waived_amount'] > 0 ? ', waiver ' . $money($r['waived_amount']) : '') . '. Reason: ' . $r['reason'], $r['requester'], $link);
             $add($r['reviewed_at'], 'reschedule', 'Reschedule reviewed (' . $no . ')', '', $r['reviewer'], $link);
             $add($r['approved_at'], 'reschedule', 'Reschedule approved (' . $no . ')', '', $r['approver'], $link);
             $add($r['implemented_at'], 'reschedule', 'Reschedule implemented (' . $no . ')', 'The loan now follows its new schedule.', $r['implementer'], $link);
             if (in_array($r['status'], ['Rejected', 'Cancelled'], true)) {
-                $add($r['updated_at'] ?: $r['created_at'], 'reschedule', 'Reschedule ' . strtolower($r['status']) . ' (' . $no . ')', (string) $r['rejection_reason'], null, $link);
+                $add($dbClock($r['updated_at'] ?: $r['created_at']), 'reschedule', 'Reschedule ' . strtolower($r['status']) . ' (' . $no . ')', (string) $r['rejection_reason'], null, $link);
             }
         }
 
@@ -78,26 +86,26 @@ class LoanTimelineService
             if (!empty($d['encr_reference_no'])) {
                 $detail .= ' · Collexia EnCr payout ' . $d['encr_state'] . ($d['encr_last_message'] ? ' (' . $d['encr_last_message'] . ')' : '');
             }
-            $add($d['disbursed_at'] ?: $d['created_at'], 'disbursement', ($d['status'] === 'Cancelled' ? 'Disbursement cancelled: ' : 'Loan disbursed: ') . $money($d['amount']), $detail, $d['name']);
+            $add($d['disbursed_at'] ?: $dbClock($d['created_at']), 'disbursement', ($d['status'] === 'Cancelled' ? 'Disbursement cancelled: ' : 'Loan disbursed: ') . $money($d['amount']), $detail, $d['name']);
         }
 
         foreach ($q('SELECT p.*, u.name FROM payments p LEFT JOIN users u ON u.id = p.posted_by WHERE p.loan_id = ?', [$loanId]) as $p) {
             $verb = ['Reversed' => 'Payment reversed', 'Cancelled' => 'Payment cancelled', 'Pending' => 'Payment pending'][$p['status']] ?? 'Payment received';
-            $add($p['posted_at'] ?: ($p['receipt_date'] ?: $p['created_at']), 'payment', $verb . ': ' . $money($p['amount_received']),
+            $add($p['posted_at'] ?: $dbClock($p['receipt_date'] ?: $p['created_at']), 'payment', $verb . ': ' . $money($p['amount_received']),
                 $p['payment_no'] . ' · ' . $p['payment_source'] . ($p['reference_no'] ? ' · reference ' . $p['reference_no'] : ''), $p['name']);
         }
 
         $debitOrderIds = [];
         foreach ($q('SELECT d.*, u.name FROM debit_orders d LEFT JOIN users u ON u.id = d.created_by WHERE d.loan_id = ?', [$loanId]) as $d) {
             $debitOrderIds[] = (int) $d['id'];
-            $add($d['created_at'], 'debit_order', 'Debit order registered (' . $d['debit_order_no'] . ')', 'Now ' . strtolower($d['status']) . ' · mandate: ' . ($d['collexia_api_status'] ?? 'n/a'), $d['name'], '/debit-orders/' . (int) $d['id']);
+            $add($dbClock($d['created_at']), 'debit_order', 'Debit order registered (' . $d['debit_order_no'] . ')', 'Now ' . strtolower($d['status']) . ' · mandate: ' . ($d['collexia_api_status'] ?? 'n/a'), $d['name'], '/debit-orders/' . (int) $d['id']);
         }
         foreach ($q('SELECT c.*, u.name FROM debit_order_cancellations c LEFT JOIN users u ON u.id = c.requested_by WHERE c.loan_id = ?', [$loanId]) as $c) {
-            $add($c['created_at'], 'debit_order', 'Debit order cancellation requested (' . $c['cancellation_no'] . ')', 'Reason: ' . $c['reason'] . ' · status ' . $c['status'], $c['name']);
+            $add($dbClock($c['created_at']), 'debit_order', 'Debit order cancellation requested (' . $c['cancellation_no'] . ')', 'Reason: ' . $c['reason'] . ' · status ' . $c['status'], $c['name']);
         }
 
         foreach ($q('SELECT t.*, u.name FROM loan_topups t LEFT JOIN users u ON u.id = t.created_by WHERE t.loan_id = ?', [$loanId]) as $t) {
-            $add($t['created_at'], 'topup', 'Loan topped up by ' . $money($t['topup_amount']), '', $t['name']);
+            $add($dbClock($t['created_at']), 'topup', 'Loan topped up by ' . $money($t['topup_amount']), '', $t['name']);
             if ($t['status'] === 'Reversed') {
                 $add($t['reversed_at'], 'topup', 'Top-up reversed (' . $money($t['topup_amount']) . ')', '');
             }
@@ -119,7 +127,7 @@ class LoanTimelineService
             ['%"loan_id":' . $loanId . ',%', '%"loan_id":' . $loanId . '}%', $regex, '%' . $loan['loan_no'] . '%']
         );
         foreach ($audit as $a) {
-            $add($a['created_at'], 'audit', $a['action'] . ' · ' . $a['module_name'], (string) $a['description'], $a['name']);
+            $add($dbClock($a['created_at']), 'audit', $a['action'] . ' · ' . $a['module_name'], (string) $a['description'], $a['name']);
         }
 
         usort($events, fn ($x, $y) => strcmp($y['at'], $x['at']));
