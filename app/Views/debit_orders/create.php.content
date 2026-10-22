@@ -133,6 +133,32 @@
             </table>
           </div>
           <div class="form-text">All ticked installments are loaded into one Collexia mandate, then each is set to the amount shown and collected on the date in &ldquo;Collect On&rdquo;. Set Parts above 1 to divide an installment: part 1 of every installment goes in one mandate, part 2 in another, and so on, all collected on that installment's date. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
+
+          <?php if (!empty($paidAhead)): ?>
+            <?php $postedPaid = array_map('strval', (array) ($old['paid_installment_ids'] ?? [])); ?>
+            <div class="fw-semibold mt-4 mb-1">Already paid by hand <span class="text-muted small fw-normal">(optional)</span></div>
+            <div class="small text-muted mb-2">
+              These installments were settled manually and are dated in the future. Tick any you also want sent to Collexia, so the mandate runs the
+              whole term. <strong>They are cancelled automatically</strong> as soon as Collexia has confirmed the mandate, so nobody has to remember
+              to &mdash; they are never collected. If a payment is reversed before then, the installment is left in place and will be collected.
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead><tr><th style="width:40px"></th><th>#</th><th>Scheduled Date</th><th class="text-end">Amount (paid)</th><th>What happens</th></tr></thead>
+                <tbody>
+                <?php foreach ($paidAhead as $prow): ?>
+                  <tr>
+                    <td><input type="checkbox" class="paid-check" name="paid_installment_ids[]" value="<?= (int) $prow['id'] ?>" <?= in_array((string) $prow['id'], $postedPaid, true) ? 'checked' : '' ?>></td>
+                    <td><?= (int) $prow['installment_no'] ?></td>
+                    <td><?= e(date('d M Y', strtotime($prow['due_date']))) ?></td>
+                    <td class="text-end"><?= format_money((float) $prow['amount']) ?></td>
+                    <td class="small text-muted">Sent with the mandate, then cancelled automatically</td>
+                  </tr>
+                <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
         <?php endif; ?>
       </div>
 

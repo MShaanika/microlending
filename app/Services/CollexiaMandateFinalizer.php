@@ -84,6 +84,11 @@ class CollexiaMandateFinalizer
                         if ($applied['rejected']) {
                             $result['rejected'][] = $leg;
                         }
+                    } else {
+                        // Dates and amounts are now confirmed: cancel the installments that were already paid by hand.
+                        $cancelled = (new CollexiaPaidInstallmentCanceller($this->clientFactory, $this->laneInstallments))
+                            ->cancelForLeg(array_merge($leg, ['collexia_api_status' => 'Registered']), $frontEndUserName);
+                        $result['warnings'] = array_merge($result['warnings'], $cancelled['warnings']);
                     }
                 }
                 continue;
@@ -120,7 +125,7 @@ class CollexiaMandateFinalizer
      */
     public function finalizeAllPending(string $frontEndUserName, int $maxPendingMinutes = 15): array
     {
-        $total = ['debit_orders' => 0, 'registered' => 0, 'failed' => 0, 'pending' => 0, 'warnings' => []];
+        $total = ['debit_orders' => 0, 'registered' => 0, 'failed' => 0, 'pending' => 0, 'warnings' => [], 'auto_cancelled' => 0];
         foreach ($this->splitLegs->debitOrderIdsWithPendingLoad() as $debitOrderId) {
             $debitOrder = $this->debitOrders->find((int) $debitOrderId);
             if (!$debitOrder) {
@@ -133,6 +138,33 @@ class CollexiaMandateFinalizer
             }
             $total['warnings'] = array_merge($total['warnings'], $one['warnings']);
         }
+
+        $retry = $this->retryPendingAutoCancels($frontEndUserName);
+        $total['auto_cancelled'] = $retry['cancelled'];
+        $total['warnings'] = array_merge($total['warnings'], $retry['warnings']);
         return $total;
+    }
+
+    /**
+     * Paid-by-hand installments whose cancel could not be sent the first time (network, Collexia busy) or that were waiting for their
+     * mandate to finish confirming. Safe to run repeatedly -- see CollexiaPaidInstallmentCanceller.
+     *
+     * @return array{cancelled: int, warnings: string[]}
+     */
+    public function retryPendingAutoCancels(string $frontEndUserName): array
+    {
+        $out = ['cancelled' => 0, 'warnings' => []];
+        $canceller = new CollexiaPaidInstallmentCanceller($this->clientFactory, $this->laneInstallments);
+        foreach ($this->laneInstallments->debitOrderIdsWithPendingAutoCancel() as $debitOrderId) {
+            foreach ($this->splitLegs->activeForDebitOrder($debitOrderId) as $leg) {
+                if ($leg['collexia_api_status'] !== 'Registered') {
+                    continue;
+                }
+                $one = $canceller->cancelForLeg($leg, $frontEndUserName);
+                $out['cancelled'] += $one['cancelled'];
+                $out['warnings'] = array_merge($out['warnings'], $one['warnings']);
+            }
+        }
+        return $out;
     }
 }

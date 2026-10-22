@@ -64,6 +64,11 @@
                 <?php else: ?>
                   <span class="text-success">confirmed</span>
                 <?php endif; ?>
+                <?php if (!empty($i['cancelled_at'])): ?>
+                  <br><span class="badge bg-secondary">paid by hand &middot; cancelled</span>
+                <?php elseif (!empty($i['auto_cancel'])): ?>
+                  <br><span class="badge bg-warning text-dark">paid by hand &middot; to be cancelled</span>
+                <?php endif; ?>
               </td>
               <td class="small">
                 <?php if ($i['parts'] > 1): ?>

@@ -11,7 +11,11 @@ use App\Core\Model;
  */
 class DebitOrderSplitLegInstallment extends Model
 {
-    public function add(int $legId, int $installmentNo, int $scheduleId, string $plannedDate, float $plannedAmount): int
+    /**
+     * $autoCancel marks an installment that was already paid by hand and is to be cancelled at Collexia once the mandate is confirmed.
+     * The column is only written when set, so registering an ordinary mandate never touches it.
+     */
+    public function add(int $legId, int $installmentNo, int $scheduleId, string $plannedDate, float $plannedAmount, bool $autoCancel = false): int
     {
         return $this->insert('debit_order_split_leg_installments', [
             'leg_id' => $legId,
@@ -19,7 +23,59 @@ class DebitOrderSplitLegInstallment extends Model
             'schedule_id' => $scheduleId,
             'planned_date' => $plannedDate,
             'planned_amount' => $plannedAmount,
-        ]);
+        ] + ($autoCancel ? ['auto_cancel' => 1] : []));
+    }
+
+    /** A lane's paid-by-hand installments that Collexia has not been told to cancel yet. */
+    public function pendingAutoCancel(int $legId): array
+    {
+        return $this->all(
+            "SELECT * FROM debit_order_split_leg_installments WHERE leg_id = ? AND auto_cancel = 1 AND cancelled_at IS NULL ORDER BY installment_no",
+            [$legId]
+        );
+    }
+
+    public function markCancelled(int $id, string $note): void
+    {
+        $this->query(
+            "UPDATE debit_order_split_leg_installments SET cancelled_at = NOW(), cancel_note = ? WHERE id = ?",
+            [substr($note, 0, 255), $id]
+        );
+    }
+
+    /** The installment turned out to need collecting after all (its payment was reversed): stop treating it as paid by hand. */
+    public function clearAutoCancel(int $id, string $note): void
+    {
+        $this->query("UPDATE debit_order_split_leg_installments SET auto_cancel = 0, cancel_note = ? WHERE id = ? AND cancelled_at IS NULL", [substr($note, 0, 255), $id]);
+    }
+
+    public function noteCancelAttempt(int $id, string $note): void
+    {
+        $this->query("UPDATE debit_order_split_leg_installments SET cancel_note = ? WHERE id = ? AND cancelled_at IS NULL", [substr($note, 0, 255), $id]);
+    }
+
+    /** How many installments of this lane are NOT paid-by-hand ones, i.e. will actually be collected. */
+    public function liveCount(int $legId): int
+    {
+        return (int) $this->scalar("SELECT COUNT(*) FROM debit_order_split_leg_installments WHERE leg_id = ? AND auto_cancel = 0", [$legId]);
+    }
+
+    /**
+     * Registered mandates that still have a paid-by-hand installment waiting to be cancelled -- what the finalize cron retries after a
+     * cancel that could not be sent (network, Collexia busy). Only mandates whose dates/amounts are fully confirmed qualify.
+     *
+     * @return int[] debit order ids
+     */
+    public function debitOrderIdsWithPendingAutoCancel(): array
+    {
+        return array_map('intval', array_column($this->all(
+            "SELECT DISTINCT sl.debit_order_id
+             FROM debit_order_split_leg_installments li
+             JOIN debit_order_split_legs sl ON sl.id = li.leg_id
+             WHERE li.auto_cancel = 1 AND li.cancelled_at IS NULL
+               AND sl.collexia_api_status = 'Registered' AND sl.merged_into_id IS NULL
+             ORDER BY sl.debit_order_id"
+        ), 'debit_order_id'));
     }
 
     /** Every installment of one lane, in Collexia's own sequence order. */
@@ -127,13 +183,13 @@ class DebitOrderSplitLegInstallment extends Model
         $rows = $this->all(
             "SELECT li.schedule_id, sl.id AS leg_id, sl.split_no, sl.total_splits, sl.collexia_api_contract_reference AS contract_reference,
                     sl.collexia_api_status AS status, li.installment_no AS mandate_installment_no,
-                    li.planned_date, li.collexia_date, li.planned_amount AS amount, li.applied_at
+                    li.planned_date, li.collexia_date, li.planned_amount AS amount, li.applied_at, li.auto_cancel, li.cancelled_at
              FROM debit_order_split_leg_installments li
              JOIN debit_order_split_legs sl ON sl.id = li.leg_id
              WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL
              UNION ALL
              SELECT sl.schedule_id, sl.id, sl.split_no, sl.total_splits, sl.collexia_api_contract_reference,
-                    sl.collexia_api_status, 1, sl.collection_date, NULL, sl.leg_amount, NULL
+                    sl.collexia_api_status, 1, sl.collection_date, NULL, sl.leg_amount, NULL, 0, NULL
              FROM debit_order_split_legs sl
              WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL AND sl.schedule_id IS NOT NULL
              ORDER BY schedule_id, split_no",

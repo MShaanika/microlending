@@ -145,6 +145,11 @@
                           <div class="lane-head">
                             <span class="lane-inst">Installment <?= (int) $first['loan_installment_no'] ?></span>
                             <span class="lane-date"><i class="mdi mdi-calendar-blank-outline"></i> <?= e($when) ?></span>
+                            <?php if (!empty($first['cancelled_at'])): ?>
+                              <span class="badge bg-secondary lane-badge" title="<?= e((string) ($first['cancel_note'] ?? '')) ?>">Paid by hand &middot; cancelled</span>
+                            <?php elseif (!empty($first['auto_cancel'])): ?>
+                              <span class="badge bg-warning text-dark lane-badge" title="<?= e((string) ($first['cancel_note'] ?? 'Will be cancelled at Collexia automatically once the mandate is confirmed.')) ?>">Paid by hand &middot; to be cancelled</span>
+                            <?php endif; ?>
                             <?php if ($count > 1): ?>
                               <span class="badge bg-info lane-badge">Split in <?= $count ?></span>
                             <?php else: ?>

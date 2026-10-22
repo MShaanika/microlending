@@ -41,18 +41,19 @@ if ($user === '') {
 $result = (new CollexiaMandateFinalizer())->finalizeAllPending($user);
 
 $summary = sprintf(
-    "[%s] %d debit order(s) with pending mandates: %d registered, %d still pending, %d failed.\n",
+    "[%s] %d debit order(s) with pending mandates: %d registered, %d still pending, %d failed; %d paid-by-hand installment(s) cancelled.\n",
     date('Y-m-d H:i:s'),
     $result['debit_orders'],
     $result['registered'],
     $result['pending'],
-    $result['failed']
+    $result['failed'],
+    $result['auto_cancelled']
 );
 foreach ($result['warnings'] as $warning) {
     $summary .= '  ' . $warning . "\n";
 }
 
 \App\Core\JobHeartbeat::ping('finalize_pending_collexia_mandates', trim($summary), 15);
-if ($result['debit_orders'] > 0 || $result['warnings']) {
+if ($result['debit_orders'] > 0 || $result['warnings'] || $result['auto_cancelled'] > 0) {
     echo $summary;
 }

@@ -260,6 +260,15 @@
                       }
                     ?>
                     <?php if (count($carried) > 1): ?><span class="badge bg-info me-1">split in <?= count($carried) ?></span><?php endif; ?>
+                    <?php
+                      $stillLive = array_filter($carried, fn ($c) => empty($c['cancelled_at']));
+                      $waitingCancel = array_filter($carried, fn ($c) => !empty($c['auto_cancel']) && empty($c['cancelled_at']));
+                    ?>
+                    <?php if (!$stillLive): ?>
+                      <span class="badge bg-secondary me-1" title="Paid by hand; sent with the mandate and cancelled at Collexia automatically, so it is not collected.">paid by hand &middot; cancelled</span>
+                    <?php elseif ($waitingCancel): ?>
+                      <span class="badge bg-warning text-dark me-1" title="Paid by hand; will be cancelled at Collexia automatically once the mandate is confirmed.">paid by hand &middot; to be cancelled</span>
+                    <?php endif; ?>
                     <?php foreach ($byMandate as $m): ?>
                       <a class="btn btn-sm btn-outline-primary py-0" href="<?= url('/debit-orders/' . $debitOrder['id'] . '/split-transactions/' . $m['split_no']) ?>">
                         Mandate <?= $m['split_no'] ?> &middot; <?= format_money($m['amount']) ?><?= $m['parts'] > 1 ? ' (' . $m['parts'] . ' parts)' : '' ?>

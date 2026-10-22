@@ -17,8 +17,10 @@ namespace App\Support;
 class SplitLanePlanner
 {
     /**
-     * @param array<int, array{schedule_id: int, loan_installment_no: int, date: string, amounts: float[]}> $installments
-     *        oldest installment first; amounts = the amount of each part, in part order
+     * @param array<int, array{schedule_id: int, loan_installment_no: int, date: string, amounts: float[], auto_cancel?: bool}> $installments
+     *        oldest installment first; amounts = the amount of each part, in part order. auto_cancel marks an installment that was already
+     *        paid by hand: it rides in the mandate (so the schedule keeps its numbering) and is cancelled at Collexia once the mandate is
+     *        confirmed -- see CollexiaPaidInstallmentCanceller. The flag is only carried through; the planner never acts on it.
      * @return array<int, array{lane: int, amount: float, first_date: string, installments: array<int, array{installment_no: int, schedule_id: int, loan_installment_no: int, date: string, amount: float}>}>
      */
     public static function plan(array $installments): array
@@ -43,6 +45,7 @@ class SplitLanePlanner
                     'loan_installment_no' => (int) $row['loan_installment_no'],
                     'date' => $row['date'],
                     'amount' => round((float) $row['amounts'][$part - 1], 2),
+                    'auto_cancel' => !empty($row['auto_cancel']),
                 ];
             }
             if (!$carried) {
@@ -85,6 +88,7 @@ class SplitLanePlanner
                     'loan_installment_no' => (int) $row['loan_installment_no'],
                     'date' => $row['date'],
                     'amount' => round((float) $amount, 2),
+                    'auto_cancel' => !empty($row['auto_cancel']),
                 ];
             }
         }
@@ -176,7 +180,7 @@ class SplitLanePlanner
         foreach ($laneRows as $row) {
             $key = (int) $row['schedule_id'];
             if (!isset($rows[$key])) {
-                $rows[$key] = ['schedule_id' => $key, 'loan_installment_no' => (int) $row['loan_installment_no'], 'date' => $row['planned_date'], 'amounts' => []];
+                $rows[$key] = ['schedule_id' => $key, 'loan_installment_no' => (int) $row['loan_installment_no'], 'date' => $row['planned_date'], 'amounts' => [], 'auto_cancel' => !empty($row['auto_cancel'])];
             }
             $rows[$key]['amounts'][] = round((float) $row['planned_amount'], 2);
         }

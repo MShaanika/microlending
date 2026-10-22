@@ -133,6 +133,7 @@ class DebitOrderController extends Controller
             'old' => $old,
             'firstDueDate' => $firstDueDate,
             'installments' => $this->debitOrders->unpaidInstallments((int) $loanId),
+            'paidAhead' => $this->debitOrders->paidAheadInstallments((int) $loanId),
             'collexiaReady' => $this->collexiaApiReady(),
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
@@ -261,6 +262,7 @@ class DebitOrderController extends Controller
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
                 'installments' => $this->debitOrders->unpaidInstallments($loanId),
+                'paidAhead' => $this->debitOrders->paidAheadInstallments($loanId),
                 'collexiaReady' => $this->collexiaApiReady(),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
@@ -339,7 +341,7 @@ class DebitOrderController extends Controller
         foreach ($loanSchedule as $row) {
             $live = array_filter($carriers[(int) $row['id']] ?? [], function ($c) use ($today) {
                 $date = $c['collexia_date'] ?: $c['planned_date'];
-                return in_array($c['status'], ['Registered', 'Load Pending'], true) && $date && $date > $today;
+                return in_array($c['status'], ['Registered', 'Load Pending'], true) && $date && $date > $today && empty($c['cancelled_at']);
             });
             if (!$live) {
                 continue;
@@ -444,9 +446,39 @@ class DebitOrderController extends Controller
             }
             $planRows[] = ['schedule_id' => $scheduleId, 'loan_installment_no' => (int) $row['installment_no'], 'date' => $date, 'amounts' => $amounts, 'outstanding' => $outstanding];
         }
+        // Installments already paid by hand, ticked to ride in the mandate and be cancelled automatically once Collexia confirms it.
+        // Only ones the system itself lists as eligible (fully paid, future-dated) are taken, whatever the form posted; they are never
+        // split and carry their original amount, so the mandate's numbering follows the loan.
+        $paidAheadById = [];
+        foreach ($this->debitOrders->paidAheadInstallments($loanId) as $row) {
+            $paidAheadById[(int) $row['id']] = $row;
+        }
+        $paidTicked = array_values(array_unique(array_map('intval', (array) ($_POST['paid_installment_ids'] ?? []))));
+        $autoCancelCount = 0;
+        foreach ($paidTicked as $scheduleId) {
+            if (!isset($paidAheadById[$scheduleId])) {
+                continue;
+            }
+            $row = $paidAheadById[$scheduleId];
+            $date = (string) $row['due_date'];
+            if ((int) date('N', strtotime($date)) === 7) {
+                $date = date('Y-m-d', strtotime($date . ' +1 day')); // Collexia does not process Sundays
+            }
+            $planRows[] = [
+                'schedule_id' => $scheduleId,
+                'loan_installment_no' => (int) $row['installment_no'],
+                'date' => $date,
+                'amounts' => [round((float) $row['amount'], 2)],
+                'outstanding' => 0.0,
+                'auto_cancel' => true,
+            ];
+            $autoCancelCount++;
+        }
         if (empty($errors['installments'])) {
             if (!$planRows) {
                 $errors['installments'] = 'Tick at least one installment to collect.';
+            } elseif (count($planRows) === $autoCancelCount) {
+                $errors['installments'] = 'Tick at least one unpaid installment to collect -- installments already paid by hand can only be sent along with one that will actually be collected.';
             }
         }
 
@@ -457,6 +489,7 @@ class DebitOrderController extends Controller
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
                 'installments' => $installments,
+                'paidAhead' => $this->debitOrders->paidAheadInstallments($loanId),
                 'collexiaReady' => $this->collexiaApiReady(),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
@@ -467,6 +500,7 @@ class DebitOrderController extends Controller
 
         usort($planRows, fn ($a, $b) => $a['loan_installment_no'] <=> $b['loan_installment_no']);
         $first = $planRows[0];
+        $firstCollected = array_values(array_filter($planRows, fn ($r) => empty($r['auto_cancel'])))[0];
         // ONE mandate carrying every installment, split parts included (each
         // part is another installment of the same mandate on the same date).
         // If Collexia refuses that, DebitOrderCollexiaController falls back to
@@ -483,7 +517,7 @@ class DebitOrderController extends Controller
             'account_number' => trim($_POST['account_number']),
             'branch_code' => trim($_POST['branch_code'] ?? '') ?: null,
             'debit_day' => (int) date('j', strtotime($first['date'])),
-            'debit_amount' => $first['outstanding'],
+            'debit_amount' => $firstCollected['outstanding'],
             'start_date' => $first['date'],
             'status' => 'Active',
             'id_type' => 1,
@@ -506,8 +540,8 @@ class DebitOrderController extends Controller
             $legId = $this->splitLegs->upsert($debitOrderId, $lane['lane'], $lane['amount'], count($lanes), null, $lane['first_date']);
             $items = [];
             foreach ($lane['installments'] as $item) {
-                $this->laneInstallments->add($legId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount']);
-                $items[] = '#' . $item['loan_installment_no'] . ' ' . format_money($item['amount']) . ' on ' . $item['date'];
+                $this->laneInstallments->add($legId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount'], !empty($item['auto_cancel']));
+                $items[] = '#' . $item['loan_installment_no'] . ' ' . format_money($item['amount']) . ' on ' . $item['date'] . (!empty($item['auto_cancel']) ? ' (paid by hand -- to be cancelled)' : '');
             }
             $summary[] = 'lane ' . $lane['lane'] . ' [' . implode(', ', $items) . ']';
         }
@@ -517,14 +551,14 @@ class DebitOrderController extends Controller
 
         $collexia = new CollexiaSetting();
         if (!empty($_POST['place_now']) && $collexia->isEnabled() && $collexia->isConfigured()) {
-            Session::flash('success', 'Debit order registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s). Sending to Collexia now.');
+            Session::flash('success', 'Debit order registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s)' . ($autoCancelCount ? ', ' . $autoCancelCount . ' of them already paid by hand and cancelled automatically once Collexia confirms' : '') . '. Sending to Collexia now.');
             // Same POST, same CSRF token -- placeMandate() validates it
             // itself, places every leg, then redirects to the debit order.
             (new DebitOrderCollexiaController())->placeMandate((string) $debitOrderId);
             return;
         }
 
-        Session::flash('success', 'Debit order registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s). Use Place Mandate to send them to Collexia.');
+        Session::flash('success', 'Debit order registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s)' . ($autoCancelCount ? ', ' . $autoCancelCount . ' of them already paid by hand and cancelled automatically once Collexia confirms' : '') . '. Use Place Mandate to send them to Collexia.');
         $this->redirect('/debit-orders/' . $debitOrderId);
     }
 

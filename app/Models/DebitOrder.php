@@ -144,6 +144,22 @@ class DebitOrder extends Model
         );
     }
 
+    /**
+     * Installments already settled in full (by hand, before any debit order) that are still dated in the future -- the ones a client may
+     * want sent to Collexia anyway so the mandate follows the whole term, and then cancelled automatically (CollexiaPaidInstallmentCanceller).
+     * A past-dated one is left out: Collexia rejects a collection date that is not in the future, so it could not be placed at all.
+     */
+    public function paidAheadInstallments(int $loanId): array
+    {
+        return $this->all(
+            "SELECT id, installment_no, due_date, status, ROUND(total_due, 2) AS amount
+             FROM loan_schedules
+             WHERE loan_id = ? AND status = 'Paid' AND total_due > 0 AND total_paid >= total_due - 0.005 AND due_date >= ?
+             ORDER BY installment_no",
+            [$loanId, date('Y-m-d', strtotime('+1 day'))]
+        );
+    }
+
     public function nextCollectionDate(int $loanId): ?string
     {
         $date = $this->scalar("SELECT MIN(due_date) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);

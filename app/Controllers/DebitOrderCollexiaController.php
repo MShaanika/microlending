@@ -256,7 +256,7 @@ class DebitOrderCollexiaController extends Controller
         foreach ($lanes as $lane) {
             $newLegId = $this->splitLegs->upsert($id, $splitNo, $lane['amount'], count($lanes), null, $lane['first_date']);
             foreach ($lane['installments'] as $item) {
-                $this->laneInstallments->add($newLegId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount']);
+                $this->laneInstallments->add($newLegId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount'], !empty($item['auto_cancel']));
             }
             $firstNew ??= $newLegId;
             $splitNo++;
