@@ -92,6 +92,7 @@ class PaymentController extends Controller
             'title' => 'Record Payment',
             'loan' => $loan,
             'schedule' => $this->loans->schedule((int) $loanId),
+            'collectionCheck' => (new \App\Services\MandateCollectionCheck())->forLoan((int) $loanId),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'old' => [],
             'errors' => [],
@@ -166,7 +167,14 @@ class PaymentController extends Controller
             'flash_message' => $successMessage,
             'redirect' => '/loans/' . $loanId,
         ]);
-        Session::flash('success', $successMessage);
+        // A payment made while a Collexia mandate is live doesn't touch the mandate. Say so right away, pointing at the notice
+        // (with the Stop button) that now sits at the top of the loan page.
+        $check = (new \App\Services\MandateCollectionCheck())->forLoan($loanId);
+        if (!empty($check['paidButScheduled']) || !empty($check['surplus'])) {
+            Session::flash('success', $successMessage . ' HEADS UP: this loan has a live debit order that is still set to collect what you just paid -- see the red notice below to stop it.');
+        } else {
+            Session::flash('success', $successMessage);
+        }
         $this->redirect('/loans/' . $loanId);
     }
 

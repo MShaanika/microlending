@@ -36,6 +36,8 @@
   </div>
 <?php endif; ?>
 
+<?php $mode = 'notice'; include VIEW_PATH . '/loans/_collection_check.php'; ?>
+
 <div class="row">
   <div class="col-lg-4">
     <div class="card">

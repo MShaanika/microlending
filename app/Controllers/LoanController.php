@@ -570,6 +570,7 @@ class LoanController extends Controller
             'loan' => $loan,
             'encrOffer' => $encrOffer,
             'outOfStep' => (new \App\Models\DebitOrder())->outOfStepForLoan((int) $id),
+            'collectionCheck' => (new \App\Services\MandateCollectionCheck())->forLoan((int) $id),
             'disbursement' => $this->loans->activeDisbursement((int) $id),
             'schedule' => $this->loans->schedule((int) $id),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),

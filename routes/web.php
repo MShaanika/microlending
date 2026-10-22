@@ -240,6 +240,7 @@ $router->get('/loans/{id}/debit-orders/create', [DebitOrderController::class, 'c
 $router->post('/debit-orders', [DebitOrderController::class, 'store']);
 $router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
 $router->get('/debit-orders/{id}/edit', [DebitOrderController::class, 'edit']);
+$router->post('/loans/{id}/collections/stop', [DebitOrderController::class, 'stopCollection']);
 $router->get('/debit-orders/{id}/replace', [DebitOrderController::class, 'replaceForm']);
 $router->post('/debit-orders/{id}/replace/cancel', [DebitOrderController::class, 'replaceCancel']);
 $router->post('/debit-orders/{id}', [DebitOrderController::class, 'update']);

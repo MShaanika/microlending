@@ -8,6 +8,7 @@
     default => 'secondary',
   };
 ?>
+<?php $mode = 'notice'; include VIEW_PATH . '/loans/_collection_check.php'; ?>
 
 <?php if (!empty($outOfStep)): ?>
   <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap gap-2">

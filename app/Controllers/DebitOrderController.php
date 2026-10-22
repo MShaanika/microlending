@@ -14,6 +14,8 @@ use App\Models\DebitOrderCancellation;
 use App\Models\DebitOrderSplitLeg;
 use App\Models\DebitOrderSplitLegInstallment;
 use App\Models\Loan;
+use App\Services\CollexiaCollectionStopper;
+use App\Services\MandateCollectionCheck;
 use App\Services\MandateReplacementService;
 use App\Support\CollexiaCodes;
 use App\Support\SplitLanePlanner;
@@ -731,6 +733,57 @@ class DebitOrderController extends Controller
         ]);
     }
 
+    /**
+     * Stops collections at Collexia that a manual payment has made unnecessary: either ONE already-paid installment of a lane mandate, or
+     * the surplus last collections of a single recurring mandate. Deliberate and confirmed; every attempt, successful or not, is written
+     * to the audit trail (with the loan and debit order ids) and to the loan's own history.
+     */
+    public function stopCollection(string $loanId): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $back = '/loans/' . (int) $loanId;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect($back);
+            return;
+        }
+        $loan = $this->loans->find((int) $loanId);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return;
+        }
+        $this->assertBranchAccess($loan, '/loans');
+
+        $mandate = $this->debitOrders->liveMandateForLoan((int) $loanId);
+        if (!$mandate) {
+            Session::flash('error', 'This loan has no live debit order, so there is nothing to stop.');
+            $this->redirect($back);
+            return;
+        }
+
+        $configured = $this->collexiaSettings->frontEndUsername();
+        $user = $configured !== '' ? $configured : (string) (Auth::user()['username'] ?? '');
+        $stopper = new CollexiaCollectionStopper();
+        $surplus = !empty($_POST['surplus']);
+        $scheduleId = (int) ($_POST['schedule_id'] ?? 0);
+
+        $result = $surplus ? $stopper->stopSurplus($mandate, $user) : $stopper->stopInstallment($mandate, $scheduleId, $user);
+        $what = $surplus ? 'the surplus scheduled collections of recurring mandate' : 'the scheduled collection of loan installment id ' . $scheduleId . ' on mandate';
+        $summary = 'Stop collection after a manual payment: ' . ($result['cancelled'] > 0 ? $result['cancelled'] . ' cancelled' : 'nothing cancelled')
+            . ' (' . $what . ' ' . $mandate['debit_order_no'] . '). ' . implode(' ', $result['messages']);
+
+        Audit::log('Update', 'Debit Orders', $summary, [
+            'loan_id' => (int) $loanId, 'debit_order_id' => (int) $mandate['id'], 'schedule_id' => $surplus ? null : $scheduleId,
+            'event' => 'stop_collection_after_manual_payment', 'cancelled' => $result['cancelled'],
+        ]);
+        $this->loans->logStatus((int) $loanId, $loan['loan_status'], $loan['loan_status'], Auth::user()['id'] ?? null, substr($summary, 0, 1000));
+
+        Session::flash($result['ok'] ? 'success' : 'error', trim(implode(' ', $result['messages'])) ?: ($result['ok'] ? 'Done.' : 'Nothing was stopped.'));
+        $this->redirect($back);
+    }
+
     /** Step 1 of replacing a mandate: cancel the old one at Collexia, after an explicit confirmation and a written reason. */
     public function replaceCancel(string $id): void
     {
@@ -819,6 +872,8 @@ class DebitOrderController extends Controller
             // mandate carries).
             'carriers' => $carriers,
             'outOfStep' => $this->debitOrders->outOfStepForLoan((int) $debitOrder['loan_id']),
+            'collectionCheck' => (new MandateCollectionCheck())->forLoan((int) $debitOrder['loan_id']),
+            'loan' => $this->loans->find((int) $debitOrder['loan_id']),
             'scheduleDrift' => $this->scheduleDrift($this->loans->schedule((int) $debitOrder['loan_id']), $carriers),
         ]);
     }

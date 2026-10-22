@@ -14,6 +14,8 @@
         <h4 class="card-title">Record Payment</h4>
         <p class="text-muted mb-3">Loan <?= e($loan['loan_no']) ?> &middot; <?= e($loan['borrower_name']) ?></p>
 
+        <?php $mode = 'payment'; include VIEW_PATH . '/loans/_collection_check.php'; ?>
+
         <?php if ($nextDue): ?>
           <div class="alert alert-info py-2">
             Next due: installment #<?= (int) $nextDue['installment_no'] ?> on <?= e($nextDue['due_date']) ?>

@@ -26,6 +26,36 @@ class DebitOrderSplitLegInstallment extends Model
         ] + ($autoCancel ? ['auto_cancel' => 1] : []));
     }
 
+    /**
+     * The live lane installments (not yet cancelled) that settle one loan installment, across this debit order's registered mandates.
+     * Each carries its mandate's contract reference and split number.
+     */
+    public function liveRowsForSchedule(int $debitOrderId, int $scheduleId): array
+    {
+        return $this->all(
+            "SELECT li.*, sl.id AS leg_id, sl.split_no, sl.collexia_api_contract_reference
+             FROM debit_order_split_leg_installments li
+             JOIN debit_order_split_legs sl ON sl.id = li.leg_id
+             WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL AND sl.collexia_api_status = 'Registered'
+               AND sl.collexia_api_contract_reference IS NOT NULL AND li.schedule_id = ? AND li.cancelled_at IS NULL
+             ORDER BY sl.split_no, li.installment_no",
+            [$debitOrderId, $scheduleId]
+        );
+    }
+
+    /** Older-style split mandates: one mandate per installment, aimed at the loan installment directly (no lane rows). */
+    public function oneOffLegsForSchedule(int $debitOrderId, int $scheduleId): array
+    {
+        return $this->all(
+            "SELECT sl.* FROM debit_order_split_legs sl
+             WHERE sl.debit_order_id = ? AND sl.schedule_id = ? AND sl.merged_into_id IS NULL AND sl.collexia_api_status = 'Registered'
+               AND sl.collexia_api_contract_reference IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM debit_order_split_leg_installments li WHERE li.leg_id = sl.id)
+             ORDER BY sl.split_no",
+            [$debitOrderId, $scheduleId]
+        );
+    }
+
     /** A lane's paid-by-hand installments that Collexia has not been told to cancel yet. */
     public function pendingAutoCancel(int $legId): array
     {
