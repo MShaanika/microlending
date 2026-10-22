@@ -169,6 +169,16 @@ class CollexiaSetting extends Model
         return $this->get('collexia_encr_transfer_already_authed', 'on') !== 'off';
     }
 
+    /**
+     * Cancel, automatically and right after a manual payment is recorded, the Collexia collection that payment made unnecessary
+     * (see MandateCollectionAutoStop). On unless explicitly switched off -- the kill switch if Collexia ever behaves unexpectedly;
+     * with it off the red notice and its "Stop this collection" button work exactly as before.
+     */
+    public function autoStopCollections(): bool
+    {
+        return $this->get('collexia_auto_stop_collections', 'on') !== 'off';
+    }
+
     public function isPasswordSet(): bool
     {
         return $this->get(self::PASSWORD_KEY) !== '';

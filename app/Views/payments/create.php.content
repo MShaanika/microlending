@@ -29,7 +29,7 @@
 
           <div class="mb-3">
             <label class="form-label">Amount Received <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" name="amount_received" class="form-control" value="<?= old('amount_received', $old, (string) ($loan['installment_amount'] ?? '')) ?>">
+            <input type="number" step="0.01" name="amount_received" class="form-control" value="<?= old('amount_received', $old, $nextDue ? number_format(max(0, round((float) $nextDue['total_due'] - (float) $nextDue['total_paid'], 2)), 2, '.', '') : (string) ($loan['installment_amount'] ?? '')) ?>">
           </div>
 
           <div class="mb-3">

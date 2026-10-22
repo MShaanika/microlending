@@ -58,7 +58,7 @@ class CollexiaCollectionStopper
             $out['messages'][] = 'That installment does not belong to this loan.';
             return $out;
         }
-        if (round((float) $row['total_due'] - (float) $row['total_paid'], 2) >= 0.005) {
+        if (($row['status'] ?? '') !== 'Paid' && round((float) $row['total_due'] - (float) $row['total_paid'], 2) >= 0.005) {
             $out['messages'][] = 'Installment #' . (int) $row['installment_no'] . ' is not fully paid, so its collection was NOT stopped.';
             return $out;
         }

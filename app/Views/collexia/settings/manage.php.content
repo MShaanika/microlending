@@ -37,6 +37,16 @@ $statusBadge = [
       </div>
 
       <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="collexia_auto_stop_collections" name="collexia_auto_stop_collections" <?= ($settings['collexia_auto_stop_collections'] ?? 'on') !== 'off' ? 'checked' : '' ?>>
+        <label class="form-check-label" for="collexia_auto_stop_collections">Cancel a collection automatically when a manual payment makes it unnecessary</label>
+        <div class="form-text">
+          When staff record a payment that clears an instalment a live mandate is still set to collect, that collection is cancelled at Collexia
+          straight away and the person recording it is told. Never touches a collection due today or tomorrow, and anything it cannot stop stays
+          on the red notice with a Stop button. Switch off to stop it acting on its own.
+        </div>
+      </div>
+
+      <div class="form-check form-switch mb-3">
         <input type="checkbox" class="form-check-input" id="collexia_v4_fields_enabled" name="collexia_v4_fields_enabled" <?= ($settings['collexia_v4_fields_enabled'] ?? '') === 'on' ? 'checked' : '' ?>>
         <label class="form-check-label" for="collexia_v4_fields_enabled">Send V4 mandate fields (dateOfBirth, gender, debtorTelephone)</label>
         <div class="form-text">

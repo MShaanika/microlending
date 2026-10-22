@@ -106,7 +106,8 @@ class MandateCollectionCheck
                     'amount' => round((float) $c['amount'], 2),
                     'mandate' => (int) $c['split_no'],
                     'owes' => $info['owes'],
-                    'paid' => $info['owes'] < 0.005,
+                    // The schedule's own "Paid" status counts: it settles a row with a cent of rounding left over.
+                    'paid' => $info['row']['status'] === 'Paid' || $info['owes'] < 0.005,
                     'imminent' => self::isImminent($date, $today),
                 ];
                 $result['upcoming'][] = $entry;

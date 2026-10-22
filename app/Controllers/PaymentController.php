@@ -13,7 +13,10 @@ use App\Core\Session;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\Loan;
+use App\Models\CollexiaSetting;
 use App\Models\Payment;
+use App\Services\MandateCollectionAutoStop;
+use App\Services\MandateCollectionCheck;
 
 class PaymentController extends Controller
 {
@@ -167,15 +170,40 @@ class PaymentController extends Controller
             'flash_message' => $successMessage,
             'redirect' => '/loans/' . $loanId,
         ]);
-        // A payment made while a Collexia mandate is live doesn't touch the mandate. Say so right away, pointing at the notice
-        // (with the Stop button) that now sits at the top of the loan page.
-        $check = (new \App\Services\MandateCollectionCheck())->forLoan($loanId);
-        if (!empty($check['paidButScheduled']) || !empty($check['surplus'])) {
-            Session::flash('success', $successMessage . ' HEADS UP: this loan has a live debit order that is still set to collect what you just paid -- see the red notice below to stop it.');
-        } else {
-            Session::flash('success', $successMessage);
-        }
+        // The payment is saved. If it cleared an instalment that a live Collexia mandate is still set to collect, that collection is
+        // cancelled automatically and the result is told here.
+        Session::flash('success', trim($successMessage . ' ' . $this->autoStopCollections($loanId)));
         $this->redirect('/loans/' . $loanId);
+    }
+
+    /**
+     * Cancels, automatically, the Collexia collections a just-recorded payment made unnecessary, and returns what to add to the success
+     * message (what was cancelled -- or, if that is switched off, a pointer to the red notice). Anything it could not stop is flashed as a
+     * warning. Never throws: the payment is already saved and must not be undone by a problem here.
+     */
+    private function autoStopCollections(int $loanId): string
+    {
+        try {
+            $configured = (new CollexiaSetting())->frontEndUsername();
+            $user = $configured !== '' ? $configured : (string) (Auth::user()['username'] ?? '');
+            $auto = (new MandateCollectionAutoStop())->afterPayment($loanId, Auth::user()['id'] ?? null, $user);
+
+            if ($auto['problems']) {
+                Session::flash('error', implode(' ', $auto['problems']));
+            }
+            if ($auto['messages']) {
+                return implode(' ', $auto['messages']);
+            }
+            if (!$auto['attempted'] && !$auto['problems']) {
+                $check = (new MandateCollectionCheck())->forLoan($loanId);
+                if (!empty($check['paidButScheduled']) || !empty($check['surplus'])) {
+                    return 'HEADS UP: this loan has a live debit order that is still set to collect what you just paid -- see the red notice below to stop it.';
+                }
+            }
+        } catch (\Throwable $e) {
+            // Deliberately silent: the red notice on the loan page still shows anything left to stop.
+        }
+        return '';
     }
 
     /**
@@ -209,7 +237,8 @@ class PaymentController extends Controller
         }
 
         Audit::log('Confirm', 'Collections', 'Confirmed borrower-reported payment #' . $id);
-        Session::flash('success', 'Payment confirmed and allocated to the schedule.');
+        $confirmedLoanId = (int) ($this->payments->find($id)['loan_id'] ?? 0);
+        Session::flash('success', trim('Payment confirmed and allocated to the schedule. ' . ($confirmedLoanId ? $this->autoStopCollections($confirmedLoanId) : '')));
         $this->redirect('/payments');
     }
 
