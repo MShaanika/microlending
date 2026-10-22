@@ -47,6 +47,21 @@ function old(string $key, array $old = [], string $default = ''): string
     return e($old[$key] ?? $default);
 }
 
+/**
+ * The status to SHOW for a loan schedule row. A rescheduled loan's old instalments are closed to nothing due and nothing paid (their
+ * stored status stays 'Paid' so every "is it still owed?" test keeps working) -- but they were not paid, so they are shown as
+ * "Rescheduled". A row that really received a payment, even a part payment that was then closed, stays "Paid".
+ */
+function schedule_status_label(array $row): string
+{
+    $status = (string) ($row['status'] ?? '');
+    if ($status === 'Paid' && isset($row['total_due'], $row['total_paid'])
+        && round((float) $row['total_due'], 2) <= 0.0 && round((float) $row['total_paid'], 2) <= 0.0) {
+        return 'Rescheduled';
+    }
+    return $status;
+}
+
 function format_money(mixed $amount): string
 {
     return number_format((float) $amount, 2);

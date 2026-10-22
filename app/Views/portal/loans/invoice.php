@@ -81,7 +81,7 @@ use App\Core\Session;
         <td><?= format_money($row['total_due']) ?></td>
         <td><?= format_money($row['total_paid']) ?></td>
         <td><?= format_money($row['closing_balance']) ?></td>
-        <td><?= e($row['status']) ?></td>
+        <td><?= e(schedule_status_label($row)) ?></td>
       </tr>
     <?php endforeach; ?>
   </tbody>

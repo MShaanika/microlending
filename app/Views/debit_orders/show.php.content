@@ -242,7 +242,8 @@
                 if (!$carried && $row['status'] === 'Paid') {
                     continue;
                 }
-                $scheduleBadge = match ($row['status']) {
+                $scheduleBadge = match (schedule_status_label($row)) {
+                  'Rescheduled' => 'secondary',
                   'Paid' => 'success',
                   'Partial' => 'info',
                   'In Arrears' => 'danger',
@@ -254,7 +255,7 @@
                 <td><?= (int) $row['installment_no'] ?></td>
                 <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
                 <td><?= format_money($row['total_due']) ?></td>
-                <td><span class="badge bg-<?= $scheduleBadge ?>"><?= e($row['status']) ?></span></td>
+                <td><span class="badge bg-<?= $scheduleBadge ?>"><?= e(schedule_status_label($row)) ?></span></td>
                 <td>
                   <?php if (!$carried): ?>
                     <span class="text-muted small">Not placed with Collexia yet</span>
@@ -308,7 +309,8 @@
           <tbody>
             <?php foreach ($loanSchedule as $row): ?>
               <?php
-                $scheduleBadge = match ($row['status']) {
+                $scheduleBadge = match (schedule_status_label($row)) {
+                  'Rescheduled' => 'secondary',
                   'Paid' => 'success',
                   'Partial' => 'info',
                   'In Arrears' => 'danger',
@@ -320,7 +322,7 @@
                 <td><?= (int) $row['installment_no'] ?></td>
                 <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
                 <td><?= format_money($row['total_due']) ?></td>
-                <td><span class="badge bg-<?= $scheduleBadge ?>"><?= e($row['status']) ?></span></td>
+                <td><span class="badge bg-<?= $scheduleBadge ?>"><?= e(schedule_status_label($row)) ?></span></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

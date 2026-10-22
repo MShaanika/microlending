@@ -53,7 +53,7 @@ class LoanStatementPdfExporter
                 . '<td class="r">' . $money($row['total_due']) . '</td>'
                 . '<td class="r">' . $money($row['total_paid']) . '</td>'
                 . '<td class="r">' . $money($row['closing_balance']) . '</td>'
-                . '<td>' . $e($row['status']) . '</td>'
+                . '<td>' . $e(schedule_status_label($row)) . '</td>'
                 . '</tr>';
         }
 

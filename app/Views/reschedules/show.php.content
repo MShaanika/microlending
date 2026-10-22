@@ -182,7 +182,8 @@
           <?php foreach ($newSchedule as $row): ?>
             <?php
               $rowBadge = $isLive
-                  ? match ($row['status']) {
+                  ? match (schedule_status_label($row)) {
+                      'Rescheduled' => 'secondary',
                       'Paid' => 'success',
                       'Partial' => 'info',
                       'In Arrears' => 'danger',
@@ -199,7 +200,7 @@
               <td><?= format_money($row['total_due']) ?></td>
               <td><?= format_money($row['paid_amount']) ?></td>
               <td class="<?= $row['arrears'] > 0 ? 'text-danger fw-bold' : '' ?>"><?= format_money($row['arrears']) ?></td>
-              <td><span class="badge bg-<?= $rowBadge ?>"><?= e($row['status']) ?></span></td>
+              <td><span class="badge bg-<?= $rowBadge ?>"><?= e(schedule_status_label($row)) ?></span></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
