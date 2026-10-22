@@ -214,6 +214,8 @@ $router->get('/loans/{id}/statement.pdf', [LoanController::class, 'statementPdf'
 $router->post('/loans/{id}/statement/email', [LoanController::class, 'emailStatement']);
 $router->post('/loans/{id}/approve', [LoanController::class, 'approve']);
 $router->post('/loans/{id}/release', [LoanController::class, 'release']);
+$router->post('/loans/{id}/encr/retry', [LoanController::class, 'encrRetry']);
+$router->post('/loans/{id}/encr/check', [LoanController::class, 'encrCheck']);
 $router->get('/loans/{id}/topup-created', [LoanController::class, 'topupCreated']);
 $router->post('/loan-topups/{topupId}/reverse', [LoanController::class, 'reverseTopup']);
 $router->post('/loans/{id}/reverse-topup', [LoanController::class, 'reverseChildTopup']);

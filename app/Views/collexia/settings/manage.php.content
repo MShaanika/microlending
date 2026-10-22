@@ -130,6 +130,72 @@ $statusBadge = [
       <p class="text-muted small mb-3">Password and Client Secret are encrypted, never shown again after saving. Leave blank to keep the current value.</p>
 
       <hr>
+      <h5 class="mb-1">EnCr &mdash; Enhanced Credit (loan payouts)</h5>
+      <p class="text-muted small mb-3">
+        An optional way to pay a released loan out to the borrower's bank through Collexia instead of by hand. Uses the same
+        host and credentials as EnDO above, so EnDO must be enabled too. <strong>While this is switched off (the default),
+        loans are disbursed exactly as before</strong> and the Release form shows no EnCr option. Even when it is on, EnCr is
+        a tick-box on each release, so any single loan can still be paid the usual way.
+      </p>
+
+      <?php if (!$encrSchemaReady): ?>
+        <div class="alert alert-warning small">The database update for EnCr (<code>database/collexia_encr_disbursement.sql</code>) has not been applied yet, so EnCr cannot be switched on.</div>
+      <?php elseif ($encrSwitchedOn && !empty($encrMissing)): ?>
+        <div class="alert alert-warning small">EnCr is switched on but is missing: <?= e(implode(', ', $encrMissing)) ?>. It stays unavailable on the Release form until these are filled in.</div>
+      <?php endif; ?>
+
+      <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="collexia_encr_enabled" name="collexia_encr_enabled" <?= $encrSwitchedOn ? 'checked' : '' ?>>
+        <label class="form-check-label" for="collexia_encr_enabled">Allow loans to be paid out through Collexia EnCr</label>
+        <div class="form-text">Requires every EnCr field below. Rejected server-side if anything is missing.</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">User Access ID (uacId)</label>
+          <input type="text" name="collexia_encr_uac_id" class="form-control" value="<?= e($settings['collexia_encr_uac_id'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Paying account number</label>
+          <input type="text" name="collexia_encr_from_account_no" class="form-control" value="<?= e($settings['collexia_encr_from_account_no'] ?? '') ?>">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Paying account bank</label>
+          <select name="collexia_encr_from_ban_id" class="form-select">
+            <option value="">Select</option>
+            <?php foreach (\App\Support\CollexiaV3Codes::BANK_IDS as $banId => $banName): ?>
+              <option value="<?= (int) $banId ?>" <?= (string) ($settings['collexia_encr_from_ban_id'] ?? '') === (string) $banId ? 'selected' : '' ?>><?= e($banName) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label">Paying account type</label>
+          <select name="collexia_encr_from_account_type" class="form-select">
+            <option value="">Select</option>
+            <?php foreach (\App\Support\CollexiaV3Codes::ACCOUNT_TYPES as $typeId => $typeName): ?>
+              <option value="<?= (int) $typeId ?>" <?= (string) ($settings['collexia_encr_from_account_type'] ?? '') === (string) $typeId ? 'selected' : '' ?>><?= e($typeName) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label class="form-label">From Global ID <span class="badge bg-secondary-subtle text-secondary">optional</span></label>
+          <input type="text" name="collexia_encr_from_global_id" class="form-control" value="<?= e($settings['collexia_encr_from_global_id'] ?? '') ?>">
+        </div>
+        <div class="col-md-9 mb-3">
+          <div class="form-check mt-4">
+            <input type="checkbox" class="form-check-input" id="collexia_encr_transfer_already_authed" name="collexia_encr_transfer_already_authed" <?= ($settings['collexia_encr_transfer_already_authed'] ?? 'on') !== 'off' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="collexia_encr_transfer_already_authed">Send <code>transferAlreadyAuthed = true</code></label>
+            <div class="form-text">
+              Tells Collexia the payout was already authorised in DesertLedger (the release is the authorisation). Confirm with
+              Collexia what the value should be for your profile before the first live payout.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr>
       <h5 class="mb-1">Digital Signature</h5>
       <?php if (\App\Models\CollexiaSetting::SIGNING_IMPLEMENTED): ?>
         <div class="alert alert-success small">Digital Signature: Configured. Every request is signed with HMAC-SHA512 (Client Secret as the key), Base64-encoded, per Collexia's supplied specification -- no separate signature secret needed.</div>

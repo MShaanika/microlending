@@ -202,6 +202,25 @@ class Loan extends Model
         return $this->insert('loan_disbursements', $data);
     }
 
+    public function disbursementById(int $id): ?array
+    {
+        return $this->one("SELECT * FROM loan_disbursements WHERE id = ?", [$id]);
+    }
+
+    /** The loan's live (not cancelled) disbursement -- SELECT *, so EnCr columns appear only once their migration has run. */
+    public function activeDisbursement(int $loanId): ?array
+    {
+        return $this->one(
+            "SELECT * FROM loan_disbursements WHERE loan_id = ? AND status != 'Cancelled' ORDER BY id DESC LIMIT 1",
+            [$loanId]
+        );
+    }
+
+    public function updateDisbursementFields(int $id, array $data): bool
+    {
+        return $this->update('loan_disbursements', $data, 'id', $id);
+    }
+
     public function counts(?int $branchId = null): array
     {
         $where = $branchId !== null ? " AND branch_id = " . (int) $branchId : "";

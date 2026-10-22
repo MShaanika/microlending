@@ -132,6 +132,66 @@ class CollexiaV3Codes
     ];
 
     /**
+     * EnCr Transfer Info Response `status` (EnCr spec 9.3).
+     * 1 Loaded, 2 Approved and 6 Submitted are still in flight; 3 Completed is
+     * the money having left; 4 Rejected, 5 Cancelled and 7 Declined mean it did not.
+     */
+    public const ENCR_STATUSES = [
+        1 => 'Loaded',
+        2 => 'Approved',
+        3 => 'Completed',
+        4 => 'Rejected',
+        5 => 'Cancelled',
+        6 => 'Submitted',
+        7 => 'Declined',
+    ];
+
+    /** EnCr error codes (spec Appendix B) that mean "Collexia already has this reference". */
+    public const ENCR_DUPLICATE_CODES = ['10598', '10626'];
+
+    /**
+     * Best-effort mapping of a borrower's free-text bank name onto Collexia's
+     * numeric BanId. Null when nothing matches -- the caller must refuse rather
+     * than guess a bank, since sending money to the wrong bank is not recoverable.
+     */
+    public static function banIdFromName(string $name): ?int
+    {
+        $n = preg_replace('/[^a-z0-9]+/', '', strtolower($name));
+        if ($n === '') {
+            return null;
+        }
+
+        $aliases = [
+            64 => ['bankwindhoek', 'bw'],
+            65 => ['fnb', 'fnbnamibia', 'firstnationalbank', 'firstnationalbanknamibia'],
+            66 => ['trustco', 'trustcobank'],
+            67 => ['bankatlantico', 'atlantico'],
+            68 => ['bankbic', 'bic'],
+            70 => ['letshego', 'letshegobank', 'letshegobanknamibia'],
+            71 => ['nedbank', 'nedbanknamibia'],
+            72 => ['standardbank', 'standardbanknamibia'],
+            81 => ['nampost', 'nampostltd', 'nampostsavingsbank'],
+        ];
+
+        foreach ($aliases as $banId => $names) {
+            if (in_array($n, $names, true)) {
+                return $banId;
+            }
+        }
+        return null;
+    }
+
+    /** "Savings" -> 2, "Cheque"/"Current" -> 1 (Collexia's only two account types); null for anything else. */
+    public static function accountTypeFromLabel(string $label): ?int
+    {
+        return match (strtolower(trim($label))) {
+            'cheque', 'current', 'cheque / current', 'tjek' => 1,
+            'savings', 'saving' => 2,
+            default => null,
+        };
+    }
+
+    /**
      * Day-of-month collection day, as a plain integer per the V3 spec
      * (1-30, or 31/99 for "last day of the month") -- unlike the v1.0
      * Excel spec's zero-padded string code, V3's collectionDay is a JSON

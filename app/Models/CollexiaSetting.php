@@ -113,6 +113,62 @@ class CollexiaSetting extends Model
         return $this->get(self::V4_FIELDS_KEY) === 'on';
     }
 
+    /**
+     * EnCr (loan payout) values, kept beside the EnDO ones because they share the
+     * same credentials and host. These are what Collexia provisions for the
+     * LENDER's own paying account: uacId and the from-account details.
+     */
+    public const ENCR_REQUIRED_FIELDS = [
+        'collexia_encr_uac_id' => 'EnCr User Access ID (uacId)',
+        'collexia_encr_from_account_no' => 'Paying account number',
+        'collexia_encr_from_ban_id' => 'Paying account bank',
+        'collexia_encr_from_account_type' => 'Paying account type',
+    ];
+
+    private const ENCR_ENABLED_KEY = 'collexia_encr_enabled';
+
+    /**
+     * Toggle, not a cutover: with this off the Release form offers no EnCr option
+     * and a loan is paid out exactly as it always was. Defaults off. Re-checks the
+     * whole configuration live (like isEnabled()), so a setting that was blanked
+     * after being switched on stops EnCr rather than sending a half-built request.
+     */
+    public function encrEnabled(): bool
+    {
+        return $this->get(self::ENCR_ENABLED_KEY) === 'on' && $this->isEnabled() && empty($this->missingForEncr());
+    }
+
+    public function encrSwitchedOn(): bool
+    {
+        return $this->get(self::ENCR_ENABLED_KEY) === 'on';
+    }
+
+    /** Labels of whatever EnCr still needs, on top of the EnDO configuration it shares. */
+    public function missingForEncr(): array
+    {
+        $all = $this->allSettings();
+        $missing = [];
+        foreach (self::ENCR_REQUIRED_FIELDS as $key => $label) {
+            if (trim((string) ($all[$key] ?? '')) === '') {
+                $missing[] = $label;
+            }
+        }
+        return $missing;
+    }
+
+    /** Collexia's optional fromGlobalId; null when not provisioned. */
+    public function encrFromGlobalId(): ?int
+    {
+        $v = trim($this->get('collexia_encr_from_global_id'));
+        return $v === '' ? null : (int) $v;
+    }
+
+    /** transferAlreadyAuthed: true unless explicitly switched off. */
+    public function encrTransferAlreadyAuthed(): bool
+    {
+        return $this->get('collexia_encr_transfer_already_authed', 'on') !== 'off';
+    }
+
     public function isPasswordSet(): bool
     {
         return $this->get(self::PASSWORD_KEY) !== '';

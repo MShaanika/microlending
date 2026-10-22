@@ -22,6 +22,7 @@ use App\Models\LoanProduct;
 use App\Models\LoanTopup;
 use App\Models\Company;
 use App\Models\StatutoryCharge;
+use App\Services\CollexiaEncrDisbursementService;
 use App\Services\EmailSenderService;
 use App\Services\LoanScheduleService;
 use App\Services\LoanStatementExcelExporter;
@@ -549,9 +550,25 @@ class LoanController extends Controller
         $levyTxn = $this->statutoryCharges->findNamfisaLevyByLoan((int) $id);
         $stampTxn = $this->statutoryCharges->findDutyStampByLoan((int) $id);
 
+        // EnCr payout option for the Release form: offered only while the setting is on, and only
+        // with a payee that resolves cleanly -- otherwise the form shows why, or nothing at all.
+        $encrOffer = null;
+        if ($loan['loan_status'] === 'Approved') {
+            $encrService = new CollexiaEncrDisbursementService();
+            if ($encrService->available()) {
+                try {
+                    $encrOffer = ['ok' => true, 'text' => $encrService->resolvePayee((int) $loan['borrower_id'])['label']];
+                } catch (\RuntimeException $e) {
+                    $encrOffer = ['ok' => false, 'text' => $e->getMessage()];
+                }
+            }
+        }
+
         $this->view('loans/show', [
             'title' => 'Loan ' . $loan['loan_no'],
             'loan' => $loan,
+            'encrOffer' => $encrOffer,
+            'disbursement' => $this->loans->activeDisbursement((int) $id),
             'schedule' => $this->loans->schedule((int) $id),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'originalLoan' => $originalLoan,
@@ -853,9 +870,35 @@ class LoanController extends Controller
         $bankAccountId = ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null;
         $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
         $successMessage = 'Loan released, disbursement recorded, and accounting entries posted.';
+        $referenceNo = trim($_POST['reference_no'] ?? '') ?: null;
+
+        // Optional Collexia EnCr payout (only offered while the EnCr setting is switched on --
+        // otherwise this stays null and the release is exactly the manual one it always was).
+        // Everything that can be checked is checked HERE, before anything is written, so a
+        // refusal leaves the loan untouched. EnCr's own reference then replaces the typed one:
+        // it is what Collexia knows the payout by, and what the Cash Book and journal will show.
+        $encr = null;
+        if (!empty($_POST['pay_via_encr'])) {
+            $encrService = new CollexiaEncrDisbursementService();
+            if (!$encrService->available()) {
+                Session::flash('error', 'Collexia EnCr is not switched on or not fully set up, so the payout was not started and the loan was not released. Untick the EnCr option to release it the usual way.');
+                $this->redirect('/loans/' . $id);
+                return;
+            }
+            try {
+                $encrService->resolvePayee((int) $loan['borrower_id']);
+            } catch (\RuntimeException $e) {
+                Session::flash('error', 'Cannot pay this loan out through EnCr: ' . $e->getMessage() . ' The loan was not released.');
+                $this->redirect('/loans/' . $id);
+                return;
+            }
+            $encr = ['service' => $encrService, 'reference' => CollexiaEncrDisbursementService::newReference($id)];
+            $referenceNo = $encr['reference'];
+        }
+        $disbursementId = 0;
 
         try {
-            $this->loans->transaction(function () use ($id, $loan, $userId, $bankAccount, $key, $successMessage) {
+            $this->loans->transaction(function () use ($id, $loan, $userId, $bankAccount, $key, $successMessage, $referenceNo, $encr, &$disbursementId) {
                 Idempotency::begin($key, 'loan.release', $userId);
 
                 // Locked, authoritative status check -- a second concurrent
@@ -871,7 +914,7 @@ class LoanController extends Controller
                 // accounting period), the whole transaction rolls back --
                 // the loan must not end up marked Active/disbursed with no
                 // journal behind it, or vice versa.
-                $this->postDisbursementAccounting($id, $loan, $userId, $bankAccount);
+                $this->postDisbursementAccounting($id, $loan, $userId, $bankAccount, $referenceNo);
 
                 // A flat, non-refundable fee loan earns its interest in full
                 // the moment it's disbursed -- recognize all of it right
@@ -890,22 +933,22 @@ class LoanController extends Controller
                 $this->loans->logStatus($id, 'Approved', 'Active', $userId, 'Loan released / disbursed.');
                 \App\Services\AgentCommissionService::onDisbursement($loan, $userId);
 
-                $this->loans->createDisbursement([
+                $disbursementId = $this->loans->createDisbursement([
                     'loan_id' => $id,
                     'borrower_id' => (int) $loan['borrower_id'],
                     'disbursement_no' => generate_reference('DSB'),
                     'disbursement_date' => date('Y-m-d'),
-                    'disbursement_method' => $_POST['disbursement_method'] ?: 'Cash',
+                    'disbursement_method' => $encr ? 'Bank Transfer' : ($_POST['disbursement_method'] ?: 'Cash'),
                     'bank_account_id' => $bankAccount ? $bankAccount['id'] : null,
                     'amount' => (float) $loan['principal_amount'],
-                    'reference_no' => trim($_POST['reference_no'] ?? '') ?: null,
+                    'reference_no' => $referenceNo,
                     'status' => 'Disbursed',
                     'approved_by' => $userId,
                     'approved_at' => date('Y-m-d H:i:s'),
                     'disbursed_by' => $userId,
                     'disbursed_at' => date('Y-m-d H:i:s'),
                     'created_by' => $userId,
-                ]);
+                ] + ($encr ? ['encr_reference_no' => $encr['reference'], 'encr_state' => 'Not Sent'] : []));
 
                 Audit::log('Release', 'Loans', 'Released loan #' . $id, [], $key);
                 Idempotency::complete($key, 'loan.release', 'REDIRECT', [
@@ -930,8 +973,89 @@ class LoanController extends Controller
         // must never observe a disbursement that could still roll back.
         Events::fire('LoanDisbursed', ['loan_id' => $id, 'released_by' => $userId]);
 
+        // The EnCr payout goes out only now, after the release has committed -- see
+        // CollexiaEncrDisbursementService. If it can't be sent the loan stays released and
+        // posted (the books and the reference are already right), and Retry is one click.
+        if ($encr && $disbursementId) {
+            $result = $encr['service']->send($disbursementId, $this->encrFrontEndUserName());
+            $this->flashEncrDebug($encr['service'], 'EnCr transfer');
+            Audit::log('Update', 'Loans', 'EnCr payout for loan #' . $id . ' (' . $encr['reference'] . '): '
+                . ($result['ok'] ? 'submitted to Collexia' : 'not sent -- ' . $result['message']));
+            Session::flash(
+                $result['ok'] ? 'success' : 'error',
+                $result['ok']
+                    ? 'Loan released and posted. EnCr payout ' . $encr['reference'] . ' submitted to Collexia -- use "Check payout status" to confirm the money has left.'
+                    : 'Loan released and posted, but the EnCr payout was NOT sent: ' . $result['message'] . ' Use "Retry payout" on this page.'
+            );
+            $this->redirect('/loans/' . $id);
+            return;
+        }
+
         Session::flash('success', $successMessage);
         $this->redirect('/loans/' . $id);
+    }
+
+    public function encrRetry(string $id): void
+    {
+        $this->encrPayoutAction((int) $id, 'send');
+    }
+
+    public function encrCheck(string $id): void
+    {
+        $this->encrPayoutAction((int) $id, 'check');
+    }
+
+    /** Retry sending / check the status of a loan's EnCr payout. Each is one deliberate click -- nothing here runs on its own. */
+    private function encrPayoutAction(int $id, string $what): void
+    {
+        Auth::authorize('loans.release');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/loans/' . $id);
+            return;
+        }
+
+        $loan = $this->loans->find($id);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return;
+        }
+        $this->assertBranchAccess($loan);
+
+        $disbursement = $this->loans->activeDisbursement($id);
+        if (!$disbursement || empty($disbursement['encr_reference_no'])) {
+            Session::flash('error', 'This loan has no Collexia EnCr payout.');
+            $this->redirect('/loans/' . $id);
+            return;
+        }
+
+        $service = new CollexiaEncrDisbursementService();
+        $result = $what === 'send'
+            ? $service->send((int) $disbursement['id'], $this->encrFrontEndUserName())
+            : $service->checkStatus((int) $disbursement['id'], $this->encrFrontEndUserName());
+        $this->flashEncrDebug($service, $what === 'send' ? 'EnCr transfer (retry)' : 'EnCr transfer info');
+
+        Audit::log('Update', 'Loans', ($what === 'send' ? 'Retried' : 'Checked') . ' EnCr payout ' . $disbursement['encr_reference_no'] . ' for loan #' . $id . ': ' . $result['message']);
+        Session::flash($result['ok'] ? 'success' : 'error', $result['message']);
+        $this->redirect('/loans/' . $id);
+    }
+
+    /** Collexia's frontEndUserName: the one provisioned value, else the logged-in user's own username -- same rule as debit orders. */
+    private function encrFrontEndUserName(): string
+    {
+        $configured = (new \App\Models\CollexiaSetting())->frontEndUsername();
+        return $configured !== '' ? $configured : (string) (Auth::user()['username'] ?? '');
+    }
+
+    /** Request/response of the last EnCr call to the browser console, same UAT aid as the debit order screens. */
+    private function flashEncrDebug(CollexiaEncrDisbursementService $service, string $action): void
+    {
+        $debug = $service->lastDebug();
+        if ($debug !== null) {
+            Session::flash('collexia_debug', json_encode(array_merge(['action' => $action], $debug)));
+        }
     }
 
     /**
@@ -956,7 +1080,7 @@ class LoanController extends Controller
      * this method returns (see release()) -- kept out of this method since
      * it isn't part of the principal/levy/stamp entry itself.
      */
-    private function postDisbursementAccounting(int $loanId, array $loan, ?int $userId, ?array $bankAccount = null): void
+    private function postDisbursementAccounting(int $loanId, array $loan, ?int $userId, ?array $bankAccount = null, ?string $referenceNo = null): void
     {
         $principal = (float) $loan['principal_amount'];
         $levyTxn = $this->statutoryCharges->findNamfisaLevyByLoan($loanId);
@@ -1016,11 +1140,15 @@ class LoanController extends Controller
             ];
         }
 
+        // The reference the user typed on the Release form (the bank transfer / payment
+        // reference) is what the Cash Book and General Journal display, so the entry can be
+        // matched line by line against the bank statement. The loan number is the fallback
+        // when none was entered, and stays in the description either way.
         $journalId = $this->journal->post(
             'LOAN_RELEASED',
             'loans',
             $loanId,
-            $loan['loan_no'],
+            $referenceNo ?: $loan['loan_no'],
             'Loan disbursed: ' . $loan['loan_no'],
             $lines,
             $userId

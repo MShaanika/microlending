@@ -170,10 +170,37 @@
                 <?php endforeach; ?>
               </select>
             </div>
-            <div class="mb-2">
+            <div class="mb-2" id="manualReferenceBox">
               <label class="form-label small mb-0">Reference No</label>
-              <input type="text" name="reference_no" class="form-control form-control-sm">
+              <input type="text" name="reference_no" class="form-control form-control-sm" maxlength="100">
+              <div class="form-text">Shown in the Cash Book and General Journal. Leave blank to use the loan number.</div>
             </div>
+            <?php if (!empty($encrOffer)): ?>
+              <div class="border rounded p-2 mb-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="pay_via_encr" value="1" id="payViaEncr" <?= $encrOffer['ok'] ? '' : 'disabled' ?>>
+                  <label class="form-check-label small" for="payViaEncr"><strong>Pay out through Collexia EnCr</strong></label>
+                </div>
+                <?php if ($encrOffer['ok']): ?>
+                  <div class="form-text mb-0">Pays <?= format_money($loan['principal_amount']) ?> to <?= e($encrOffer['text']) ?>. EnCr generates its own reference, and that reference is what the Cash Book and General Journal show. Leave unticked to disburse the usual way.</div>
+                <?php else: ?>
+                  <div class="form-text text-danger mb-0">Not available for this borrower: <?= e($encrOffer['text']) ?></div>
+                <?php endif; ?>
+              </div>
+              <script>
+                (function () {
+                  var box = document.getElementById('payViaEncr');
+                  var ref = document.getElementById('manualReferenceBox');
+                  if (!box || !ref) return;
+                  var sync = function () {
+                    ref.style.display = box.checked ? 'none' : '';
+                    if (box.checked) { ref.querySelector('input').value = ''; }
+                  };
+                  box.addEventListener('change', sync);
+                  sync();
+                })();
+              </script>
+            <?php endif; ?>
             <button class="btn btn-info btn-sm w-100" type="submit">Confirm Release</button>
           </form>
         </div>
@@ -183,6 +210,47 @@
   </div>
 
   <div class="col-lg-8">
+    <?php if (!empty($disbursement['encr_reference_no'])): ?>
+      <?php
+        $encrState = $disbursement['encr_state'] ?? 'Not Sent';
+        $encrBadge = ['Completed' => 'success', 'Submitted' => 'info', 'Failed' => 'danger', 'Not Sent' => 'warning'][$encrState] ?? 'secondary';
+        $encrStatusName = \App\Support\CollexiaV3Codes::ENCR_STATUSES[(int) ($disbursement['encr_status_code'] ?? 0)] ?? null;
+      ?>
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <h4 class="card-title mb-0">Collexia EnCr Payout</h4>
+            <span class="badge bg-<?= $encrBadge ?>"><?= e($encrState) ?></span>
+          </div>
+          <p class="mb-1 mt-2"><strong>Reference:</strong> <code><?= e($disbursement['encr_reference_no']) ?></code>
+            <span class="text-muted small">(shown in the Cash Book and General Journal)</span></p>
+          <p class="mb-1"><strong>Amount:</strong> <?= format_money($disbursement['amount']) ?></p>
+          <?php if ($encrStatusName): ?>
+            <p class="mb-1"><strong>Collexia status:</strong> <?= e($encrStatusName) ?><?= !empty($disbursement['encr_response_description']) ? ' — ' . e($disbursement['encr_response_description']) : '' ?>
+              <?= !empty($disbursement['encr_checked_at']) ? '<span class="text-muted small">(checked ' . e(date('d M Y H:i', strtotime($disbursement['encr_checked_at']))) . ')</span>' : '' ?></p>
+          <?php endif; ?>
+          <?php if (!empty($disbursement['encr_last_message'])): ?>
+            <div class="alert alert-<?= $encrState === 'Failed' ? 'danger' : ($encrState === 'Not Sent' ? 'warning' : 'light') ?> py-2 px-3 small mb-2"><?= e($disbursement['encr_last_message']) ?></div>
+          <?php endif; ?>
+          <?php if (\App\Core\Auth::can('loans.release')): ?>
+            <div class="d-flex gap-2 flex-wrap">
+              <?php if ($encrState === 'Not Sent'): ?>
+                <form method="post" action="<?= url('/loans/' . $loan['id'] . '/encr/retry') ?>" onsubmit="return confirmSubmit(this, 'Send this payout to Collexia now? The same reference is re-used, so it cannot be paid twice.');">
+                  <?= csrf_field() ?>
+                  <button class="btn btn-warning btn-sm"><i class="mdi mdi-send"></i> Retry payout</button>
+                </form>
+              <?php elseif ($encrState !== 'Completed'): ?>
+                <form method="post" action="<?= url('/loans/' . $loan['id'] . '/encr/check') ?>">
+                  <?= csrf_field() ?>
+                  <button class="btn btn-outline-info btn-sm"><i class="mdi mdi-refresh"></i> Check payout status</button>
+                </form>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <div class="card">
       <div class="card-body">
         <h4 class="card-title">Amortization Schedule</h4>
