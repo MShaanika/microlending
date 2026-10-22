@@ -247,4 +247,94 @@ class MandateReplacementTest extends TestCase
         $this->assertSame('2030-01-01 12:10:45', $audit['at'], 'database-stamped: shifted onto the application clock');
         $this->db->exec("DELETE FROM payments WHERE payment_no LIKE 'PMT-CLOCK-%'");
     }
+
+    // --- the old mandate is cancelled automatically when the reschedule is implemented ---
+
+    private function autoCancel(callable $canceller, bool $switchedOn = true): \App\Services\RescheduleMandateCancellation
+    {
+        $settings = $this->createMock(\App\Models\CollexiaSetting::class);
+        $settings->method('autoCancelOnReschedule')->willReturn($switchedOn);
+        return new \App\Services\RescheduleMandateCancellation(new MandateReplacementService($canceller), $settings);
+    }
+
+    private function liveFlagged(string $startDate = '2027-02-17'): array
+    {
+        $loan = $this->makeLoan();
+        $this->db->prepare("INSERT INTO loan_schedules (loan_id, installment_no, due_date, total_due, total_paid, status) VALUES (?, 1, '2027-03-17', 100, 0, 'Pending')")->execute([$loan['id']]);
+        $do = $this->makeDebitOrder($loan['id']);
+        $this->db->prepare('UPDATE debit_orders SET start_date = ?, debit_day = 17 WHERE id = ?')->execute([$startDate, $do]);
+        $rs = $this->makeReschedule($loan['id']);
+        $marked = (new DebitOrder())->markMandatesOutOfStep($loan['id'], $rs, 'The loan was rescheduled.');
+        return ['loan' => $loan, 'do' => $do, 'rs' => $rs, 'marked' => $marked,
+                'reschedule' => ['loan_id' => $loan['id'], 'reschedule_no' => 'RSC-AUTO']];
+    }
+
+    public function testImplementingARescheduleCancelsTheOldMandateAutomatically(): void
+    {
+        $x = $this->liveFlagged();
+        $calls = [];
+
+        $out = $this->autoCancel(function (array $d) use (&$calls) {
+            $calls[] = (int) $d['id'];
+            return ['success' => true, 'message' => 'ok', 'attempted' => true];
+        })->afterReschedule($x['reschedule'], $x['marked'], 1, '2026-12-01');
+
+        $this->assertTrue($out['attempted']);
+        $this->assertSame([$x['do']], $calls, 'cancelled with no click');
+        $this->assertCount(1, $out['cancelled']);
+        $this->assertSame([], $out['failed']);
+        $this->assertSame('Cancelled', (new DebitOrder())->find($x['do'])['status']);
+        $this->assertNull((new DebitOrder())->outOfStepForLoan($x['loan']['id']), 'cancelled, so the red notice is gone');
+        $notes = $this->db->query('SELECT notes FROM loan_status_history WHERE loan_id = ' . $x['loan']['id'])->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertStringContainsString('Automatic', implode(' ', $notes));
+    }
+
+    public function testARefusedAutomaticCancelLeavesTheMandateFlaggedForTheReplacePage(): void
+    {
+        $x = $this->liveFlagged();
+
+        $out = $this->autoCancel(fn (array $d) => ['success' => false, 'message' => 'Collexia is unavailable.', 'attempted' => true])
+            ->afterReschedule($x['reschedule'], $x['marked'], 1, '2026-12-01');
+
+        $this->assertSame([], $out['cancelled']);
+        $this->assertCount(1, $out['failed']);
+        $this->assertStringContainsString('Collexia is unavailable', $out['failed'][0]);
+        $this->assertSame('Active', (new DebitOrder())->find($x['do'])['status']);
+        $this->assertNotNull((new DebitOrder())->outOfStepForLoan($x['loan']['id']), 'still flagged: the red notice and Replace button remain');
+    }
+
+    public function testNothingIsCancelledWhenTheAutomaticSwitchIsOff(): void
+    {
+        $x = $this->liveFlagged();
+        $called = false;
+
+        $out = $this->autoCancel(function () use (&$called) { $called = true; return ['success' => true, 'message' => '', 'attempted' => true]; }, false)
+            ->afterReschedule($x['reschedule'], $x['marked'], 1, '2026-12-01');
+
+        $this->assertFalse($out['attempted']);
+        $this->assertFalse($called);
+        $this->assertSame('Active', (new DebitOrder())->find($x['do'])['status']);
+    }
+
+    public function testACollectionDueTomorrowIsWarnedAboutWhenTheMandateIsCancelled(): void
+    {
+        $x = $this->liveFlagged('2027-02-17');
+
+        $out = $this->autoCancel(fn (array $d) => ['success' => true, 'message' => 'ok', 'attempted' => true])
+            ->afterReschedule($x['reschedule'], $x['marked'], 1, '2027-02-16');   // tomorrow IS the 17th
+
+        $this->assertCount(1, $out['cancelled']);
+        $this->assertNotEmpty($out['warnings']);
+        $this->assertStringContainsString('refund', $out['warnings'][0]);
+    }
+
+    public function testALoanWithNoLiveMandateIsLeftAlone(): void
+    {
+        $called = false;
+        $out = $this->autoCancel(function () use (&$called) { $called = true; return ['success' => true, 'message' => '', 'attempted' => true]; })
+            ->afterReschedule(['loan_id' => 1, 'reschedule_no' => 'RSC-X'], [], 1);
+
+        $this->assertFalse($out['attempted']);
+        $this->assertFalse($called);
+    }
 }

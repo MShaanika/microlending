@@ -179,6 +179,15 @@ class CollexiaSetting extends Model
         return $this->get('collexia_auto_stop_collections', 'on') !== 'off';
     }
 
+    /**
+     * Cancel a debit order's mandate AUTOMATICALLY when the loan is rescheduled under it (see RescheduleMandateCancellation). On unless
+     * explicitly switched off; with it off the red "out of step" notice and the guided Replace page work as before.
+     */
+    public function autoCancelOnReschedule(): bool
+    {
+        return $this->get('collexia_auto_cancel_on_reschedule', 'on') !== 'off';
+    }
+
     public function isPasswordSet(): bool
     {
         return $this->get(self::PASSWORD_KEY) !== '';

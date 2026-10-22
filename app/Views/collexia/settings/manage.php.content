@@ -37,6 +37,16 @@ $statusBadge = [
       </div>
 
       <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" id="collexia_auto_cancel_on_reschedule" name="collexia_auto_cancel_on_reschedule" <?= ($settings['collexia_auto_cancel_on_reschedule'] ?? 'on') !== 'off' ? 'checked' : '' ?>>
+        <label class="form-check-label" for="collexia_auto_cancel_on_reschedule">Cancel a loan's debit order automatically when the loan is rescheduled</label>
+        <div class="form-text">
+          When a reschedule is implemented on a loan whose debit order is already placed with Collexia, that mandate would keep collecting the old
+          dates and amounts, so it is cancelled straight away and the person implementing is told. A new debit order is then registered from the
+          new schedule. If Collexia refuses, the red notice and Replace button stay on the loan. Switch off to cancel by hand instead.
+        </div>
+      </div>
+
+      <div class="form-check form-switch mb-3">
         <input type="checkbox" class="form-check-input" id="collexia_auto_stop_collections" name="collexia_auto_stop_collections" <?= ($settings['collexia_auto_stop_collections'] ?? 'on') !== 'off' ? 'checked' : '' ?>>
         <label class="form-check-label" for="collexia_auto_stop_collections">Cancel a collection automatically when a manual payment makes it unnecessary</label>
         <div class="form-text">

@@ -25,8 +25,8 @@
   <div class="alert alert-warning">
     <i class="mdi mdi-alert-outline"></i>
     <strong>This loan has a live debit order (<?= e($liveMandate['debit_order_no']) ?>).</strong>
-    Implementing this reschedule will leave it collecting the OLD dates and amounts at Collexia until it is replaced.
-    The red notice and a Replace mandate button will appear on the loan and the debit order as soon as it is implemented.
+    Its mandate at Collexia would keep collecting the OLD dates and amounts, so implementing this reschedule <strong>cancels it automatically</strong>.
+    You then register a new debit order from the new schedule. (If Collexia refuses, a red notice and a Replace mandate button appear on the loan.)
   </div>
 <?php endif; ?>
 

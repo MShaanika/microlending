@@ -106,6 +106,7 @@ class CollexiaSettingController extends Controller
         // Optional "transferAlreadyAuthed" flag and the EnCr payout switch -- same unchecked-sends-nothing handling.
         $this->settings->set('collexia_encr_transfer_already_authed', !empty($_POST['collexia_encr_transfer_already_authed']) ? 'on' : 'off', $userId);
         $encrNote = $this->saveEncrSwitch($userId);
+        $this->settings->set('collexia_auto_cancel_on_reschedule', !empty($_POST['collexia_auto_cancel_on_reschedule']) ? 'on' : 'off', $userId);
         $this->settings->set('collexia_auto_stop_collections', !empty($_POST['collexia_auto_stop_collections']) ? 'on' : 'off', $userId);
 
         $wantsEnabled = !empty($_POST['collexia_enabled']);

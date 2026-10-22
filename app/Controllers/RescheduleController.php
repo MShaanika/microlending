@@ -17,6 +17,7 @@ use App\Models\Loan;
 use App\Models\LoanReschedule;
 use App\Models\LoanRescheduleSchedule;
 use App\Services\DocumentGenerationService;
+use App\Services\RescheduleMandateCancellation;
 use App\Services\RescheduleService;
 
 class RescheduleController extends Controller
@@ -482,7 +483,20 @@ class RescheduleController extends Controller
                 'Debit order ' . $debitOrder['debit_order_no'] . ' is still live at Collexia and no longer matches the rescheduled loan (' . $reschedule['reschedule_no'] . '). It needs to be replaced.');
         }
         if ($stale) {
-            $successMessage .= ' This loan has a live debit order that no longer matches the new schedule -- replace it from the red notice on the loan or the debit order.';
+            // No manual step: the old mandate is cancelled right now. If Collexia refuses (or this is switched off) it stays flagged out of
+            // step, with the red notice and the Replace button on the loan.
+            $auto = (new RescheduleMandateCancellation())->afterReschedule($reschedule, $stale, $userId);
+            if ($auto['cancelled']) {
+                $successMessage .= ' The loan\'s old debit order (' . implode(', ', $auto['cancelled']) . ') was cancelled at Collexia automatically, because it would have kept collecting the old amounts. Register the new debit order from the loan\'s new schedule.';
+            }
+            if ($auto['failed']) {
+                Session::flash('error', 'The old debit order could NOT be cancelled automatically (' . implode('; ', $auto['failed']) . '). It is flagged on the loan -- use "Replace mandate" there to finish it.');
+            } elseif (!$auto['attempted']) {
+                $successMessage .= ' This loan has a live debit order that no longer matches the new schedule -- replace it from the red notice on the loan or the debit order.';
+            }
+            foreach ($auto['warnings'] as $warning) {
+                $successMessage .= ' ' . $warning;
+            }
         }
         Idempotency::complete($key, 'reschedule.implement', 'REDIRECT', [
             'flash_type' => 'success',
