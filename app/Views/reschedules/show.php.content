@@ -9,6 +9,27 @@
   };
 ?>
 
+<?php if (!empty($outOfStep)): ?>
+  <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <i class="mdi mdi-alert-octagon-outline"></i>
+      <strong>Debit order <?= e($outOfStep['debit_order_no']) ?> no longer matches this loan.</strong>
+      <?= e($outOfStep['mandate_stale_note'] ?? 'The loan was rescheduled after the mandate was placed.') ?>
+      Collexia is still set to collect the OLD dates and amounts.
+    </div>
+    <a class="btn btn-sm btn-danger" href="<?= url('/debit-orders/' . (int) $outOfStep['id'] . '/replace') ?>"><i class="mdi mdi-swap-horizontal"></i> Replace mandate</a>
+  </div>
+<?php endif; ?>
+
+<?php if (empty($isLive) && !empty($liveMandate) && in_array($reschedule['status'], ['Pending', 'Approved'], true)): ?>
+  <div class="alert alert-warning">
+    <i class="mdi mdi-alert-outline"></i>
+    <strong>This loan has a live debit order (<?= e($liveMandate['debit_order_no']) ?>).</strong>
+    Implementing this reschedule will leave it collecting the OLD dates and amounts at Collexia until it is replaced.
+    The red notice and a Replace mandate button will appear on the loan and the debit order as soon as it is implemented.
+  </div>
+<?php endif; ?>
+
 <div class="card mb-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">

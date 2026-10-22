@@ -1,0 +1,125 @@
+<?= flash_messages() ?>
+
+<?php
+  $stillTotal = array_sum(array_column($stillCollects, 'amount'));
+  $owedTotal = array_sum(array_column($owed, 'amount'));
+?>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Replace Mandate</h4>
+        <p class="text-muted mb-0">
+          Debit order <a href="<?= url('/debit-orders/' . $debitOrder['id']) ?>"><?= e($debitOrder['debit_order_no']) ?></a>
+          &middot; loan <a href="<?= url('/loans/' . $loan['id']) ?>"><?= e($loan['loan_no']) ?></a>
+          &middot; <?= e($debitOrder['borrower_name']) ?>
+        </p>
+      </div>
+      <span class="badge bg-<?= $isLive ? 'success' : 'secondary' ?>"><?= e($debitOrder['status']) ?></span>
+    </div>
+
+    <?php if (!empty($outOfStep)): ?>
+      <div class="alert alert-danger mt-3 mb-0">
+        <strong>This mandate no longer matches the loan.</strong>
+        <?= e($outOfStep['mandate_stale_note'] ?? 'The loan was rescheduled after the mandate was placed.') ?>
+        <?php if (!empty($outOfStep['reschedule_no'])): ?>
+          (<a href="<?= url('/reschedules/' . (int) $outOfStep['mandate_stale_reschedule_id']) ?>"><?= e($outOfStep['reschedule_no']) ?></a><?= !empty($outOfStep['rescheduled_at']) ? ', implemented ' . e(date('d M Y H:i', strtotime($outOfStep['rescheduled_at']))) : '' ?>)
+        <?php endif; ?>
+        Collexia will keep collecting the OLD dates and amounts below until the mandate is replaced.
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">The old mandate will still collect</h5>
+        <?php if ($stillCollects): ?>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead><tr><th>Date</th><th>Mandate</th><th class="text-end">Amount</th></tr></thead>
+              <tbody>
+                <?php foreach ($stillCollects as $c): ?>
+                  <tr><td><?= e(date('d M Y', strtotime($c['date']))) ?></td><td>Mandate <?= (int) $c['mandate'] ?></td><td class="text-end"><?= format_money($c['amount']) ?></td></tr>
+                <?php endforeach; ?>
+              </tbody>
+              <tfoot><tr><th colspan="2">Total</th><th class="text-end"><?= format_money($stillTotal) ?></th></tr></tfoot>
+            </table>
+          </div>
+        <?php else: ?>
+          <p class="text-muted mb-0">
+            <?php if (!$debitOrder['split_enabled']): ?>
+              One recurring mandate: <?= format_money($debitOrder['debit_amount']) ?> on day <?= (int) $debitOrder['debit_day'] ?> of each month, from <?= e(date('d M Y', strtotime($debitOrder['start_date']))) ?>.
+            <?php else: ?>
+              No upcoming collections are recorded on this mandate.
+            <?php endif; ?>
+          </p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">The loan actually owes now</h5>
+        <?php if ($owed): ?>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead><tr><th>#</th><th>Due</th><th class="text-end">Outstanding</th></tr></thead>
+              <tbody>
+                <?php foreach ($owed as $o): ?>
+                  <tr><td><?= $o['installment_no'] ?></td><td><?= e(date('d M Y', strtotime($o['date']))) ?></td><td class="text-end"><?= format_money($o['amount']) ?></td></tr>
+                <?php endforeach; ?>
+              </tbody>
+              <tfoot><tr><th colspan="2">Total</th><th class="text-end"><?= format_money($owedTotal) ?></th></tr></tfoot>
+            </table>
+          </div>
+        <?php else: ?>
+          <p class="text-muted mb-0">Nothing is outstanding on this loan.</p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Step 1 &mdash; Cancel the old mandate</h5>
+    <?php if (!$isLive): ?>
+      <p class="text-muted mb-0">This debit order is already <?= e(strtolower($debitOrder['status'])) ?>. Nothing to cancel.</p>
+    <?php else: ?>
+      <p class="text-muted small">
+        This tells Collexia to stop collecting on the old mandate. Nothing happens until you confirm below, and the reason is kept on the
+        loan's history. If Collexia refuses, nothing else is changed and you can try again.
+      </p>
+      <form method="post" action="<?= url('/debit-orders/' . $debitOrder['id'] . '/replace/cancel') ?>" onsubmit="return confirmSubmit(this, 'Cancel the old mandate at Collexia now? It will stop collecting immediately.');">
+        <?= csrf_field() ?>
+        <div class="mb-2">
+          <label class="form-label">Reason <span class="text-muted small">(kept on the loan history)</span></label>
+          <textarea name="reason" class="form-control" rows="2" minlength="5" required placeholder="e.g. Loan rescheduled (<?= e($outOfStep['reschedule_no'] ?? 'RSC-...') ?>); mandate replaced to follow the new schedule."></textarea>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="confirm" value="1" id="confirm_cancel" required>
+          <label class="form-check-label" for="confirm_cancel">I understand the old mandate will stop collecting, and I will register the new debit order straight after.</label>
+        </div>
+        <button class="btn btn-danger"><i class="mdi mdi-close-circle-outline"></i> Cancel old mandate at Collexia</button>
+      </form>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Step 2 &mdash; Register the new debit order</h5>
+    <p class="text-muted small">Built from the loan's current schedule. If the borrower has an instalment due in the next day or two, check it before cancelling so nothing is missed.</p>
+    <?php if ($isLive): ?>
+      <span class="btn btn-outline-secondary disabled">Register new debit order (cancel the old one first)</span>
+    <?php else: ?>
+      <a class="btn btn-primary" href="<?= url('/loans/' . $loan['id'] . '/debit-orders/create') ?>"><i class="mdi mdi-bank-plus"></i> Register new debit order</a>
+    <?php endif; ?>
+  </div>
+</div>

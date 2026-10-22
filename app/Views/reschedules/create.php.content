@@ -1,5 +1,15 @@
 <?= flash_messages() ?>
 
+<?php if (!empty($liveMandate)): ?>
+  <div class="alert alert-warning">
+    <i class="mdi mdi-alert-outline"></i>
+    <strong>This loan has a live debit order (<?= e($liveMandate['debit_order_no']) ?>).</strong>
+    Rescheduling changes the loan but NOT the mandate already placed at Collexia, which will keep collecting the old dates and amounts.
+    After the reschedule is implemented you will be asked to replace the mandate (cancel it, then register a new one from the new schedule).
+    Check when the next collection is due before you go ahead.
+  </div>
+<?php endif; ?>
+
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">Reschedule <?= e($loan['loan_no']) ?></h4>

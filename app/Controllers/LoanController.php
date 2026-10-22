@@ -28,6 +28,7 @@ use App\Services\LoanScheduleService;
 use App\Services\LoanStatementExcelExporter;
 use App\Services\LoanStatementPdfExporter;
 use App\Services\LoanStatementService;
+use App\Services\LoanTimelineService;
 use App\Services\TopUpService;
 
 class LoanController extends Controller
@@ -568,6 +569,7 @@ class LoanController extends Controller
             'title' => 'Loan ' . $loan['loan_no'],
             'loan' => $loan,
             'encrOffer' => $encrOffer,
+            'outOfStep' => (new \App\Models\DebitOrder())->outOfStepForLoan((int) $id),
             'disbursement' => $this->loans->activeDisbursement((int) $id),
             'schedule' => $this->loans->schedule((int) $id),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
@@ -582,6 +584,26 @@ class LoanController extends Controller
             'namfisaLevy' => $levyTxn ? (float) $levyTxn['levy_amount'] : 0.0,
             'dutyStamp' => $stampTxn ? (float) $stampTxn['stamp_amount'] : 0.0,
             'statusHistory' => $this->loans->statusHistory((int) $id),
+        ]);
+    }
+
+    /** Everything recorded against this loan, in one place -- see LoanTimelineService. */
+    public function activity(string $id): void
+    {
+        Auth::authorize('loans.view');
+        $loan = $this->loans->find((int) $id);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return;
+        }
+        $this->assertBranchAccess($loan);
+
+        $this->view('loans/activity', [
+            'title' => 'Loan Activity ' . $loan['loan_no'],
+            'loan' => $loan,
+            'events' => LoanTimelineService::forLoan((int) $id),
+            'kinds' => LoanTimelineService::kinds(),
         ]);
     }
 

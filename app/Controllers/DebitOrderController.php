@@ -14,6 +14,7 @@ use App\Models\DebitOrderCancellation;
 use App\Models\DebitOrderSplitLeg;
 use App\Models\DebitOrderSplitLegInstallment;
 use App\Models\Loan;
+use App\Services\MandateReplacementService;
 use App\Support\CollexiaCodes;
 use App\Support\SplitLanePlanner;
 
@@ -81,6 +82,7 @@ class DebitOrderController extends Controller
         $this->view('debit_orders/index', [
             'title' => 'Debit Orders',
             'debitOrders' => $this->debitOrders->paginated($status, $this->indexBranchId(), $fromDate ?: null, $toDate ?: null),
+            'outOfStepAll' => $this->debitOrders->outOfStepAll($this->indexBranchId()),
             'status' => $status,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
@@ -546,8 +548,11 @@ class DebitOrderController extends Controller
             $summary[] = 'lane ' . $lane['lane'] . ' [' . implode(', ', $items) . ']';
         }
 
+        $debitOrderNo = $this->debitOrders->find($debitOrderId)['debit_order_no'] ?? ('#' . $debitOrderId);
         Audit::log('Create', 'Debit Orders', 'Registered debit order #' . $debitOrderId . ' for loan ' . $loan['loan_no']
-            . ' as ' . count($lanes) . ' mandate(s), each carrying every installment: ' . implode('; ', $summary));
+            . ' as ' . count($lanes) . ' mandate(s), each carrying every installment: ' . implode('; ', $summary), ['loan_id' => $loanId, 'debit_order_id' => $debitOrderId]);
+        $this->loans->logStatus($loanId, $loan['loan_status'], $loan['loan_status'], Auth::user()['id'] ?? null,
+            'Debit order ' . $debitOrderNo . ' registered: ' . count($lanes) . ' mandate(s) covering ' . count($planRows) . ' installment(s).');
 
         $collexia = new CollexiaSetting();
         if (!empty($_POST['place_now']) && $collexia->isEnabled() && $collexia->isConfigured()) {
@@ -677,6 +682,92 @@ class DebitOrderController extends Controller
         $this->redirect('/debit-orders/' . $id . '/split-transactions');
     }
 
+    /**
+     * The guided "Replace mandate" page: what the old mandate will still collect, what the loan actually owes now, and the two steps
+     * (cancel the old mandate, then register the new one). Cancelling is never automatic -- it is one deliberate, confirmed button.
+     */
+    public function replaceForm(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $debitOrder = $this->debitOrders->find((int) $id);
+        if (!$debitOrder) {
+            Session::flash('error', 'Debit order not found.');
+            $this->redirect('/debit-orders');
+            return;
+        }
+        $this->assertBranchAccess($debitOrder);
+
+        $loan = $this->loans->find((int) $debitOrder['loan_id']);
+        $today = date('Y-m-d');
+        $stillCollects = [];
+        if ($debitOrder['split_enabled']) {
+            foreach ($this->laneInstallments->carriersBySchedule((int) $id) as $scheduleId => $list) {
+                foreach ($list as $c) {
+                    $date = $c['collexia_date'] ?: $c['planned_date'];
+                    if (in_array($c['status'], ['Registered', 'Load Pending'], true) && $date && $date >= $today && empty($c['cancelled_at'])) {
+                        $stillCollects[] = ['date' => $date, 'amount' => (float) $c['amount'], 'mandate' => (int) $c['split_no']];
+                    }
+                }
+            }
+            usort($stillCollects, fn ($a, $b) => strcmp($a['date'], $b['date']));
+        }
+
+        $owed = [];
+        foreach ($this->loans->schedule((int) $debitOrder['loan_id']) as $row) {
+            $outstanding = round((float) $row['total_due'] - (float) $row['total_paid'], 2);
+            if ($outstanding > 0.004) {
+                $owed[] = ['installment_no' => (int) $row['installment_no'], 'date' => $row['due_date'], 'amount' => $outstanding];
+            }
+        }
+
+        $this->view('debit_orders/replace', [
+            'title' => 'Replace Mandate - ' . $debitOrder['debit_order_no'],
+            'debitOrder' => $debitOrder,
+            'loan' => $loan,
+            'isLive' => in_array($debitOrder['status'], ['Active', 'Suspended'], true),
+            'outOfStep' => $this->debitOrders->outOfStepForLoan((int) $debitOrder['loan_id']),
+            'stillCollects' => $stillCollects,
+            'owed' => $owed,
+        ]);
+    }
+
+    /** Step 1 of replacing a mandate: cancel the old one at Collexia, after an explicit confirmation and a written reason. */
+    public function replaceCancel(string $id): void
+    {
+        Auth::authorize('collections.debit_orders');
+        $back = '/debit-orders/' . (int) $id . '/replace';
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect($back);
+            return;
+        }
+        $debitOrder = $this->debitOrders->find((int) $id);
+        if (!$debitOrder) {
+            Session::flash('error', 'Debit order not found.');
+            $this->redirect('/debit-orders');
+            return;
+        }
+        $this->assertBranchAccess($debitOrder);
+
+        $reason = trim((string) ($_POST['reason'] ?? ''));
+        if (empty($_POST['confirm']) || mb_strlen($reason) < 5) {
+            Session::flash('error', 'Tick the confirmation box and give a reason (at least 5 characters) to cancel the old mandate.');
+            $this->redirect($back);
+            return;
+        }
+
+        $result = (new MandateReplacementService())->cancelForReplacement($debitOrder, $reason, Auth::user()['id'] ?? null);
+        if (!$result['success']) {
+            Session::flash('error', $result['message']);
+            $this->redirect($back);
+            return;
+        }
+
+        Session::flash('success', $result['message']);
+        $this->redirect('/loans/' . (int) $debitOrder['loan_id'] . '/debit-orders/create');
+    }
+
     public function show(string $id): void
     {
         Auth::authorize('collections.debit_orders');
@@ -727,6 +818,7 @@ class DebitOrderController extends Controller
             // installment to them (and from there to every installment the
             // mandate carries).
             'carriers' => $carriers,
+            'outOfStep' => $this->debitOrders->outOfStepForLoan((int) $debitOrder['loan_id']),
             'scheduleDrift' => $this->scheduleDrift($this->loans->schedule((int) $debitOrder['loan_id']), $carriers),
         ]);
     }

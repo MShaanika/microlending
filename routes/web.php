@@ -214,6 +214,7 @@ $router->get('/loans/{id}/statement.pdf', [LoanController::class, 'statementPdf'
 $router->post('/loans/{id}/statement/email', [LoanController::class, 'emailStatement']);
 $router->post('/loans/{id}/approve', [LoanController::class, 'approve']);
 $router->post('/loans/{id}/release', [LoanController::class, 'release']);
+$router->get('/loans/{id}/activity', [LoanController::class, 'activity']);
 $router->post('/loans/{id}/encr/retry', [LoanController::class, 'encrRetry']);
 $router->post('/loans/{id}/encr/check', [LoanController::class, 'encrCheck']);
 $router->get('/loans/{id}/topup-created', [LoanController::class, 'topupCreated']);
@@ -239,6 +240,8 @@ $router->get('/loans/{id}/debit-orders/create', [DebitOrderController::class, 'c
 $router->post('/debit-orders', [DebitOrderController::class, 'store']);
 $router->get('/debit-orders/{id}', [DebitOrderController::class, 'show']);
 $router->get('/debit-orders/{id}/edit', [DebitOrderController::class, 'edit']);
+$router->get('/debit-orders/{id}/replace', [DebitOrderController::class, 'replaceForm']);
+$router->post('/debit-orders/{id}/replace/cancel', [DebitOrderController::class, 'replaceCancel']);
 $router->post('/debit-orders/{id}', [DebitOrderController::class, 'update']);
 $router->get('/debit-orders/{id}/next-installment-splits', [DebitOrderController::class, 'addNextInstallmentSplitsForm']);
 $router->post('/debit-orders/{id}/next-installment-splits', [DebitOrderController::class, 'addNextInstallmentSplitsStore']);

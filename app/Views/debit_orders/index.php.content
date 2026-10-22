@@ -1,6 +1,17 @@
 <?php use App\Models\DebitOrder; ?>
 <?= flash_messages() ?>
 
+<?php if (!empty($outOfStepAll)): ?>
+  <div class="alert alert-danger">
+    <i class="mdi mdi-alert-octagon-outline"></i>
+    <strong><?= count($outOfStepAll) ?> live debit order<?= count($outOfStepAll) === 1 ? '' : 's' ?> no longer match<?= count($outOfStepAll) === 1 ? 'es' : '' ?> the loan</strong>
+    (the loan was rescheduled after the mandate was placed):
+    <?php foreach ($outOfStepAll as $i => $o): ?>
+      <a href="<?= url('/debit-orders/' . (int) $o['id'] . '/replace') ?>"><?= e($o['loan_no']) ?></a><?= $i < count($outOfStepAll) - 1 ? ',' : '' ?>
+    <?php endforeach; ?>
+  </div>
+<?php endif; ?>
+
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-3">Debit Orders</h4>

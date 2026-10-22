@@ -1,0 +1,56 @@
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+      <div>
+        <h4 class="card-title mb-1">Loan Activity &mdash; <?= e($loan['loan_no']) ?></h4>
+        <p class="text-muted small mb-0"><?= e($loan['borrower_name']) ?> &middot; everything recorded against this loan, newest first (<?= count($events) ?> entries).</p>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <select id="kindFilter" class="form-select form-select-sm" style="width:auto">
+          <option value="">All activity</option>
+          <?php foreach ($kinds as $k => [$label]): ?>
+            <option value="<?= e($k) ?>"><?= e($label) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <a class="btn btn-sm btn-outline-secondary" href="<?= url('/loans/' . $loan['id']) ?>"><i class="mdi mdi-arrow-left"></i> Back to loan</a>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle" id="activityTable">
+        <thead><tr><th style="width:150px">When</th><th style="width:120px">Type</th><th>What happened</th><th style="width:160px">By</th></tr></thead>
+        <tbody>
+        <?php if (!$events): ?>
+          <tr><td colspan="4" class="text-center text-muted py-4">Nothing recorded yet.</td></tr>
+        <?php endif; ?>
+        <?php foreach ($events as $ev): ?>
+          <?php [$label, $colour] = $kinds[$ev['kind']] ?? [$ev['kind'], 'secondary']; ?>
+          <tr data-kind="<?= e($ev['kind']) ?>">
+            <td class="text-nowrap small"><?= e(date('d M Y H:i', strtotime($ev['at']))) ?></td>
+            <td><span class="badge bg-<?= e($colour) ?> <?= $colour === 'light' ? 'text-dark border' : '' ?>"><?= e($label) ?></span></td>
+            <td>
+              <?php if ($ev['link']): ?><a href="<?= url($ev['link']) ?>"><?= e($ev['title']) ?></a><?php else: ?><?= e($ev['title']) ?><?php endif; ?>
+              <?php if ($ev['detail'] !== ''): ?><div class="small text-muted"><?= e($ev['detail']) ?></div><?php endif; ?>
+            </td>
+            <td class="small"><?= $ev['actor'] !== '' ? e($ev['actor']) : '<span class="text-muted">&mdash;</span>' ?></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var filter = document.getElementById('kindFilter');
+    if (!filter) return;
+    filter.addEventListener('change', function () {
+      document.querySelectorAll('#activityTable tbody tr[data-kind]').forEach(function (row) {
+        row.style.display = !filter.value || row.getAttribute('data-kind') === filter.value ? '' : 'none';
+      });
+    });
+  })();
+</script>

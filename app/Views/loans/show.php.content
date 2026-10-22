@@ -24,6 +24,18 @@
   $totalDue = array_sum(array_column($schedule, 'total_due'));
 ?>
 
+<?php if (!empty($outOfStep)): ?>
+  <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <i class="mdi mdi-alert-octagon-outline"></i>
+      <strong>Debit order <?= e($outOfStep['debit_order_no']) ?> no longer matches this loan.</strong>
+      <?= e($outOfStep['mandate_stale_note'] ?? 'The loan was rescheduled after the mandate was placed.') ?>
+      Collexia is still set to collect the OLD dates and amounts.
+    </div>
+    <a class="btn btn-sm btn-danger" href="<?= url('/debit-orders/' . (int) $outOfStep['id'] . '/replace') ?>"><i class="mdi mdi-swap-horizontal"></i> Replace mandate</a>
+  </div>
+<?php endif; ?>
+
 <div class="row">
   <div class="col-lg-4">
     <div class="card">
@@ -117,6 +129,7 @@
 
         <div class="d-flex gap-2 flex-wrap">
           <a href="<?= url('/loans/' . $loan['id'] . '/statement') ?>" target="_blank" class="btn btn-outline-info btn-sm"><i class="mdi mdi-receipt"></i> Statement of Account</a>
+          <a href="<?= url('/loans/' . $loan['id'] . '/activity') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-history"></i> Full Activity Log</a>
           <a href="<?= url('/notifications/compose?borrower_id=' . $loan['borrower_id'] . '&loan_id=' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bell-ring-outline"></i> Notify Borrower</a>
 
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>

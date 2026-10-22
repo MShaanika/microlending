@@ -107,6 +107,59 @@ class DebitOrder extends Model
         );
     }
 
+    /** A debit order whose mandate is actually live at Collexia (placed, or being placed), as opposed to one only recorded here. */
+    private const LIVE_MANDATE_SQL = "d.status IN ('Active', 'Suspended') AND (d.collexia_status = 'Registered' OR d.collexia_api_status IN ('Registered', 'Load Pending', 'Mixed', 'Uncertain'))";
+
+    /** The loan's debit order whose mandate is live at Collexia, if any -- what a reschedule would leave out of step. */
+    public function liveMandateForLoan(int $loanId): ?array
+    {
+        return $this->one("SELECT d.* FROM debit_orders d WHERE d.loan_id = ? AND " . self::LIVE_MANDATE_SQL . " ORDER BY d.id DESC LIMIT 1", [$loanId]);
+    }
+
+    /**
+     * The loan's live mandate that no longer matches its loan because the loan was rescheduled after the mandate was placed. Stays
+     * returned -- so the red notice stays -- until the debit order is cancelled/replaced or completes, because only then does it stop
+     * being live.
+     */
+    public function outOfStepForLoan(int $loanId): ?array
+    {
+        return $this->one(
+            "SELECT d.*, r.reschedule_no, r.implemented_at AS rescheduled_at
+             FROM debit_orders d
+             LEFT JOIN loan_reschedules r ON r.id = d.mandate_stale_reschedule_id
+             WHERE d.loan_id = ? AND d.mandate_stale_since IS NOT NULL AND " . self::LIVE_MANDATE_SQL . "
+             ORDER BY d.id DESC LIMIT 1",
+            [$loanId]
+        );
+    }
+
+    /** Every out-of-step live mandate (this branch, or all if null) -- for the warning on the Debit Orders list. */
+    public function outOfStepAll(?int $branchId = null): array
+    {
+        $sql = "SELECT d.id, d.debit_order_no, d.loan_id, l.loan_no, d.mandate_stale_since
+                FROM debit_orders d JOIN loans l ON l.id = d.loan_id
+                WHERE d.mandate_stale_since IS NOT NULL AND " . self::LIVE_MANDATE_SQL;
+        $params = [];
+        if ($branchId !== null) {
+            $sql .= " AND l.branch_id = ?";
+            $params[] = $branchId;
+        }
+        return $this->all($sql . " ORDER BY d.mandate_stale_since", $params);
+    }
+
+    /** Marks every live mandate of the loan as out of step with it. Returns the debit orders that were marked. */
+    public function markMandatesOutOfStep(int $loanId, int $rescheduleId, string $note): array
+    {
+        $rows = $this->all("SELECT d.* FROM debit_orders d WHERE d.loan_id = ? AND " . self::LIVE_MANDATE_SQL, [$loanId]);
+        foreach ($rows as $row) {
+            $this->query(
+                "UPDATE debit_orders SET mandate_stale_since = NOW(), mandate_stale_reschedule_id = ?, mandate_stale_note = ? WHERE id = ?",
+                [$rescheduleId, substr($note, 0, 255), (int) $row['id']]
+            );
+        }
+        return $rows;
+    }
+
     public function remainingInstallments(int $loanId): int
     {
         return (int) $this->scalar("SELECT COUNT(*) FROM loan_schedules WHERE loan_id = ? AND status != 'Paid'", [$loanId]);

@@ -10,6 +10,7 @@ use App\Core\IdempotencyBusyException;
 use App\Core\IdempotencyReplayException;
 use App\Core\Security;
 use App\Core\Session;
+use App\Models\DebitOrder;
 use App\Models\DocumentTemplate;
 use App\Models\GeneratedDocument;
 use App\Models\Loan;
@@ -90,6 +91,7 @@ class RescheduleController extends Controller
             'loan' => $loan,
             'outstandingBalance' => RescheduleService::outstandingPrincipal((int) $loan['id']),
             'totalOutstanding' => RescheduleService::totalOutstanding((int) $loan['id']),
+            'liveMandate' => (new DebitOrder())->liveMandateForLoan((int) $loan['id']),
             'preview' => null,
             'old' => [],
             'errors' => [],
@@ -128,6 +130,7 @@ class RescheduleController extends Controller
             'loan' => $loan,
             'outstandingBalance' => $preview['outstanding_balance'],
             'totalOutstanding' => RescheduleService::totalOutstanding((int) $loan['id']),
+            'liveMandate' => (new DebitOrder())->liveMandateForLoan((int) $loan['id']),
             'preview' => $preview,
             'old' => $_POST,
             'errors' => [],
@@ -168,6 +171,7 @@ class RescheduleController extends Controller
                 'loan' => $loan,
                 'outstandingBalance' => $preview['outstanding_balance'],
             'totalOutstanding' => RescheduleService::totalOutstanding((int) $loan['id']),
+                'liveMandate' => (new DebitOrder())->liveMandateForLoan((int) $loan['id']),
                 'preview' => $preview,
                 'old' => $_POST,
                 'errors' => ['reason' => 'A reason is required to request a reschedule.'],
@@ -221,7 +225,7 @@ class RescheduleController extends Controller
             ]);
         }
 
-        Audit::log('Create', 'Reschedules', 'Requested reschedule #' . $rescheduleId . ' for loan ' . $loan['loan_no']);
+        Audit::log('Create', 'Reschedules', 'Requested reschedule #' . $rescheduleId . ' for loan ' . $loan['loan_no'], ['loan_id' => (int) $loan['id'], 'reschedule_id' => (int) $rescheduleId]);
         Session::flash('success', 'Reschedule requested. It needs approval before it can be implemented.');
         $this->redirect('/reschedules/' . $rescheduleId);
     }
@@ -268,6 +272,8 @@ class RescheduleController extends Controller
             'loan' => $loan,
             'newSchedule' => $newSchedule,
             'isLive' => $isLive,
+            'liveMandate' => (new DebitOrder())->liveMandateForLoan((int) $reschedule['loan_id']),
+            'outOfStep' => (new DebitOrder())->outOfStepForLoan((int) $reschedule['loan_id']),
             // Amount Borrowed / Principal Amount / Interest Charge / Opening
             // Balance -- derived from the actual persisted new schedule
             // rows rather than stored separately, so they can never drift
@@ -310,7 +316,7 @@ class RescheduleController extends Controller
             'approved_at' => date('Y-m-d H:i:s'),
         ]);
 
-        Audit::log('Approve', 'Reschedules', 'Approved reschedule #' . $id);
+        Audit::log('Approve', 'Reschedules', 'Approved reschedule #' . $id, ['loan_id' => (int) $reschedule['loan_id'], 'reschedule_id' => $id]);
         Session::flash('success', 'Reschedule approved. It can now be implemented.');
         $this->redirect('/reschedules/' . $id);
     }
@@ -342,7 +348,7 @@ class RescheduleController extends Controller
             'rejection_reason' => $reason ?: null,
         ]);
 
-        Audit::log('Reject', 'Reschedules', 'Rejected reschedule #' . $id);
+        Audit::log('Reject', 'Reschedules', 'Rejected reschedule #' . $id, ['loan_id' => (int) $reschedule['loan_id'], 'reschedule_id' => $id]);
         Session::flash('success', 'Reschedule rejected.');
         $this->redirect('/reschedules/' . $id);
     }
@@ -385,7 +391,7 @@ class RescheduleController extends Controller
             'reviewed_at' => date('Y-m-d H:i:s'),
             'rejection_reason' => $reason,
         ]);
-        Audit::log('Cancel', 'Reschedules', 'Cancelled ' . $reschedule['status'] . ' reschedule #' . $id . ' (' . $reschedule['reschedule_no'] . ') for loan #' . $reschedule['loan_id'] . ': ' . $reason);
+        Audit::log('Cancel', 'Reschedules', 'Cancelled ' . $reschedule['status'] . ' reschedule #' . $id . ' (' . $reschedule['reschedule_no'] . ') for loan #' . $reschedule['loan_id'] . ': ' . $reason, ['loan_id' => (int) $reschedule['loan_id'], 'reschedule_id' => $id]);
         Session::flash('success', 'Reschedule cancelled. The loan is unchanged.');
         $this->redirect('/reschedules/' . $id);
     }
@@ -458,7 +464,26 @@ class RescheduleController extends Controller
             'implemented_at' => date('Y-m-d H:i:s'),
         ]);
 
-        Audit::log('Implement', 'Reschedules', 'Implemented reschedule #' . $id . ' for loan ' . $reschedule['loan_no'], [], $key);
+        Audit::log('Implement', 'Reschedules', 'Implemented reschedule #' . $id . ' for loan ' . $reschedule['loan_no'], ['loan_id' => (int) $reschedule['loan_id'], 'reschedule_id' => $id], $key);
+
+        // A mandate already placed at Collexia keeps collecting the OLD dates and amounts. Mark it, so a red notice stays on the loan and
+        // the debit order until it is replaced -- and record that in the audit trail and the loan's own history.
+        $loanNow = $this->loans->find((int) $reschedule['loan_id']);
+        $stale = (new DebitOrder())->markMandatesOutOfStep(
+            (int) $reschedule['loan_id'],
+            $id,
+            'The loan was rescheduled (' . $reschedule['reschedule_no'] . ') after this debit order was registered; its mandate still collects the old dates and amounts.'
+        );
+        foreach ($stale as $debitOrder) {
+            Audit::log('Update', 'Debit Orders', 'Debit order ' . $debitOrder['debit_order_no'] . ' is now OUT OF STEP with loan ' . $reschedule['loan_no'] . ': reschedule ' . $reschedule['reschedule_no'] . ' was implemented while its mandate is live at Collexia.', [
+                'loan_id' => (int) $reschedule['loan_id'], 'debit_order_id' => (int) $debitOrder['id'], 'reschedule_id' => $id, 'event' => 'mandate_out_of_step',
+            ]);
+            $this->loans->logStatus((int) $reschedule['loan_id'], $loanNow['loan_status'] ?? null, $loanNow['loan_status'] ?? 'Rescheduled', $userId,
+                'Debit order ' . $debitOrder['debit_order_no'] . ' is still live at Collexia and no longer matches the rescheduled loan (' . $reschedule['reschedule_no'] . '). It needs to be replaced.');
+        }
+        if ($stale) {
+            $successMessage .= ' This loan has a live debit order that no longer matches the new schedule -- replace it from the red notice on the loan or the debit order.';
+        }
         Idempotency::complete($key, 'reschedule.implement', 'REDIRECT', [
             'flash_type' => 'success',
             'flash_message' => $successMessage,
