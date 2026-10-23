@@ -24,3 +24,6 @@
 .DS_Store
 Thumbs.db
 *.log
+
+/storage/bank_import_previews/*
+!/storage/bank_import_previews/.gitkeep

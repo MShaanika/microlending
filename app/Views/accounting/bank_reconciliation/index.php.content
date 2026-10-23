@@ -1,4 +1,11 @@
 <?= flash_messages() ?>
+<?php
+  // Carried by every form on this screen so an action (match, undo, adjust...) returns to the same period.
+  $periodFields = '<input type="hidden" name="from_date" value="' . e($fromDate) . '">'
+    . '<input type="hidden" name="to_date" value="' . e($toDate) . '">'
+    . ($includeEarlier ? '<input type="hidden" name="include_earlier" value="1">' : '')
+    . ($showOnlyUnmatched ? '<input type="hidden" name="unmatched_only" value="1">' : '');
+?>
 
 <div class="card mb-3">
   <div class="card-body">
@@ -11,6 +18,7 @@
           <form method="post" action="<?= url('/accounting/bank-reconciliation/auto-match') ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+            <?= $periodFields ?>
             <button type="submit" class="btn btn-outline-info btn-sm"><i class="mdi mdi-auto-fix"></i> Auto-Match</button>
           </form>
         <?php endif; ?>
@@ -28,11 +36,16 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Statement Date</label>
-        <input type="date" name="as_of_date" class="form-control" value="<?= e($asOfDate) ?>" onchange="this.form.submit()">
+      <div class="col-md-2">
+        <label class="form-label">From</label>
+        <input type="date" name="from_date" class="form-control" value="<?= e($fromDate) ?>" max="<?= e($toDate) ?>" onchange="this.form.submit()">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">To</label>
+        <input type="date" name="to_date" class="form-control" value="<?= e($toDate) ?>" min="<?= e($fromDate) ?>" onchange="this.form.submit()">
       </div>
       <input type="hidden" name="unmatched_only" value="<?= $showOnlyUnmatched ? '1' : '' ?>">
+      <input type="hidden" name="include_earlier" value="<?= $includeEarlier ? '1' : '' ?>">
     </form>
   </div>
 </div>
@@ -53,6 +66,7 @@
         <form method="post" action="<?= url('/accounting/bank-reconciliation/reopen') ?>" onsubmit="return confirmSubmit(this, 'Reopen this reconciliation? Locked transactions will become reversible again.');">
           <?= csrf_field() ?>
           <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+          <?= $periodFields ?>
           <button type="submit" class="btn btn-outline-warning btn-sm">Reopen (Admin Override)</button>
         </form>
       <?php endif; ?>
@@ -69,11 +83,11 @@
     <h5 class="card-title"><i class="mdi mdi-information-outline text-info"></i> Reconciliation Summary</h5>
     <div class="row text-center">
       <div class="col-md-4 border-end">
-        <p class="text-muted small mb-1">Cash Book Balance (My Notebook)</p>
+        <p class="text-muted small mb-1">Cash Book Balance at <?= e(date('d/m/Y', strtotime($toDate))) ?> (My Notebook)</p>
         <h5><?= format_money($summary['gl_balance']) ?></h5>
       </div>
       <div class="col-md-4 border-end">
-        <p class="text-muted small mb-1">Bank Statement Balance (Bank)</p>
+        <p class="text-muted small mb-1">Bank Statement Balance at <?= e(date('d/m/Y', strtotime($toDate))) ?> (Bank)</p>
         <h5><?= $summary['statement_balance'] === null ? '<span class="text-muted fs-6">no statement imported</span>' : format_money($summary['statement_balance']) ?></h5>
       </div>
       <div class="col-md-4">
@@ -81,6 +95,12 @@
         <h5 class="<?= $isReconciled ? 'text-success' : 'text-danger' ?>"><?= $summary['difference'] === null ? '&mdash;' : format_money($summary['difference']) ?></h5>
       </div>
     </div>
+    <p class="text-muted small text-center mt-3 mb-0">
+      Period: <strong><?= e(date('d/m/Y', strtotime($fromDate))) ?></strong> to <strong><?= e(date('d/m/Y', strtotime($toDate))) ?></strong>.
+      <?php if (!empty($summary['brought_forward_count'])): ?>
+        <?= (int) $summary['brought_forward_count'] ?> item(s) from before <?= e(date('d/m/Y', strtotime($fromDate))) ?> are still unmatched. They are counted in the difference above and are not listed below unless you tick "Show earlier items".
+      <?php endif; ?>
+    </p>
   </div>
 </div>
 
@@ -90,10 +110,15 @@
       <h5 class="card-title mb-0">Transactions</h5>
       <form method="get" class="d-flex align-items-center gap-2">
         <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
-        <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+        <input type="hidden" name="from_date" value="<?= e($fromDate) ?>">
+        <input type="hidden" name="to_date" value="<?= e($toDate) ?>">
         <div class="form-check">
           <input type="checkbox" class="form-check-input" id="unmatchedOnly" name="unmatched_only" value="1" <?= $showOnlyUnmatched ? 'checked' : '' ?> onchange="this.form.submit()">
           <label class="form-check-label" for="unmatchedOnly">Show only unmatched</label>
+        </div>
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="includeEarlier" name="include_earlier" value="1" <?= $includeEarlier ? 'checked' : '' ?> onchange="this.form.submit()">
+          <label class="form-check-label" for="includeEarlier">Show earlier items still open</label>
         </div>
       </form>
     </div>
@@ -144,6 +169,7 @@
                   <form method="post" action="<?= url('/accounting/bank-reconciliation/unmatch') ?>" onsubmit="return confirmSubmit(this, 'Undo this match?');">
                     <?= csrf_field() ?>
                     <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+                    <?= $periodFields ?>
                     <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
                     <button type="submit" class="btn btn-sm btn-outline-secondary">Unmatch</button>
                   </form>
@@ -160,6 +186,7 @@
                   <form method="post" action="<?= url('/accounting/bank-reconciliation/match') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+                    <?= $periodFields ?>
                     <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
                     <div class="flex-grow-1">
                       <label class="form-label small mb-0">Already in the books under a different entry &mdash; match to</label>
@@ -177,6 +204,7 @@
                   <form method="post" action="<?= url('/accounting/bank-reconciliation/create-adjustment') ?>" class="d-flex gap-2 align-items-end flex-wrap py-2 border-top">
                     <?= csrf_field() ?>
                     <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
+                    <?= $periodFields ?>
                     <input type="hidden" name="statement_id" value="<?= (int) $row['bank_statement_id'] ?>">
                     <div class="flex-grow-1">
                       <label class="form-label small mb-0">...or I really did forget to record it &mdash; post a new entry against</label>
@@ -243,10 +271,10 @@
       </table>
     </div>
 
-    <form method="post" action="<?= url('/accounting/bank-reconciliation/complete') ?>" onsubmit="return confirmSubmit(this, 'Complete this reconciliation? Transactions on or before <?= e($asOfDate) ?> will be locked and can only be reversed by an admin override.');">
+    <form method="post" action="<?= url('/accounting/bank-reconciliation/complete') ?>" onsubmit="return confirmSubmit(this, 'Complete this reconciliation? Transactions on or before <?= e(date('d/m/Y', strtotime($toDate))) ?> will be locked and can only be reversed by an admin override.');">
       <?= csrf_field() ?>
       <input type="hidden" name="bank_account_id" value="<?= (int) $bankAccountId ?>">
-      <input type="hidden" name="as_of_date" value="<?= e($asOfDate) ?>">
+      <?= $periodFields ?>
       <button type="submit" class="btn btn-primary" <?= $isReconciled ? '' : 'disabled' ?>><i class="mdi mdi-lock-check"></i> Complete Reconciliation</button>
       <?php if (!$isReconciled): ?><span class="text-muted small ms-2">Only works once Difference = $0.00.</span><?php endif; ?>
     </form>

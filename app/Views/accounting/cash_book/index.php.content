@@ -111,7 +111,7 @@
       </div>
 
       <?php if ($bankAccount): ?>
-        <a href="<?= url('/accounting/bank-reconciliation?bank_account_id=' . (int) $bankAccount['id'] . '&as_of_date=' . $toDate) ?>" class="btn btn-primary no-print"><i class="mdi mdi-swap-horizontal"></i> Reconcile This Account</a>
+        <a href="<?= url('/accounting/bank-reconciliation?bank_account_id=' . (int) $bankAccount['id'] . '&from_date=' . $fromDate . '&to_date=' . $toDate) ?>" class="btn btn-primary no-print"><i class="mdi mdi-swap-horizontal"></i> Reconcile This Account</a>
       <?php else: ?>
         <p class="text-muted small no-print mb-0">This GL account has no linked bank account record, so it can't be reconciled against a statement.</p>
       <?php endif; ?>

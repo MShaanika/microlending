@@ -3,7 +3,8 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">Import Bank Statement</h4>
-    <p class="text-muted small">Upload a CSV export of your bank statement. Expected header row: <code>date,reference,description,money_in,money_out,balance</code>. Already-imported lines (same date, reference and amounts) are skipped automatically, so re-uploading an overlapping export is safe.</p>
+    <p class="text-muted small mb-2">Upload your bank statement as a <strong>PDF</strong> (FNB Namibia and Bank Windhoek statements are read directly) or as a <strong>CSV</strong>. For a PDF you will see the lines it found and can check them before anything is saved. Already-imported lines are skipped automatically, so uploading an overlapping statement is safe.</p>
+    <p class="text-muted small">A CSV is imported straight away and needs this header row: <code>date,reference,description,money_in,money_out,balance</code>. A PDF is always shown to you for review first.</p>
 
     <form method="post" action="<?= url('/accounting/bank-reconciliation/import') ?>" enctype="multipart/form-data" class="mt-3">
       <?= csrf_field() ?>
@@ -20,11 +21,11 @@
       </div>
 
       <div class="mb-3">
-        <label class="form-label">CSV File <span class="text-danger">*</span></label>
-        <input type="file" name="statement" accept=".csv,text/csv" class="form-control" required>
+        <label class="form-label">Bank Statement (PDF or CSV) <span class="text-danger">*</span></label>
+        <input type="file" name="statement" accept=".pdf,.csv,application/pdf,text/csv" class="form-control" required>
       </div>
 
-      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-upload"></i> Import &amp; Auto-Match</button>
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-upload"></i> Upload Statement</button>
       <a href="<?= url('/accounting/bank-reconciliation') ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>

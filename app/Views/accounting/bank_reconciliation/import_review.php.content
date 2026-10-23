@@ -1,0 +1,107 @@
+<?php
+/** @var string $token @var array $preview @var array $bankAccount */
+$rows = $preview['rows'];
+$check = $preview['check'] ?? [];
+$broken = array_flip($check['broken'] ?? []);
+$trusted = !empty($preview['trusted']);
+$isAi = ($preview['reader'] ?? '') === 'ai';
+$money = static fn ($v) => number_format((float) $v, 2);
+
+// The statement's bank should be the bank of the account it is being imported into.
+$bankWords = ['FNB Namibia' => ['fnb', 'first national'], 'Bank Windhoek' => ['windhoek']];
+$accountBank = strtolower((string) $bankAccount['bank_name']);
+$bankMismatch = false;
+if (!empty($preview['bank']) && isset($bankWords[$preview['bank']])) {
+    $bankMismatch = true;
+    foreach ($bankWords[$preview['bank']] as $word) {
+        if (str_contains($accountBank, $word)) {
+            $bankMismatch = false;
+        }
+    }
+}
+?>
+<?= flash_messages() ?>
+
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Review Bank Statement</h4>
+    <p class="text-muted small mb-3">
+      <?= e($bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'] . ' (' . $bankAccount['account_number'] . ')') ?>
+      <?php if (!empty($preview['bank'])): ?> &middot; Statement layout: <strong><?= e($preview['bank']) ?></strong><?php endif; ?>
+      &middot; Read by: <strong><?= $isAi ? 'AI' : 'the built-in PDF reader' ?></strong>
+    </p>
+
+    <?php if ($bankMismatch): ?>
+      <div class="alert alert-danger py-2">
+        <strong>Check the bank account.</strong> This looks like a <?= e($preview['bank']) ?> statement, but you are importing it into
+        <strong><?= e($bankAccount['bank_name'] . ' - ' . $bankAccount['account_name']) ?></strong>. If that is wrong, click Cancel and choose the right account.
+      </div>
+    <?php endif; ?>
+
+    <?php if ($trusted): ?>
+      <div class="alert alert-success py-2">
+        <strong>The statement adds up.</strong>
+        Every balance follows from the one before it<?= ($check['closing_matches'] ?? null) === true ? ', and the last balance equals the closing balance on the statement' : '' ?>.
+        Nothing has been saved yet &mdash; look it over and click Import.
+      </div>
+    <?php else: ?>
+      <div class="alert alert-warning py-2">
+        <strong>Please check these lines carefully before importing.</strong>
+        <?php foreach ($preview['notes'] ?? [] as $note): ?><div><?= e($note) ?></div><?php endforeach; ?>
+        <?php if (!empty($check['broken'])): ?><div><?= count($check['broken']) ?> line(s) are highlighted in red because their balance does not follow from the line above.</div><?php endif; ?>
+        <?php if (($check['closing_matches'] ?? null) === false): ?><div>The last balance does not equal the closing balance printed on the statement.</div><?php endif; ?>
+        <?php foreach (array_slice($preview['errors'] ?? [], 0, 5) as $err): ?><div class="small"><?= e($err) ?></div><?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="text-muted small">Lines found</div><div class="h5 mb-0"><?= count($rows) ?></div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="text-muted small">Money in</div><div class="h5 mb-0 text-success"><?= $money($check['total_in'] ?? 0) ?></div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="text-muted small">Money out</div><div class="h5 mb-0 text-danger"><?= $money($check['total_out'] ?? 0) ?></div></div></div>
+      <div class="col-6 col-md-3"><div class="border rounded p-2">
+        <div class="text-muted small">Opening &rarr; closing balance</div>
+        <div class="h6 mb-0"><?= $preview['opening'] !== null ? $money($preview['opening']) : '?' ?> &rarr; <?= $preview['closing'] !== null ? $money($preview['closing']) : (($rows ? $money(end($rows)['balance']) : '?') . ' (last line)') ?></div>
+      </div></div>
+    </div>
+
+    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+      <table class="table table-sm table-striped align-middle mb-0">
+        <thead class="table-light" style="position: sticky; top: 0;">
+          <tr><th>#</th><th>Date</th><th>Description</th><th class="text-end">Money in</th><th class="text-end">Money out</th><th class="text-end">Balance</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($rows as $i => $row): ?>
+            <?php $bad = isset($broken[$i]) || !empty($row['flag']); ?>
+            <tr class="<?= $bad ? 'table-danger' : '' ?>">
+              <td class="text-muted"><?= $i + 1 ?></td>
+              <td class="text-nowrap"><?= e($row['transaction_date']) ?></td>
+              <td><?= e($row['description']) ?><?php if (!empty($row['flag'])): ?><div class="small text-danger"><?= e($row['flag']) ?></div><?php endif; ?></td>
+              <td class="text-end"><?= $row['money_in'] > 0 ? $money($row['money_in']) : '' ?></td>
+              <td class="text-end"><?= $row['money_out'] > 0 ? $money($row['money_out']) : '' ?></td>
+              <td class="text-end"><?= $row['balance'] !== null ? $money($row['balance']) : '' ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-muted small mt-2 mb-0">Lines already imported earlier (same date, narration, amount and balance) are skipped automatically, so importing an overlapping statement is safe.</p>
+
+    <form method="post" action="<?= url('/accounting/bank-reconciliation/import/confirm') ?>" class="mt-3">
+      <?= csrf_field() ?>
+      <input type="hidden" name="token" value="<?= e($token) ?>">
+      <?php if (!$trusted): ?>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="checked" value="1" id="checked">
+          <label class="form-check-label" for="checked">I have checked these lines against my bank statement and they are correct.</label>
+        </div>
+      <?php endif; ?>
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-upload"></i> Import <?= count($rows) ?> line(s) &amp; Auto-Match</button>
+    </form>
+    <form method="post" action="<?= url('/accounting/bank-reconciliation/import/cancel') ?>" class="d-inline">
+      <?= csrf_field() ?>
+      <input type="hidden" name="token" value="<?= e($token) ?>">
+      <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Cancel &mdash; do not import</button>
+    </form>
+  </div>
+</div>

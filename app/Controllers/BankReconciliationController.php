@@ -13,10 +13,12 @@ use App\Models\BankAccount;
 use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
 use App\Services\BankStatementCsvParser;
+use App\Services\BankStatementPdfReader;
+use App\Support\ReconciliationPeriod;
 
 class BankReconciliationController extends Controller
 {
-    private const ALLOWED_CSV_EXTENSIONS = ['csv'];
+    private const ALLOWED_CSV_EXTENSIONS = ['csv', 'pdf'];
     private const MAX_CSV_SIZE = 5 * 1024 * 1024; // 5MB
 
     private BankAccount $bankAccounts;
@@ -41,19 +43,27 @@ class BankReconciliationController extends Controller
         $bankAccounts = $this->bankAccounts->allBankAccounts(true);
         $bankAccountId = (int) ($_GET['bank_account_id'] ?? ($bankAccounts[0]['id'] ?? 0));
         $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
-        $asOfDate = $_GET['as_of_date'] ?? date('Y-m-d');
+        $period = ReconciliationPeriod::resolve($_GET, date('Y-m-d'));
+        if ($period['error']) {
+            Session::flash('error', $period['error']);
+        }
+        $fromDate = $period['from'];
+        $toDate = $period['to'];
+        $includeEarlier = !empty($_GET['include_earlier']);
         $showOnlyUnmatched = !empty($_GET['unmatched_only']);
 
-        $summary = $bankAccount ? $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $asOfDate) : null;
+        $summary = $bankAccount ? $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $toDate, $fromDate) : null;
         $lockedThrough = $bankAccount ? $this->reconciliation->lockedThrough($bankAccountId) : null;
 
         $comparison = [];
         if ($bankAccount) {
+            // Only transactions inside the chosen period are listed; "include earlier items" also lists older ones still open.
             $comparison = $this->reconciliation->comparisonTable(
                 $bankAccountId,
                 (int) $bankAccount['account_id'],
-                $asOfDate,
-                $lockedThrough['statement_date'] ?? null
+                $toDate,
+                $lockedThrough['statement_date'] ?? null,
+                $includeEarlier ? null : $fromDate
             );
             if ($showOnlyUnmatched) {
                 $comparison = array_values(array_filter($comparison, static fn ($r) => $r['status'] !== 'Matched'));
@@ -65,7 +75,10 @@ class BankReconciliationController extends Controller
             'bankAccounts' => $bankAccounts,
             'bankAccountId' => $bankAccountId,
             'bankAccount' => $bankAccount,
-            'asOfDate' => $asOfDate,
+            'asOfDate' => $toDate,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'includeEarlier' => $includeEarlier,
             'showOnlyUnmatched' => $showOnlyUnmatched,
             'summary' => $summary,
             'comparison' => $comparison,
@@ -118,7 +131,7 @@ class BankReconciliationController extends Controller
         }
 
         $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
-        $asOfDate = $_POST['as_of_date'] ?? date('Y-m-d');
+        $asOfDate = ReconciliationPeriod::resolve($_POST, date('Y-m-d'))['to'];
         $bankAccount = $this->bankAccounts->find($bankAccountId);
 
         if (!$bankAccount) {
@@ -127,10 +140,10 @@ class BankReconciliationController extends Controller
             return;
         }
 
-        $summary = $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $asOfDate);
+        $summary = $this->reconciliation->summary($bankAccountId, (int) $bankAccount['account_id'], $asOfDate, ReconciliationPeriod::resolve($_POST, date('Y-m-d'))['from']);
         if ($summary['difference'] === null || abs($summary['difference']) > 0.01) {
             Session::flash('error', 'Reconciliation cannot be completed while there is a difference. Match or adjust every item first.');
-            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . '&as_of_date=' . $asOfDate);
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
             return;
         }
 
@@ -138,7 +151,7 @@ class BankReconciliationController extends Controller
 
         Audit::log('Complete', 'Accounting', "Completed bank reconciliation for {$bankAccount['bank_name']} - {$bankAccount['account_name']} as at {$asOfDate}");
         Session::flash('success', 'Reconciliation completed. Transactions on or before ' . $asOfDate . ' are now locked.');
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . '&as_of_date=' . $asOfDate);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
     }
 
     public function reopen(): void
@@ -162,13 +175,19 @@ class BankReconciliationController extends Controller
         $reopened = $this->reconciliation->reopen($bankAccountId, Auth::user()['id'] ?? null);
         if (!$reopened) {
             Session::flash('error', 'This account has no completed reconciliation to reopen.');
-            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
             return;
         }
 
         Audit::log('Reopen', 'Accounting', "Reopened bank reconciliation for {$bankAccount['bank_name']} - {$bankAccount['account_name']} (admin override)");
         Session::flash('success', 'Reconciliation reopened. Locked transactions can be reversed again.');
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
+    }
+
+    /** The From/To period (and display switches) sent with a form, as a query-string tail for redirecting back to the same view. */
+    private function periodQuery(): string
+    {
+        return ReconciliationPeriod::query($_POST, date('Y-m-d'));
     }
 
     public function importForm(): void
@@ -206,7 +225,7 @@ class BankReconciliationController extends Controller
         }
 
         if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
-            Session::flash('error', 'Choose a CSV file to import.');
+            Session::flash('error', 'Choose a CSV or PDF statement to import.');
             $this->redirect('/accounting/bank-reconciliation/import?bank_account_id=' . $bankAccountId);
             return;
         }
@@ -218,14 +237,19 @@ class BankReconciliationController extends Controller
         }
 
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if ($file['size'] > self::MAX_CSV_SIZE) {
-            Session::flash('error', 'File is too large (max 5MB).');
+        if ($file['size'] > ($ext === 'pdf' ? BankStatementPdfReader::MAX_BYTES : self::MAX_CSV_SIZE)) {
+            Session::flash('error', 'File is too large (max ' . ($ext === 'pdf' ? '10MB' : '5MB') . ').');
             $this->redirect('/accounting/bank-reconciliation/import?bank_account_id=' . $bankAccountId);
             return;
         }
         if (!in_array($ext, self::ALLOWED_CSV_EXTENSIONS, true)) {
-            Session::flash('error', 'Only CSV files are accepted.');
+            Session::flash('error', 'Only CSV or PDF files are accepted.');
             $this->redirect('/accounting/bank-reconciliation/import?bank_account_id=' . $bankAccountId);
+            return;
+        }
+
+        if ($ext === 'pdf') {
+            $this->startPdfImport($file['tmp_name'], $bankAccountId);
             return;
         }
 
@@ -237,12 +261,32 @@ class BankReconciliationController extends Controller
             return;
         }
 
+        $saved = $this->saveRows($bankAccountId, $bankAccount, $result['rows']);
+
+        $message = "Imported {$saved['imported']} line(s), auto-matched {$saved['matched']}.";
+        if ($saved['skipped'] > 0) {
+            $message .= " Skipped {$saved['skipped']} duplicate(s) already imported.";
+        }
+        if (!empty($result['errors'])) {
+            $message .= ' ' . count($result['errors']) . ' row(s) had errors and were skipped.';
+        }
+        Session::flash('success', $message);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
+    }
+
+    /**
+     * Saves statement rows (CSV or reviewed PDF) for one bank account: duplicates are skipped, the rest imported, then auto-matched.
+     *
+     * @return array{imported: int, skipped: int, matched: int}
+     */
+    private function saveRows(int $bankAccountId, array $bankAccount, array $rows, string $source = 'CSV'): array
+    {
         $userId = Auth::user()['id'] ?? null;
         $imported = 0;
         $skipped = 0;
 
-        foreach ($result['rows'] as $row) {
-            if ($this->statementLines->referenceExists($bankAccountId, $row['transaction_date'], $row['reference_no'], $row['money_in'], $row['money_out'])) {
+        foreach ($rows as $row) {
+            if ($this->statementLines->referenceExists($bankAccountId, $row['transaction_date'], (string) $row['reference_no'], $row['money_in'], $row['money_out'])) {
                 $skipped++;
                 continue;
             }
@@ -262,17 +306,89 @@ class BankReconciliationController extends Controller
 
         $matched = $this->reconciliation->autoMatch($bankAccountId, (int) $bankAccount['account_id'], $userId);
 
-        Audit::log('Create', 'Accounting', "Imported $imported bank statement line(s) for {$bankAccount['bank_name']} - {$bankAccount['account_name']} ($skipped duplicate(s) skipped, $matched auto-matched)");
+        Audit::log('Create', 'Accounting', "Imported $imported bank statement line(s) from $source for {$bankAccount['bank_name']} - {$bankAccount['account_name']} ($skipped duplicate(s) skipped, $matched auto-matched)");
 
-        $message = "Imported $imported line(s), auto-matched $matched.";
-        if ($skipped > 0) {
-            $message .= " Skipped $skipped duplicate(s) already imported.";
+        return ['imported' => $imported, 'skipped' => $skipped, 'matched' => $matched];
+    }
+
+    /** Reads the PDF and shows what was found; nothing is saved until the person confirms it on the review page. */
+    private function startPdfImport(string $tmpPath, int $bankAccountId): void
+    {
+        $read = BankStatementPdfReader::read($tmpPath);
+        if ($read['rows'] === []) {
+            Session::flash('error', 'This PDF could not be imported. ' . implode(' ', array_slice($read['errors'], 0, 3)) . ' You can import a CSV export of the statement instead.');
+            $this->redirect('/accounting/bank-reconciliation/import?bank_account_id=' . $bankAccountId);
+            return;
         }
-        if (!empty($result['errors'])) {
-            $message .= ' ' . count($result['errors']) . ' row(s) had errors and were skipped.';
+
+        $token = BankStatementPdfReader::savePreview($read + ['bank_account_id' => $bankAccountId, 'user_id' => (int) (Auth::user()['id'] ?? 0)]);
+        $this->redirect('/accounting/bank-reconciliation/import/review?token=' . $token);
+    }
+
+    public function importReview(): void
+    {
+        Auth::authorize('accounting.bank_reconciliation');
+        $preview = BankStatementPdfReader::loadPreview((string) ($_GET['token'] ?? ''), (int) (Auth::user()['id'] ?? 0));
+        $bankAccount = $preview ? $this->bankAccounts->find((int) $preview['bank_account_id']) : null;
+        if (!$preview || !$bankAccount) {
+            Session::flash('error', 'That import has expired. Please upload the statement again.');
+            $this->redirect('/accounting/bank-reconciliation/import');
+            return;
+        }
+
+        $this->view('accounting/bank_reconciliation/import_review', [
+            'title' => 'Review Bank Statement',
+            'token' => (string) $_GET['token'],
+            'preview' => $preview,
+            'bankAccount' => $bankAccount,
+        ]);
+    }
+
+    public function importConfirm(): void
+    {
+        Auth::authorize('accounting.bank_reconciliation');
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/accounting/bank-reconciliation/import');
+            return;
+        }
+
+        $token = (string) ($_POST['token'] ?? '');
+        $preview = BankStatementPdfReader::loadPreview($token, (int) (Auth::user()['id'] ?? 0));
+        $bankAccount = $preview ? $this->bankAccounts->find((int) $preview['bank_account_id']) : null;
+        if (!$preview || !$bankAccount) {
+            Session::flash('error', 'That import has expired. Please upload the statement again.');
+            $this->redirect('/accounting/bank-reconciliation/import');
+            return;
+        }
+
+        if (!$preview['trusted'] && empty($_POST['checked'])) {
+            Session::flash('error', 'Please tick the box to confirm you have checked these lines against your statement.');
+            $this->redirect('/accounting/bank-reconciliation/import/review?token=' . urlencode($token));
+            return;
+        }
+
+        $saved = $this->saveRows((int) $preview['bank_account_id'], $bankAccount, $preview['rows'], $preview['reader'] === 'ai' ? 'PDF (AI reading)' : 'PDF');
+        BankStatementPdfReader::deletePreview($token);
+
+        $message = "Imported {$saved['imported']} line(s) from the PDF, auto-matched {$saved['matched']}.";
+        if ($saved['skipped'] > 0) {
+            $message .= " Skipped {$saved['skipped']} duplicate(s) already imported.";
         }
         Session::flash('success', $message);
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . (int) $preview['bank_account_id']);
+    }
+
+    public function importCancel(): void
+    {
+        Auth::authorize('accounting.bank_reconciliation');
+        if (Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            $token = (string) ($_POST['token'] ?? '');
+            if (BankStatementPdfReader::loadPreview($token, (int) (Auth::user()['id'] ?? 0))) {
+                BankStatementPdfReader::deletePreview($token);
+            }
+        }
+        $this->redirect('/accounting/bank-reconciliation/import');
     }
 
     public function match(): void
@@ -292,7 +408,7 @@ class BankReconciliationController extends Controller
         $statementLine = $this->statementLines->find($statementId);
         if (!$statementLine || $statementLine['reconciled']) {
             Session::flash('error', 'That statement line is not available to match.');
-            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
             return;
         }
 
@@ -302,7 +418,7 @@ class BankReconciliationController extends Controller
 
         Audit::log('Match', 'Accounting', 'Manually matched bank statement line #' . $statementId . ' to journal line #' . $journalLineId);
         Session::flash('success', 'Matched.');
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
     }
 
     public function unmatch(): void
@@ -322,7 +438,7 @@ class BankReconciliationController extends Controller
 
         Audit::log('Unmatch', 'Accounting', 'Unmatched bank statement line #' . $statementId);
         Session::flash('success', 'Match undone.');
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
     }
 
     public function autoMatch(): void
@@ -347,7 +463,7 @@ class BankReconciliationController extends Controller
 
         Audit::log('Match', 'Accounting', "Auto-matched $matched line(s) for {$bankAccount['bank_name']} - {$bankAccount['account_name']}");
         Session::flash('success', "Auto-matched $matched line(s).");
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
     }
 
     /**
@@ -374,13 +490,13 @@ class BankReconciliationController extends Controller
 
         if (!$bankAccount || !$statementLine || $statementLine['reconciled']) {
             Session::flash('error', 'That statement line is not available to adjust.');
-            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
             return;
         }
 
         if (!$contraAccountId) {
             Session::flash('error', 'Select the account this transaction should post against.');
-            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
             return;
         }
 
@@ -415,7 +531,7 @@ class BankReconciliationController extends Controller
             );
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
-            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+            $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
             return;
         }
 
@@ -426,6 +542,6 @@ class BankReconciliationController extends Controller
 
         Audit::log('Create', 'Accounting', 'Posted bank reconciliation adjustment journal #' . $journalId . ' for statement line #' . $statementId);
         Session::flash('success', 'Adjustment posted and matched.');
-        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId);
+        $this->redirect('/accounting/bank-reconciliation?bank_account_id=' . $bankAccountId . $this->periodQuery());
     }
 }

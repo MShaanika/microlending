@@ -124,7 +124,7 @@ class BankReconciliation extends Model
      * date, adjusted for items on one side but not the other yet, should
      * equal the statement's own closing balance.
      */
-    public function summary(int $bankAccountId, int $glAccountId, string $asOfDate): array
+    public function summary(int $bankAccountId, int $glAccountId, string $asOfDate, ?string $fromDate = null): array
     {
         $db = \App\Core\Database::connection();
 
@@ -169,7 +169,26 @@ class BankReconciliation extends Model
             $unrecordedPayments += (float) $row['money_out'];
         }
 
-        $statementBalance = (new BankStatementLine())->latestBalance($bankAccountId);
+        // The statement's balance at the END of the period, not whatever the latest imported line happens to be.
+        $statementBalance = (new BankStatementLine())->balanceAsOf($bankAccountId, $asOfDate);
+
+        // Items still unmatched from BEFORE this period. They are part of the reconciliation maths (they are why a month can be
+        // out even when every line in it matches) but are not listed unless the person asks to see earlier items.
+        $broughtForward = ['count' => 0, 'net' => 0.0];
+        if ($fromDate !== null) {
+            foreach ($this->unmatchedJournalLines($glAccountId, 5000) as $jl) {
+                if ($jl['journal_date'] < $fromDate) {
+                    $broughtForward['count']++;
+                    $broughtForward['net'] += (float) $jl['debit'] - (float) $jl['credit'];
+                }
+            }
+            foreach ($unreconciledStatement as $row) {
+                if ($row['transaction_date'] < $fromDate) {
+                    $broughtForward['count']++;
+                    $broughtForward['net'] += (float) $row['money_in'] - (float) $row['money_out'];
+                }
+            }
+        }
 
         // Adjusted book balance: what the GL would show once the bank-only
         // items still sitting unreconciled on the statement (fees, interest,
@@ -193,6 +212,8 @@ class BankReconciliation extends Model
             'statement_balance' => $statementBalance,
             'adjusted_bank_balance' => $adjustedBankBalance,
             'difference' => $adjustedBankBalance === null ? null : round($adjustedBankBalance - $adjustedBookBalance, 2),
+            'brought_forward_count' => $broughtForward['count'],
+            'brought_forward_net' => round($broughtForward['net'], 2),
         ];
     }
 
@@ -206,7 +227,7 @@ class BankReconciliation extends Model
      * already uses, rather than one large UNION, so match/auto-match logic
      * stays in one place.
      */
-    public function comparisonTable(int $bankAccountId, int $glAccountId, string $asOfDate, ?string $sinceDate = null): array
+    public function comparisonTable(int $bankAccountId, int $glAccountId, string $asOfDate, ?string $sinceDate = null, ?string $fromDate = null): array
     {
         $db = \App\Core\Database::connection();
 
@@ -269,8 +290,11 @@ class BankReconciliation extends Model
             ];
         }
 
-        $rows = array_values(array_filter($rows, static function ($r) use ($asOfDate, $sinceDate) {
+        $rows = array_values(array_filter($rows, static function ($r) use ($asOfDate, $sinceDate, $fromDate) {
             if ($r['date'] > $asOfDate) {
+                return false;
+            }
+            if ($fromDate !== null && $r['date'] < $fromDate) {
                 return false;
             }
             if ($sinceDate !== null && $r['date'] <= $sinceDate) {

@@ -632,6 +632,9 @@ $router->get('/accounting/bank-reconciliation', [BankReconciliationController::c
 $router->get('/accounting/bank-reconciliation/history', [BankReconciliationController::class, 'history']);
 $router->get('/accounting/bank-reconciliation/import', [BankReconciliationController::class, 'importForm']);
 $router->post('/accounting/bank-reconciliation/import', [BankReconciliationController::class, 'import']);
+$router->get('/accounting/bank-reconciliation/import/review', [BankReconciliationController::class, 'importReview']);
+$router->post('/accounting/bank-reconciliation/import/confirm', [BankReconciliationController::class, 'importConfirm']);
+$router->post('/accounting/bank-reconciliation/import/cancel', [BankReconciliationController::class, 'importCancel']);
 $router->post('/accounting/bank-reconciliation/match', [BankReconciliationController::class, 'match']);
 $router->post('/accounting/bank-reconciliation/unmatch', [BankReconciliationController::class, 'unmatch']);
 $router->post('/accounting/bank-reconciliation/create-adjustment', [BankReconciliationController::class, 'createAdjustment']);

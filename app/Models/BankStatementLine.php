@@ -54,6 +54,16 @@ class BankStatementLine extends Model
         );
     }
 
+    /** The balance printed on the last statement line on or before $date (null when the statement has nothing that early). */
+    public function balanceAsOf(int $bankAccountId, string $date): ?float
+    {
+        $value = $this->scalar(
+            "SELECT balance FROM accounting_bank_statement WHERE bank_account_id = ? AND transaction_date <= ? ORDER BY transaction_date DESC, id DESC LIMIT 1",
+            [$bankAccountId, $date]
+        );
+        return $value === null || $value === false ? null : (float) $value;
+    }
+
     public function latestBalance(int $bankAccountId): ?float
     {
         $value = $this->scalar(
