@@ -150,6 +150,10 @@ class ApplicationIntakeController extends Controller
         Audit::log('Create', 'Applications', 'Online application ' . $applicationNo . ' submitted via ' . $source['source_name'] . '.');
 
         $warnings = array_merge($fileErrors, $signatureErrors);
+        if (!empty($warnings)) {
+            // The applicant sees a success page whatever happens to a file, so staff need the trace on the application itself.
+            $this->applications->addStatusHistory($applicationId, 'Submitted', 'Submitted', null, 'Some uploads were not saved: ' . implode(' ', $warnings));
+        }
 
         echo json_encode([
             'status' => 'success',
@@ -198,7 +202,8 @@ class ApplicationIntakeController extends Controller
         $warnings = [];
         $targetDir = $this->targetDir($applicationNo);
 
-        $fileFields = ['payslip', 'id_copy', 'bank_statement_merged', 'bank_statement_1', 'bank_statement_2', 'bank_statement_3'];
+        // admin_merged_document is the single merged application PDF a staff member uploads on the website form's admin mode
+        $fileFields = ['admin_merged_document', 'payslip', 'id_copy', 'bank_statement_merged', 'bank_statement_1', 'bank_statement_2', 'bank_statement_3'];
         foreach ($fileFields as $field) {
             if (!isset($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
                 continue;
@@ -227,6 +232,7 @@ class ApplicationIntakeController extends Controller
         return match ($field) {
             'payslip' => 'Payslip',
             'id_copy' => 'ID Copy',
+            'admin_merged_document' => 'Application Document (Merged)',
             'bank_statement_merged' => 'Bank Statement (Merged)',
             'bank_statement_1', 'bank_statement_2', 'bank_statement_3' => 'Bank Statement',
             default => 'Document',

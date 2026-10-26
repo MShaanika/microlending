@@ -135,6 +135,7 @@
           </form>
         <?php endif; ?>
 
+        <?php if (empty($bankStatementDocs)): ?>
         <form method="post" action="<?= url('/applications/' . $application['id'] . '/upload-bank-statement') ?>" enctype="multipart/form-data" class="mb-2">
           <?= csrf_field() ?>
           <label class="form-label small mb-1">Upload Bank Statement (PDF, JPG, PNG, or CSV)</label>
@@ -145,6 +146,7 @@
           <input type="file" name="bank_statement_file" class="form-control form-control-sm mb-1" accept=".pdf,.jpg,.jpeg,.png,.csv" required>
           <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="mdi mdi-upload"></i> Upload</button>
         </form>
+        <?php endif; ?>
 
         <?php if (!empty($bankStatementDocs)): ?>
           <form method="post" action="<?= url('/applications/' . $application['id'] . '/analyze-bank-statements') ?>" class="mb-3">

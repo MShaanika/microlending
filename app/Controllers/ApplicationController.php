@@ -211,6 +211,12 @@ class ApplicationController extends Controller
             return;
         }
         $this->assertBranchAccess($application);
+        // Recording a screening moves the status to Screening, so after a decision it would drag an Approved/Rejected/Converted application backwards.
+        if (!in_array($application['status'], ['Submitted', 'Screening', 'Documents Required'], true)) {
+            Session::flash('error', 'This application is already ' . $application['status'] . ' and can no longer be screened.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
 
         $proposedInstallment = (float) ($_POST['proposed_installment'] ?? 0);
 
@@ -530,6 +536,7 @@ class ApplicationController extends Controller
         ]);
         $this->applications->addStatusHistory($id, $application['status'], 'Approved', $userId, trim($_POST['notes'] ?? '') ?: null);
         (new \App\Models\CreditinfoReportCache())->stampDecision($id);
+        $closedDuplicates = $this->closeSupersededDuplicates($application, $userId);
 
         $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
         $smsResult = TemplatedSmsService::send(
@@ -542,8 +549,26 @@ class ApplicationController extends Controller
         $deliveryNote = $smsResult['note'];
 
         Audit::log('Approve', 'Applications', 'Approved application #' . $id . ' (' . $deliveryNote . ')');
-        Session::flash('success', 'Application approved (' . $deliveryNote . '). Convert it to a borrower/loan below when ready.');
+        Session::flash('success', 'Application approved (' . $deliveryNote . '). Convert it to a borrower/loan below when ready.'
+            . ($closedDuplicates > 0 ? ' ' . $closedDuplicates . ' duplicate application(s) for the same ID number were closed.' : ''));
         $this->redirect('/applications/' . $id);
+    }
+
+    /** Cancels the client's other still-open applications (same ID number) once one is approved, so the list does not keep showing the duplicate as Submitted. */
+    private function closeSupersededDuplicates(array $approved, ?int $userId): int
+    {
+        $idNumber = trim((string) ($approved['applicant_id_number'] ?? ''));
+        if ($idNumber === '') {
+            return 0;
+        }
+        $closed = 0;
+        foreach ($this->applications->openDuplicatesOf((int) $approved['id'], $idNumber) as $duplicate) {
+            $this->applications->updateRecord((int) $duplicate['id'], ['status' => 'Cancelled']);
+            $this->applications->addStatusHistory((int) $duplicate['id'], $duplicate['status'], 'Cancelled', $userId, 'Duplicate of ' . $approved['application_no'] . ', which was approved.');
+            Audit::log('Update', 'Applications', 'Closed duplicate application ' . $duplicate['application_no'] . ' (superseded by ' . $approved['application_no'] . ')');
+            $closed++;
+        }
+        return $closed;
     }
 
     public function reject(string $id): void

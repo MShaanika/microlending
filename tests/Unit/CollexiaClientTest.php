@@ -94,10 +94,15 @@ class CollexiaClientTest extends TestCase
      */
     public function testSastDateTimePartsAreTwoHoursAheadOfServerUtcClock(): void
     {
+        // put the app's timezone back afterwards: left on UTC it shifts every later test's date('...') away from the database's NOW()
+        $previousTimezone = date_default_timezone_get();
         date_default_timezone_set('UTC');
-        $epoch = strtotime('2026-09-07 10:23:43 UTC');
-
-        $c = CollexiaClient::sastComponentsFromEpoch($epoch, 0);
+        try {
+            $epoch = strtotime('2026-09-07 10:23:43 UTC');
+            $c = CollexiaClient::sastComponentsFromEpoch($epoch, 0);
+        } finally {
+            date_default_timezone_set($previousTimezone);
+        }
         $date = "{$c['year']}{$c['month']}{$c['day']}";
         $time = "{$c['hours']}{$c['minutes']}{$c['seconds']}";
 

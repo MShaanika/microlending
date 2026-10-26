@@ -142,19 +142,19 @@
             </div>
 
             <div class="col-md-4 mb-3">
-              <label class="form-label">Date of Birth</label>
-              <input type="date" name="date_of_birth" class="form-control" value="<?= old('date_of_birth', $old) ?>">
+              <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
+              <input type="date" name="date_of_birth" class="form-control" value="<?= old('date_of_birth', $old) ?>" required>
             </div>
 
             <div class="col-md-4 mb-3">
-              <label class="form-label">ID Number</label>
-              <input type="text" name="id_number" class="form-control <?= isset($errors['id_number']) ? 'is-invalid' : '' ?>" value="<?= old('id_number', $old) ?>">
+              <label class="form-label">ID Number <span class="text-danger">*</span> <span class="text-muted small">(or Passport No)</span></label>
+              <input type="text" name="id_number" data-js-either="identity" class="form-control <?= isset($errors['id_number']) ? 'is-invalid' : '' ?>" value="<?= old('id_number', $old) ?>">
               <?php if (isset($errors['id_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['id_number']) ?></div><?php endif; ?>
             </div>
 
             <div class="col-md-4 mb-3">
               <label class="form-label">Passport No</label>
-              <input type="text" name="passport_no" class="form-control" value="<?= old('passport_no', $old) ?>">
+              <input type="text" name="passport_no" data-js-either="identity" class="form-control" value="<?= old('passport_no', $old) ?>">
             </div>
 
             <div class="col-md-4 mb-3">
@@ -197,8 +197,8 @@
         <div class="tab-pane fade new-client-only" id="tab-address" role="tabpanel">
           <div class="row">
             <div class="col-md-4 mb-3">
-              <label class="form-label">Phone</label>
-              <input type="text" name="phone" class="form-control" value="<?= old('phone', $old) ?>">
+              <label class="form-label">Phone <span class="text-danger">*</span></label>
+              <input type="text" name="phone" class="form-control" value="<?= old('phone', $old) ?>" required>
             </div>
 
             <div class="col-md-4 mb-3">
@@ -218,24 +218,24 @@
           <div class="fw-semibold mb-2">Residential Address</div>
           <div class="row">
             <div class="col-md-3 mb-3">
-              <label class="form-label">Owner / Tenant</label>
-              <select name="residential_ownership" id="residential_ownership" class="form-select">
+              <label class="form-label">Owner / Tenant <span class="text-danger">*</span></label>
+              <select name="residential_ownership" id="residential_ownership" class="form-select" required>
                 <option value="">Select</option>
                 <option value="O" <?= (($old['residential_ownership'] ?? '') === 'O') ? 'selected' : '' ?>>Owner</option>
                 <option value="T" <?= (($old['residential_ownership'] ?? '') === 'T') ? 'selected' : '' ?>>Tenant</option>
               </select>
             </div>
             <div class="col-md-3 mb-3">
-              <label class="form-label">Address Line 1</label>
-              <input type="text" name="residential_line1" id="residential_line1" maxlength="25" class="form-control" value="<?= old('residential_line1', $old) ?>">
+              <label class="form-label">Address Line 1 <span class="text-danger">*</span></label>
+              <input type="text" name="residential_line1" id="residential_line1" maxlength="25" class="form-control" value="<?= old('residential_line1', $old) ?>" required>
             </div>
             <div class="col-md-3 mb-3">
               <label class="form-label">Address Line 2</label>
               <input type="text" name="residential_line2" id="residential_line2" maxlength="25" class="form-control" value="<?= old('residential_line2', $old) ?>">
             </div>
             <div class="col-md-3 mb-3">
-              <label class="form-label">Address Line 3 (Town)</label>
-              <input type="text" name="residential_line3" id="residential_line3" maxlength="25" class="form-control" value="<?= old('residential_line3', $old) ?>">
+              <label class="form-label">Address Line 3 (Town) <span class="text-danger">*</span></label>
+              <input type="text" name="residential_line3" id="residential_line3" maxlength="25" class="form-control" value="<?= old('residential_line3', $old) ?>" required>
             </div>
             <div class="col-md-3 mb-3">
               <label class="form-label">Address Line 4</label>
@@ -280,11 +280,11 @@
 
         <!-- Employment -->
         <div class="tab-pane fade new-client-only" id="tab-employment" role="tabpanel">
-          <p class="text-muted small">Optional. Fill in if this borrower is employed &mdash; used for affordability checks.</p>
+          <p class="text-muted small">Employer, gross salary and income frequency are required: the monthly CPL submission to Creditinfo cannot be built without them. The rest is optional and used for affordability checks.</p>
           <div class="row">
             <div class="col-md-4 mb-3">
-              <label class="form-label">Employer Name</label>
-              <input type="text" name="employer_name" class="form-control" value="<?= old('employer_name', $old) ?>">
+              <label class="form-label">Employer Name <span class="text-danger">*</span></label>
+              <input type="text" name="employer_name" class="form-control" value="<?= old('employer_name', $old) ?>" required>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Employee No</label>
@@ -314,16 +314,16 @@
             </div>
 
             <div class="col-md-4 mb-3">
-              <label class="form-label">Gross Salary</label>
-              <input type="number" step="0.01" name="gross_salary" class="form-control" value="<?= old('gross_salary', $old) ?>">
+              <label class="form-label">Gross Salary <span class="text-danger">*</span></label>
+              <input type="number" step="0.01" min="0.01" name="gross_salary" class="form-control" value="<?= old('gross_salary', $old) ?>" required>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label">Net Salary</label>
               <input type="number" step="0.01" name="net_salary" class="form-control" value="<?= old('net_salary', $old) ?>">
             </div>
             <div class="col-md-4 mb-3">
-              <label class="form-label">Income Frequency</label>
-              <select name="income_frequency" class="form-select">
+              <label class="form-label">Income Frequency <span class="text-danger">*</span></label>
+              <select name="income_frequency" class="form-select" required>
                 <option value="">Select</option>
                 <?php foreach (['M' => 'Monthly', 'W' => 'Weekly', 'F' => 'Fortnightly', 'Q' => 'Quarterly', 'A' => 'Annually'] as $code => $label): ?>
                   <option value="<?= $code ?>" <?= (($old['income_frequency'] ?? 'M') === $code) ? 'selected' : '' ?>><?= $label ?></option>
@@ -533,6 +533,7 @@
       </div>
 
       <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Borrower</button>
+      <div id="required-hint" class="small text-danger mt-2"></div>
       <a href="<?= url('/borrowers') ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>
@@ -713,9 +714,27 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // "ID Number or Passport No": one of the two is enough (data-js-either groups them).
+  function identityMissing() {
+    if (currentMode() !== 'new') return false;
+    var either = Array.from(form.querySelectorAll('[data-js-either="identity"]'));
+    return either.length > 0 && either.every(function (el) { return el.value.trim() === ''; });
+  }
+
+  function labelOf(el) {
+    var wrap = el.closest('.mb-3');
+    var label = wrap ? wrap.querySelector('.form-label') : null;
+    return label ? label.textContent.replace(/\*/g, '').replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim() : (el.name || 'a required field');
+  }
+
   function updateSubmitState() {
     var fields = relevantRequiredFields();
-    submitBtn.disabled = !fields.every(function (el) { return el.value.trim() !== ''; });
+    var missing = fields.filter(function (el) { return el.value.trim() === ''; }).map(labelOf);
+    if (identityMissing()) missing.push('ID Number or Passport No');
+    submitBtn.disabled = missing.length > 0;
+    // Save stays disabled until these are filled, so say which ones (they may be on another tab).
+    var hint = document.getElementById('required-hint');
+    if (hint) hint.textContent = missing.length ? 'Still needed before saving: ' + missing.join(', ') + '.' : '';
   }
 
   form.addEventListener('input', updateSubmitState);

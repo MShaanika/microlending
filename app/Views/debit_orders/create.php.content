@@ -12,17 +12,17 @@
       <?php $mode = (string) old('mode', $old, 'per_installment'); $installments = $installments ?? []; ?>
       <?php if (!empty($collexiaReady)): ?>
         <input type="hidden" name="mode" value="per_installment">
-        <div class="alert alert-info py-2 small">Every unpaid installment below is loaded into one Collexia mandate (one per split part) and collected exactly on its schedule date.</div>
+        <div class="alert alert-info py-2 small">Every unpaid installment below is loaded into one Collexia mandate (one per split) and collected exactly on its schedule date.</div>
       <?php else: ?>
       <div class="border rounded p-3 mb-3">
         <div class="fw-semibold mb-2">How should this loan be collected?</div>
         <div class="form-check">
           <input class="form-check-input" type="radio" name="mode" id="mode_per_installment" value="per_installment" <?= $mode !== 'legacy' ? 'checked' : '' ?>>
-          <label class="form-check-label" for="mode_per_installment"><strong>All installments in one mandate</strong> (recommended) &mdash; every unpaid installment below goes to Collexia in a single mandate (one per split part) and is collected exactly on its schedule date.</label>
+          <label class="form-check-label" for="mode_per_installment"><strong>All installments in one mandate</strong> (recommended) &mdash; every unpaid installment below goes to Collexia in a single mandate (one per split) and is collected exactly on its schedule date.</label>
         </div>
         <div class="form-check">
           <input class="form-check-input" type="radio" name="mode" id="mode_legacy" value="legacy" <?= $mode === 'legacy' ? 'checked' : '' ?>>
-          <label class="form-check-label" for="mode_legacy">Single recurring mandate, or split one installment into several parts</label>
+          <label class="form-check-label" for="mode_legacy">Single recurring mandate, or split one installment into several splits</label>
         </div>
       </div>
       <?php endif; ?>
@@ -96,7 +96,7 @@
           <div class="fw-semibold mb-1">Installments to collect <span class="text-muted small fw-normal">(none of these has a mandate yet)</span></div>
           <div class="table-responsive">
             <table class="table table-sm align-middle">
-              <thead><tr><th style="width:40px"><input type="checkbox" id="inst_all" checked></th><th>#</th><th>Scheduled Date</th><th class="text-end">Amount</th><th>Collect On</th><th>Parts</th><th>Note</th></tr></thead>
+              <thead><tr><th style="width:40px"><input type="checkbox" id="inst_all" checked></th><th>#</th><th>Scheduled Date</th><th class="text-end">Amount</th><th>Collect On</th><th>Splits</th><th>Note</th></tr></thead>
               <tbody>
               <?php foreach ($installments as $row): ?>
                 <?php
@@ -118,13 +118,13 @@
                   <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
                   <td class="text-end"><?= format_money((float) $row['outstanding']) ?></td>
                   <td><input type="date" name="collection_dates[<?= $sid ?>]" min="<?= e($tomorrow) ?>" value="<?= e($dateVal) ?>" class="form-control form-control-sm" style="max-width:170px"></td>
-                  <td><input type="number" min="1" max="10" name="split_counts[<?= $sid ?>]" value="<?= $partCount ?>" class="form-control form-control-sm part-count" style="max-width:70px" data-sid="<?= $sid ?>" title="Divide this installment into parts, all collected on the same date"></td>
+                  <td><input type="number" min="1" max="10" name="split_counts[<?= $sid ?>]" value="<?= $partCount ?>" class="form-control form-control-sm part-count" style="max-width:70px" data-sid="<?= $sid ?>" title="Divide this installment into splits, all collected on the same date"></td>
                   <td class="small text-muted"><?= $pastDue ? 'Already due -- moved to the earliest date Collexia accepts' : ($sundayMoved ? 'Falls on a Sunday -- Collexia does not process Sundays, so Monday' : ($row['status'] === 'Partial' ? 'Partly paid -- only the balance is collected' : 'On schedule')) ?></td>
                 </tr>
                 <tr class="parts-row d-none" id="parts_row_<?= $sid ?>" data-sid="<?= $sid ?>" data-outstanding="<?= e((string) $row['outstanding']) ?>" data-old="<?= e(json_encode(array_map('strval', array_values((array) ($postedAmounts[$sid] ?? []))))) ?>">
                   <td></td>
                   <td colspan="6">
-                    <div class="small text-muted mb-1">Parts of installment #<?= (int) $row['installment_no'] ?> &mdash; each part travels in its own mandate together with the same part of the other installments, and all are collected on the date above. <span class="fw-semibold">Remaining to allocate: <span class="parts-remaining">&mdash;</span></span></div>
+                    <div class="small text-muted mb-1">Splits of installment #<?= (int) $row['installment_no'] ?> &mdash; each split travels in its own mandate together with the same split of the other installments, and all are collected on the date above. <span class="fw-semibold">Remaining to allocate: <span class="parts-remaining">&mdash;</span></span></div>
                     <div class="parts-inputs d-flex flex-wrap gap-2"></div>
                   </td>
                 </tr>
@@ -132,7 +132,7 @@
               </tbody>
             </table>
           </div>
-          <div class="form-text">All ticked installments are loaded into one Collexia mandate, then each is set to the amount shown and collected on the date in &ldquo;Collect On&rdquo;. Set Parts above 1 to divide an installment: part 1 of every installment goes in one mandate, part 2 in another, and so on, all collected on that installment's date. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
+          <div class="form-text">All ticked installments are loaded into one Collexia mandate, then each is set to the amount shown and collected on the date in &ldquo;Collect On&rdquo;. Set Splits above 1 to divide an installment: split 1 of every installment goes in one mandate, split 2 in another, and so on, all collected on that installment's date. If a date falls on a weekend or public holiday Collexia moves it to the next business day &mdash; it never collects early.</div>
 
           <?php if (!empty($paidAhead)): ?>
             <?php $postedPaid = array_map('strval', (array) ($old['paid_installment_ids'] ?? [])); ?>

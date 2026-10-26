@@ -102,6 +102,19 @@ class LoanApplication extends Model
         );
     }
 
+    /**
+     * Other applications for the same ID number that are still open. When one application is approved these are the same person applying
+     * twice (usually a re-keyed copy); left alone they keep showing "Submitted" in the list long after the client was approved.
+     */
+    public function openDuplicatesOf(int $applicationId, string $idNumber): array
+    {
+        return $this->all(
+            "SELECT id, application_no, status FROM loan_applications
+             WHERE applicant_id_number = ? AND id != ? AND status IN ('Submitted', 'Screening', 'Documents Required')",
+            [$idNumber, $applicationId]
+        );
+    }
+
     public function allForAgent(int $agentId): array
     {
         return $this->all(

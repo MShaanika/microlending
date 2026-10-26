@@ -19,6 +19,9 @@ use App\Services\SmsSenderService;
 
 class BorrowerController extends Controller
 {
+    /** @var string[] names of uploaded files the server could not write during the current request */
+    private array $failedUploads = [];
+
     private Borrower $borrowers;
     private Branch $branches;
     private UploadRequirement $uploadRequirements;
@@ -139,7 +142,7 @@ class BorrowerController extends Controller
             $_POST['branch_id'] = $scopeBranchId;
         }
 
-        $errors = $this->validate($_POST);
+        $errors = array_merge($this->validate($_POST), $this->validateCplRequired($_POST));
 
         $idNumber = trim($_POST['id_number'] ?? '');
         if ($idNumber !== '' && $this->borrowers->idNumberExists($idNumber)) {
@@ -249,7 +252,14 @@ class BorrowerController extends Controller
         $this->storeBankStatementUploadsForApplication($id, $applicationNo, $_POST, $_FILES, $userId);
 
         Audit::log('Create', 'Applications', 'Created application ' . $applicationNo . ' via Add Borrower (staff intake).');
-        Session::flash('success', 'Application ' . $applicationNo . ' created. Screen and approve it to register the borrower.');
+        if (!empty($this->failedUploads)) {
+            // The application itself is saved, but a file the server could not write must not vanish without a trace.
+            $list = implode(', ', $this->failedUploads);
+            $this->applications->addStatusHistory($id, 'Submitted', 'Submitted', $userId, 'These files could not be saved and must be uploaded again: ' . $list . '.');
+            Session::flash('error', 'Application ' . $applicationNo . ' was created, but these files could NOT be saved: ' . $list . '. Upload them again from the application.');
+        } else {
+            Session::flash('success', 'Application ' . $applicationNo . ' created. Screen and approve it to register the borrower.');
+        }
         $this->redirect('/applications/' . $id);
     }
 
@@ -301,7 +311,11 @@ class BorrowerController extends Controller
         }
 
         Audit::log('Update', 'Borrowers', 'Uploaded documents for existing borrower #' . $borrowerId . '.');
-        Session::flash('success', 'Documents uploaded for ' . $borrower['first_name'] . ' ' . $borrower['last_name'] . '.');
+        if (!empty($this->failedUploads)) {
+            Session::flash('error', 'These files could NOT be saved: ' . implode(', ', $this->failedUploads) . '. Upload them again.');
+        } else {
+            Session::flash('success', 'Documents uploaded for ' . $borrower['first_name'] . ' ' . $borrower['last_name'] . '.');
+        }
         $this->redirect('/borrowers/' . $borrowerId);
     }
 
@@ -464,6 +478,7 @@ class BorrowerController extends Controller
             $destination = $targetDir . '/' . $storedName;
 
             if (!move_uploaded_file($file['tmp_name'], $destination)) {
+                $this->failedUploads[] = (string) $file['name'];
                 continue;
             }
 
@@ -516,6 +531,7 @@ class BorrowerController extends Controller
             $destination = $targetDir . '/' . $storedName;
 
             if (!move_uploaded_file($file['tmp_name'], $destination)) {
+                $this->failedUploads[] = (string) $file['name'];
                 continue;
             }
 
@@ -616,6 +632,7 @@ class BorrowerController extends Controller
             $destination = $targetDir . '/' . $storedName;
 
             if (!move_uploaded_file($tmpPath, $destination)) {
+                $this->failedUploads[] = (string) $originalName;
                 continue;
             }
 
@@ -668,6 +685,7 @@ class BorrowerController extends Controller
             $destination = $targetDir . '/' . $storedName;
 
             if (!move_uploaded_file($tmpPath, $destination)) {
+                $this->failedUploads[] = (string) $originalName;
                 continue;
             }
 
@@ -932,6 +950,43 @@ class BorrowerController extends Controller
         Audit::log('Delete', 'Borrowers', 'Deleted borrower #' . $id);
         Session::flash('success', 'Borrower removed.');
         $this->redirect('/borrowers');
+    }
+
+    /**
+     * What the monthly CPL submission to Creditinfo cannot be built without (the same list CplReadinessService checks). Enforced here, not
+     * only by the browser, because a New Client application is the source of the borrower record that CPL later reads.
+     */
+    private function validateCplRequired(array $data): array
+    {
+        $errors = [];
+        $text = static fn (string $key): string => trim((string) ($data[$key] ?? ''));
+
+        if ($text('id_number') === '' && $text('passport_no') === '') {
+            $errors['id_number'] = 'ID Number (or Passport No) is required.';
+        }
+        $dob = $text('date_of_birth');
+        if ($dob === '') {
+            $errors['date_of_birth'] = 'Date of Birth is required.';
+        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob) || strtotime($dob) === false || $dob > date('Y-m-d')) {
+            $errors['date_of_birth'] = 'Enter a valid Date of Birth.';
+        }
+        $required = [
+            'phone' => 'Phone',
+            'residential_ownership' => 'Residential Owner / Tenant',
+            'residential_line1' => 'Residential Address Line 1',
+            'residential_line3' => 'Residential Address Line 3 (Town)',
+            'employer_name' => 'Employer Name',
+            'income_frequency' => 'Income Frequency',
+        ];
+        foreach ($required as $key => $label) {
+            if ($text($key) === '') {
+                $errors[$key] = $label . ' is required.';
+            }
+        }
+        if ((float) ($data['gross_salary'] ?? 0) <= 0) {
+            $errors['gross_salary'] = 'Gross Salary is required and must be more than zero.';
+        }
+        return $errors;
     }
 
     private function validate(array $data): array
