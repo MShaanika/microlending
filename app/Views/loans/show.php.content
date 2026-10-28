@@ -85,6 +85,22 @@
         <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
         <p class="mb-1"><strong>Penalty Rate:</strong> <?= format_money($loan['penalty_rate']) ?>% per month (if overdue)</p>
         <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
+        <?php
+          $firstDueRow = null;
+          foreach ($schedule as $scheduleRow) {
+              if ($firstDueRow === null || strcmp((string) $scheduleRow['due_date'], (string) $firstDueRow['due_date']) < 0) {
+                  $firstDueRow = $scheduleRow;
+              }
+          }
+          $firstDueGapDays = $firstDueRow ? (int) ((strtotime((string) $firstDueRow['due_date']) - strtotime((string) $loan['start_date'])) / 86400) : 0;
+        ?>
+        <?php if ($firstDueRow): ?>
+          <p class="mb-1"><strong>First payment due:</strong> <?= e($firstDueRow['due_date']) ?>
+            <?php if ($firstDueGapDays > 35): ?>
+              <span class="badge bg-warning text-dark" title="The first payment falls well after the loan's start date. Check this is intended before approving."><i class="mdi mdi-alert-outline"></i> <?= $firstDueGapDays ?> days after start</span>
+            <?php endif; ?>
+          </p>
+        <?php endif; ?>
         <p class="mb-1"><strong>Collected so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
         <p class="mb-3"><strong>Current Outstanding Balance:</strong> <?= format_money($totalDue - $totalPaid) ?></p>
 

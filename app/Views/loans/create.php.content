@@ -121,6 +121,7 @@
         <div class="col-md-4 mb-3">
           <label class="form-label">First Payment Due Date</label>
           <input type="date" name="first_due_date" id="first_due_date" class="form-control" value="<?= old('first_due_date', $old, date('Y-m-d')) ?>">
+          <div class="form-text text-warning fw-semibold d-none" id="first_due_warning" role="alert"></div>
           <div class="form-text">Defaults to Start Date (no automatic grace period) -- change it if the borrower's first payment should fall later. Every installment after the first is spaced a month apart from here.</div>
         </div>
         <div class="col-md-4 mb-3">
@@ -342,7 +343,30 @@
     firstDueInput.addEventListener('input', function () { firstDueTouchedByUser = true; });
     startDateInput.addEventListener('input', function () {
       if (!firstDueTouchedByUser) firstDueInput.value = startDateInput.value;
+      checkFirstDue();
     });
+    firstDueInput.addEventListener('input', checkFirstDue);
+
+    // Warns (never blocks) when the first payment is more than a month after the start, or not on the Payment Day -- the usual signs of a mistyped date.
+    var warning = document.getElementById('first_due_warning');
+    var paymentDayInput = document.querySelector('input[name="payment_day"]');
+    if (paymentDayInput) paymentDayInput.addEventListener('input', checkFirstDue);
+    function checkFirstDue() {
+      if (!warning) return;
+      var start = startDateInput.value, first = firstDueInput.value, notes = [];
+      if (start && first) {
+        var days = Math.round((new Date(first + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000);
+        if (days > 35) notes.push('The first payment is ' + days + ' days after the start date.');
+        if (days < 0) notes.push('The first payment is before the start date.');
+        var day = paymentDayInput && paymentDayInput.value !== '' ? parseInt(paymentDayInput.value, 10) : null;
+        var firstDay = parseInt(first.slice(8, 10), 10);
+        var lastOfMonth = new Date(parseInt(first.slice(0, 4), 10), parseInt(first.slice(5, 7), 10), 0).getDate();
+        if (day && firstDay !== Math.min(day, lastOfMonth)) notes.push('The first payment falls on day ' + firstDay + ', but the Payment Day is ' + day + '.');
+      }
+      warning.textContent = notes.length ? notes.join(' ') + ' Check this before saving.' : '';
+      warning.classList.toggle('d-none', notes.length === 0);
+    }
+    checkFirstDue();
   })();
 
   document.addEventListener('DOMContentLoaded', function () {
