@@ -377,8 +377,12 @@ class LoanController extends Controller
                 return;
             }
 
+            // The borrower repays the levy on the new money with the loan, exactly like any other loan: it is rolled into the schedule's
+            // principal (so the schedule, the loan page and the statement all add up to the same amount owed). The interest delta above was
+            // already calculated on the combined principal plus levy.
+            $topupLevy = round($principal * ($namfisaRate / 100), 2);
             $schedule = LoanScheduleService::generateForFixedInterest(
-                $principal,
+                round($principal + $topupLevy + $topupDutyStamp, 2),
                 (int) $existingLoan['term_months'],
                 $topupInterest,
                 (float) $plan['admin_fee'],
@@ -387,7 +391,7 @@ class LoanController extends Controller
                 $firstDueDate
             );
             // The levy is calculated on just the new money, same as the independent (different-plan) branch below. No duty stamp on a top-up.
-            $schedule['namfisa_levy'] = round($principal * ($namfisaRate / 100), 2);
+            $schedule['namfisa_levy'] = $topupLevy;
             $schedule['duty_stamp'] = round($topupDutyStamp, 2);
         } else {
             $schedule = LoanScheduleService::generate(
