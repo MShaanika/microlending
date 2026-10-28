@@ -52,9 +52,9 @@
       <span><i class="mdi mdi-star text-info"></i> Holiday</span>
       <span><i class="mdi mdi-minus-circle-outline text-muted"></i> Day Off</span>
       <span><i class="mdi mdi-help-circle-outline text-muted"></i> Pending</span>
-      <span><i class="mdi mdi-clock-alert-outline text-danger"></i> Late</span>
+      <span><i class="mdi mdi-clock-alert attendance-late"></i> Late</span>
       <span><i class="mdi mdi-arrow-left-bold text-warning"></i> Left Early</span>
-      <span><i class="mdi mdi-timer-plus-outline text-info"></i> Overtime</span>
+      <span><i class="mdi mdi-clock-fast text-info"></i> Overtime</span>
     </div>
   </div>
 </div>
@@ -94,9 +94,9 @@
                     'future' => '',
                   ][$cell['code']] ?? '';
                   $flagIcon = [
-                    'late' => 'mdi-clock-alert-outline text-danger',
+                    'late' => 'mdi-clock-alert attendance-late',
                     'early' => 'mdi-arrow-left-bold text-warning',
-                    'overtime' => 'mdi-timer-plus-outline text-info',
+                    'overtime' => 'mdi-clock-fast text-info',
                     'holiday' => 'mdi-star text-info',
                   ];
                   $cellDate = sprintf('%04d-%02d-%02d', $year, $month, $dayNum);
@@ -118,7 +118,7 @@
                   <?php if ($editUrl): ?>data-modal-url="<?= $editUrl ?>" data-modal-title="<?= !empty($cell['record_id']) ? 'Edit Attendance' : 'Add Attendance' ?>" data-modal-size="lg" role="button"<?php endif; ?>>
                   <?php if ($icon): ?><i class="mdi <?= $icon ?>"></i><?php endif; ?>
                   <?php foreach (($cell['flags'] ?? []) as $flag): ?>
-                    <i class="mdi <?= $flagIcon[$flag] ?? '' ?>" style="font-size: 0.7rem;"></i>
+                    <i class="mdi <?= $flagIcon[$flag] ?? '' ?>" style="font-size: 0.9rem;"></i>
                   <?php endforeach; ?>
                 </td>
               <?php endforeach; ?>
@@ -132,5 +132,7 @@
 
 <style>
   .attendance-cell-editable { cursor: pointer; }
+  /* Late is its own colour (orange) so it can never be mistaken for Absent (red circle with a cross) */
+  .attendance-late { color: #e8590c; }
   .attendance-cell-editable:hover { background-color: rgba(13, 110, 253, 0.08); }
 </style>
