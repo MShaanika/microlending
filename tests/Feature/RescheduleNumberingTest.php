@@ -161,4 +161,13 @@ class RescheduleNumberingTest extends TestCase
         $waived = RescheduleService::preview($loan, 'Flat', 10, 1500.0, '2026-10-21');
         $this->assertSame(8562.32, round(array_sum(array_column($waived['rows'], 'total_due')), 2), 'a N$1,500 waiver is what produced the 8,562.32 shown on reschedule #2');
     }
+
+    public function testTheEffectiveDateIsTheFirstDeductionDate(): void
+    {
+        $loanId = $this->makeLoan('Upfront');
+        $loan = $this->db->query('SELECT * FROM loans WHERE id = ' . $loanId)->fetch();
+        $rows = RescheduleService::preview($loan, 'Flat', 4, 0.0, '2026-11-05', 30)['rows'];
+        $this->assertSame('2026-11-05', $rows[0]['due_date'], 'installment 1 falls on the effective date itself, not a month later');
+        $this->assertSame(['2026-11-05', '2026-12-30', '2027-01-30', '2027-02-28'], array_column($rows, 'due_date'), 'the rest follow on the payment day');
+    }
 }

@@ -141,7 +141,10 @@ class RescheduleService
             $effectiveDate,
             0,
             0,
-            $paymentDay ?? (isset($loan['payment_day']) ? (int) $loan['payment_day'] : null)
+            $paymentDay ?? (isset($loan['payment_day']) ? (int) $loan['payment_day'] : null),
+            // The Effective Date IS the date deductions start: installment 1 falls on it exactly (not a month after it), and every later
+            // installment follows on the payment day.
+            $effectiveDate
         );
 
         $startingInstallmentNo = self::retainedInstallmentCount((int) $loan['id']) + 1;

@@ -56,8 +56,9 @@
           <div class="form-text">Optional discount off the outstanding balance before recalculating.</div>
         </div>
         <div class="col-md-3 mb-3">
-          <label class="form-label">Effective Date</label>
+          <label class="form-label">Effective Date (first deduction)</label>
           <input type="date" name="effective_date" class="form-control" value="<?= old('effective_date', $old, date('Y-m-d')) ?>">
+          <div class="form-text">The date deductions start: the first new installment falls on this date, the rest follow on the payment day each month.</div>
         </div>
       </div>
 
