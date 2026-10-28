@@ -78,30 +78,7 @@ class Payment extends Model
         $this->db->beginTransaction();
 
         try {
-            $paymentId = $this->insert('payments', [
-                'loan_id' => $loan['id'],
-                'borrower_id' => $loan['borrower_id'],
-                'branch_id' => $loan['branch_id'],
-                'payment_no' => generate_reference('PMT'),
-                'payment_date' => $meta['payment_date'],
-                'payment_source' => $meta['payment_source'],
-                'bank_account_id' => $meta['bank_account_id'] ?? null,
-                'amount_received' => $amount,
-                'principal_amount' => 0,
-                'interest_amount' => 0,
-                'fees_amount' => 0,
-                'namfisa_levy_amount' => 0,
-                'duty_stamp_amount' => 0,
-                'penalty_amount' => 0,
-                'overpayment_amount' => 0,
-                'reference_no' => $meta['reference_no'] ?: null,
-                'payer_name' => $meta['payer_name'] ?: null,
-                'notes' => $meta['notes'] ?: null,
-                'status' => 'Posted',
-                'collected_by' => $meta['user_id'],
-                'posted_by' => $meta['user_id'],
-                'posted_at' => date('Y-m-d H:i:s'),
-            ]);
+            $paymentId = $this->insertPostedPayment($loan, $amount, $meta);
 
             $this->allocateToSchedule($loan, $paymentId, $amount, $meta['user_id'], $meta['bank_account_id'] ?? null, $meta['payment_date']);
 
@@ -112,6 +89,112 @@ class Payment extends Model
             $this->db->rollBack();
             throw $e;
         }
+    }
+
+    /** The Posted payments row for a payment received (nothing allocated yet). Runs inside the caller's transaction. */
+    private function insertPostedPayment(array $loan, float $amount, array $meta): int
+    {
+        return $this->insert('payments', [
+            'loan_id' => $loan['id'],
+            'borrower_id' => $loan['borrower_id'],
+            'branch_id' => $loan['branch_id'],
+            'payment_no' => generate_reference('PMT'),
+            'payment_date' => $meta['payment_date'],
+            'payment_source' => $meta['payment_source'],
+            'bank_account_id' => $meta['bank_account_id'] ?? null,
+            'amount_received' => $amount,
+            'principal_amount' => 0,
+            'interest_amount' => 0,
+            'fees_amount' => 0,
+            'namfisa_levy_amount' => 0,
+            'duty_stamp_amount' => 0,
+            'penalty_amount' => 0,
+            'overpayment_amount' => 0,
+            'reference_no' => $meta['reference_no'] ?: null,
+            'payer_name' => $meta['payer_name'] ?: null,
+            'notes' => $meta['notes'] ?: null,
+            'status' => 'Posted',
+            'collected_by' => $meta['user_id'],
+            'posted_by' => $meta['user_id'],
+            'posted_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * ONE payment received on an original loan that has released top-ups: split across the loan and its top-ups (PaymentSplitService --
+     * whatever is due soonest first), each part recorded and posted on its own loan exactly like any payment, so every loan keeps its own
+     * accounting and statement lines. Staff-recorded payments only: a debit order collects for its own loan and is never split.
+     *
+     * @param array[] $tranches Loan::tranchesOf(): the original first, then its top-ups
+     * @return array<int, int> loan id => payment id, for the parts that received money
+     */
+    public function recordCombined(array $loan, array $tranches, float $amount, array $meta): array
+    {
+        $this->db->beginTransaction();
+
+        try {
+            $paymentIds = $this->postSplit($loan, $tranches, $amount, $meta, null);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+        foreach ($paymentIds as $loanId => $paymentId) {
+            \App\Core\Events::fire('PaymentReceived', ['payment_id' => $paymentId, 'loan_id' => $loanId, 'amount' => null]);
+        }
+        return $paymentIds;
+    }
+
+    /**
+     * Plans and posts the parts of a combined payment. $existingPaymentId (a borrower-reported Pending row being confirmed) becomes the first
+     * part instead of a new row being inserted for it. Runs inside the caller's transaction.
+     *
+     * @return array<int, int> loan id => payment id
+     */
+    private function postSplit(array $loan, array $tranches, float $amount, array $meta, ?int $existingPaymentId): array
+    {
+        $asOf = $meta['payment_date'];
+        $userId = $meta['user_id'];
+        $ids = array_map(static fn ($t) => (int) $t['id'], $tranches);
+
+        // Penalties raise what a row owes, so they are charged first -- the same step each loan's own allocation runs.
+        foreach ($ids as $id) {
+            \App\Services\PenaltyAccrualService::accrue($asOf, $userId, $id);
+        }
+
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $owing = $this->all(
+            "SELECT loan_id, installment_no, due_date, (total_due - total_paid) AS owing
+             FROM loan_schedules WHERE loan_id IN ($in) AND status != 'Paid' AND total_due > total_paid",
+            $ids
+        );
+        $portions = \App\Services\PaymentSplitService::plan($ids, $owing, $amount);
+
+        $loanNos = [];
+        foreach ($tranches as $t) {
+            $loanNos[] = $t['loan_no'];
+        }
+        $note = trim(((string) ($meta['notes'] ?? '')) . ' [Part of one payment of ' . number_format($amount, 2) . ' received on ' . $loan['loan_no'] . ' and its top-ups: ' . implode(', ', $loanNos) . ']');
+
+        $paymentIds = [];
+        foreach ($portions as $loanId => $portion) {
+            if ($portion <= 0.009) {
+                continue;
+            }
+            $partLoan = $this->one('SELECT * FROM loans WHERE id = ?', [$loanId]);
+            $partMeta = ['notes' => $note] + $meta;
+
+            if ($existingPaymentId !== null && $paymentIds === []) {
+                // the borrower-reported row is the first part that gets money: re-point it at that loan and its share
+                $this->update('payments', ['loan_id' => $loanId, 'amount_received' => $portion, 'notes' => $note], 'id', $existingPaymentId);
+                $paymentId = $existingPaymentId;
+            } else {
+                $paymentId = $this->insertPostedPayment($partLoan, $portion, $partMeta);
+            }
+            $this->allocateToSchedule($partLoan, $paymentId, $portion, $userId, $meta['bank_account_id'] ?? null, $asOf);
+            $paymentIds[$loanId] = $paymentId;
+        }
+        return $paymentIds;
     }
 
     /**
@@ -214,10 +297,19 @@ class Payment extends Model
             return false;
         }
 
+        $tranches = (new Loan())->tranchesOf((int) $loan['id']);
+
         $this->db->beginTransaction();
 
         try {
-            $this->allocateToSchedule($loan, $paymentId, (float) $payment['amount_received'], $staffUserId, $bankAccountId, $payment['payment_date']);
+            if ($tranches !== []) {
+                // reported against an original loan that has top-ups: split like any combined payment, this row being its first part
+                $meta = ['payment_date' => $payment['payment_date'], 'payment_source' => $payment['payment_source'], 'bank_account_id' => $bankAccountId,
+                         'reference_no' => $payment['reference_no'], 'payer_name' => $payment['payer_name'], 'notes' => (string) $payment['notes'], 'user_id' => $staffUserId];
+                $this->postSplit($loan, $tranches, (float) $payment['amount_received'], $meta, $paymentId);
+            } else {
+                $this->allocateToSchedule($loan, $paymentId, (float) $payment['amount_received'], $staffUserId, $bankAccountId, $payment['payment_date']);
+            }
 
             $this->update('payments', [
                 'status' => 'Posted',

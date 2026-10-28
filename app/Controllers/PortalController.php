@@ -262,7 +262,7 @@ class PortalController extends Controller
 
         $this->view('portal/payments/create', [
             'title' => 'Log a Payment',
-            'loans' => $this->loans->forBorrower($borrowerId),
+            'loans' => $this->loans->forBorrower($borrowerId, true),
             'old' => [],
             'errors' => [],
         ]);
@@ -293,7 +293,7 @@ class PortalController extends Controller
         if (!empty($errors)) {
             $this->view('portal/payments/create', [
                 'title' => 'Log a Payment',
-                'loans' => $this->loans->forBorrower($borrowerId),
+                'loans' => $this->loans->forBorrower($borrowerId, true),
                 'old' => $_POST,
                 'errors' => $errors,
             ]);

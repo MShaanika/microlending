@@ -91,10 +91,14 @@ class PaymentController extends Controller
         }
         $this->assertBranchAccess($loan, '/loans');
 
+        // An original loan with released top-ups takes ONE payment, split across the loan and its top-ups (whatever is due soonest first).
+        $bundle = \App\Services\CombinedLoanService::forLoan($loan, $this->loans);
+
         $this->view('payments/create', [
             'title' => 'Record Payment',
             'loan' => $loan,
-            'schedule' => $this->loans->schedule((int) $loanId),
+            'combinedTranches' => $bundle ? $bundle['tranches'] : [],
+            'schedule' => $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $loanId),
             'collectionCheck' => (new \App\Services\MandateCollectionCheck())->forLoan((int) $loanId),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'old' => [],
@@ -148,7 +152,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $paymentId = $this->payments->recordAndAllocate($loan, $amount, [
+            $meta = [
                 'payment_date' => $_POST['payment_date'] ?: date('Y-m-d'),
                 'payment_source' => $_POST['payment_source'] ?: 'Cash',
                 'bank_account_id' => ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null,
@@ -156,7 +160,17 @@ class PaymentController extends Controller
                 'payer_name' => trim($_POST['payer_name'] ?? ''),
                 'notes' => trim($_POST['notes'] ?? ''),
                 'user_id' => $userId,
-            ]);
+            ];
+            $tranches = $this->loans->tranchesOf($loanId);
+            if ($tranches !== []) {
+                $split = $this->payments->recordCombined($loan, $tranches, $amount, $meta);
+                $paymentId = (int) reset($split);
+                $splitLoanIds = array_keys($split);
+                $successMessage = 'Payment recorded and split across ' . count($split) . ' loan' . (count($split) === 1 ? '' : 's') . ' (the original and its top-ups), whatever is due soonest first.';
+            } else {
+                $paymentId = $this->payments->recordAndAllocate($loan, $amount, $meta);
+                $splitLoanIds = [$loanId];
+            }
         } catch (\RuntimeException $e) {
             Idempotency::fail($key, 'payment.store');
             Session::flash('error', $e->getMessage());
@@ -172,7 +186,11 @@ class PaymentController extends Controller
         ]);
         // The payment is saved. If it cleared an instalment that a live Collexia mandate is still set to collect, that collection is
         // cancelled automatically and the result is told here.
-        Session::flash('success', trim($successMessage . ' ' . $this->autoStopCollections($loanId)));
+        $stopMessages = [];
+        foreach ($splitLoanIds as $paidLoanId) {
+            $stopMessages[] = $this->autoStopCollections((int) $paidLoanId);
+        }
+        Session::flash('success', trim($successMessage . ' ' . implode(' ', array_filter($stopMessages))));
         $this->redirect('/loans/' . $loanId);
     }
 
