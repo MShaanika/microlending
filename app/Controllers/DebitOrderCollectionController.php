@@ -253,24 +253,10 @@ class DebitOrderCollectionController extends Controller
                             'user_id' => $userId,
                         ];
 
-                        // A split's collection targets the exact
-                        // loan_schedules row the matched leg was created
-                        // against (DebitOrderSplitLeg::schedule_id), same
-                        // as the REST Download Payments path -- otherwise
-                        // recordAndAllocate()'s FIFO could land it on the
-                        // wrong row whenever the loan has arrears ahead of
-                        // the current installment, or (for a multi-month
-                        // split) the wrong month entirely. Falls back to
-                        // the old snapshot lookup only for a leg placed
-                        // before schedule_id was tracked.
-                        if ($splitNo !== null) {
-                            $scheduleId = $this->mandateLookup->scheduleIdFor($mandate, $installmentNo);
-                            if ($scheduleId) {
-                                $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, (float) $row['collection_amount'], $meta);
-                                $posted++;
-                            }
-                        } else {
-                            $paymentId = $this->payments->recordAndAllocate($loan, (float) $row['collection_amount'], $meta);
+                        // One place decides which loan and which schedule row(s) a collection settles -- see
+                        // DebitOrderCollectionPoster (split legs, combined instalments, a top-up's own row).
+                        $paymentId = (new \App\Services\DebitOrderCollectionPoster($this->payments, $this->loans, $this->mandateLookup))->post($mandate, $installmentNo, (float) $row['collection_amount'], $meta);
+                        if ($paymentId !== null) {
                             $posted++;
                         }
                     }

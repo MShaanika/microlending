@@ -187,7 +187,7 @@ class PaymentController extends Controller
         // The payment is saved. If it cleared an instalment that a live Collexia mandate is still set to collect, that collection is
         // cancelled automatically and the result is told here.
         $stopMessages = [];
-        foreach ($splitLoanIds as $paidLoanId) {
+        foreach (array_values(array_unique(array_merge([$loanId], $splitLoanIds))) as $paidLoanId) {
             $stopMessages[] = $this->autoStopCollections((int) $paidLoanId);
         }
         Session::flash('success', trim($successMessage . ' ' . implode(' ', array_filter($stopMessages))));

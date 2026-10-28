@@ -498,6 +498,10 @@ class RescheduleController extends Controller
                 $successMessage .= ' ' . $warning;
             }
         }
+        // A rescheduled TOP-UP changes what the original loan's combined debit order should collect.
+        if (!empty($loanNow['topup_of_loan_id'])) {
+            $successMessage .= (new \App\Services\TopUpMandateAdjustment())->afterTopUpChange((int) $loanNow['topup_of_loan_id'], 'top-up ' . $reschedule['loan_no'] . ' was rescheduled (' . $reschedule['reschedule_no'] . ')', $userId);
+        }
         Idempotency::complete($key, 'reschedule.implement', 'REDIRECT', [
             'flash_type' => 'success',
             'flash_message' => $successMessage,

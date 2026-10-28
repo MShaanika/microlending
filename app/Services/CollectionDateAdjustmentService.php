@@ -138,6 +138,18 @@ class CollectionDateAdjustmentService
                 // only its own. Where the carriers aren't recorded (a leg that
                 // predates them) every live leg is kept, as before.
                 $carriers = (new \App\Models\DebitOrderSplitLegInstallment())->carriersBySchedule((int) $debitOrder['id'])[(int) $row['schedule_id']] ?? [];
+                // A COMBINED instalment (original loan + top-ups, one debit) is not adjusted from one schedule row: its amount is the sum of
+                // several rows, so adjusting it from the primary row alone would change the debit to the wrong amount. Collexia itself moves a
+                // weekend/holiday collection to the next business day.
+                $combined = false;
+                foreach ($carriers as $carrier) {
+                    if (!empty($carrier['lane_installment_id']) && count((new \App\Models\DebitOrderSplitLegInstallmentPart())->forInstallment((int) $carrier['lane_installment_id'])) > 1) {
+                        $combined = true;
+                    }
+                }
+                if ($combined) {
+                    continue;
+                }
                 if ($carriers) {
                     $carrierIds = array_map('intval', array_column($carriers, 'leg_id'));
                     $legs = array_values(array_filter($legs, fn ($id) => in_array((int) $id, $carrierIds, true)));

@@ -32,6 +32,7 @@ class DebitOrderController extends Controller
     private DebitOrderCancellation $cancellations;
     private DebitOrderSplitLeg $splitLegs;
     private DebitOrderSplitLegInstallment $laneInstallments;
+    private \App\Models\DebitOrderSplitLegInstallmentPart $laneParts;
     private Loan $loans;
     private Borrower $borrowers;
     private CollexiaSetting $collexiaSettings;
@@ -42,6 +43,7 @@ class DebitOrderController extends Controller
         $this->cancellations = new DebitOrderCancellation();
         $this->splitLegs = new DebitOrderSplitLeg();
         $this->laneInstallments = new DebitOrderSplitLegInstallment();
+        $this->laneParts = new \App\Models\DebitOrderSplitLegInstallmentPart();
         $this->loans = new Loan();
         $this->borrowers = new Borrower();
         $this->collexiaSettings = new CollexiaSetting();
@@ -113,9 +115,16 @@ class DebitOrderController extends Controller
         }
         $this->assertBranchAccess($loan, '/loans');
 
-        $existing = $this->debitOrders->liveForLoan((int) $loanId);
+        $original = $this->originalLoanFor($loan);
+        if ($original) {
+            Session::flash('error', $loan['loan_no'] . ' is a top-up of ' . $original['loan_no'] . ': one debit order on the original loan collects both. Register it there.');
+            $this->redirect('/loans/' . $original['id'] . '/debit-orders/create');
+            return;
+        }
+
+        $existing = $this->debitOrders->liveForFamily((int) $loanId);
         if ($existing) {
-            Session::flash('error', 'This loan already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one -- every active mandate collects independently, so a second one means the client gets deducted twice.');
+            Session::flash('error', 'This loan (or one of its top-ups) already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one -- every active mandate collects independently, so a second one means the client gets deducted twice.');
             $this->redirect('/debit-orders/' . $existing['id']);
             return;
         }
@@ -136,8 +145,8 @@ class DebitOrderController extends Controller
             'loan' => $loan,
             'old' => $old,
             'firstDueDate' => $firstDueDate,
-            'installments' => $this->debitOrders->unpaidInstallments((int) $loanId),
-            'paidAhead' => $this->debitOrders->paidAheadInstallments((int) $loanId),
+            'installments' => $this->installmentsFor((int) $loanId),
+            'paidAhead' => $this->paidAheadFor((int) $loanId),
             'collexiaReady' => $this->collexiaApiReady(),
             'errors' => [],
             'banks' => CollexiaCodes::BANKS,
@@ -208,9 +217,16 @@ class DebitOrderController extends Controller
         }
         $this->assertBranchAccess($loan, '/loans');
 
-        $existing = $this->debitOrders->liveForLoan($loanId);
+        $original = $this->originalLoanFor($loan);
+        if ($original) {
+            Session::flash('error', $loan['loan_no'] . ' is a top-up of ' . $original['loan_no'] . ': one debit order on the original loan collects both. Register it there.');
+            $this->redirect('/loans/' . $original['id'] . '/debit-orders/create');
+            return;
+        }
+
+        $existing = $this->debitOrders->liveForFamily($loanId);
         if ($existing) {
-            Session::flash('error', 'This loan already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one.');
+            Session::flash('error', 'This loan (or one of its top-ups) already has a ' . strtolower($existing['status']) . ' debit order (' . $existing['debit_order_no'] . '). Cancel or suspend it before registering a new one.');
             $this->redirect('/debit-orders/' . $existing['id']);
             return;
         }
@@ -265,8 +281,8 @@ class DebitOrderController extends Controller
                 'loan' => $loan,
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
-                'installments' => $this->debitOrders->unpaidInstallments($loanId),
-                'paidAhead' => $this->debitOrders->paidAheadInstallments($loanId),
+                'installments' => $this->installmentsFor($loanId),
+                'paidAhead' => $this->paidAheadFor($loanId),
                 'collexiaReady' => $this->collexiaApiReady(),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
@@ -361,6 +377,35 @@ class DebitOrderController extends Controller
         return $findings;
     }
 
+    /**
+     * The installments the Register page offers: this loan's own, or -- for an original loan with released top-ups -- the combined list, one
+     * row per due date, so ONE debit collects the original and its top-ups together (see DebitOrder::unpaidCombinedInstallments()).
+     */
+    private function installmentsFor(int $loanId): array
+    {
+        $tranches = $this->loans->tranchesOf($loanId);
+        return $tranches ? $this->debitOrders->unpaidCombinedInstallments($tranches) : $this->debitOrders->unpaidInstallments($loanId);
+    }
+
+    /** Installments already paid by hand only ride in an ordinary loan's mandate; a combined one has none (its numbering is Collexia's own). */
+    private function paidAheadFor(int $loanId): array
+    {
+        return $this->loans->tranchesOf($loanId) ? [] : $this->debitOrders->paidAheadInstallments($loanId);
+    }
+
+    /**
+     * A released top-up is collected together with its original loan, so it takes no debit order of its own. Returns the original loan to
+     * register on instead, or null when this loan registers normally.
+     */
+    private function originalLoanFor(array $loan): ?array
+    {
+        if (empty($loan['topup_of_loan_id']) || !in_array($loan['loan_status'], ['Active', 'Current', 'Released', 'Completed'], true)) {
+            return null;
+        }
+        $original = $this->loans->find((int) $loan['topup_of_loan_id']);
+        return $original && in_array($original['loan_status'], ['Active', 'Current', 'Released'], true) ? $original : null;
+    }
+
     /** True when this tenant places mandates through the Collexia API (enabled and configured). */
     private function collexiaApiReady(): bool
     {
@@ -387,7 +432,7 @@ class DebitOrderController extends Controller
     private function storePerInstallment(array $loan): void
     {
         $loanId = (int) $loan['id'];
-        $installments = $this->debitOrders->unpaidInstallments($loanId);
+        $installments = $this->installmentsFor($loanId);
         $byId = [];
         foreach ($installments as $row) {
             $byId[(int) $row['id']] = $row;
@@ -431,6 +476,10 @@ class DebitOrderController extends Controller
             // collected on this same installment date.
             $outstanding = round((float) $row['outstanding'], 2);
             $parts = max(1, (int) ($_POST['split_counts'][$scheduleId] ?? 1));
+            if ($parts > 1 && count($row['parts'] ?? []) > 1) {
+                $errors['installments'] = 'The installment due ' . $row['due_date'] . ' combines a loan and its top-ups into one debit, so it cannot also be divided into splits.';
+                break;
+            }
             if ($parts > 10) {
                 $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' can be split into at most 10 parts.';
                 break;
@@ -454,7 +503,7 @@ class DebitOrderController extends Controller
         // Only ones the system itself lists as eligible (fully paid, future-dated) are taken, whatever the form posted; they are never
         // split and carry their original amount, so the mandate's numbering follows the loan.
         $paidAheadById = [];
-        foreach ($this->debitOrders->paidAheadInstallments($loanId) as $row) {
+        foreach ($this->paidAheadFor($loanId) as $row) {
             $paidAheadById[(int) $row['id']] = $row;
         }
         $paidTicked = array_values(array_unique(array_map('intval', (array) ($_POST['paid_installment_ids'] ?? []))));
@@ -493,7 +542,7 @@ class DebitOrderController extends Controller
                 'old' => $_POST,
                 'firstDueDate' => $this->loans->firstScheduleDueDate($loanId),
                 'installments' => $installments,
-                'paidAhead' => $this->debitOrders->paidAheadInstallments($loanId),
+                'paidAhead' => $this->paidAheadFor($loanId),
                 'collexiaReady' => $this->collexiaApiReady(),
                 'errors' => $errors,
                 'banks' => CollexiaCodes::BANKS,
@@ -544,7 +593,15 @@ class DebitOrderController extends Controller
             $legId = $this->splitLegs->upsert($debitOrderId, $lane['lane'], $lane['amount'], count($lanes), null, $lane['first_date']);
             $items = [];
             foreach ($lane['installments'] as $item) {
-                $this->laneInstallments->add($legId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount'], !empty($item['auto_cancel']));
+                $laneInstallmentId = $this->laneInstallments->add($legId, $item['installment_no'], $item['schedule_id'], $item['date'], $item['amount'], !empty($item['auto_cancel']));
+                // A COMBINED instalment (original loan + top-ups, one debit): remember every schedule row behind it so a successful
+                // collection is split back across them, each part posted on its own loan.
+                $combinedParts = $byId[(int) $item['schedule_id']]['parts'] ?? [];
+                if (count($combinedParts) > 1) {
+                    foreach ($combinedParts as $part) {
+                        $this->laneParts->add($laneInstallmentId, (int) $part['loan_id'], (int) $part['schedule_id'], (float) $part['outstanding']);
+                    }
+                }
                 $items[] = '#' . $item['loan_installment_no'] . ' ' . format_money($item['amount']) . ' on ' . $item['date'] . (!empty($item['auto_cancel']) ? ' (paid by hand -- to be cancelled)' : '');
             }
             $summary[] = 'lane ' . $lane['lane'] . ' [' . implode(', ', $items) . ']';

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\DebitOrder;
 use App\Models\DebitOrderSplitLegInstallment;
+use App\Models\DebitOrderSplitLegInstallmentPart;
 use App\Models\Loan;
 
 /**
@@ -30,9 +31,11 @@ class MandateCollectionCheck
     private DebitOrder $debitOrders;
     private DebitOrderSplitLegInstallment $lane;
     private Loan $loans;
+    private DebitOrderSplitLegInstallmentPart $parts;
 
-    public function __construct(?DebitOrder $debitOrders = null, ?DebitOrderSplitLegInstallment $lane = null, ?Loan $loans = null)
+    public function __construct(?DebitOrder $debitOrders = null, ?DebitOrderSplitLegInstallment $lane = null, ?Loan $loans = null, ?DebitOrderSplitLegInstallmentPart $parts = null)
     {
+        $this->parts = $parts ?? new DebitOrderSplitLegInstallmentPart();
         $this->debitOrders = $debitOrders ?? new DebitOrder();
         $this->lane = $lane ?? new DebitOrderSplitLegInstallment();
         $this->loans = $loans ?? new Loan();
@@ -55,12 +58,29 @@ class MandateCollectionCheck
 
         $mandate = $this->debitOrders->liveMandateForLoan($loanId);
         if (!$mandate) {
+            // A released top-up is collected by its original loan's (combined) debit order: look there.
+            $self = $this->loans->find($loanId);
+            if ($self && !empty($self['topup_of_loan_id'])) {
+                $loanId = (int) $self['topup_of_loan_id'];
+                $mandate = $this->debitOrders->liveMandateForLoan($loanId);
+            }
+        }
+        if (!$mandate) {
             return $empty;
         }
         $schedule = $this->loans->schedule($loanId);
         $owesById = [];
         foreach ($schedule as $row) {
             $owesById[(int) $row['id']] = ['owes' => round((float) $row['total_due'] - (float) $row['total_paid'], 2), 'row' => $row];
+        }
+        // A combined debit order also settles the schedule rows of the loan's top-ups.
+        foreach ($this->loans->tranchesOf($loanId) as $tranche) {
+            if ((int) $tranche['id'] === $loanId) {
+                continue;
+            }
+            foreach ($this->loans->schedule((int) $tranche['id']) as $row) {
+                $owesById[(int) $row['id']] = ['owes' => round((float) $row['total_due'] - (float) $row['total_paid'], 2), 'row' => $row];
+            }
         }
         $result = $empty;
         $result['mandate'] = $mandate;
@@ -99,15 +119,17 @@ class MandateCollectionCheck
                 if (!in_array($c['status'], ['Registered', 'Load Pending'], true) || !$date || $date < $today || !empty($c['cancelled_at'])) {
                     continue;
                 }
+                // A COMBINED instalment (original loan + top-ups, one debit) is only paid when EVERY row behind it is paid.
+                $cinfo = $this->combinedInfo($c, $owesById) ?? $info;
                 $entry = [
                     'schedule_id' => (int) $scheduleId,
-                    'installment_no' => (int) $info['row']['installment_no'],
+                    'installment_no' => (int) $cinfo['row']['installment_no'],
                     'collects_on' => $date,
                     'amount' => round((float) $c['amount'], 2),
                     'mandate' => (int) $c['split_no'],
-                    'owes' => $info['owes'],
+                    'owes' => $cinfo['owes'],
                     // The schedule's own "Paid" status counts: it settles a row with a cent of rounding left over.
-                    'paid' => $info['row']['status'] === 'Paid' || $info['owes'] < 0.005,
+                    'paid' => $cinfo['row']['status'] === 'Paid' || $cinfo['owes'] < 0.005,
                     'imminent' => self::isImminent($date, $today),
                 ];
                 $result['upcoming'][] = $entry;
@@ -116,6 +138,36 @@ class MandateCollectionCheck
                 }
             }
         }
+    }
+
+    /** What a combined lane instalment still owes across all its schedule rows, or null for an ordinary instalment. */
+    private function combinedInfo(array $carrier, array $owesById): ?array
+    {
+        if (empty($carrier['lane_installment_id'])) {
+            return null;
+        }
+        $parts = $this->parts->forInstallment((int) $carrier['lane_installment_id']);
+        if (count($parts) < 2) {
+            return null;
+        }
+        $owes = 0.0;
+        $primary = null;
+        $allPaid = true;
+        foreach ($parts as $part) {
+            $one = $owesById[(int) $part['schedule_id']] ?? null;
+            if (!$one) {
+                continue;
+            }
+            $primary ??= $one['row'];
+            $owes += max(0.0, $one['owes']);
+            $allPaid = $allPaid && ($one['row']['status'] === 'Paid' || $one['owes'] < 0.005);
+        }
+        if ($primary === null) {
+            return null;
+        }
+        // 'Paid' status of the synthetic row = every part paid, so the existing paid test below holds
+        $primary['status'] = $allPaid ? 'Paid' : ($primary['status'] === 'Paid' ? 'Pending' : $primary['status']);
+        return ['owes' => $allPaid ? 0.0 : round($owes, 2), 'row' => $primary];
     }
 
     private function fillSingle(array &$result, array $mandate, array $schedule, array $owesById, string $today): void

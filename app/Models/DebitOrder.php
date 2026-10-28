@@ -69,6 +69,76 @@ class DebitOrder extends Model
     }
 
     /**
+     * A live debit order anywhere in this loan's FAMILY: the original loan and all of its top-ups. The family is collected as one, so a second
+     * debit order on any member (a top-up next to the original's combined one, say) would deduct the borrower twice.
+     */
+    public function liveForFamily(int $loanId): ?array
+    {
+        return $this->one(
+            "SELECT d.* FROM debit_orders d
+             WHERE d.status IN ('Active', 'Suspended')
+               AND d.loan_id IN (
+                   SELECT f.id FROM loans f
+                   WHERE f.id = (SELECT COALESCE(r.topup_of_loan_id, r.id) FROM loans r WHERE r.id = ?)
+                      OR f.topup_of_loan_id = (SELECT COALESCE(r2.topup_of_loan_id, r2.id) FROM loans r2 WHERE r2.id = ?)
+               )
+             ORDER BY d.id DESC LIMIT 1",
+            [$loanId, $loanId]
+        );
+    }
+
+    /**
+     * What a COMBINED debit order lists: the unpaid installments of an original loan and its released top-ups, one row per due date. A row's
+     * `id` is its PRIMARY schedule row (the original loan's, or the top-up's when only that owes on the date) and its `outstanding` is what the
+     * whole date owes; `parts` names every schedule row behind it, original loan first. installment_no is a running number for display only --
+     * what is stored is always the schedule ids.
+     *
+     * @param array[] $tranches Loan::tranchesOf(): the original loan first
+     */
+    public function unpaidCombinedInstallments(array $tranches): array
+    {
+        $ids = array_map(static fn ($t) => (int) $t['id'], $tranches);
+        $order = array_flip($ids);
+        $loanNo = [];
+        foreach ($tranches as $t) {
+            $loanNo[(int) $t['id']] = (string) $t['loan_no'];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $rows = $this->all(
+            "SELECT id, loan_id, installment_no, due_date, status, ROUND(total_due - total_paid, 2) AS outstanding
+             FROM loan_schedules
+             WHERE loan_id IN ($in) AND status != 'Paid' AND (total_due - total_paid) > 0",
+            $ids
+        );
+        usort($rows, fn ($a, $b) => strcmp((string) $a['due_date'], (string) $b['due_date']) ?: ($order[(int) $a['loan_id']] <=> $order[(int) $b['loan_id']]));
+
+        $byDate = [];
+        foreach ($rows as $row) {
+            $byDate[(string) $row['due_date']][] = $row;
+        }
+
+        $out = [];
+        $no = 0;
+        foreach ($byDate as $date => $group) {
+            $partial = false;
+            $parts = [];
+            foreach ($group as $row) {
+                $partial = $partial || $row['status'] === 'Partial';
+                $parts[] = ['loan_id' => (int) $row['loan_id'], 'loan_no' => $loanNo[(int) $row['loan_id']] ?? '', 'schedule_id' => (int) $row['id'], 'outstanding' => round((float) $row['outstanding'], 2)];
+            }
+            $out[] = [
+                'id' => (int) $group[0]['id'],
+                'installment_no' => ++$no,
+                'due_date' => $date,
+                'status' => $partial ? 'Partial' : 'Pending',
+                'outstanding' => round(array_sum(array_column($parts, 'outstanding')), 2),
+                'parts' => $parts,
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Active mandates on this branch's loans that have never been
      * registered with Collexia yet -- registration is a one-time EnDo Batch
      * submission per contract (Collexia then collects every period on its
@@ -148,7 +218,7 @@ class DebitOrder extends Model
     }
 
     /** Marks every live mandate of the loan as out of step with it. Returns the debit orders that were marked. */
-    public function markMandatesOutOfStep(int $loanId, int $rescheduleId, string $note): array
+    public function markMandatesOutOfStep(int $loanId, ?int $rescheduleId, string $note): array
     {
         $rows = $this->all("SELECT d.* FROM debit_orders d WHERE d.loan_id = ? AND " . self::LIVE_MANDATE_SQL, [$loanId]);
         foreach ($rows as $row) {
@@ -313,7 +383,7 @@ class DebitOrder extends Model
                 JOIN borrowers b ON b.id = l.borrower_id
                 LEFT JOIN debit_orders d ON d.loan_id = l.id
                 WHERE l.loan_status IN ('Active', 'Current')
-                  AND d.id IS NULL";
+                  AND d.id IS NULL AND NOT (l.topup_of_loan_id IS NOT NULL AND EXISTS (SELECT 1 FROM debit_orders pd WHERE pd.loan_id = l.topup_of_loan_id))";
         $params = [];
         if ($branchId !== null) {
             $sql .= " AND l.branch_id = ?";
@@ -327,7 +397,7 @@ class DebitOrder extends Model
     {
         $sql = "SELECT COUNT(*) FROM loans l
                 LEFT JOIN debit_orders d ON d.loan_id = l.id
-                WHERE l.loan_status IN ('Active', 'Current') AND d.id IS NULL";
+                WHERE l.loan_status IN ('Active', 'Current') AND d.id IS NULL AND NOT (l.topup_of_loan_id IS NOT NULL AND EXISTS (SELECT 1 FROM debit_orders pd WHERE pd.loan_id = l.topup_of_loan_id))";
         $params = [];
         if ($branchId !== null) {
             $sql .= " AND l.branch_id = ?";

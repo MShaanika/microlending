@@ -146,6 +146,56 @@ class Payment extends Model
     }
 
     /**
+     * ONE successful Collexia collection of a COMBINED instalment (the original loan's row plus a top-up's row, collected as a single debit):
+     * split back across exactly those schedule rows -- soonest due first, the original first on a tie, any surplus to the original -- and each
+     * part recorded and posted on its OWN loan against its OWN row, all in one transaction (a rerun can never leave half of it posted).
+     *
+     * @param array<int, array{loan_id: int|string, schedule_id: int|string}> $parts the instalment's rows, original loan first
+     * @return array<int, int> loan id => payment id, for the parts that received money
+     */
+    public function recordCollectionParts(array $parts, float $amount, array $meta): array
+    {
+        $this->db->beginTransaction();
+
+        try {
+            $loanIds = [];
+            $scheduleOf = [];
+            $owing = [];
+            foreach ($parts as $part) {
+                $row = $this->one(
+                    'SELECT id, loan_id, installment_no, due_date, (total_due - total_paid) AS owing FROM loan_schedules WHERE id = ? AND loan_id = ?',
+                    [(int) $part['schedule_id'], (int) $part['loan_id']]
+                );
+                if (!$row) {
+                    throw new \RuntimeException('A schedule row of this combined instalment no longer exists.');
+                }
+                $loanIds[] = (int) $row['loan_id'];
+                $scheduleOf[(int) $row['loan_id']] = (int) $row['id'];
+                $owing[] = ['loan_id' => (int) $row['loan_id'], 'installment_no' => (int) $row['installment_no'], 'due_date' => $row['due_date'], 'owing' => max(0.0, (float) $row['owing'])];
+            }
+            $loanIds = array_values(array_unique($loanIds));
+            $portions = \App\Services\PaymentSplitService::plan($loanIds, $owing, $amount);
+
+            $note = trim(((string) ($meta['notes'] ?? '')) . ' [One debit order collection of ' . number_format($amount, 2) . ' split across ' . count($loanIds) . ' loan(s): the original loan and its top-ups]');
+            $paymentIds = [];
+            foreach ($portions as $loanId => $portion) {
+                if ($portion <= 0.009) {
+                    continue;
+                }
+                $loan = $this->one('SELECT * FROM loans WHERE id = ?', [$loanId]);
+                $paymentId = $this->insertPostedPayment($loan, $portion, ['notes' => $note] + $meta);
+                $this->allocateToSpecificSchedule($loan, $scheduleOf[$loanId], $paymentId, $portion, $meta['user_id'], $meta['bank_account_id'] ?? null, $meta['payment_date']);
+                $paymentIds[$loanId] = $paymentId;
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+        return $paymentIds;
+    }
+
+    /**
      * Plans and posts the parts of a combined payment. $existingPaymentId (a borrower-reported Pending row being confirmed) becomes the first
      * part instead of a new row being inserted for it. Runs inside the caller's transaction.
      *

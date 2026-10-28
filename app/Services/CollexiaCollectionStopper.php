@@ -48,19 +48,34 @@ class CollexiaCollectionStopper
         $out = ['ok' => false, 'cancelled' => 0, 'messages' => []];
         $stopAfter = date('Y-m-d', strtotime($today . ' +' . MandateCollectionCheck::IMMINENT_DAYS . ' day'));
 
-        $row = null;
-        foreach ($this->loans->schedule((int) $debitOrder['loan_id']) as $r) {
-            if ((int) $r['id'] === $scheduleId) {
-                $row = $r;
+        // The debit order's own loan, or one of its top-ups (a combined debit order settles both).
+        $row = $this->loans->scheduleRow($scheduleId);
+        if ($row) {
+            $rowLoan = $this->loans->find((int) $row['loan_id']);
+            $own = (int) $row['loan_id'] === (int) $debitOrder['loan_id'];
+            if (!$own && (!$rowLoan || (int) ($rowLoan['topup_of_loan_id'] ?? 0) !== (int) $debitOrder['loan_id'])) {
+                $row = null;
             }
         }
         if (!$row) {
             $out['messages'][] = 'That installment does not belong to this loan.';
             return $out;
         }
-        if (($row['status'] ?? '') !== 'Paid' && round((float) $row['total_due'] - (float) $row['total_paid'], 2) >= 0.005) {
+        $notPaid = fn (array $r) => ($r['status'] ?? '') !== 'Paid' && round((float) $r['total_due'] - (float) $r['total_paid'], 2) >= 0.005;
+        if ($notPaid($row)) {
             $out['messages'][] = 'Installment #' . (int) $row['installment_no'] . ' is not fully paid, so its collection was NOT stopped.';
             return $out;
+        }
+        // A combined instalment collects the original loan and its top-ups together: stop it only when every part is paid.
+        $partsModel = new \App\Models\DebitOrderSplitLegInstallmentPart();
+        foreach ($this->lane->liveRowsForSchedule((int) $debitOrder['id'], $scheduleId) as $liveRow) {
+            foreach ($partsModel->forInstallment((int) $liveRow['id']) as $part) {
+                $partRow = $this->loans->scheduleRow((int) $part['schedule_id']);
+                if ($partRow && $notPaid($partRow)) {
+                    $out['messages'][] = 'This installment is a combined debit for a loan and its top-ups, and one of its parts is not fully paid, so the collection was NOT stopped.';
+                    return $out;
+                }
+            }
         }
 
         $targets = [];   // contract => [ ['no' => int, 'row_id' => ?int] ]

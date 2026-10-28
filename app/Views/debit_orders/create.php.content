@@ -118,8 +118,15 @@
                   <td><?= e(date('d M Y', strtotime($row['due_date']))) ?></td>
                   <td class="text-end"><?= format_money((float) $row['outstanding']) ?></td>
                   <td><input type="date" name="collection_dates[<?= $sid ?>]" min="<?= e($tomorrow) ?>" value="<?= e($dateVal) ?>" class="form-control form-control-sm" style="max-width:170px"></td>
-                  <td><input type="number" min="1" max="10" name="split_counts[<?= $sid ?>]" value="<?= $partCount ?>" class="form-control form-control-sm part-count" style="max-width:70px" data-sid="<?= $sid ?>" title="Divide this installment into splits, all collected on the same date"></td>
-                  <td class="small text-muted"><?= $pastDue ? 'Already due -- moved to the earliest date Collexia accepts' : ($sundayMoved ? 'Falls on a Sunday -- Collexia does not process Sundays, so Monday' : ($row['status'] === 'Partial' ? 'Partly paid -- only the balance is collected' : 'On schedule')) ?></td>
+                  <?php $combinedParts = (array) ($row['parts'] ?? []); $isCombined = count($combinedParts) > 1; ?>
+                  <td>
+                    <?php if ($isCombined): ?>
+                      <input type="hidden" name="split_counts[<?= $sid ?>]" value="1"><span class="text-muted small" title="This date combines a loan and its top-ups into one debit, so it is collected as a single amount">1</span>
+                    <?php else: ?>
+                      <input type="number" min="1" max="10" name="split_counts[<?= $sid ?>]" value="<?= $partCount ?>" class="form-control form-control-sm part-count" style="max-width:70px" data-sid="<?= $sid ?>" title="Divide this installment into splits, all collected on the same date">
+                    <?php endif; ?>
+                  </td>
+                  <td class="small text-muted"><?php if ($isCombined): ?><span class="badge bg-info" title="One debit for the loan and its top-ups together"><i class="mdi mdi-layers-outline"></i> combined</span> <?= e(implode(' + ', array_map(fn ($p) => $p['loan_no'] . ' ' . format_money($p['outstanding']), $combinedParts))) ?><br><?php endif; ?><?= $pastDue ? 'Already due -- moved to the earliest date Collexia accepts' : ($sundayMoved ? 'Falls on a Sunday -- Collexia does not process Sundays, so Monday' : ($row['status'] === 'Partial' ? 'Partly paid -- only the balance is collected' : 'On schedule')) ?></td>
                 </tr>
                 <tr class="parts-row d-none" id="parts_row_<?= $sid ?>" data-sid="<?= $sid ?>" data-outstanding="<?= e((string) $row['outstanding']) ?>" data-old="<?= e(json_encode(array_map('strval', array_values((array) ($postedAmounts[$sid] ?? []))))) ?>">
                   <td></td>

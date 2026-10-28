@@ -320,7 +320,8 @@ class LoanController extends Controller
                 }
 
                 Audit::log('Top-up', 'Loans', 'Topped up loan #' . $loanId . ' by ' . format_money($principal) . ' (consolidated).');
-                Session::flash('success', 'Loan topped up by ' . format_money($principal) . ' and consolidated into ' . $existingLoan['loan_no'] . '. New principal: ' . format_money((float) $existingLoan['principal_amount'] + $principal) . '.');
+                $mandateNote = (new \App\Services\TopUpMandateAdjustment())->afterTopUpChange($loanId, 'it was topped up by ' . format_money($principal), $userId);
+                Session::flash('success', 'Loan topped up by ' . format_money($principal) . ' and consolidated into ' . $existingLoan['loan_no'] . '. New principal: ' . format_money((float) $existingLoan['principal_amount'] + $principal) . '.' . $mandateNote);
                 $this->redirect('/loans/' . $loanId);
                 return;
             }
@@ -644,7 +645,8 @@ class LoanController extends Controller
         }
 
         Audit::log('Reverse', 'Loans', 'Reversed top-up #' . $topupId . ' on loan #' . $loanId . '.');
-        Session::flash('success', 'Top-up reversed. The loan has been restored to its terms from before that top-up.');
+        $mandateNote = (new \App\Services\TopUpMandateAdjustment())->afterTopUpChange($loanId, 'a top-up merged into this loan was reversed', Auth::user()['id'] ?? null);
+        Session::flash('success', 'Top-up reversed. The loan has been restored to its terms from before that top-up.' . $mandateNote);
         $this->redirect('/loans/' . $loanId);
     }
 
@@ -686,7 +688,8 @@ class LoanController extends Controller
         }
 
         Audit::log('Reverse', 'Loans', 'Reversed top-up tranche loan #' . $id . '.');
-        Session::flash('success', 'Top-up reversed. Its disbursement and interest journals have been reversed and the loan marked Cancelled.');
+        $mandateNote = $originalLoanId ? (new \App\Services\TopUpMandateAdjustment())->afterTopUpChange($originalLoanId, 'top-up ' . $loan['loan_no'] . ' was reversed', Auth::user()['id'] ?? null) : '';
+        Session::flash('success', 'Top-up reversed. Its disbursement and interest journals have been reversed and the loan marked Cancelled.' . $mandateNote);
         $this->redirect('/loans/' . ($originalLoanId ?: $id));
     }
 
@@ -1010,6 +1013,13 @@ class LoanController extends Controller
         // must never observe a disbursement that could still roll back.
         Events::fire('LoanDisbursed', ['loan_id' => $id, 'released_by' => $userId]);
 
+        // A released top-up changes what the original loan's live debit order should collect: flag it and cancel it so ONE new combined
+        // debit order can be registered (same as a reschedule).
+        $topupNote = !empty($loan['topup_of_loan_id'])
+            ? (new \App\Services\TopUpMandateAdjustment())->afterTopUpChange((int) $loan['topup_of_loan_id'], 'top-up ' . $loan['loan_no'] . ' was released', $userId)
+            : '';
+        $successMessage .= $topupNote;
+
         // The EnCr payout goes out only now, after the release has committed -- see
         // CollexiaEncrDisbursementService. If it can't be sent the loan stays released and
         // posted (the books and the reference are already right), and Retry is one click.
@@ -1021,7 +1031,7 @@ class LoanController extends Controller
             Session::flash(
                 $result['ok'] ? 'success' : 'error',
                 $result['ok']
-                    ? 'Loan released and posted. EnCr payout ' . $encr['reference'] . ' submitted to Collexia -- use "Check payout status" to confirm the money has left.'
+                    ? 'Loan released and posted. EnCr payout ' . $encr['reference'] . ' submitted to Collexia -- use "Check payout status" to confirm the money has left.' . $topupNote
                     : 'Loan released and posted, but the EnCr payout was NOT sent: ' . $result['message'] . ' Use "Retry payout" on this page.'
             );
             $this->redirect('/loans/' . $id);

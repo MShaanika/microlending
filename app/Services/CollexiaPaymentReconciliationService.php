@@ -138,22 +138,11 @@ class CollexiaPaymentReconciliationService
                             'user_id' => $userId,
                         ];
 
-                        if ($splitNo !== null) {
-                            // The leg's own schedule_id (set at creation,
-                            // see DebitOrderSplitLeg) is unambiguous
-                            // regardless of which month it's for -- only
-                            // fall back to the old snapshot lookup for a
-                            // leg placed before that was tracked.
-                            $scheduleId = $this->lookup->scheduleIdFor($mandate, $installmentNo);
-                            if ($scheduleId) {
-                                $paymentId = $this->payments->recordAndAllocateToScheduleId($loan, $scheduleId, $paymentAmount, $meta);
-                                $posted++;
-                            }
-                            // No snapshot for this installment number -- leave unposted
-                            // for visibility rather than guessing which row it belongs to;
-                            // recorded below with payment_id null so it's still reviewable.
-                        } else {
-                            $paymentId = $this->payments->recordAndAllocate($loan, $paymentAmount, $meta);
+                        // One place decides which loan and which schedule row(s) a collection settles -- including a COMBINED
+                        // instalment (original loan + top-ups in one debit) and a row that belongs to a top-up. No mapping for the
+                        // installment: left unposted (recorded below with payment_id null) for review rather than guessed.
+                        $paymentId = (new DebitOrderCollectionPoster($this->payments, $this->loans, $this->lookup))->post($mandate, $installmentNo, $paymentAmount, $meta);
+                        if ($paymentId !== null) {
                             $posted++;
                         }
                     }

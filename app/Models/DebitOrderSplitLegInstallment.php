@@ -213,13 +213,14 @@ class DebitOrderSplitLegInstallment extends Model
         $rows = $this->all(
             "SELECT li.schedule_id, sl.id AS leg_id, sl.split_no, sl.total_splits, sl.collexia_api_contract_reference AS contract_reference,
                     sl.collexia_api_status AS status, li.installment_no AS mandate_installment_no,
-                    li.planned_date, li.collexia_date, li.planned_amount AS amount, li.applied_at, li.auto_cancel, li.cancelled_at
+                    li.planned_date, li.collexia_date, li.planned_amount AS amount, li.applied_at, li.auto_cancel, li.cancelled_at,
+                    li.id AS lane_installment_id
              FROM debit_order_split_leg_installments li
              JOIN debit_order_split_legs sl ON sl.id = li.leg_id
              WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL
              UNION ALL
              SELECT sl.schedule_id, sl.id, sl.split_no, sl.total_splits, sl.collexia_api_contract_reference,
-                    sl.collexia_api_status, 1, sl.collection_date, NULL, sl.leg_amount, NULL, 0, NULL
+                    sl.collexia_api_status, 1, sl.collection_date, NULL, sl.leg_amount, NULL, 0, NULL, NULL
              FROM debit_order_split_legs sl
              WHERE sl.debit_order_id = ? AND sl.merged_into_id IS NULL AND sl.schedule_id IS NOT NULL
              ORDER BY schedule_id, split_no",

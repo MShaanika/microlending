@@ -54,7 +54,7 @@ class RescheduleMandateCancellation
             // Only used for a warning; the cancel itself does not depend on it.
         }
 
-        $reason = 'Automatic: the loan was rescheduled (' . $reschedule['reschedule_no'] . '), so this mandate -- which would keep collecting the old dates and amounts -- was cancelled so a new one can be registered from the new schedule.';
+        $reason = $reschedule['cancel_reason'] ?? 'Automatic: the loan was rescheduled (' . $reschedule['reschedule_no'] . '), so this mandate -- which would keep collecting the old dates and amounts -- was cancelled so a new one can be registered from the new schedule.';
         foreach ($liveDebitOrders as $debitOrder) {
             $out['attempted'] = true;
             $label = (string) $debitOrder['debit_order_no'];

@@ -6,6 +6,7 @@ use App\Models\DebitOrder;
 use App\Models\DebitOrderInstallmentTarget;
 use App\Models\DebitOrderSplitLeg;
 use App\Models\DebitOrderSplitLegInstallment;
+use App\Models\DebitOrderSplitLegInstallmentPart;
 
 /**
  * Resolves a contract reference from ANY Collexia report/response
@@ -42,9 +43,11 @@ class CollexiaMandateLookupService
     private DebitOrderSplitLeg $splitLegs;
     private DebitOrderSplitLegInstallment $laneInstallments;
     private DebitOrderInstallmentTarget $installmentTargets;
+    private DebitOrderSplitLegInstallmentPart $laneParts;
 
     public function __construct()
     {
+        $this->laneParts = new DebitOrderSplitLegInstallmentPart();
         $this->debitOrders = new DebitOrder();
         $this->splitLegs = new DebitOrderSplitLeg();
         $this->laneInstallments = new DebitOrderSplitLegInstallment();
@@ -69,6 +72,18 @@ class CollexiaMandateLookupService
             }
         }
         return $this->installmentTargets->scheduleIdFor((int) $mandate['debit_order_id'], $installmentNo);
+    }
+
+    /**
+     * The schedule rows a COMBINED instalment settles (the original loan's and its top-ups'), or [] for an ordinary instalment -- one row,
+     * one loan, posted exactly as before. Needs the matched lane (leg_id) and Collexia's installment number.
+     */
+    public function partsFor(array $mandate, int $installmentNo): array
+    {
+        if (empty($mandate['leg_id'])) {
+            return [];
+        }
+        return $this->laneParts->forLaneInstallment((int) $mandate['leg_id'], $installmentNo);
     }
 
     /**
