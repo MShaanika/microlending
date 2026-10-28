@@ -1,21 +1,45 @@
 <?php use App\Core\Auth; ?>
 <?= flash_messages() ?>
 
-<div class="card mb-3 no-print">
+<?php
+  $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
+  $todayKey = date('Y-m-d');
+
+  // One mark per status. The bundled icon font is an old one, so only glyphs that exist in it are used here (a missing glyph draws nothing);
+  // the others are plain characters or CSS shapes.
+  $marks = [
+    'present' => '<i class="mdi mdi-check att-present"></i>',
+    'absent'  => '<i class="mdi mdi-close att-absent"></i>',
+    'half'    => '<span class="att-half">&frac12;</span>',
+    'leave'   => '<i class="mdi mdi-flag att-leave"></i>',
+    'holiday' => '<i class="mdi mdi-star att-holiday"></i>',
+    'dayoff'  => '<span class="att-dayoff">&#8856;</span>',
+    'pending' => '<span class="att-pending"></span>',
+    'future'  => '<span class="att-future">&ndash;</span>',
+  ];
+  $flagMarks = [
+    'late'     => '<i class="mdi mdi-clock-alert att-late" title="Late"></i>',
+    'early'    => '<i class="mdi mdi-arrow-left-bold att-early" title="Left early"></i>',
+    'overtime' => '<i class="mdi mdi-clock-fast att-overtime" title="Overtime"></i>',
+    'holiday'  => '<i class="mdi mdi-star att-holiday" title="Worked on a holiday"></i>',
+  ];
+?>
+
+<div class="card mb-3 no-print att-card">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
       <div>
         <h4 class="card-title mb-1">Attendance Report</h4>
-        <p class="text-muted small mb-0"><?= e(date('F Y', mktime(0, 0, 0, $month, 1, $year))) ?> &middot; <?= count($grid) ?> active employee<?= count($grid) === 1 ? '' : 's' ?></p>
+        <p class="text-muted small mb-0"><?= e($monthLabel) ?> &middot; <?= count($grid) ?> active employee<?= count($grid) === 1 ? '' : 's' ?></p>
       </div>
       <?php if (Auth::can('hrm.manage')): ?>
         <a href="<?= url('/hrm/attendance/create') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-plus"></i> Add Attendance</a>
       <?php endif; ?>
     </div>
 
-    <form method="get" action="<?= url('/hrm/attendance/report') ?>" class="row g-2 align-items-end mb-3">
+    <form method="get" action="<?= url('/hrm/attendance/report') ?>" class="row g-2 align-items-end">
       <div class="col-md-4">
-        <label class="form-label small mb-0">Employee</label>
+        <label class="form-label att-label mb-1">Employee</label>
         <select name="employee_id" class="form-select">
           <option value="">All Employees</option>
           <?php foreach ($allEmployees as $emp): ?>
@@ -23,87 +47,103 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-0">Month</label>
+      <div class="col-md-2">
+        <label class="form-label att-label mb-1">Month</label>
         <select name="month" class="form-select">
           <?php for ($m = 1; $m <= 12; $m++): ?>
             <option value="<?= $m ?>" <?= $m === $month ? 'selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
           <?php endfor; ?>
         </select>
       </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-0">Year</label>
+      <div class="col-md-2">
+        <label class="form-label att-label mb-1">Year</label>
         <select name="year" class="form-select">
           <?php for ($y = (int) date('Y') + 1; $y >= (int) date('Y') - 3; $y--): ?>
             <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>><?= $y ?></option>
           <?php endfor; ?>
         </select>
       </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-info w-100"><i class="mdi mdi-magnify"></i> Apply</button>
+      <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-success px-4"><i class="mdi mdi-magnify"></i> Apply</button>
+        <a href="<?= url('/hrm/attendance/report') ?>" class="btn btn-outline-secondary"><i class="mdi mdi-refresh"></i> Clear</a>
       </div>
     </form>
-
-    <div class="d-flex flex-wrap gap-3 small text-muted border-top pt-3">
-      <span><i class="mdi mdi-check-circle text-success"></i> Present</span>
-      <span><i class="mdi mdi-circle-half-full text-warning"></i> Half Day</span>
-      <span><i class="mdi mdi-close-circle text-danger"></i> Absent</span>
-      <span><i class="mdi mdi-flag text-primary"></i> On Leave</span>
-      <span><i class="mdi mdi-star text-info"></i> Holiday</span>
-      <span><i class="mdi mdi-minus-circle-outline text-muted"></i> Day Off</span>
-      <span><i class="mdi mdi-help-circle-outline text-muted"></i> Pending</span>
-      <span><i class="mdi mdi-clock-alert attendance-late"></i> Late</span>
-      <span><i class="mdi mdi-arrow-left-bold text-warning"></i> Left Early</span>
-      <span><i class="mdi mdi-clock-fast text-info"></i> Overtime</span>
-    </div>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-body">
+<div class="card att-card">
+  <div class="att-legend">
+    <div class="att-legend-title">Attendance report: <?= e($monthLabel) ?></div>
+    <div class="att-legend-items">
+      <span><?= $marks['present'] ?> Present</span>
+      <span><?= $marks['absent'] ?> Absent</span>
+      <span><?= $marks['half'] ?> Half day</span>
+      <span><?= $marks['leave'] ?> On leave</span>
+      <span><?= $marks['holiday'] ?> Holiday</span>
+      <span><?= $marks['dayoff'] ?> Day off</span>
+      <span><?= $marks['future'] ?> Future</span>
+      <span><?= $marks['pending'] ?> Pending</span>
+      <span><?= $flagMarks['late'] ?> Late</span>
+      <span><?= $flagMarks['early'] ?> Early</span>
+      <span><?= $flagMarks['overtime'] ?> Overtime</span>
+    </div>
+  </div>
+
+  <div class="card-body pt-2">
     <div class="table-responsive">
-      <table class="table table-bordered table-sm align-middle">
-        <thead class="table-light">
+      <table class="table table-sm align-middle att-grid">
+        <thead>
           <tr>
-            <th style="min-width: 180px;">Employee</th>
+            <th class="att-emp-col">Employee</th>
             <?php for ($d = 1; $d <= $daysInMonth; $d++): ?>
-              <th class="text-center"><?= $d ?></th>
+              <?php
+                $dayDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
+                $dow = (int) date('N', strtotime($dayDate));
+                $dayClass = ($dow >= 6 ? ' att-weekend' : '') . ($dayDate === $todayKey ? ' att-today' : '');
+              ?>
+              <th class="text-center att-day<?= $dayClass ?>"><span class="att-dnum"><?= $d ?></span><span class="att-dname"><?= strtoupper(date('D', strtotime($dayDate))) ?></span></th>
             <?php endfor; ?>
+            <th class="text-center att-total-col">Total</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($grid)): ?>
-            <tr><td colspan="<?= $daysInMonth + 1 ?>" class="text-center text-muted py-4">No active employees found.</td></tr>
+            <tr><td colspan="<?= $daysInMonth + 2 ?>" class="text-center text-muted py-4">No active employees found.</td></tr>
           <?php endif; ?>
           <?php foreach ($grid as $row): $emp = $row['employee']; ?>
+            <?php
+              // Total = days worked out of the days that were working days (not a day off or holiday); a half day counts as half.
+              $worked = 0.0;
+              $workingDays = 0;
+              foreach ($row['days'] as $c) {
+                  if (!in_array($c['code'], ['dayoff', 'holiday'], true)) {
+                      $workingDays++;
+                  }
+                  if ($c['code'] === 'present') {
+                      $worked += 1;
+                  } elseif ($c['code'] === 'half') {
+                      $worked += 0.5;
+                  }
+              }
+              $initials = strtoupper(mb_substr((string) $emp['first_name'], 0, 1) . mb_substr((string) $emp['last_name'], 0, 1));
+            ?>
             <tr>
-              <td>
-                <div class="fw-semibold"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></div>
-                <div class="text-muted small"><?= e($emp['employee_no']) ?></div>
+              <td class="att-emp-col">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="att-avatar"><?= e($initials) ?></span>
+                  <div>
+                    <div class="fw-semibold lh-sm"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></div>
+                    <div class="text-muted small lh-sm"><?= e($emp['designation_name'] ?? '') ?: e($emp['employee_no']) ?></div>
+                  </div>
+                </div>
               </td>
               <?php $dayNum = 0; foreach ($row['days'] as $cell): $dayNum++; ?>
                 <?php
-                  $icon = [
-                    'present' => 'mdi-check-circle text-success',
-                    'half' => 'mdi-circle-half-full text-warning',
-                    'absent' => 'mdi-close-circle text-danger',
-                    'leave' => 'mdi-flag text-primary',
-                    'holiday' => 'mdi-star text-info',
-                    'dayoff' => 'mdi-minus-circle-outline text-muted',
-                    'pending' => 'mdi-help-circle-outline text-muted',
-                    'future' => '',
-                  ][$cell['code']] ?? '';
-                  $flagIcon = [
-                    'late' => 'mdi-clock-alert attendance-late',
-                    'early' => 'mdi-arrow-left-bold text-warning',
-                    'overtime' => 'mdi-clock-fast text-info',
-                    'holiday' => 'mdi-star text-info',
-                  ];
                   $cellDate = sprintf('%04d-%02d-%02d', $year, $month, $dayNum);
-                  // A day with a recorded attendance row opens it for editing;
-                  // a still-blank past/today day opens Add Attendance
-                  // pre-filled for this employee + date -- clicking any cell
-                  // in the grid is the fast path into the same modal forms
+                  $dow = (int) date('N', strtotime($cellDate));
+                  $cellClass = ($dow >= 6 ? ' att-weekend' : '') . ($cellDate === $todayKey ? ' att-today' : '');
+                  // A day with a recorded attendance row opens it for editing; a still-blank past/today day opens Add Attendance
+                  // pre-filled for this employee + date -- clicking any cell in the grid is the fast path into the same modal forms
                   // /hrm/attendance/create and /edit already use elsewhere.
                   $editUrl = null;
                   if (Auth::can('hrm.manage')) {
@@ -114,14 +154,15 @@
                       }
                   }
                 ?>
-                <td class="text-center<?= $editUrl ? ' attendance-cell-editable' : '' ?>" title="<?= e($cell['title'] ?? '') ?>"
+                <td class="text-center att-cell<?= $cellClass ?><?= $editUrl ? ' attendance-cell-editable' : '' ?>" title="<?= e($cell['title'] ?? '') ?>"
                   <?php if ($editUrl): ?>data-modal-url="<?= $editUrl ?>" data-modal-title="<?= !empty($cell['record_id']) ? 'Edit Attendance' : 'Add Attendance' ?>" data-modal-size="lg" role="button"<?php endif; ?>>
-                  <?php if ($icon): ?><i class="mdi <?= $icon ?>"></i><?php endif; ?>
-                  <?php foreach (($cell['flags'] ?? []) as $flag): ?>
-                    <i class="mdi <?= $flagIcon[$flag] ?? '' ?>" style="font-size: 0.9rem;"></i>
-                  <?php endforeach; ?>
+                  <?= $marks[$cell['code']] ?? '' ?>
+                  <?php foreach (($cell['flags'] ?? []) as $flag): ?><?= $flagMarks[$flag] ?? '' ?><?php endforeach; ?>
                 </td>
               <?php endforeach; ?>
+              <td class="text-center att-total-col">
+                <span class="att-total"><?= e(rtrim(rtrim(number_format($worked, 1), '0'), '.')) ?></span><small class="text-muted"> /<?= (int) $workingDays ?></small>
+              </td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -131,8 +172,44 @@
 </div>
 
 <style>
+  .att-card .att-label { font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #6c757d; }
+
+  .att-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; padding: .85rem 1.25rem; background: #eef8f1; border-bottom: 1px solid #d7ecdd; border-radius: .35rem .35rem 0 0; }
+  .att-legend-title { font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #1f9d55; font-size: .85rem; }
+  .att-legend-items { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; font-size: .68rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #495057; }
+  .att-legend-items span { display: inline-flex; align-items: center; gap: .3rem; }
+
+  .att-grid { border-collapse: separate; border-spacing: 0; }
+  .att-grid thead th { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #495057; border-bottom: 1px solid #dee2e6; padding: .5rem .25rem; white-space: nowrap; }
+  .att-grid thead th::before, .att-grid thead th::after { display: none !important; } /* no sort arrows on the day columns */
+  .att-grid tbody td { border-bottom: 1px solid #f0f2f4; padding: .45rem .25rem; }
+  .att-emp-col { min-width: 230px; padding-left: .75rem !important; }
+  .att-day { min-width: 34px; }
+  .att-dnum { display: block; font-size: .8rem; color: #212529; }
+  .att-dname { display: block; font-size: .55rem; color: #adb5bd; font-weight: 600; }
+  .att-weekend { background: #fbf8ee; }
+  .att-today { box-shadow: inset 0 0 0 1px #20c997; }
+  .att-total-col { min-width: 70px; border-left: 1px solid #dee2e6; }
+  .att-total { color: #1f9d55; font-weight: 700; font-size: .95rem; }
+
+  .att-avatar { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #e3f4e8; color: #1f9d55; font-weight: 700; font-size: .72rem; flex: 0 0 34px; }
+
+  .att-cell { font-size: 1.05rem; line-height: 1; white-space: nowrap; }
+  .att-cell .mdi, .att-legend-items .mdi { font-size: 1.05rem; }
+  .att-present { color: #1f9d55; }
+  .att-absent { color: #e03131; }
+  .att-half { color: #f08c00; font-weight: 700; font-size: .95rem; }
+  .att-leave { color: #7048e8; }
+  .att-holiday { color: #f59f00; }
+  .att-dayoff { color: #868e96; font-weight: 700; }
+  .att-future { color: #adb5bd; }
+  .att-pending { display: inline-block; width: 13px; height: 13px; border: 1.5px dashed #868e96; border-radius: 50%; vertical-align: middle; }
+  /* Late is its own colour (orange) and shape (a clock) so it can never be mistaken for Absent (a red cross) */
+  .att-late { color: #e8590c; }
+  .att-early { color: #e03131; }
+  .att-overtime { color: #1c7ed6; }
+  .att-cell .att-late, .att-cell .att-early, .att-cell .att-overtime, .att-cell .att-holiday { font-size: .8rem !important; margin-left: 1px; }
+
   .attendance-cell-editable { cursor: pointer; }
-  /* Late is its own colour (orange) so it can never be mistaken for Absent (red circle with a cross) */
-  .attendance-late { color: #e8590c; }
   .attendance-cell-editable:hover { background-color: rgba(13, 110, 253, 0.08); }
 </style>
