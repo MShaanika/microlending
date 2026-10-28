@@ -337,6 +337,9 @@ class LoanController extends Controller
         $namfisaRate = $this->statutoryCharges->currentNamfisaLevyRate();
         $dutyStampAmount = $this->statutoryCharges->currentDutyStampAmount();
         $paymentDay = $_POST['payment_day'] !== '' ? (int) $_POST['payment_day'] : null;
+        // No duty stamp on a top-up: the original loan already carried it, so a top-up tranche is created without one (the NAMFISA levy on the new
+        // money still applies). The combined-interest calculation below keeps the single stamp the original loan was priced with.
+        $topupDutyStamp = $existingLoan ? 0.0 : $dutyStampAmount;
 
         // A Fixed Fee product's interest is a flat, non-refundable fee fully
         // earned at disbursement (see InterestAccrualService::recognizeUpfront()),
@@ -383,12 +386,9 @@ class LoanController extends Controller
                 $paymentDay,
                 $firstDueDate
             );
-            // Levy/duty stamp are calculated on just the new money, same as
-            // the independent (different-plan) branch below and the
-            // existing separate-child-loan path already do -- the client's
-            // spec only discusses interest, not statutory charges.
+            // The levy is calculated on just the new money, same as the independent (different-plan) branch below. No duty stamp on a top-up.
             $schedule['namfisa_levy'] = round($principal * ($namfisaRate / 100), 2);
-            $schedule['duty_stamp'] = round($dutyStampAmount, 2);
+            $schedule['duty_stamp'] = round($topupDutyStamp, 2);
         } else {
             $schedule = LoanScheduleService::generate(
                 $principal,
@@ -398,7 +398,7 @@ class LoanController extends Controller
                 $product['interest_method'],
                 $startDate,
                 $namfisaRate,
-                $dutyStampAmount,
+                $topupDutyStamp,
                 $paymentDay,
                 $firstDueDate
             );
