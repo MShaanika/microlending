@@ -6,6 +6,9 @@ use App\Core\Model;
 
 class Loan extends Model
 {
+    /** Statuses of a top-up child loan that has been released, i.e. one that counts as part of its original loan. */
+    private const RELEASED_TRANCHES = "('Active','Current','Released','Completed')";
+
     /**
      * "Arrear", "Bad Debt", and "Bad Debt Recovery" are pseudo-statuses for
      * the $status filter -- they are NOT loans.loan_status values (which
@@ -25,12 +28,21 @@ class Loan extends Model
      * "In Arrears" / bad-debt badge alongside the loan's normal status,
      * regardless of which filter is active.
      */
-    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null): array
+    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null, bool $groupTopups = false): array
     {
+        // $groupTopups (the Loans list only): a released top-up is shown inside its original loan, not as a row of its own, and the original's
+        // arrears flag and amounts cover its top-ups. Every other caller keeps one row per loan.
+        $tranches = self::RELEASED_TRANCHES;
+        $arrearsLoanScope = $groupTopups
+            ? "ls.loan_id IN (SELECT t.id FROM loans t WHERE t.id = l.id OR (t.topup_of_loan_id = l.id AND t.loan_status IN $tranches))"
+            : 'ls.loan_id = l.id';
         $sql = "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, p.product_name,
+                       " . ($groupTopups ? "(SELECT COUNT(*) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches) AS topup_count,
+                       l.principal_amount + COALESCE((SELECT SUM(c.principal_amount) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches), 0) AS combined_principal,
+                       l.installment_amount + COALESCE((SELECT SUM(c.installment_amount) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches), 0) AS combined_installment," : '') . "
                        EXISTS (
                            SELECT 1 FROM loan_schedules ls
-                           WHERE ls.loan_id = l.id AND ls.due_date <= CURDATE() AND ls.total_due > ls.total_paid
+                           WHERE $arrearsLoanScope AND ls.due_date <= CURDATE() AND ls.total_due > ls.total_paid
                        ) AS is_in_arrears,
                        (SELECT bd.status FROM bad_debts bd WHERE bd.loan_id = l.id ORDER BY bd.id DESC LIMIT 1) AS bad_debt_status
                 FROM loans l
@@ -38,6 +50,12 @@ class Loan extends Model
                 JOIN loan_products p ON p.id = l.product_id
                 WHERE 1=1";
         $params = [];
+
+        if ($groupTopups && $search === '') {
+            // hidden only while its original loan is itself open; searching by number still finds a top-up
+            $sql .= " AND NOT (l.topup_of_loan_id IS NOT NULL AND l.loan_status IN $tranches
+                      AND EXISTS (SELECT 1 FROM loans o WHERE o.id = l.topup_of_loan_id AND o.loan_status IN ('Active','Current','Released')))";
+        }
 
         if ($search !== '') {
             $sql .= " AND (l.loan_no LIKE ? OR b.first_name LIKE ? OR b.last_name LIKE ?)";
@@ -47,10 +65,13 @@ class Loan extends Model
 
         if ($status === 'Arrear') {
             // Same criteria as ArrearsService::overdueLoans().
+            $arrears2 = $groupTopups
+                ? "ls2.loan_id IN (SELECT t.id FROM loans t WHERE t.id = l.id OR (t.topup_of_loan_id = l.id AND t.loan_status IN $tranches))"
+                : 'ls2.loan_id = l.id';
             $sql .= " AND l.loan_status IN ('Active','Current','Released')
                       AND EXISTS (
                           SELECT 1 FROM loan_schedules ls2
-                          WHERE ls2.loan_id = l.id AND ls2.due_date <= CURDATE() AND ls2.total_due > ls2.total_paid
+                          WHERE $arrears2 AND ls2.due_date <= CURDATE() AND ls2.total_due > ls2.total_paid
                       )";
         } elseif ($status === 'Bad Debt') {
             $sql .= " AND EXISTS (SELECT 1 FROM bad_debts bd2 WHERE bd2.loan_id = l.id AND bd2.status IN ('Open','Provisioned'))";
@@ -347,6 +368,43 @@ class Loan extends Model
              JOIN borrowers b ON b.id = l.borrower_id
              WHERE l.topup_of_loan_id = ? ORDER BY l.id DESC",
             [$loanId]
+        );
+    }
+
+    /**
+     * The original loan plus its released top-ups, oldest first, each with what it was due and what has been paid -- the figures the
+     * combined view adds up. Nothing here is stored: every amount is read from the tranche's own schedule, so no ledger changes.
+     *
+     * @return array<int, array<string, mixed>> empty when the loan has no released top-ups
+     */
+    public function tranchesOf(int $loanId): array
+    {
+        $tranches = self::RELEASED_TRANCHES;
+        $rows = $this->all(
+            "SELECT l.id, l.loan_no, l.loan_status, l.topup_of_loan_id, l.principal_amount, l.interest_amount, l.admin_fee, l.total_payable,
+                    l.installment_amount, l.start_date, l.maturity_date,
+                    COALESCE((SELECT SUM(ls.total_due) FROM loan_schedules ls WHERE ls.loan_id = l.id), 0) AS schedule_due,
+                    COALESCE((SELECT SUM(ls.total_paid) FROM loan_schedules ls WHERE ls.loan_id = l.id), 0) AS schedule_paid
+             FROM loans l
+             WHERE l.id = ? OR (l.topup_of_loan_id = ? AND l.loan_status IN $tranches)
+             ORDER BY (l.id = ?) DESC, l.id",
+            [$loanId, $loanId, $loanId]
+        );
+        return count($rows) > 1 ? $rows : [];
+    }
+
+    /** Every installment of the given loans in one list: due date, then tranche. @param int[] $loanIds */
+    public function combinedSchedule(array $loanIds): array
+    {
+        if ($loanIds === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($loanIds), '?'));
+        return $this->all(
+            "SELECT ls.*, l.loan_no FROM loan_schedules ls JOIN loans l ON l.id = ls.loan_id
+             WHERE ls.loan_id IN ($in) AND NOT (ls.status = 'Paid' AND ls.total_due = ls.total_paid AND ls.total_due = 0)
+             ORDER BY ls.due_date, ls.loan_id, ls.installment_no",
+            array_values($loanIds)
         );
     }
 }

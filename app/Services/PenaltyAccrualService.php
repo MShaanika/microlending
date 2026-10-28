@@ -19,6 +19,8 @@ use App\Models\Penalty;
  * no next installment (the loan's last one was missed), the penalty lands
  * on that same row instead, since there's nowhere else to roll it.
  *
+ * A loan with an implemented reschedule is never penalized (see chargeableInstallments()).
+ *
  * Two further caps apply per loan, regardless of how many installments
  * are overdue:
  *  - At most one penalty per calendar month (a loan already penalized in
@@ -93,7 +95,12 @@ class PenaltyAccrualService
             $params[] = $loanId;
         }
 
+        // A loan that has been rescheduled carries no further penalties: the new plan replaces the old terms, so nothing on it is charged late.
         $sql .= " AND NOT EXISTS (
+                      SELECT 1 FROM loan_reschedules rs
+                      WHERE rs.loan_id = l.id AND rs.status = 'Implemented'
+                  )
+                  AND NOT EXISTS (
                       SELECT 1 FROM penalties p
                       WHERE p.schedule_id = ls.id AND p.status IN ('Charged', 'Paid')
                   )

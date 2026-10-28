@@ -67,7 +67,7 @@ class LoanController extends Controller
 
         $this->view('loans/index', [
             'title' => 'Loans',
-            'loans' => $this->loans->paginated($search, $status, 100, $branchId),
+            'loans' => $this->loans->paginated($search, $status, 100, $branchId, true),
             'search' => $search,
             'status' => $status,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
@@ -565,7 +565,18 @@ class LoanController extends Controller
             }
         }
 
+        // The original loan with its released top-ups, added up (read-only: every figure comes from the tranches' own schedules).
+        $tranches = $this->loans->tranchesOf((int) $id);
+        $combined = null;
+        if ($tranches !== []) {
+            $combined = [
+                'tranches' => $tranches,
+                'schedule' => $this->loans->combinedSchedule(array_map('intval', array_column($tranches, 'id'))),
+            ];
+        }
+
         $this->view('loans/show', [
+            'combined' => $combined,
             'title' => 'Loan ' . $loan['loan_no'],
             'loan' => $loan,
             'encrOffer' => $encrOffer,

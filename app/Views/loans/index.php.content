@@ -68,8 +68,16 @@
               <td><?= e($loan['loan_no']) ?></td>
               <td><?= e($loan['borrower_name']) ?></td>
               <td><?= e($loan['product_name']) ?></td>
-              <td><?= format_money($loan['principal_amount']) ?></td>
-              <td><?= format_money($loan['installment_amount']) ?></td>
+              <td>
+                <?php $topupCount = (int) ($loan['topup_count'] ?? 0); ?>
+                <?= format_money($topupCount > 0 ? $loan['combined_principal'] : $loan['principal_amount']) ?>
+                <?php if ($topupCount > 0): ?>
+                  <span class="badge bg-info" title="This loan has been topped up. The amount shown is the original loan plus its top-ups, combined."><?= $topupCount ?> top-up<?= $topupCount === 1 ? '' : 's' ?></span>
+                <?php elseif (!empty($loan['topup_of_loan_id'])): ?>
+                  <span class="badge bg-secondary" title="A top-up. Once released it is shown inside its original loan; it appears on its own here while it awaits release, or when you search for it.">top-up</span>
+                <?php endif; ?>
+              </td>
+              <td><?= format_money($topupCount > 0 ? $loan['combined_installment'] : $loan['installment_amount']) ?></td>
               <td><?= (int) $loan['term_months'] ?> mo</td>
               <td>
                 <span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span>

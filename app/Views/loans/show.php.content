@@ -106,7 +106,10 @@
 
         <?php if (!empty($originalLoan)): ?>
           <p class="mb-1"><i class="mdi mdi-arrow-up-bold-circle-outline text-info"></i> Top-up of loan
-            <a href="<?= url('/loans/' . $originalLoan['id']) ?>"><?= e($originalLoan['loan_no']) ?></a></p>
+            <a href="<?= url('/loans/' . $originalLoan['id']) ?>"><?= e($originalLoan['loan_no']) ?></a>
+            <?php if (in_array($loan['loan_status'], ['Active', 'Current', 'Completed'], true)): ?>
+              &middot; <a href="<?= url('/loans/' . $originalLoan['id'] . '#combined') ?>">view combined</a>
+            <?php endif; ?></p>
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
             <div class="alert alert-<?= $childTopupReversible ? 'warning' : 'secondary' ?> py-2 px-3 mb-2">
               <?php if ($childTopupReversible): ?>
@@ -281,6 +284,72 @@
         </div>
       </div>
     <?php endif; ?>
+
+<?php if (!empty($combined)): ?>
+<?php
+  $cTotalDue = array_sum(array_column($combined['tranches'], 'schedule_due'));
+  $cTotalPaid = array_sum(array_column($combined['tranches'], 'schedule_paid'));
+  $cPrincipal = array_sum(array_column($combined['tranches'], 'principal_amount'));
+  $cPayable = array_sum(array_column($combined['tranches'], 'total_payable'));
+  $cInstallment = array_sum(array_column($combined['tranches'], 'installment_amount'));
+?>
+<div class="card mb-3" id="combined">
+  <div class="card-body">
+    <h4 class="card-title"><i class="mdi mdi-layers-outline me-1"></i> Combined with top-ups</h4>
+    <p class="text-muted small">This loan and its top-ups, added together. Each part keeps its own schedule and accounting; nothing here changes them.</p>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle no-datatable">
+        <thead><tr><th>Loan</th><th>Status</th><th class="text-end">Principal</th><th class="text-end">Total payable</th><th class="text-end">Installment</th><th class="text-end">Collected</th><th class="text-end">Outstanding</th></tr></thead>
+        <tbody>
+          <?php foreach ($combined['tranches'] as $t): ?>
+            <tr>
+              <td><a href="<?= url('/loans/' . $t['id']) ?>"><?= e($t['loan_no']) ?></a><?= (int) $t['id'] === (int) $loan['id'] ? ' <span class="badge bg-secondary">this loan</span>' : ($t['topup_of_loan_id'] ? ' <span class="badge bg-info">top-up</span>' : '') ?></td>
+              <td><?= e($t['loan_status']) ?></td>
+              <td class="text-end"><?= format_money($t['principal_amount']) ?></td>
+              <td class="text-end"><?= format_money($t['total_payable']) ?></td>
+              <td class="text-end"><?= format_money($t['installment_amount']) ?></td>
+              <td class="text-end"><?= format_money($t['schedule_paid']) ?></td>
+              <td class="text-end"><?= format_money($t['schedule_due'] - $t['schedule_paid']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold"><td colspan="2">Combined</td><td class="text-end"><?= format_money($cPrincipal) ?></td><td class="text-end"><?= format_money($cPayable) ?></td><td class="text-end"><?= format_money($cInstallment) ?></td><td class="text-end"><?= format_money($cTotalPaid) ?></td><td class="text-end"><?= format_money($cTotalDue - $cTotalPaid) ?></td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <h6 class="mt-3">Combined repayment schedule</h6>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle no-datatable">
+        <thead><tr><th>Due date</th><th>Loan</th><th>#</th><th class="text-end">Due</th><th class="text-end">Paid</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php
+            $byDate = [];
+            foreach ($combined['schedule'] as $r) { $byDate[$r['due_date']][] = $r; }
+            ksort($byDate);
+          ?>
+          <?php foreach ($byDate as $date => $rows): ?>
+            <?php foreach ($rows as $r): ?>
+              <tr>
+                <td><?= e($date) ?></td>
+                <td><?= e($r['loan_no']) ?></td>
+                <td><?= (int) $r['installment_no'] ?></td>
+                <td class="text-end"><?= format_money($r['total_due']) ?></td>
+                <td class="text-end"><?= format_money($r['total_paid']) ?></td>
+                <td><?= e(schedule_status_label($r)) ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <?php if (count($rows) > 1): ?>
+              <tr class="table-light fw-semibold"><td colspan="3" class="text-end">Total due on <?= e($date) ?></td><td class="text-end"><?= format_money(array_sum(array_column($rows, 'total_due'))) ?></td><td class="text-end"><?= format_money(array_sum(array_column($rows, 'total_paid'))) ?></td><td></td></tr>
+            <?php endif; ?>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
     <div class="card">
       <div class="card-body">
