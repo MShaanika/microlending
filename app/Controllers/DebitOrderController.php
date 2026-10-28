@@ -476,10 +476,6 @@ class DebitOrderController extends Controller
             // collected on this same installment date.
             $outstanding = round((float) $row['outstanding'], 2);
             $parts = max(1, (int) ($_POST['split_counts'][$scheduleId] ?? 1));
-            if ($parts > 1 && count($row['parts'] ?? []) > 1) {
-                $errors['installments'] = 'The installment due ' . $row['due_date'] . ' combines a loan and its top-ups into one debit, so it cannot also be divided into splits.';
-                break;
-            }
             if ($parts > 10) {
                 $errors['installments'] = 'Installment #' . (int) $row['installment_no'] . ' can be split into at most 10 parts.';
                 break;
@@ -645,6 +641,12 @@ class DebitOrderController extends Controller
         }
         $this->assertBranchAccess($debitOrder);
 
+        if ($this->loans->tranchesOf((int) $debitOrder['loan_id'])) {
+            Session::flash('error', 'This loan has top-ups, so its debit order covers the original and its top-ups together. To change its splits, cancel it and register a new combined debit order with the splits you want.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
+
         if (empty($debitOrder['split_enabled'])) {
             Session::flash('error', 'This debit order was not registered as a split.');
             $this->redirect('/debit-orders/' . $id);
@@ -684,6 +686,12 @@ class DebitOrderController extends Controller
             return;
         }
         $this->assertBranchAccess($debitOrder);
+
+        if ($this->loans->tranchesOf((int) $debitOrder['loan_id'])) {
+            Session::flash('error', 'This loan has top-ups, so its debit order covers the original and its top-ups together. To change its splits, cancel it and register a new combined debit order with the splits you want.');
+            $this->redirect('/debit-orders/' . $id);
+            return;
+        }
 
         if (empty($debitOrder['split_enabled'])) {
             Session::flash('error', 'This debit order was not registered as a split.');
