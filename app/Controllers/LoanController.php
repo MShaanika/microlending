@@ -29,6 +29,7 @@ use App\Services\LoanStatementExcelExporter;
 use App\Services\LoanStatementPdfExporter;
 use App\Services\LoanStatementService;
 use App\Services\LoanTimelineService;
+use App\Services\CombinedLoanService;
 use App\Services\TopUpService;
 
 class LoanController extends Controller
@@ -565,15 +566,9 @@ class LoanController extends Controller
             }
         }
 
-        // The original loan with its released top-ups, added up (read-only: every figure comes from the tranches' own schedules).
-        $tranches = $this->loans->tranchesOf((int) $id);
-        $combined = null;
-        if ($tranches !== []) {
-            $combined = [
-                'tranches' => $tranches,
-                'schedule' => $this->loans->combinedSchedule(array_map('intval', array_column($tranches, 'id'))),
-            ];
-        }
+        // The original loan with its released top-ups as ONE loan: combined totals, one schedule, tranche breakdown (read-only).
+        $bundle = CombinedLoanService::forLoan($loan);
+        $combined = $bundle ? ['tranches' => $bundle['tranches'], 'schedule' => $bundle['schedule']] : null;
 
         $this->view('loans/show', [
             'combined' => $combined,
@@ -583,7 +578,7 @@ class LoanController extends Controller
             'outOfStep' => (new \App\Models\DebitOrder())->outOfStepForLoan((int) $id),
             'collectionCheck' => (new \App\Services\MandateCollectionCheck())->forLoan((int) $id),
             'disbursement' => $this->loans->activeDisbursement((int) $id),
-            'schedule' => $this->loans->schedule((int) $id),
+            'schedule' => $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id),
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
             'originalLoan' => $originalLoan,
             'topups' => $this->loans->topupsOf((int) $id),
@@ -712,15 +707,26 @@ class LoanController extends Controller
             return;
         }
         $this->assertBranchAccess($loan);
+        $statement = $this->statementData($loan);
 
         $this->view('loans/statement', [
             'title' => 'Statement - ' . $loan['loan_no'],
-            'loan' => $loan,
-            'schedule' => $this->loans->schedule((int) $id),
+            'loan' => $statement['loan'],
+            'schedule' => $statement['schedule'],
             'borrower' => $this->borrowers->find((int) $loan['borrower_id']),
             'company' => $this->companies->primary(),
-            'ledger' => LoanStatementService::ledger((int) $id),
+            'ledger' => $statement['ledger'],
         ]);
+    }
+
+    /** What every statement output prints: this loan alone, or -- when it has released top-ups -- the original and its top-ups as one loan. */
+    private function statementData(array $loan): array
+    {
+        $bundle = CombinedLoanService::forLoan($loan);
+        if ($bundle) {
+            return ['loan' => $bundle['loan'], 'schedule' => $bundle['schedule'], 'ledger' => $bundle['ledger']];
+        }
+        return ['loan' => $loan, 'schedule' => $this->loans->schedule((int) $loan['id']), 'ledger' => LoanStatementService::ledger((int) $loan['id'])];
     }
 
     public function statementExcel(string $id): void
@@ -736,11 +742,10 @@ class LoanController extends Controller
         $this->assertBranchAccess($loan);
 
         $borrower = $this->borrowers->find((int) $loan['borrower_id']);
-        $schedule = $this->loans->schedule((int) $id);
-        $ledger = LoanStatementService::ledger((int) $id);
+        $statement = $this->statementData($loan);
         $company = $this->companies->primary();
 
-        $spreadsheet = LoanStatementExcelExporter::build($loan, $borrower, $schedule, $ledger, $company);
+        $spreadsheet = LoanStatementExcelExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -767,8 +772,7 @@ class LoanController extends Controller
         $this->assertBranchAccess($loan);
 
         $borrower = $this->borrowers->find((int) $loan['borrower_id']);
-        $schedule = $this->loans->schedule((int) $id);
-        $ledger = LoanStatementService::ledger((int) $id);
+        $statement = $this->statementData($loan);
         $company = $this->companies->primary();
 
         // Dompdf can echo PHP deprecation notices (a version mismatch in
@@ -777,7 +781,7 @@ class LoanController extends Controller
         // response and corrupts it with "headers already sent" -- don't
         // rely on php.ini's output_buffering already being on.
         ob_start();
-        $pdf = LoanStatementPdfExporter::build($loan, $borrower, $schedule, $ledger, $company);
+        $pdf = LoanStatementPdfExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -824,10 +828,9 @@ class LoanController extends Controller
 
         $borrower = $this->borrowers->find((int) $loan['borrower_id']);
         $company = $this->companies->primary();
-        $schedule = $this->loans->schedule($id);
-        $ledger = LoanStatementService::ledger($id);
+        $statement = $this->statementData($loan);
 
-        $pdf = LoanStatementPdfExporter::build($loan, $borrower, $schedule, $ledger, $company);
+        $pdf = LoanStatementPdfExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company);
         $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $loan['loan_no']) . '.pdf';
 
         $result = EmailSenderService::send(

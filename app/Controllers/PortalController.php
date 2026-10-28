@@ -68,7 +68,7 @@ class PortalController extends Controller
 
         $this->view('portal/loans/index', [
             'title' => 'My Loans',
-            'loans' => $this->loans->forBorrower($borrowerId),
+            'loans' => $this->loans->forBorrower($borrowerId, true),
         ]);
     }
 
@@ -83,10 +83,13 @@ class PortalController extends Controller
             $this->redirect('/portal/loans');
         }
 
+        // an original loan with released top-ups reads as one loan (combined figures and one schedule)
+        $bundle = \App\Services\CombinedLoanService::forLoan($loan, $this->loans);
+
         $this->view('portal/loans/show', [
             'title' => 'Loan ' . $loan['loan_no'],
-            'loan' => $loan,
-            'schedule' => $this->loans->schedule((int) $id),
+            'loan' => $bundle ? $bundle['loan'] : $loan,
+            'schedule' => $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id),
         ]);
     }
 
@@ -106,13 +109,15 @@ class PortalController extends Controller
             $this->redirect('/portal/loans');
         }
 
+        $bundle = \App\Services\CombinedLoanService::forLoan($loan, $this->loans);
+
         $this->view('portal/loans/invoice', [
             'title' => 'Invoice - ' . $loan['loan_no'],
-            'loan' => $loan,
-            'schedule' => $this->loans->schedule((int) $id),
+            'loan' => $bundle ? $bundle['loan'] : $loan,
+            'schedule' => $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id),
             'borrower' => $this->borrowers->find($borrowerId),
             'company' => $this->companies->primary(),
-            'ledger' => LoanStatementService::ledger((int) $id),
+            'ledger' => $bundle ? $bundle['ledger'] : LoanStatementService::ledger((int) $id),
         ]);
     }
 
@@ -129,11 +134,12 @@ class PortalController extends Controller
         }
 
         $borrower = $this->borrowers->find($borrowerId);
-        $schedule = $this->loans->schedule((int) $id);
-        $ledger = LoanStatementService::ledger((int) $id);
+        $bundle = \App\Services\CombinedLoanService::forLoan($loan, $this->loans);
+        $schedule = $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id);
+        $ledger = $bundle ? $bundle['ledger'] : LoanStatementService::ledger((int) $id);
         $company = $this->companies->primary();
 
-        $spreadsheet = LoanStatementExcelExporter::build($loan, $borrower, $schedule, $ledger, $company);
+        $spreadsheet = LoanStatementExcelExporter::build($bundle ? $bundle['loan'] : $loan, $borrower, $schedule, $ledger, $company);
 
         while (ob_get_level() > 0) {
             ob_end_clean();

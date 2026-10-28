@@ -278,8 +278,23 @@ class Loan extends Model
      * Borrower-scoped variants for the self-service portal — every query
      * filters by borrower_id so a borrower can never see another's loan.
      */
-    public function forBorrower(int $borrowerId): array
+    public function forBorrower(int $borrowerId, bool $groupTopups = false): array
     {
+        if ($groupTopups) {
+            // the borrower portal: a released top-up is part of its original loan, which shows the combined principal
+            $tranches = self::RELEASED_TRANCHES;
+            return $this->all(
+                "SELECT l.*, p.product_name,
+                        l.principal_amount + COALESCE((SELECT SUM(c.principal_amount) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches), 0) AS principal_amount
+                 FROM loans l
+                 JOIN loan_products p ON p.id = l.product_id
+                 WHERE l.borrower_id = ?
+                   AND NOT (l.topup_of_loan_id IS NOT NULL AND l.loan_status IN $tranches
+                            AND EXISTS (SELECT 1 FROM loans o WHERE o.id = l.topup_of_loan_id AND o.loan_status IN ('Active','Current','Released')))
+                 ORDER BY l.id DESC",
+                [$borrowerId]
+            );
+        }
         return $this->all(
             "SELECT l.*, p.product_name FROM loans l
              JOIN loan_products p ON p.id = l.product_id
