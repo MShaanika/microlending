@@ -39,7 +39,9 @@ class Loan extends Model
         $sql = "SELECT l.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, p.product_name,
                        " . ($groupTopups ? "(SELECT COUNT(*) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches) AS topup_count,
                        l.principal_amount + COALESCE((SELECT SUM(c.principal_amount) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches), 0) AS combined_principal,
-                       l.installment_amount + COALESCE((SELECT SUM(c.installment_amount) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches), 0) AS combined_installment," : '') . "
+                       (CASE WHEN EXISTS (SELECT 1 FROM loan_schedules o WHERE o.loan_id = l.id AND o.total_due > o.total_paid) THEN l.installment_amount ELSE 0 END)
+                         + COALESCE((SELECT SUM(c.installment_amount) FROM loans c WHERE c.topup_of_loan_id = l.id AND c.loan_status IN $tranches
+                                       AND EXISTS (SELECT 1 FROM loan_schedules cs WHERE cs.loan_id = c.id AND cs.total_due > cs.total_paid)), 0) AS combined_installment," : '') . "
                        EXISTS (
                            SELECT 1 FROM loan_schedules ls
                            WHERE $arrearsLoanScope AND ls.due_date <= CURDATE() AND ls.total_due > ls.total_paid

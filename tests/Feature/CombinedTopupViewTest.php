@@ -88,6 +88,7 @@ class CombinedTopupViewTest extends TestCase
         $row = $grouped[array_search($parent, $ids, true)];
         $this->assertSame(1, (int) $row['topup_count']);
         $this->assertSame(4000.0, (float) $row['combined_principal']);
+        $this->assertSame(2000.0, (float) $row['combined_installment'], 'both parts still being paid: their instalments add up');
         $this->assertSame(1, (int) $row['is_in_arrears'], 'the original shows the top-up\'s arrears');
 
         $arrear = array_map('intval', array_column($loans->paginated('', 'Arrear', 5000, null, true), 'id'));

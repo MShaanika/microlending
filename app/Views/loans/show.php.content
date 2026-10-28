@@ -22,6 +22,33 @@
   };
   $totalPaid = array_sum(array_column($schedule, 'total_paid'));
   $totalDue = array_sum(array_column($schedule, 'total_due'));
+
+  // A loan with released top-ups reads as ONE loan: the headline figures below add the original and its top-ups together.
+  $isCombined = !empty($combined);
+  $headPrincipal = (float) $loan['principal_amount'];
+  $headInterest = (float) $loan['interest_amount'];
+  $headFee = (float) $loan['admin_fee'];
+  $headPayable = (float) $loan['total_payable'];
+  $headInstallment = (float) $loan['installment_amount'];
+  $headMaturity = $loan['maturity_date'];
+  if ($isCombined) {
+      $headPrincipal = $headInterest = $headFee = $headPayable = $headInstallment = 0.0;
+      foreach ($combined['tranches'] as $tr) {
+          $headPrincipal += (float) $tr['principal_amount'];
+          $headInterest += (float) $tr['interest_amount'];
+          $headFee += (float) $tr['admin_fee'];
+          $headPayable += (float) $tr['total_payable'];
+          // the monthly instalment is what is still being paid: a finished part no longer adds to it
+          if (round((float) $tr['schedule_due'] - (float) $tr['schedule_paid'], 2) > 0) {
+              $headInstallment += (float) $tr['installment_amount'];
+          }
+          if (strcmp((string) $tr['maturity_date'], (string) $headMaturity) > 0) {
+              $headMaturity = $tr['maturity_date'];
+          }
+      }
+      $totalPaid = array_sum(array_column($combined['tranches'], 'schedule_paid'));
+      $totalDue = array_sum(array_column($combined['tranches'], 'schedule_due'));
+  }
 ?>
 
 <?php if (!empty($outOfStep)): ?>
@@ -68,23 +95,27 @@
         <?php endif; ?>
 
         <p class="mb-1"><strong>Borrower:</strong> <a href="<?= url('/borrowers/' . $loan['borrower_id']) ?>"><?= e($loan['borrower_name']) ?></a></p>
-        <p class="mb-1"><strong>Amount Borrowed:</strong> <?= format_money($loan['principal_amount']) ?></p>
-        <?php if ($namfisaLevy > 0): ?>
+        <?php if ($isCombined): ?>
+          <p class="mb-2"><span class="badge bg-info"><i class="mdi mdi-layers-outline"></i> Combined with <?= count($combined['tranches']) - 1 ?> top-up<?= count($combined['tranches']) - 1 === 1 ? '' : 's' ?></span>
+            <a href="#combined" class="small">see the breakdown</a></p>
+        <?php endif; ?>
+        <p class="mb-1"><strong>Amount Borrowed:</strong> <?= format_money($headPrincipal) ?></p>
+        <?php if ($namfisaLevy > 0 && !$isCombined): ?>
           <p class="mb-1 ps-3 text-muted small">+ NAMFISA Levy: <?= format_money($namfisaLevy) ?></p>
         <?php endif; ?>
-        <?php if ($dutyStamp > 0): ?>
+        <?php if ($dutyStamp > 0 && !$isCombined): ?>
           <p class="mb-1 ps-3 text-muted small">+ Duty Stamp: <?= format_money($dutyStamp) ?></p>
         <?php endif; ?>
-        <?php if ($namfisaLevy > 0 || $dutyStamp > 0): ?>
+        <?php if (($namfisaLevy > 0 || $dutyStamp > 0) && !$isCombined): ?>
           <p class="mb-1"><strong>Opening Principal Balance:</strong> <?= format_money($loan['principal_amount'] + $namfisaLevy + $dutyStamp) ?></p>
         <?php endif; ?>
-        <p class="mb-1"><strong>Interest (<?= e($loan['interest_method']) ?>):</strong> <?= format_money($loan['interest_amount']) ?></p>
-        <p class="mb-1"><strong>Admin Fee:</strong> <?= format_money($loan['admin_fee']) ?></p>
-        <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($loan['total_payable']) ?></p>
-        <p class="mb-1"><strong>Installment:</strong> <?= format_money($loan['installment_amount']) ?> / month</p>
+        <p class="mb-1"><strong>Interest (<?= e($loan['interest_method']) ?>):</strong> <?= format_money($headInterest) ?></p>
+        <p class="mb-1"><strong>Admin Fee:</strong> <?= format_money($headFee) ?></p>
+        <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($headPayable) ?></p>
+        <p class="mb-1"><strong>Installment:</strong> <?= format_money($headInstallment) ?> / month<?= $isCombined ? ' <span class="text-muted small">(all parts together)</span>' : '' ?></p>
         <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
         <p class="mb-1"><strong>Penalty Rate:</strong> <?= format_money($loan['penalty_rate']) ?>% per month (if overdue)</p>
-        <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
+        <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($headMaturity) ?></p>
         <?php
           $firstDueRow = null;
           foreach ($schedule as $scheduleRow) {

@@ -170,4 +170,19 @@ class RescheduleNumberingTest extends TestCase
         $this->assertSame('2026-11-05', $rows[0]['due_date'], 'installment 1 falls on the effective date itself, not a month later');
         $this->assertSame(['2026-11-05', '2026-12-30', '2027-01-30', '2027-02-28'], array_column($rows, 'due_date'), 'the rest follow on the payment day');
     }
+
+    public function testARescheduledLoanIsNeverPenalised(): void
+    {
+        $loanId = $this->makeLoan('Upfront');
+        $this->db->prepare('UPDATE loans SET penalty_rate = 5 WHERE id = ?')->execute([$loanId]);
+        $asOf = '2027-04-20'; // installment 2 (due 2027-03-30) is more than the grace days overdue
+
+        $before = array_column(\App\Services\PenaltyAccrualService::chargeableInstallments($asOf, $loanId), 'loan_id');
+        $this->assertSame([$loanId], array_map('intval', $before), 'an overdue loan with no reschedule is chargeable');
+
+        $reschedule = $this->approvedReschedule($loanId, []);
+        $this->db->prepare("UPDATE loan_reschedules SET status = 'Implemented' WHERE id = ?")->execute([$reschedule['id']]);
+
+        $this->assertSame([], \App\Services\PenaltyAccrualService::chargeableInstallments($asOf, $loanId), 'once rescheduled, no penalty is charged');
+    }
 }
