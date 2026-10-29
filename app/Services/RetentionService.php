@@ -67,9 +67,35 @@ class RetentionService
         $deleted = 0;
         if ($delete && !empty($deletableIds)) {
             $placeholders = implode(',', array_fill(0, count($deletableIds), '?'));
-            $stmt = $db->prepare("DELETE FROM `$table` WHERE id IN ($placeholders)");
-            $stmt->execute($deletableIds);
-            $deleted = $stmt->rowCount();
+            $ownTransaction = !$db->inTransaction();
+            if ($ownTransaction) {
+                $db->beginTransaction();
+            }
+            try {
+                // A purged credit report keeps its audit row (who/when/outcome); purged_at on it is what lets the screen say
+                // "report content has been purged" instead of showing nothing. Read the parents before the content is gone.
+                $parentIds = [];
+                if ($table === 'creditinfo_report_content') {
+                    $parents = $db->prepare("SELECT report_cache_id FROM `$table` WHERE id IN ($placeholders)");
+                    $parents->execute($deletableIds);
+                    $parentIds = $parents->fetchAll(\PDO::FETCH_COLUMN);
+                }
+                $stmt = $db->prepare("DELETE FROM `$table` WHERE id IN ($placeholders)");
+                $stmt->execute($deletableIds);
+                $deleted = $stmt->rowCount();
+                if ($parentIds) {
+                    $in = implode(',', array_fill(0, count($parentIds), '?'));
+                    $db->prepare("UPDATE creditinfo_report_cache SET purged_at = NOW() WHERE id IN ($in) AND purged_at IS NULL")->execute($parentIds);
+                }
+                if ($ownTransaction) {
+                    $db->commit();
+                }
+            } catch (\Throwable $e) {
+                if ($ownTransaction && $db->inTransaction()) {
+                    $db->rollBack();
+                }
+                throw $e;
+            }
         }
 
         return [
