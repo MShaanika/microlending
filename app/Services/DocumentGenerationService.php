@@ -42,6 +42,16 @@ class DocumentGenerationService
 
         $processor = new TemplateProcessor($templatePath);
 
+        // A ${signature} field is the applicant's own signature image, saved with their application, when there is one.
+        if (array_key_exists('signature', $resolved['values']) && !empty($document['application_id'])) {
+            $application = (new \App\Models\LoanApplication())->find((int) $document['application_id']);
+            $signature = $application ? ApplicationPdfFillService::signatureFile($application, 'Signature - Borrower') : null;
+            if ($signature !== null) {
+                $processor->setImageValue('signature', ['path' => $signature, 'width' => 150, 'height' => 50, 'ratio' => false]);
+                unset($resolved['values']['signature']);
+            }
+        }
+
         foreach ($resolved['values'] as $key => $value) {
             $processor->setValue($key, htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'));
         }

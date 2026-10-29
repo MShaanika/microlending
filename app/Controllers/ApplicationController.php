@@ -17,6 +17,7 @@ use App\Models\LoanApplicationScreening;
 use App\Services\AiBankStatementAnalyzer;
 use App\Services\BankStatementKeywordCategorizer;
 use App\Services\BorrowerBankStatementCsvParser;
+use App\Services\ApplicationPdfFillService;
 use App\Services\DocumentGenerationService;
 use App\Services\TemplatedSmsService;
 
@@ -870,9 +871,20 @@ class ApplicationController extends Controller
         $document = $this->documents->find($documentId);
 
         try {
-            $filePath = DocumentGenerationService::generate($document);
+            // The Affordability Assessment and the Loan Agreement are filled onto the official PDF forms with everything the applicant
+            // submitted (and their signatures); the Consent Form and the rest are Word templates.
+            $filePath = match ($templateCode) {
+                'APPLICATION_AFFORDABILITY' => ApplicationPdfFillService::affordability($application, $document['document_no']),
+                'APPLICATION_LOAN_AGREEMENT' => ApplicationPdfFillService::loanAgreement($application, $document['document_no']),
+                default => DocumentGenerationService::generate($document),
+            };
         } catch (\RuntimeException $e) {
             Session::flash('error', $e->getMessage());
+            $this->redirect('/applications/' . $id);
+            return;
+        } catch (\Throwable $e) {
+            error_log('Application document generation failed: ' . $e->getMessage());
+            Session::flash('error', 'The document could not be generated. Please try again, or tell the administrator.');
             $this->redirect('/applications/' . $id);
             return;
         }
@@ -880,7 +892,7 @@ class ApplicationController extends Controller
         $this->documents->markFulfilled($documentId, $filePath, Auth::user()['id'] ?? null);
 
         $fullPath = STORAGE_PATH . '/' . $filePath;
-        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        header('Content-Type: ' . (str_ends_with($fullPath, '.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
         header('Content-Disposition: attachment; filename="' . basename($fullPath) . '"');
         header('Content-Length: ' . filesize($fullPath));
         readfile($fullPath);
