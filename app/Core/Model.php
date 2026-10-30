@@ -8,9 +8,27 @@ class Model
 
     public function __construct() { $this->db = Database::connection(); }
 
+    /**
+     * prepare(), but if the connection was dropped while this model sat idle (a long AI / bank / bureau call between two queries can outlast
+     * MySQL's wait_timeout -- "MySQL server has gone away"), it reconnects and prepares again once. Never inside a transaction: that
+     * transaction died with the connection, so the error is real and is raised.
+     */
+    protected function prepareStatement(string $sql): \PDOStatement
+    {
+        try {
+            return $this->db->prepare($sql);
+        } catch (\PDOException $e) {
+            if (!Database::isGoneAway($e) || $this->db->inTransaction()) {
+                throw $e;
+            }
+            $this->db = Database::reconnect();
+            return $this->db->prepare($sql);
+        }
+    }
+
     protected function query(string $sql, array $params = []): \PDOStatement
     {
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->prepareStatement($sql);
         $stmt->execute($params);
         return $stmt;
     }
@@ -41,7 +59,7 @@ class Model
             implode(', ', $columns),
             implode(', ', $placeholders)
         );
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->prepareStatement($sql);
         foreach ($data as $key => $value) {
             $stmt->bindValue(':' . $key, $value);
         }
@@ -54,7 +72,7 @@ class Model
         $columns = array_keys($data);
         $set = implode(', ', array_map(static fn ($c) => "$c = :$c", $columns));
         $sql = "UPDATE $table SET $set WHERE $whereColumn = :__where";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->prepareStatement($sql);
         foreach ($data as $key => $value) {
             $stmt->bindValue(':' . $key, $value);
         }
@@ -75,7 +93,7 @@ class Model
         $columns = array_keys($data);
         $set = implode(', ', array_map(static fn ($c) => "$c = :$c", $columns));
         $sql = "UPDATE $table SET $set WHERE id = :__id AND updated_at = :__expected";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->prepareStatement($sql);
         foreach ($data as $key => $value) {
             $stmt->bindValue(':' . $key, $value);
         }
@@ -96,6 +114,17 @@ class Model
      */
     public function transaction(callable $fn): mixed
     {
+        // a connection that died while idle is replaced before the transaction starts (never in the middle of one)
+        if (!$this->db->inTransaction()) {
+            try {
+                $this->db->query('SELECT 1');
+            } catch (\PDOException $e) {
+                if (!Database::isGoneAway($e)) {
+                    throw $e;
+                }
+                $this->db = Database::reconnect();
+            }
+        }
         $this->db->beginTransaction();
         try {
             $result = $fn($this->db);
