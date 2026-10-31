@@ -70,7 +70,7 @@ class ApplicationPdfFillService
     {
         $f = self::formData($application);
         $path = STORAGE_PATH . self::TEMPLATE_DIR . 'Standard_Loan_Agreement.pdf';
-        $pdf = new Fpdi();
+        $pdf = new FillablePdf();
         $pageCount = $pdf->setSourceFile($path);
 
         for ($i = 1; $i <= $pageCount; $i++) {
@@ -98,34 +98,35 @@ class ApplicationPdfFillService
         self::write($pdf, 15, 130, 'Solid Desert Cash loan Express cc');
         self::write($pdf, 100, 130, $f['firstname'] . ' ' . $f['lastname']);
 
-        // borrower's personal information
-        self::write($pdf, 52, 143, $f['postal_address']);
-        self::write($pdf, 143, 143, $f['contact_no']);
-        self::write($pdf, 130, 149.5, $f['email']);
-        self::write($pdf, 60, 156, $f['address']);
-        self::write($pdf, 52, 162.5, $f['marital_status']);
-        self::write($pdf, 120, 162.5, $f['id_number']);
-        self::write($pdf, 52, 169, $f['occupation']);
-        self::write($pdf, 135, 169, $f['company_tel']);
-        self::write($pdf, 54, 175, $f['company_name']);
-        self::write($pdf, 135, 175, $f['employer_address']);
-        self::write($pdf, 60, 182, $f['employee_number']);
-        self::write($pdf, 40, 189, $f['bank_name']);
-        self::write($pdf, 135, 189, $f['bank_branch']);
-        self::write($pdf, 60, 195, $f['account_number']);
-        self::write($pdf, 143, 195, $f['account_type']);
+        // borrower's personal information; the last number is the room (mm) before the printed line ends, longer entries shrink to fit
+        self::write($pdf, 52, 143, $f['postal_address'], 68);
+        self::write($pdf, 143, 143, $f['contact_no'], 36);
+        self::write($pdf, 130, 149.5, $f['email'], 49);
+        self::write($pdf, 60, 156, $f['address'], 118);
+        self::write($pdf, 52, 162.5, $f['marital_status'], 32);
+        self::write($pdf, 120, 162.5, $f['id_number'], 58);
+        self::write($pdf, 52, 169, $f['occupation'], 50);
+        self::write($pdf, 135, 169, $f['company_tel'], 43);
+        self::write($pdf, 54, 175, $f['company_name'], 68);
+        self::write($pdf, 135, 175, $f['employer_address'], 43);
+        self::write($pdf, 60, 182, $f['employee_number'], 40);
+        self::write($pdf, 40, 189, $f['bank_name'], 56);
+        self::write($pdf, 135, 189, $f['bank_branch'], 43);
+        self::write($pdf, 60, 195, $f['account_number'], 70);
+        self::write($pdf, 143, 195, $f['account_type'], 35);
 
         // references
-        self::write($pdf, 54, 208, $f['ref1_name']);
-        self::write($pdf, 130, 208, $f['ref1_tel']);
-        self::write($pdf, 54, 214, $f['ref2_name']);
-        self::write($pdf, 130, 214, $f['ref2_tel']);
+        self::write($pdf, 54, 208, $f['ref1_name'], 68);
+        self::write($pdf, 130, 208, $f['ref1_tel'], 49);
+        self::write($pdf, 54, 214, $f['ref2_name'], 68);
+        self::write($pdf, 130, 214, $f['ref2_tel'], 49);
 
-        // loan details
-        self::write($pdf, 35, 234, self::moneyText($f['loan_amount']));
-        self::write($pdf, 67, 244, self::moneyText($f['finance_charges_amount']));
-        self::write($pdf, 115, 234, self::moneyText($f['total_repayable']));
-        self::write($pdf, 150, 228, self::moneyText($f['installment_amount']));
+        // loan details: the form already prints "N$" in front of each of these blanks, so only the figure is written
+        self::write($pdf, 61.3, 225.3, self::rateText($f['finance_rate']));
+        self::write($pdf, 36.5, 234, self::amountText($f['loan_amount']));
+        self::write($pdf, 68, 244, self::amountText($f['finance_charges_amount']));
+        self::write($pdf, 116.5, 234, self::amountText($f['total_repayable']));
+        self::write($pdf, 150, 228, self::amountText($f['installment_amount']));
         self::write($pdf, 150, 237, $f['first_due_date']);
         self::write($pdf, 150, 245, $f['last_due_date']);
         self::write($pdf, 150, 253, $f['num_installments']);
@@ -150,7 +151,7 @@ class ApplicationPdfFillService
         $x = static fn (string ...$keys): string => self::firstFilled($extra, $keys);
         $col = static fn (string $key): string => trim((string) ($application[$key] ?? ''));
 
-        return [
+        return self::withLoanTerms([
             'firstname' => $col('applicant_first_name'),
             'lastname' => $col('applicant_last_name'),
             'id_number' => $col('applicant_id_number'),
@@ -161,7 +162,8 @@ class ApplicationPdfFillService
             'marital_status' => $x('marital_status'),
             'occupation' => $x('job_title', 'occupation'),
             'company_name' => $col('employer_name'),
-            'company_tel' => $x('company_tel'),
+            // The CPL mapping keeps the employer's number as employer_phone; older applications still carry company_tel
+            'company_tel' => $x('employer_phone', 'company_tel'),
             'employer_address' => $x('employer_address'),
             'employee_number' => $col('employee_no'),
             'bank_name' => $col('bank_name'),
@@ -191,6 +193,7 @@ class ApplicationPdfFillService
             'cell_phone' => $x('cell_phone'),
             'other_credit' => $x('other_credit'),
             'loan_amount' => $col('requested_amount'),
+            'finance_rate' => $x('finance_charges'),
             'finance_charges_amount' => $x('finance_charges_amount'),
             'total_repayable' => $x('total_repayable'),
             'installment_amount' => $x('installment_amount'),
@@ -201,7 +204,33 @@ class ApplicationPdfFillService
             'signing_day' => $x('signing_day'),
             'signing_month' => $x('signing_month'),
             'signing_year' => $x('signing_year'),
-        ];
+        ]);
+    }
+
+    /**
+     * Finance charges, total repayable and the instalment are worked out by the website form while the applicant types, and the intake
+     * did not always keep them. When they were not stored, work them out again with the form's own formula so the agreement still
+     * shows the terms the applicant saw: base = amount + 1.03% + N$5, interest = base x rate (30% unless the form sent another rate).
+     * Figures that were stored are never replaced.
+     */
+    private static function withLoanTerms(array $f): array
+    {
+        $amount = self::num($f['loan_amount']);
+        $months = (int) self::num($f['num_installments']);
+        if ($amount <= 0 || $months <= 0) {
+            return $f;
+        }
+
+        $rate = self::num($f['finance_rate']) > 0 ? self::num($f['finance_rate']) : 30.0;
+        $base = $amount + ($amount * 0.0103) + 5;
+        $interest = $base * ($rate / 100);
+        $total = $base + $interest;
+
+        $f['finance_rate'] = $f['finance_rate'] !== '' ? $f['finance_rate'] : rtrim(rtrim(number_format($rate, 2, '.', ''), '0'), '.');
+        $f['finance_charges_amount'] = $f['finance_charges_amount'] !== '' ? $f['finance_charges_amount'] : number_format($interest, 2, '.', '');
+        $f['total_repayable'] = $f['total_repayable'] !== '' ? $f['total_repayable'] : number_format($total, 2, '.', '');
+        $f['installment_amount'] = $f['installment_amount'] !== '' ? $f['installment_amount'] : number_format($total / $months, 2, '.', '');
+        return $f;
     }
 
     private static function firstFilled(array $extra, array $keys): string
@@ -217,7 +246,7 @@ class ApplicationPdfFillService
 
     private static function open(string $template, int $page): Fpdi
     {
-        $pdf = new Fpdi();
+        $pdf = new FillablePdf();
         $pdf->setSourceFile(STORAGE_PATH . self::TEMPLATE_DIR . $template);
         $pdf->AddPage();
         $pdf->useTemplate($pdf->importPage($page));
@@ -235,14 +264,23 @@ class ApplicationPdfFillService
         return 'generated_documents/' . $filename;
     }
 
-    private static function write(Fpdi $pdf, float $x, float $y, string $text): void
+    private static function write(Fpdi $pdf, float $x, float $y, string $text, ?float $maxWidth = null): void
     {
         if ($text === '') {
             return;
         }
-        $pdf->SetXY($x, $y);
         // FPDF's built-in fonts are Windows-1252, not UTF-8
-        $pdf->Write(0, (string) iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', $text));
+        $encoded = (string) iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', $text);
+        $size = $pdf->currentFontSize();
+        if ($maxWidth !== null) {
+            // shrink (never below 6pt) until the entry fits on its line, then put the size back for the next field
+            while ($pdf->currentFontSize() > 6 && $pdf->GetStringWidth($encoded) > $maxWidth) {
+                $pdf->SetFontSize($pdf->currentFontSize() - 0.5);
+            }
+        }
+        $pdf->SetXY($x, $y);
+        $pdf->Write(0, $encoded);
+        $pdf->SetFontSize($size);
     }
 
     private static function money(Fpdi $pdf, float $x, float $y, float $amount): void
@@ -250,9 +288,14 @@ class ApplicationPdfFillService
         self::write($pdf, $x, $y, 'N$ ' . number_format($amount, 2));
     }
 
-    private static function moneyText(string $value): string
+    private static function amountText(string $value): string
     {
-        return self::num($value) > 0 ? 'N$ ' . number_format(self::num($value), 2) : '';
+        return self::num($value) > 0 ? number_format(self::num($value), 2) : '';
+    }
+
+    private static function rateText(string $value): string
+    {
+        return self::num($value) > 0 ? rtrim(rtrim(number_format(self::num($value), 2, '.', ''), '0'), '.') : '';
     }
 
     private static function num(string $value): float

@@ -10,6 +10,7 @@ use App\Models\Branch;
 use App\Models\HrmEmployee;
 use App\Models\IntakeSource;
 use App\Models\LoanApplication;
+use App\Services\BlankPdfDetector;
 use App\Support\PhoneNumberNormalizer;
 
 /**
@@ -39,6 +40,7 @@ class ApplicationIntakeController extends Controller
     private const BANK_STATEMENT_EXTRA_MIMES = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'];
     private const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024; // 5MB
     private const MAX_SUBMISSIONS_PER_HOUR = 10;
+    private const LOAN_TERM_FIELDS = ['finance_charges', 'finance_charges_amount', 'total_repayable', 'installment_amount', 'first_due_date', 'last_due_date'];
 
     public function __construct()
     {
@@ -88,6 +90,19 @@ class ApplicationIntakeController extends Controller
         if (!empty($missing)) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Missing required field(s): ' . implode(', ', $missing)]);
+            return;
+        }
+        $extra = $this->withLoanTerms($_POST, $mappings, $extra);
+
+        // Refuse before anything is saved, so the applicant is told on the form and can upload the right file.
+        $blank = $this->blankBankStatements();
+        if (!empty($blank)) {
+            http_response_code(422);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'The bank statement you uploaded (' . implode(', ', $blank) . ') is blank: it has no text and no pictures. '
+                    . 'Please download your statement again from your bank\'s app or internet banking, check that it opens with your transactions, and upload it.',
+            ]);
             return;
         }
 
@@ -191,6 +206,44 @@ class ApplicationIntakeController extends Controller
         }
 
         return [$canonical, $extra, $missing];
+    }
+
+    /**
+     * The terms the applicant saw and accepted on the form (rate, finance charges, total repayable, instalment, due dates) are kept
+     * whether or not the source has a mapping row for them, because the loan agreement is filled from them. A mapping that exists
+     * still decides where its field goes.
+     *
+     * @param array<int, array<string, mixed>> $mappings
+     */
+    private function withLoanTerms(array $post, array $mappings, array $extra): array
+    {
+        $mapped = array_column($mappings, 'incoming_field_name');
+        foreach (self::LOAN_TERM_FIELDS as $field) {
+            if (in_array($field, $mapped, true)) {
+                continue;
+            }
+            $value = trim((string) ($post[$field] ?? ''));
+            if ($value !== '' && mb_strlen($value) <= 40) {
+                $extra[$field] = $value;
+            }
+        }
+        return $extra;
+    }
+
+    /** @return string[] Original file names of uploaded bank statement PDFs that contain nothing at all. */
+    private function blankBankStatements(): array
+    {
+        $blank = [];
+        foreach (['bank_statement_merged', 'bank_statement_1', 'bank_statement_2', 'bank_statement_3'] as $field) {
+            $file = $_FILES[$field] ?? null;
+            if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+                continue;
+            }
+            if (strtolower(pathinfo((string) $file['name'], PATHINFO_EXTENSION)) === 'pdf' && BlankPdfDetector::isBlank($file['tmp_name'])) {
+                $blank[] = basename((string) $file['name']);
+            }
+        }
+        return $blank;
     }
 
     /**

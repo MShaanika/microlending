@@ -114,6 +114,45 @@ class ApplicationPdfFillTest extends TestCase
         }
     }
 
+    public function testTheEmployersNumberIsReadFromEitherKeyTheIntakeUses(): void
+    {
+        $extra = json_decode((string) $this->application()['extra_data'], true);
+        unset($extra['company_tel']);
+        $extra['employer_phone'] = '+264 64 998877';
+        $this->db->prepare('UPDATE loan_applications SET extra_data = ? WHERE id = ?')->execute([json_encode($extra), $this->applicationId]);
+
+        $this->assertSame('+264 64 998877', ApplicationPdfFillService::formData($this->application())['company_tel']);
+        $this->assertStringContainsString('+264 64 998877', $this->text(ApplicationPdfFillService::loanAgreement($this->application(), 'DOC-PHPUNIT-E')));
+    }
+
+    public function testLoanTermsThatWereNeverStoredAreWorkedOutWithTheFormsOwnFormula(): void
+    {
+        $extra = json_decode((string) $this->application()['extra_data'], true);
+        unset($extra['finance_charges_amount'], $extra['total_repayable'], $extra['installment_amount']);
+        $this->db->prepare('UPDATE loan_applications SET extra_data = ? WHERE id = ?')->execute([json_encode($extra), $this->applicationId]);
+
+        // 3,000 -> base 3,000 + 1.03% + 5 = 3,035.90; 30% interest = 910.77; total 3,946.67; over 3 months = 1,315.56
+        $f = ApplicationPdfFillService::formData($this->application());
+        $this->assertSame('910.77', $f['finance_charges_amount']);
+        $this->assertSame('3946.67', $f['total_repayable']);
+        $this->assertSame('1315.56', $f['installment_amount']);
+        $this->assertSame('30', $f['finance_rate']);
+
+        $text = $this->text(ApplicationPdfFillService::loanAgreement($this->application(), 'DOC-PHPUNIT-W'));
+        foreach (['910.77', '3,946.67', '1,315.56'] as $value) {
+            $this->assertStringContainsString($value, $text, "worked-out term $value");
+        }
+        $this->assertStringNotContainsString('N$ N$', $text, 'the form already prints N$, so it is not written twice');
+    }
+
+    public function testStoredLoanTermsAreNeverReplacedByTheCalculation(): void
+    {
+        $f = ApplicationPdfFillService::formData($this->application());
+        $this->assertSame('900', $f['finance_charges_amount']);
+        $this->assertSame('3900', $f['total_repayable']);
+        $this->assertSame('1300', $f['installment_amount']);
+    }
+
     public function testSignaturesAreFoundAndNothingIsInventedWhenTheyAreMissing(): void
     {
         $app = $this->application();
