@@ -32,10 +32,28 @@
           </select>
         </div>
       <?php endif; ?>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+      <div class="col-md-2 col-6">
+        <label class="form-label small mb-0" for="app-from">Received from</label>
+        <input type="date" id="app-from" name="from" class="form-control" value="<?= e($dateFrom ?? '') ?>" max="<?= e(date('Y-m-d')) ?>">
+      </div>
+      <div class="col-md-2 col-6">
+        <label class="form-label small mb-0" for="app-to">to</label>
+        <input type="date" id="app-to" name="to" class="form-control" value="<?= e($dateTo ?? '') ?>" max="<?= e(date('Y-m-d')) ?>">
+      </div>
+      <div class="col-md-3 d-flex align-items-end gap-2">
+        <button class="btn btn-outline-secondary" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
+        <?php if (($dateFrom ?? '') !== '' || ($dateTo ?? '') !== '' || ($status ?? '') !== '' || !empty($selectedBranchId)): ?>
+          <a class="btn btn-link" href="<?= url('/applications') ?>">Clear</a>
+        <?php endif; ?>
       </div>
     </form>
+    <?php if (($dateFrom ?? '') !== '' || ($dateTo ?? '') !== ''): ?>
+      <p class="small text-muted">
+        <?= count($applications) ?> application(s) received
+        <?= ($dateFrom ?? '') !== '' ? 'from <strong>' . e(date('d M Y', strtotime($dateFrom))) . '</strong>' : 'up to' ?>
+        <?= ($dateTo ?? '') !== '' ? (($dateFrom ?? '') !== '' ? 'to' : '') . ' <strong>' . e(date('d M Y', strtotime($dateTo))) . '</strong>' : '' ?>.
+      </p>
+    <?php endif; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -46,7 +64,7 @@
         </thead>
         <tbody>
           <?php if (empty($applications)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4">No online applications yet.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><?= (($dateFrom ?? '') !== '' || ($dateTo ?? '') !== '') ? 'No applications were received in that period.' : 'No online applications yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($applications as $a): ?>
             <?php

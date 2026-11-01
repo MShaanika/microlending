@@ -14,7 +14,8 @@ class LoanApplication extends Model
      *  application nobody has attributed to a branch yet is still everyone's
      *  to triage, not stranded outside every branch's inbox.
      */
-    public function paginated(string $status = '', string $source = '', int $limit = 100, ?int $branchId = null): array
+    /** $from / $to are inclusive Y-m-d dates on the day the application was received; either may be null. */
+    public function paginated(string $status = '', string $source = '', int $limit = 100, ?int $branchId = null, ?string $from = null, ?string $to = null): array
     {
         $sql = "SELECT a.*, s.source_name, b.borrower_no, br.branch_name
                 FROM loan_applications a
@@ -37,6 +38,16 @@ class LoanApplication extends Model
         if ($branchId !== null) {
             $sql .= " AND (a.branch_id = ? OR a.branch_id IS NULL)";
             $params[] = $branchId;
+        }
+
+        if ($from !== null) {
+            $sql .= " AND a.created_at >= ?";
+            $params[] = $from . ' 00:00:00';
+        }
+
+        if ($to !== null) {
+            $sql .= " AND a.created_at < ?";
+            $params[] = date('Y-m-d', strtotime($to . ' +1 day')) . ' 00:00:00';
         }
 
         $sql .= " ORDER BY a.id DESC LIMIT " . (int) $limit;
