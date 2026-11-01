@@ -36,7 +36,8 @@ class RecruitmentJobPostingController extends Controller
     public function index(): void
     {
         Auth::authorize('recruitment.view');
-        $filters = ['status' => $_GET['status'] ?? null];
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
+        $filters = ['status' => $_GET['status'] ?? null, 'date_from' => $dateFrom, 'date_to' => $dateTo];
         $search = trim((string) ($_GET['q'] ?? ''));
         $sort = (string) ($_GET['sort'] ?? 'created_at');
         $dir = (string) ($_GET['dir'] ?? 'desc');

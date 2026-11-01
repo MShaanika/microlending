@@ -16,7 +16,7 @@
   <div class="card-body">
     <h4 class="card-title mb-3">Debit Orders</h4>
 
-    <form method="get" action="<?= url('/debit-orders') ?>" class="row g-2 mb-3 align-items-end">
+    <form method="get" data-list-filter action="<?= url('/debit-orders') ?>" class="row g-2 mb-3 align-items-end">
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
@@ -38,6 +38,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -98,6 +99,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

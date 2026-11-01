@@ -77,6 +77,24 @@ class ListFilter
         return $sql;
     }
 
+    /**
+     * For the HR lists, which build $where / $params arrays: adds the conditions for $filters['date_from'] / ['date_to'] (inclusive days) on $column.
+     * The column is trusted SQL written by the caller.
+     */
+    public static function dateWhere(string $column, array $filters, array &$where, array &$params): void
+    {
+        $from = $filters['date_from'] ?? null;
+        $to = $filters['date_to'] ?? null;
+        if ($from) {
+            $where[] = "$column >= ?";
+            $params[] = $from . ' 00:00:00';
+        }
+        if ($to) {
+            $where[] = "$column < ?";
+            $params[] = date('Y-m-d', strtotime($to . ' +1 day')) . ' 00:00:00';
+        }
+    }
+
     /** " AND col >= ? AND col <= ?" for an amount range; '' when none is set. */
     public static function amountSql(string $column, ?float $min, ?float $max, array &$params): string
     {

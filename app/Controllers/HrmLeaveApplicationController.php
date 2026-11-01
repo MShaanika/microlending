@@ -29,10 +29,13 @@ class HrmLeaveApplicationController extends Controller
     {
         Auth::authorize('hrm.view');
 
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'status' => $_GET['status'] ?? '',
             'search' => trim((string) ($_GET['q'] ?? '')),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'start_date');
         $dir = (string) ($_GET['dir'] ?? 'desc');
@@ -40,6 +43,11 @@ class HrmLeaveApplicationController extends Controller
         $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
 
         $result = $this->applications->paginated($filters, $sort, $dir, $page, $perPage);
+
+        if (($_GET['export'] ?? '') === 'csv') {
+            $exportRows = $this->applications->paginated($filters, $sort, $dir, 1, \App\Support\ListFilter::EXPORT_LIMIT)['rows'];
+            $this->exportList('Leave applications', 'leave_applications', ['Employee', 'Leave type', 'Start', 'End', 'Days', 'Status'], array_map(static fn ($r) => [$r['employee_name'], $r['leave_type_name'], $r['start_date'], $r['end_date'], $r['total_days'], $r['status']], $exportRows), $filters);
+        }
 
         $data = [
             'title' => 'Leave Applications',

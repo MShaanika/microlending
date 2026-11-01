@@ -4,7 +4,7 @@
   <div class="card-body">
     <h4 class="card-title mb-3">My Attendance</h4>
 
-    <form method="get" action="<?= url('/my/attendance') ?>" class="row g-2 mb-3">
+    <form method="get" data-list-filter action="<?= url('/my/attendance') ?>" class="row g-2 mb-3">
       <div class="col-md-3">
         <input type="date" name="date_from" class="form-control" value="<?= e($dateFrom) ?>" placeholder="From">
       </div>
@@ -12,10 +12,11 @@
         <input type="date" name="date_to" class="form-control" value="<?= e($dateTo) ?>" placeholder="To">
       </div>
       <div class="col-md-2">
-        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i> Filter</button>
+        <button type="submit" class="btn btn-outline-secondary w-100" data-list-submit><i class="mdi mdi-magnify"></i> Filter</button>
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -41,6 +42,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

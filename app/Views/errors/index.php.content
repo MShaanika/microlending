@@ -55,7 +55,7 @@
       <h4 class="card-title mb-0">All Errors</h4>
     </div>
 
-    <form method="get" action="<?= url('/errors') ?>" class="row g-2 mb-3">
+    <form method="get" data-list-filter action="<?= url('/errors') ?>" class="row g-2 mb-3">
       <div class="col-md-2">
         <select name="module" class="form-select">
           <option value="">All modules</option>
@@ -89,6 +89,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -138,6 +139,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
       <p class="text-muted small mb-0">Showing <?= count($errors['rows']) ?> of <?= $errors['total'] ?> result<?= $errors['total'] === 1 ? '' : 's' ?></p>
       <?= pagination_nav((int) ($_GET['page'] ?? 1), $errors['totalPages'], $_GET) ?>
+    </div>
     </div>
   </div>
 </div>

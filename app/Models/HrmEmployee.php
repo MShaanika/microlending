@@ -89,6 +89,7 @@ class HrmEmployee extends Model
             $term = '%' . $filters['search'] . '%';
             array_push($params, $term, $term, $term, $term);
         }
+        \App\Support\ListFilter::dateWhere('e.date_of_joining', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

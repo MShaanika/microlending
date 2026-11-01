@@ -8,7 +8,7 @@
     </div>
     <p class="text-muted small">Templates for automated repetitive transactions. A daily background job checks each template's Next Run date and, when it's due, posts a standard journal entry and advances the schedule.</p>
 
-    <form method="get" action="<?= url('/accounting/recurring-journals') ?>" class="row g-2 mb-3 no-print">
+    <form method="get" data-list-filter action="<?= url('/accounting/recurring-journals') ?>" class="row g-2 mb-3 no-print">
       <div class="col-md-3">
         <select name="status" class="form-select">
           <option value="">All Statuses</option>
@@ -22,6 +22,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-bordered no-datatable">
         <thead class="table-light">
@@ -80,6 +81,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

@@ -11,7 +11,7 @@
     </div>
     <p class="text-muted small">Manual one-off fixes: a single debit account and a single credit account per entry. Draft entries can still be edited; Posted entries can only be reversed.</p>
 
-    <form method="get" action="<?= url('/accounting/adjustment-journals') ?>" class="row g-2 mb-3 no-print">
+    <form method="get" data-list-filter action="<?= url('/accounting/adjustment-journals') ?>" class="row g-2 mb-3 no-print">
       <div class="col-md-2">
         <input type="date" name="from_date" class="form-control" value="<?= e($filters['from_date']) ?>">
       </div>
@@ -39,6 +39,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-bordered no-datatable">
         <thead class="table-light">
@@ -76,6 +77,7 @@
         </tfoot>
         <?php endif; ?>
       </table>
+    </div>
     </div>
   </div>
 </div>

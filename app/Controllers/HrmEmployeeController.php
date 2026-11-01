@@ -52,11 +52,14 @@ class HrmEmployeeController extends Controller
     {
         Auth::authorize('hrm.view');
 
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'branch_id' => $_GET['branch_id'] ?? '',
             'department_id' => $_GET['department_id'] ?? '',
             'status' => $_GET['status'] ?? '',
             'search' => trim($_GET['search'] ?? ''),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'id');
         $dir = (string) ($_GET['dir'] ?? 'desc');
@@ -64,6 +67,11 @@ class HrmEmployeeController extends Controller
         $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
 
         $result = $this->employees->paginated($filters, $sort, $dir, $page, $perPage);
+
+        if (($_GET['export'] ?? '') === 'csv') {
+            $exportRows = $this->employees->paginated($filters, $sort, $dir, 1, \App\Support\ListFilter::EXPORT_LIMIT)['rows'];
+            $this->exportList('Employees', 'employees', ['Employee no', 'Name', 'Department', 'Designation', 'Branch', 'Status'], array_map(static fn ($r) => [$r['employee_no'], trim($r['first_name'] . ' ' . $r['last_name']), $r['department_name'], $r['designation_name'], $r['branch_name'], $r['status']], $exportRows), $filters);
+        }
 
         $data = [
             'title' => 'Employees',

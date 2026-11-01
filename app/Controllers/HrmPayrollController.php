@@ -33,9 +33,12 @@ class HrmPayrollController extends Controller
     public function index(): void
     {
         Auth::authorize('hrm.view');
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'status' => $_GET['status'] ?? '',
             'search' => trim((string) ($_GET['q'] ?? '')),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'pay_period_start');
         $dir = (string) ($_GET['dir'] ?? 'desc');
@@ -43,6 +46,11 @@ class HrmPayrollController extends Controller
         $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
 
         $result = $this->payrolls->paginated($filters, $sort, $dir, $page, $perPage);
+
+        if (($_GET['export'] ?? '') === 'csv') {
+            $exportRows = $this->payrolls->paginated($filters, $sort, $dir, 1, \App\Support\ListFilter::EXPORT_LIMIT)['rows'];
+            $this->exportList('Payrolls', 'payrolls', ['Title', 'Period start', 'Period end', 'Frequency', 'Employees', 'Total net pay', 'Status'], array_map(static fn ($r) => [$r['title'], $r['pay_period_start'], $r['pay_period_end'], $r['payroll_frequency'], $r['employee_count'], number_format((float) $r['total_net_pay'], 2, '.', ''), $r['status']], $exportRows), $filters);
+        }
 
         $data = [
             'title' => 'Payroll',

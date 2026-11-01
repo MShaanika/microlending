@@ -76,6 +76,8 @@ class Training extends Model
             $params[] = $filters['department_id'];
         }
 
+        \App\Support\ListFilter::dateWhere('t.start_date', $filters, $where, $params);
+
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
         $total = (int) $this->scalar(
             "SELECT COUNT(*) FROM trainings t " . self::LOOKUP_JOINS . $whereSql,

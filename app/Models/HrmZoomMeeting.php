@@ -59,6 +59,7 @@ class HrmZoomMeeting extends Model
             $term = '%' . $filters['search'] . '%';
             array_push($params, $term, $term);
         }
+        \App\Support\ListFilter::dateWhere('m.start_time', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

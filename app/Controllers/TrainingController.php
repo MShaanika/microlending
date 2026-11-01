@@ -47,10 +47,13 @@ class TrainingController extends Controller
     public function index(): void
     {
         Auth::authorize('training.view');
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'status' => $_GET['status'] ?? null,
             'training_type_id' => $_GET['training_type_id'] ?? null,
             'department_id' => $_GET['department_id'] ?? null,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $search = trim((string) ($_GET['q'] ?? ''));
         $sort = (string) ($_GET['sort'] ?? 'start_date');

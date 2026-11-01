@@ -4,14 +4,16 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h4 class="card-title mb-0">Loan Write-Offs</h4>
-      <form method="get" class="d-flex gap-2">
-        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+      <form method="get" data-list-filter class="d-flex gap-2">
+        <select name="status" class="form-select form-select-sm">
           <option value="">All statuses</option>
           <?php foreach (['Pending','Approved','Posted','Rejected','Reversed'] as $s): ?>
             <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e($s) ?></option>
           <?php endforeach; ?>
         </select>
       </form>
+
+    <div data-list-results>
     </div>
 
     <p class="text-muted small">Write-offs are created from a bad debt record on the <a href="<?= url('/accounting/bad-debt-provisions') ?>">Bad Debt Provisioning</a> page once a loan is provisioned at 31+ days overdue.</p>
@@ -36,6 +38,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

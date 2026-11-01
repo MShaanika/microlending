@@ -47,6 +47,8 @@ class PerformanceEmployeeGoal extends Model
             $params[] = $filters['status'];
         }
 
+        \App\Support\ListFilter::dateWhere('g.start_date', $filters, $where, $params);
+
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
         $total = (int) $this->scalar(
             "SELECT COUNT(*) FROM performance_employee_goals g " . self::LOOKUP_JOINS . $whereSql,

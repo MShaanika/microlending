@@ -31,6 +31,7 @@ class HrmPayroll extends Model
             $where[] = 'p.title LIKE ?';
             $params[] = '%' . $filters['search'] . '%';
         }
+        \App\Support\ListFilter::dateWhere('p.pay_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

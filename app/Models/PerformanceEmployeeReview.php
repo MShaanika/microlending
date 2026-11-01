@@ -47,6 +47,8 @@ class PerformanceEmployeeReview extends Model
             $params[] = $filters['status'];
         }
 
+        \App\Support\ListFilter::dateWhere('r.review_date', $filters, $where, $params);
+
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
         $total = (int) $this->scalar(
             "SELECT COUNT(*) FROM performance_employee_reviews r " . self::LOOKUP_JOINS . $whereSql,

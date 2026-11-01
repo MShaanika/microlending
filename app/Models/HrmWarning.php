@@ -59,6 +59,7 @@ class HrmWarning extends Model
             $term = '%' . $filters['search'] . '%';
             array_push($params, $term, $term);
         }
+        \App\Support\ListFilter::dateWhere('w.warning_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

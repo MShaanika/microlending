@@ -39,10 +39,13 @@ class StaffLoanController extends Controller
     {
         Auth::authorize('hrm.view');
 
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'status' => $_GET['status'] ?? '',
             'search' => trim((string) ($_GET['q'] ?? '')),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'created_at');
         $dir = (string) ($_GET['dir'] ?? 'desc');
@@ -50,6 +53,11 @@ class StaffLoanController extends Controller
         $perPage = max(1, (int) ($_GET['per_page'] ?? 10));
 
         $result = $this->loans->paginated($filters, $sort, $dir, $page, $perPage);
+
+        if (($_GET['export'] ?? '') === 'csv') {
+            $exportRows = $this->loans->paginated($filters, $sort, $dir, 1, \App\Support\ListFilter::EXPORT_LIMIT)['rows'];
+            $this->exportList('Staff loans', 'staff_loans', ['Employee', 'Title', 'Type', 'Principal', 'Installment', 'Outstanding', 'Status'], array_map(static fn ($r) => [$r['employee_name'], $r['title'], $r['type_name'], number_format((float) $r['principal_amount'], 2, '.', ''), number_format((float) $r['installment_amount'], 2, '.', ''), number_format((float) $r['outstanding_balance'], 2, '.', ''), $r['status']], $exportRows), $filters);
+        }
 
         $data = [
             'title' => 'Staff Loans',

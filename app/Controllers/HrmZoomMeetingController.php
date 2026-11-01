@@ -33,9 +33,12 @@ class HrmZoomMeetingController extends Controller
     public function index(): void
     {
         Auth::authorize('hrm.view');
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'status' => $_GET['status'] ?? null,
             'search' => $_GET['search'] ?? null,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'start_time');
         $dir = (string) ($_GET['dir'] ?? 'desc');

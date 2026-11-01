@@ -9,22 +9,23 @@
       </a>
     </div>
 
-    <form method="get" class="row g-2 mb-3">
+    <form method="get" data-list-filter class="row g-2 mb-3">
       <div class="col-md-4">
         <input type="text" name="q" class="form-control" placeholder="Search name, username, email" value="<?= e($search) ?>">
       </div>
       <div class="col-md-3">
-        <select name="status" class="form-select" onchange="this.form.submit()">
+        <select name="status" class="form-select">
           <option value="">All statuses</option>
           <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>Active</option>
           <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>Inactive</option>
         </select>
       </div>
       <div class="col-md-2">
-        <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+        <button type="submit" class="btn btn-outline-secondary w-100" data-list-submit>Filter</button>
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Branch</th><th>Roles</th><th>Status</th><th class="text-end">Action</th></tr></thead>
@@ -62,6 +63,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

@@ -48,6 +48,7 @@ class RecruitmentJobPosting extends Model
             $like = '%' . $search . '%';
             array_push($params, $like, $like);
         }
+        \App\Support\ListFilter::dateWhere('j.publish_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar("SELECT COUNT(*) FROM recruitment_job_postings j" . $whereSql, $params);

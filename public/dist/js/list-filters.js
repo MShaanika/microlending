@@ -51,6 +51,17 @@
     }
   }
 
+  // sort links and the pager change sort / dir in the address: keep the form's hidden fields the same, so the next filter keeps the sort
+  function syncHidden(url) {
+    var query = new URLSearchParams(url.indexOf('?') >= 0 ? url.slice(url.indexOf('?') + 1) : '');
+    ['sort', 'dir'].forEach(function (name) {
+      var field = form.querySelector('input[type="hidden"][name="' + name + '"]');
+      if (field && query.has(name)) {
+        field.value = query.get(name);
+      }
+    });
+  }
+
   function afterSwap() {
     if (typeof window.feather !== 'undefined') {
       window.feather.replace();
@@ -94,6 +105,7 @@
         }
         results.innerHTML = fresh.innerHTML;
         window.history.replaceState(null, '', url);
+        syncHidden(url);
         afterSwap();
       })
       .catch(function (error) {
@@ -147,12 +159,13 @@
 
   // page links inside the refreshed region stay in the region
   results.addEventListener('click', function (event) {
-    var link = event.target.closest('a.page-link, a[data-list-page]');
+    var link = event.target.closest('a.page-link, a[data-list-page], .pagination a, thead th > a');
     if (!link || !link.getAttribute('href') || link.getAttribute('href').charAt(0) === '#') {
       return;
     }
     event.preventDefault();
-    load(link.getAttribute('href'));
+    var href = link.getAttribute('href');
+    load(href.charAt(0) === '?' ? path + href : href);
   });
 
   syncLinks(currentParams());

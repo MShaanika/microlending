@@ -41,6 +41,7 @@ class HrmDeduction extends Model
             $term = '%' . $filters['search'] . '%';
             array_push($params, $term, $term, $term);
         }
+        \App\Support\ListFilter::dateWhere('d.created_at', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

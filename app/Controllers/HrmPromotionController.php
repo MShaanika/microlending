@@ -34,10 +34,13 @@ class HrmPromotionController extends Controller
     {
         Auth::authorize('hrm.view');
 
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'status' => $_GET['status'] ?? '',
             'search' => trim((string) ($_GET['q'] ?? '')),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'effective_date');
         $dir = (string) ($_GET['dir'] ?? 'desc');

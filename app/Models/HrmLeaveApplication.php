@@ -59,6 +59,7 @@ class HrmLeaveApplication extends Model
             $where[] = 'a.reason LIKE ?';
             $params[] = '%' . $filters['search'] . '%';
         }
+        \App\Support\ListFilter::dateWhere('a.start_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

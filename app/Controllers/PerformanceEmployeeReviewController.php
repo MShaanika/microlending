@@ -36,10 +36,13 @@ class PerformanceEmployeeReviewController extends Controller
     {
         Auth::authorize('performance.view');
 
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'employee_id' => $_GET['employee_id'] ?? '',
             'review_cycle_id' => $_GET['review_cycle_id'] ?? '',
             'status' => $_GET['status'] ?? '',
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $search = trim((string) ($_GET['q'] ?? ''));
         $sort = (string) ($_GET['sort'] ?? 'review_date');

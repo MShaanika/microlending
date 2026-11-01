@@ -10,7 +10,7 @@
       <?php endif; ?>
     </div>
 
-    <form method="get" action="<?= url('/hrm/attendance') ?>" class="row g-2 mb-3">
+    <form method="get" data-list-filter action="<?= url('/hrm/attendance') ?>" class="row g-2 mb-3">
       <input type="hidden" name="sort" value="<?= e($sort) ?>">
       <input type="hidden" name="dir" value="<?= e($dir) ?>">
       <div class="col-md-3">
@@ -36,17 +36,18 @@
         </select>
       </div>
       <div class="col-md-2">
-        <select name="per_page" class="form-select" onchange="this.form.submit()">
+        <select name="per_page" class="form-select">
           <?php foreach ([10, 25, 50, 100] as $pp): ?>
             <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> per page</option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-1">
-        <button type="submit" class="btn btn-outline-secondary w-100"><i class="mdi mdi-magnify"></i></button>
+        <button type="submit" class="btn btn-outline-secondary w-100" data-list-submit><i class="mdi mdi-magnify"></i></button>
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -90,6 +91,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
       <p class="text-muted small mb-0">Showing <?= count($records) ?> of <?= $total ?> result<?= $total === 1 ? '' : 's' ?></p>
       <?= pagination_nav($page, $totalPages, $_GET) ?>
+    </div>
     </div>
   </div>
 </div>

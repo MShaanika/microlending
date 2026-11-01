@@ -65,6 +65,7 @@ class HrmPromotion extends Model
             $where[] = 'p.reason LIKE ?';
             $params[] = '%' . $filters['search'] . '%';
         }
+        \App\Support\ListFilter::dateWhere('p.effective_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

@@ -51,7 +51,7 @@
       </a>
     </div>
 
-    <form method="get" action="<?= url('/fixed-assets') ?>" class="row g-2 mb-3">
+    <form method="get" data-list-filter action="<?= url('/fixed-assets') ?>" class="row g-2 mb-3">
       <div class="col-md-4">
         <input type="text" name="q" class="form-control" placeholder="Search asset no, name, serial..." value="<?= e($search ?? '') ?>">
       </div>
@@ -78,6 +78,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -114,6 +115,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

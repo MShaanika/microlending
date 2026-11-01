@@ -58,6 +58,7 @@ class StaffLoan extends Model
             $where[] = 'l.title LIKE ?';
             $params[] = '%' . $filters['search'] . '%';
         }
+        \App\Support\ListFilter::dateWhere('l.start_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

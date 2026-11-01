@@ -65,6 +65,7 @@ class HrmTransfer extends Model
             $where[] = 't.reason LIKE ?';
             $params[] = '%' . $filters['search'] . '%';
         }
+        \App\Support\ListFilter::dateWhere('t.transfer_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(

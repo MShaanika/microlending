@@ -31,10 +31,13 @@ class HrmAnnouncementController extends Controller
     {
         Auth::authorize('hrm.view');
 
+        [$dateFrom, $dateTo] = \App\Support\ListFilter::dateRange(trim((string) ($_GET['from'] ?? '')), trim((string) ($_GET['to'] ?? '')));
         $filters = [
             'status' => $_GET['status'] ?? '',
             'department_id' => $_GET['department_id'] ?? '',
             'search' => trim((string) ($_GET['q'] ?? '')),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
         ];
         $sort = (string) ($_GET['sort'] ?? 'start_date');
         $dir = (string) ($_GET['dir'] ?? 'desc');

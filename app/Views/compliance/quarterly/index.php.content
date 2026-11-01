@@ -7,7 +7,7 @@
       <a href="<?= url('/compliance/quarterly-reports/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Generate Report</a>
     </div>
 
-    <form method="get" action="<?= url('/compliance/quarterly-reports') ?>" class="row g-2 mb-3">
+    <form method="get" data-list-filter action="<?= url('/compliance/quarterly-reports') ?>" class="row g-2 mb-3">
       <div class="col-md-4">
         <select name="type" class="form-select">
           <option value="">All Report Types</option>
@@ -39,6 +39,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
@@ -73,6 +74,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

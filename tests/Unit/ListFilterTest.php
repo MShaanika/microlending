@@ -71,6 +71,21 @@ class ListFilterTest extends TestCase
         $this->assertSame('', ListFilter::searchSql([], 'x', $params));
     }
 
+    public function testHrDateWhereAddsInclusiveDayConditions(): void
+    {
+        $where = ['a.status = ?'];
+        $params = ['Approved'];
+        ListFilter::dateWhere('a.start_date', ['date_from' => '2026-09-01', 'date_to' => '2026-09-30'], $where, $params);
+        $this->assertSame(['a.status = ?', 'a.start_date >= ?', 'a.start_date < ?'], $where);
+        $this->assertSame(['Approved', '2026-09-01 00:00:00', '2026-10-01 00:00:00'], $params);
+
+        $where = [];
+        $params = [];
+        ListFilter::dateWhere('a.start_date', ['date_from' => null, 'date_to' => ''], $where, $params);
+        $this->assertSame([], $where);
+        $this->assertSame([], $params);
+    }
+
     public function testExportQueryKeepsTheFilterAndDropsPaging(): void
     {
         $q = ListFilter::exportQuery(['q' => 'abc', 'status' => '', 'page' => '3', 'from' => '2026-01-01', 'export' => 'x']);

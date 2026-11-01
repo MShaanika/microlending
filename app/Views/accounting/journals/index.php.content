@@ -11,7 +11,7 @@
       </div>
     </div>
 
-    <form method="get" action="<?= url('/accounting/journals') ?>" class="row g-2 mb-3 no-print">
+    <form method="get" data-list-filter action="<?= url('/accounting/journals') ?>" class="row g-2 mb-3 no-print">
       <div class="col-md-2">
         <input type="date" name="from_date" class="form-control" value="<?= e($fromDate) ?>">
       </div>
@@ -34,6 +34,7 @@
       </div>
     </form>
 
+    <div data-list-results>
     <div class="table-responsive">
       <table class="table table-bordered no-datatable">
         <thead class="table-light">
@@ -82,6 +83,7 @@
         </tfoot>
         <?php endif; ?>
       </table>
+    </div>
     </div>
   </div>
 </div>

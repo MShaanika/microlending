@@ -41,6 +41,7 @@ class RecruitmentCandidate extends Model
             $term = '%' . $filters['search'] . '%';
             array_push($params, $term, $term, $term, $term);
         }
+        \App\Support\ListFilter::dateWhere('c.application_date', $filters, $where, $params);
         $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
         $total = (int) $this->scalar(
