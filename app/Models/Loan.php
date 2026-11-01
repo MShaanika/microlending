@@ -28,7 +28,8 @@ class Loan extends Model
      * "In Arrears" / bad-debt badge alongside the loan's normal status,
      * regardless of which filter is active.
      */
-    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null, bool $groupTopups = false): array
+    /** @param array $filter optional ListFilter keys: from/to (loan start date) and min/max (principal) */
+    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null, bool $groupTopups = false, array $filter = []): array
     {
         // $groupTopups (the Loans list only): a released top-up is shown inside its original loan, not as a row of its own, and the original's
         // arrears flag and amounts cover its top-ups. Every other caller keeps one row per loan.
@@ -60,10 +61,10 @@ class Loan extends Model
         }
 
         if ($search !== '') {
-            $sql .= " AND (l.loan_no LIKE ? OR b.first_name LIKE ? OR b.last_name LIKE ?)";
-            $like = '%' . $search . '%';
-            array_push($params, $like, $like, $like);
+            $sql .= \App\Support\ListFilter::searchSql(['l.loan_no', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 'b.id_number', 'b.phone', 'b.borrower_no'], $search, $params);
         }
+        $sql .= \App\Support\ListFilter::dateSql('l.start_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('l.principal_amount', $filter['min'] ?? null, $filter['max'] ?? null, $params);
 
         if ($status === 'Arrear') {
             // Same criteria as ArrearsService::overdueLoans().

@@ -7,19 +7,20 @@
       <a href="<?= url('/debit-order-runs/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> New Run</a>
     </div>
 
-    <form method="get" action="<?= url('/debit-order-runs') ?>" class="row g-2 mb-3">
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Draft', 'Generated', 'Submitted', 'Cancelled'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/debit-order-runs'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Run no or branch'],
+          'status' => ['value' => $status ?? '', 'options' => ['Draft', 'Generated', 'Submitted', 'Cancelled']],
+          'date' => ['label' => 'Run date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'amount' => ['label' => 'Total', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($runs); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -28,7 +29,7 @@
         </thead>
         <tbody>
           <?php if (empty($runs)): ?>
-            <tr><td colspan="8" class="text-center text-muted py-4">No debit order runs yet.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No debit order runs yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($runs as $r): ?>
             <?php
@@ -53,6 +54,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

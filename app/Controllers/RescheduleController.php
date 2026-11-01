@@ -67,11 +67,27 @@ class RescheduleController extends Controller
     public function index(): void
     {
         Auth::authorize('reschedules.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
-        $this->view('reschedules/index', [
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
+        $branchId = $this->indexBranchId();
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 200);
+        $reschedules = $this->reschedules->paginated($status, $branchId, $filter['q'], $filter, $limit);
+
+        if ($filter['export']) {
+            $this->exportList('Reschedules', 'reschedules', ['Reschedule No', 'Loan', 'Borrower', 'Old term', 'New term', 'New installment', 'Status', 'Requested'], array_map(static fn ($r) => [
+                $r['reschedule_no'], $r['loan_no'], $r['borrower_name'], $r['old_term_months'], $r['new_term_months'], number_format((float) $r['new_installment_amount'], 2, '.', ''), $r['status'], $r['request_date'],
+            ], $reschedules), $filter);
+        }
+
+        $this->listPage('reschedules/index', [
             'title' => 'Loan Reschedules',
-            'reschedules' => $this->reschedules->paginated($status, $this->indexBranchId()),
+            'reschedules' => $reschedules,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
         ]);
     }
 

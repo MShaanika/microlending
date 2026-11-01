@@ -42,14 +42,27 @@ class GeneratedDocumentController extends Controller
     {
         Auth::authorize('documents.view');
 
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
         $sourceModule = trim((string) ($_GET['source_module'] ?? ''));
-        $status = trim((string) ($_GET['status'] ?? ''));
-        $search = trim((string) ($_GET['q'] ?? ''));
+        $status = $filter['status'];
+        $search = $filter['q'];
         $branchId = $this->indexBranchId();
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 200);
+        $documents = $this->documents->paginatedAll($sourceModule, $status, $search, $limit, $branchId, $filter);
 
-        $this->view('generated_documents/index', [
+        if ($filter['export']) {
+            $this->exportList('Generated documents', 'generated_documents', ['Document No', 'Title', 'Source', 'Borrower', 'Status', 'Generated', 'By'], array_map(static fn ($d) => [
+                $d['document_no'], $d['document_title'], $d['source_module'], $d['borrower_name'], $d['status'], $d['generated_at'], $d['generated_by_name'],
+            ], $documents), $filter);
+        }
+
+        $this->listPage('generated_documents/index', [
             'title' => 'Generated Documents',
-            'documents' => $this->documents->paginatedAll($sourceModule, $status, $search, 200, $branchId),
+            'documents' => $documents,
+            'filter' => $filter,
+            'filtersActive' => $search !== '' || $status !== '' || $sourceModule !== '' || ($branchId !== null && Auth::isSuperAdmin()) || $range,
+            'limit' => $limit,
             'sourceModules' => $this->documents->sourceModules(),
             'sourceModule' => $sourceModule,
             'status' => $status,

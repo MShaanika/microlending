@@ -6,7 +6,8 @@ use App\Core\Model;
 
 class DebitOrderRun extends Model
 {
-    public function paginated(string $status = '', ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (run date) and min/max (total amount) */
+    public function paginated(string $status = '', ?int $branchId = null, string $search = '', array $filter = [], int $limit = 200): array
     {
         $sql = "SELECT r.*, br.branch_name FROM debit_order_runs r
                 JOIN branches br ON br.id = r.branch_id
@@ -20,7 +21,10 @@ class DebitOrderRun extends Model
             $sql .= " AND r.branch_id = ?";
             $params[] = $branchId;
         }
-        $sql .= " ORDER BY r.id DESC LIMIT 200";
+        $sql .= \App\Support\ListFilter::searchSql(['r.run_no', 'br.branch_name'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('r.run_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('r.total_amount', $filter['min'] ?? null, $filter['max'] ?? null, $params);
+        $sql .= " ORDER BY r.id DESC LIMIT " . (int) $limit;
         return $this->all($sql, $params);
     }
 

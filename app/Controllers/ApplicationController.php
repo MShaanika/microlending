@@ -56,27 +56,6 @@ class ApplicationController extends Controller
     }
 
     /** Same as scopeBranchId(), but Super Admin can additionally narrow the list via ?branch_id=, defaulting to all branches. */
-    /**
-     * The From / To dates of the list filter (inclusive, Y-m-d). Anything that is not a real date is ignored, and a range typed the wrong
-     * way round is put right instead of showing nothing.
-     *
-     * @return array{0: ?string, 1: ?string}
-     */
-    private function indexDateRange(): array
-    {
-        $clean = static function (string $key): ?string {
-            $value = trim((string) ($_GET[$key] ?? ''));
-            $date = \DateTime::createFromFormat('Y-m-d', $value);
-            return $date && $date->format('Y-m-d') === $value ? $value : null;
-        };
-        $from = $clean('from');
-        $to = $clean('to');
-        if ($from !== null && $to !== null && $from > $to) {
-            [$from, $to] = [$to, $from];
-        }
-        return [$from, $to];
-    }
-
     private function indexBranchId(): ?int
     {
         if (!Auth::isSuperAdmin()) {
@@ -132,14 +111,25 @@ class ApplicationController extends Controller
         $fullAccess = $this->assertApplicationsAccess();
         $status = $fullAccess ? trim((string) ($_GET['status'] ?? '')) : 'Submitted';
         $branchId = $this->indexBranchId();
-        [$dateFrom, $dateTo] = $this->indexDateRange();
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 100);
+        $applications = $this->applications->paginated($status, '', $limit, $branchId, $filter['from'], $filter['to'], $filter['q'], $filter['min'], $filter['max']);
 
-        $this->view('applications/index', [
+        if ($filter['export']) {
+            $this->exportList('Applications', 'applications', ['Application No', 'Applicant', 'ID Number', 'Phone', 'Branch', 'Source', 'Amount', 'Term (months)', 'Status', 'Received'], array_map(static fn ($a) => [
+                $a['application_no'], trim($a['applicant_first_name'] . ' ' . $a['applicant_last_name']), $a['applicant_id_number'], $a['applicant_phone'], $a['branch_name'], $a['source_name'] ?: $a['application_source'],
+                number_format((float) $a['requested_amount'], 2, '.', ''), $a['requested_term_months'], $a['status'], substr((string) $a['created_at'], 0, 10),
+            ], $applications), $filter);
+        }
+
+        $this->listPage('applications/index', [
             'title' => 'Online Loan Applications',
-            // a date range is usually a report: allow a longer list than the everyday view
-            'applications' => $this->applications->paginated($status, '', $dateFrom !== null || $dateTo !== null ? 1000 : 100, $branchId, $dateFrom, $dateTo),
-            'dateFrom' => $dateFrom ?? '',
-            'dateTo' => $dateTo ?? '',
+            'applications' => $applications,
+            'filter' => $filter,
+            'search' => $filter['q'],
+            'filtersActive' => $filter['q'] !== '' || ($fullAccess && $status !== '') || ($branchId !== null && Auth::isSuperAdmin()) || $range,
+            'limit' => $limit,
             'status' => $status,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
             'selectedBranchId' => $branchId,

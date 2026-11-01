@@ -11,49 +11,21 @@
       <div class="alert alert-info small mb-3">You can only see applications that are still <strong>Submitted</strong> -- acknowledge each one's receipt below.</div>
     <?php endif; ?>
 
-    <form method="get" action="<?= url('/applications') ?>" class="row g-2 mb-3">
-      <?php if (empty($restrictedToSubmitted)): ?>
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Submitted', 'Screening', 'Documents Required', 'Approved', 'Rejected', 'Converted to Loan', 'Cancelled'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <?php endif; ?>
-      <?php if (!empty($branches)): ?>
-        <div class="col-md-3">
-          <select name="branch_id" class="form-select">
-            <option value="">All Branches</option>
-            <?php foreach ($branches as $b): ?>
-              <option value="<?= (int) $b['id'] ?>" <?= (int) ($selectedBranchId ?? 0) === (int) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      <?php endif; ?>
-      <div class="col-md-2 col-6">
-        <label class="form-label small mb-0" for="app-from">Received from</label>
-        <input type="date" id="app-from" name="from" class="form-control" value="<?= e($dateFrom ?? '') ?>" max="<?= e(date('Y-m-d')) ?>">
-      </div>
-      <div class="col-md-2 col-6">
-        <label class="form-label small mb-0" for="app-to">to</label>
-        <input type="date" id="app-to" name="to" class="form-control" value="<?= e($dateTo ?? '') ?>" max="<?= e(date('Y-m-d')) ?>">
-      </div>
-      <div class="col-md-3 d-flex align-items-end gap-2">
-        <button class="btn btn-outline-secondary" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-        <?php if (($dateFrom ?? '') !== '' || ($dateTo ?? '') !== '' || ($status ?? '') !== '' || !empty($selectedBranchId)): ?>
-          <a class="btn btn-link" href="<?= url('/applications') ?>">Clear</a>
-        <?php endif; ?>
-      </div>
-    </form>
-    <?php if (($dateFrom ?? '') !== '' || ($dateTo ?? '') !== ''): ?>
-      <p class="small text-muted">
-        <?= count($applications) ?> application(s) received
-        <?= ($dateFrom ?? '') !== '' ? 'from <strong>' . e(date('d M Y', strtotime($dateFrom))) . '</strong>' : 'up to' ?>
-        <?= ($dateTo ?? '') !== '' ? (($dateFrom ?? '') !== '' ? 'to' : '') . ' <strong>' . e(date('d M Y', strtotime($dateTo))) . '</strong>' : '' ?>.
-      </p>
-    <?php endif; ?>
+    <?php
+      $bar = [
+          'action' => url('/applications'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Application no, applicant, ID number, phone or email'],
+          'status' => empty($restrictedToSubmitted) ? ['value' => $status ?? '', 'options' => ['Submitted', 'Screening', 'Documents Required', 'Approved', 'Rejected', 'Converted to Loan', 'Cancelled']] : null,
+          'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
+          'date' => ['label' => 'Received', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'amount' => ['label' => 'Amount', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($applications); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -64,7 +36,7 @@
         </thead>
         <tbody>
           <?php if (empty($applications)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4"><?= (($dateFrom ?? '') !== '' || ($dateTo ?? '') !== '') ? 'No applications were received in that period.' : 'No online applications yet.' ?></td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'No applications match your filters.' : 'No online applications yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($applications as $a): ?>
             <?php
@@ -102,6 +74,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

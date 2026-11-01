@@ -6,24 +6,21 @@
       <h4 class="card-title mb-0">Payments / Collections</h4>
     </div>
 
-    <form method="get" action="<?= url('/payments') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
-        <input type="text" name="q" class="form-control" placeholder="Search payment no, loan no, borrower..." value="<?= e($search ?? '') ?>">
-      </div>
-      <?php if (!empty($branches)): ?>
-        <div class="col-md-3">
-          <select name="branch_id" class="form-select">
-            <option value="">All Branches</option>
-            <?php foreach ($branches as $b): ?>
-              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      <?php endif; ?>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/payments'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Payment no, loan no, borrower or reference'],
+          'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Posted', 'Reversed', 'Cancelled']],
+          'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
+          'date' => ['label' => 'Payment date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'amount' => ['label' => 'Amount', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($payments); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -42,7 +39,7 @@
         </thead>
         <tbody>
           <?php if (empty($payments)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4">No payments recorded yet.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No payments recorded yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($payments as $p): ?>
             <?php
@@ -84,6 +81,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

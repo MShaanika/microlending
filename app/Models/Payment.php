@@ -6,7 +6,8 @@ use App\Core\Model;
 
 class Payment extends Model
 {
-    public function paginated(string $search = '', int $limit = 100, ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (payment date) and min/max (amount received) */
+    public function paginated(string $search = '', int $limit = 100, ?int $branchId = null, string $status = '', array $filter = []): array
     {
         $sql = "SELECT p.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no, u.name AS posted_by_name
                 FROM payments p
@@ -16,11 +17,13 @@ class Payment extends Model
                 WHERE 1=1";
         $params = [];
 
-        if ($search !== '') {
-            $sql .= " AND (p.payment_no LIKE ? OR l.loan_no LIKE ? OR b.first_name LIKE ? OR b.last_name LIKE ?)";
-            $like = '%' . $search . '%';
-            array_push($params, $like, $like, $like, $like);
+        $sql .= \App\Support\ListFilter::searchSql(['p.payment_no', 'l.loan_no', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 'p.reference_no'], $search, $params);
+        if ($status !== '') {
+            $sql .= " AND p.status = ?";
+            $params[] = $status;
         }
+        $sql .= \App\Support\ListFilter::dateSql('p.payment_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('p.amount_received', $filter['min'] ?? null, $filter['max'] ?? null, $params);
 
         if ($branchId !== null) {
             $sql .= " AND p.branch_id = ?";

@@ -21,12 +21,26 @@ class LoanRequestController extends Controller
     public function index(): void
     {
         Auth::authorize('loans.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 100);
+        $requests = $this->loanRequests->paginated($status, $limit, $filter['q'], $filter);
 
-        $this->view('loan_requests/index', [
+        if ($filter['export']) {
+            $this->exportList('Loan requests', 'loan_requests', ['Request No', 'Borrower', 'Type', 'Amount', 'Term (months)', 'Purpose', 'Status', 'Submitted', 'Reviewed by'], array_map(static fn ($r) => [
+                $r['request_no'], $r['borrower_name'], $r['request_type'] ?? '', number_format((float) $r['requested_amount'], 2, '.', ''), $r['requested_term_months'], $r['purpose'], $r['status'], substr((string) $r['requested_at'], 0, 10), $r['reviewed_by_name'],
+            ], $requests), $filter);
+        }
+
+        $this->listPage('loan_requests/index', [
             'title' => 'Borrower Loan Requests',
-            'requests' => $this->loanRequests->paginated($status),
+            'requests' => $requests,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
         ]);
     }
 

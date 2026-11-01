@@ -69,11 +69,27 @@ class PaymentController extends Controller
         Auth::authorize('collections.view');
         $search = trim((string) ($_GET['q'] ?? ''));
         $branchId = $this->indexBranchId();
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $status = $filter['status'];
+        $range = \App\Support\ListFilter::isRange($filter);
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 100);
+        $payments = $this->payments->paginated($search, $limit, $branchId, $status, $filter);
 
-        $this->view('payments/index', [
+        if ($filter['export']) {
+            $this->exportList('Payments', 'payments', ['Payment No', 'Loan No', 'Borrower', 'Date', 'Source', 'Reference', 'Amount received', 'Status', 'Recorded by'], array_map(static fn ($p) => [
+                $p['payment_no'], $p['loan_no'], $p['borrower_name'], $p['payment_date'], $p['payment_source'], $p['reference_no'],
+                number_format((float) $p['amount_received'], 2, '.', ''), $p['status'], $p['posted_by_name'],
+            ], $payments), $filter);
+        }
+
+        $this->listPage('payments/index', [
             'title' => 'Payments',
-            'payments' => $this->payments->paginated($search, 100, $branchId),
+            'payments' => $payments,
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
+            'filter' => $filter,
+            'status' => $status,
+            'filtersActive' => $search !== '' || $status !== '' || ($branchId !== null && Auth::isSuperAdmin()) || $range,
+            'limit' => $limit,
             'search' => $search,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
             'selectedBranchId' => $branchId,

@@ -62,11 +62,26 @@ class DebitOrderCancellationController extends Controller
     public function index(): void
     {
         Auth::authorize('collections.debit_orders');
-        $status = trim((string) ($_GET['status'] ?? ''));
-        $this->view('debit_order_cancellations/index', [
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 200);
+        $cancellations = $this->cancellations->paginated($status, $this->indexBranchId(), $filter['q'], $filter, $limit);
+
+        if ($filter['export']) {
+            $this->exportList('Debit order cancellations', 'debit_order_cancellations', ['Cancellation No', 'Borrower', 'Loan', 'Amount', 'Status', 'Requested'], array_map(static fn ($c) => [
+                $c['cancellation_no'], $c['borrower_name'], $c['loan_no'], number_format((float) $c['amount_cancelled'], 2, '.', ''), $c['status'], substr((string) $c['created_at'], 0, 10),
+            ], $cancellations), $filter);
+        }
+
+        $this->listPage('debit_order_cancellations/index', [
             'title' => 'Debit Order Cancellations',
-            'cancellations' => $this->cancellations->paginated($status, $this->indexBranchId()),
+            'cancellations' => $cancellations,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
         ]);
     }
 

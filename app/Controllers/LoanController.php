@@ -65,12 +65,28 @@ class LoanController extends Controller
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
         $branchId = $this->indexBranchId();
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 100);
+        $loans = $this->loans->paginated($search, $status, $limit, $branchId, true, $filter);
 
-        $this->view('loans/index', [
+        if ($filter['export']) {
+            $this->exportList('Loans', 'loans', ['Loan No', 'Borrower', 'Product', 'Principal', 'Installment', 'Term (months)', 'Start date', 'Status', 'In arrears'], array_map(static fn ($l) => [
+                $l['loan_no'], $l['borrower_name'], $l['product_name'],
+                number_format((float) ((int) ($l['topup_count'] ?? 0) > 0 ? $l['combined_principal'] : $l['principal_amount']), 2, '.', ''),
+                number_format((float) ((int) ($l['topup_count'] ?? 0) > 0 ? $l['combined_installment'] : $l['installment_amount']), 2, '.', ''),
+                $l['term_months'], $l['start_date'], $l['loan_status'], !empty($l['is_in_arrears']) ? 'Yes' : 'No',
+            ], $loans), $filter);
+        }
+
+        $this->listPage('loans/index', [
             'title' => 'Loans',
-            'loans' => $this->loans->paginated($search, $status, 100, $branchId, true),
+            'loans' => $loans,
             'search' => $search,
             'status' => $status,
+            'filter' => $filter,
+            'filtersActive' => $search !== '' || $status !== '' || $branchId !== null && Auth::isSuperAdmin() || $range,
+            'limit' => $limit,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
             'selectedBranchId' => $branchId,
         ]);

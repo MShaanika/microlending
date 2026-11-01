@@ -4,19 +4,20 @@
   <div class="card-body">
     <h4 class="card-title mb-3">Refund Claims</h4>
 
-    <form method="get" action="<?= url('/refund-claims') ?>" class="row g-2 mb-3">
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Pending','Under Review','Approved','Rejected','Paid','Cancelled'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/refund-claims'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Claim no, borrower, loan no or type'],
+          'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Under Review', 'Approved', 'Rejected', 'Paid', 'Cancelled']],
+          'date' => ['label' => 'Claim date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'amount' => ['label' => 'Amount', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($claims); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -25,7 +26,7 @@
         </thead>
         <tbody>
           <?php if (empty($claims)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4">No refund claims yet.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No refund claims yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($claims as $c): ?>
             <?php
@@ -99,6 +100,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

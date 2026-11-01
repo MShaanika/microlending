@@ -6,19 +6,20 @@
       <h4 class="card-title mb-0">Borrower Loan Requests</h4>
     </div>
 
-    <form method="get" action="<?= url('/loan-requests') ?>" class="row g-2 mb-3">
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Pending','Approved','Rejected','Converted to Application','Cancelled'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/loan-requests'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Request no, borrower, phone or purpose'],
+          'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Approved', 'Rejected', 'Converted to Application', 'Cancelled']],
+          'date' => ['label' => 'Submitted', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'amount' => ['label' => 'Amount', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($requests); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -29,7 +30,7 @@
         </thead>
         <tbody>
           <?php if (empty($requests)): ?>
-            <tr><td colspan="11" class="text-center text-muted py-4">No loan requests from the portal yet.</td></tr>
+            <tr><td colspan="11" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No loan requests from the portal yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($requests as $r): ?>
             <?php
@@ -77,6 +78,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

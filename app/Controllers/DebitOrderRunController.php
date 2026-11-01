@@ -73,11 +73,26 @@ class DebitOrderRunController extends Controller
     public function index(): void
     {
         Auth::authorize('collections.debit_orders');
-        $status = trim((string) ($_GET['status'] ?? ''));
-        $this->view('debit_order_runs/index', [
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 200);
+        $runs = $this->runs->paginated($status, $this->indexBranchId(), $filter['q'], $filter, $limit);
+
+        if ($filter['export']) {
+            $this->exportList('Debit order runs', 'debit_order_runs', ['Run No', 'Branch', 'Batch date', 'Mandates', 'Total amount', 'Status', 'Run date'], array_map(static fn ($r) => [
+                $r['run_no'], $r['branch_name'], $r['debit_month'], $r['total_accounts'], number_format((float) $r['total_amount'], 2, '.', ''), $r['status'], $r['run_date'],
+            ], $runs), $filter);
+        }
+
+        $this->listPage('debit_order_runs/index', [
             'title' => 'Debit Order Runs',
-            'runs' => $this->runs->paginated($status, $this->indexBranchId()),
+            'runs' => $runs,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
         ]);
     }
 

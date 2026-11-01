@@ -38,12 +38,26 @@ class RefundClaimController extends Controller
     public function index(): void
     {
         Auth::authorize('refunds.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 100);
+        $claims = $this->refundClaims->paginated($status, $limit, $filter['q'], $filter);
 
-        $this->view('refund_claims/index', [
+        if ($filter['export']) {
+            $this->exportList('Refund claims', 'refund_claims', ['Claim No', 'Borrower', 'Loan', 'Type', 'Amount', 'Status', 'Date', 'Last action by'], array_map(static fn ($c) => [
+                $c['claim_no'], $c['borrower_name'], $c['loan_no'], $c['claim_type'], number_format((float) $c['claim_amount'], 2, '.', ''), $c['status'], $c['claim_date'], $c['last_action_by_name'],
+            ], $claims), $filter);
+        }
+
+        $this->listPage('refund_claims/index', [
             'title' => 'Refund Claims',
-            'claims' => $this->refundClaims->paginated($status),
+            'claims' => $claims,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
             'bankAccounts' => $this->bankAccounts->allBankAccounts(true),
         ]);
     }

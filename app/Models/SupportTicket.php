@@ -15,7 +15,8 @@ class SupportTicket extends Model
         br.branch_name, raiser.name AS raised_by_name, dev.name AS assigned_to_name
     ";
 
-    public function paginated(string $status = '', ?int $branchId = null, int $limit = 200): array
+    /** @param array $filter optional ListFilter keys: from/to (date raised) */
+    public function paginated(string $status = '', ?int $branchId = null, int $limit = 200, string $search = '', array $filter = []): array
     {
         $sql = "SELECT t.*, " . self::LOOKUP_COLUMNS . " FROM support_tickets t " . self::LOOKUP_JOINS . " WHERE 1=1";
         $params = [];
@@ -28,6 +29,8 @@ class SupportTicket extends Model
             $sql .= " AND t.branch_id = ?";
             $params[] = $branchId;
         }
+        $sql .= \App\Support\ListFilter::searchSql(['t.ticket_no', 't.subject'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('t.created_at', $filter['from'] ?? null, $filter['to'] ?? null, $params);
 
         $sql .= " ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'), t.id DESC LIMIT " . (int) $limit;
 

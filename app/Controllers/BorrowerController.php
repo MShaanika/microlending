@@ -49,12 +49,25 @@ class BorrowerController extends Controller
         $search = trim((string) ($_GET['q'] ?? ''));
         $status = trim((string) ($_GET['status'] ?? ''));
         $branchId = $this->indexBranchId();
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 50);
+        $borrowers = $this->borrowers->paginated($search, $status, $limit, $branchId, $filter);
 
-        $this->view('borrowers/index', [
+        if ($filter['export']) {
+            $this->exportList('Borrowers', 'borrowers', ['Borrower No', 'Loan Ref No', 'Name', 'Phone', 'ID Number', 'Branch', 'Registered', 'Status'], array_map(static fn ($b) => [
+                $b['borrower_no'], $b['loan_ref_no'], trim($b['first_name'] . ' ' . $b['last_name']), $b['phone'], $b['id_number'], $b['branch_name'], substr((string) $b['created_at'], 0, 10), $b['status'],
+            ], $borrowers), $filter);
+        }
+
+        $this->listPage('borrowers/index', [
             'title' => 'Borrowers',
-            'borrowers' => $this->borrowers->paginated($search, $status, 50, $branchId),
+            'borrowers' => $borrowers,
             'search' => $search,
             'status' => $status,
+            'filter' => $filter,
+            'filtersActive' => $search !== '' || $status !== '' || ($branchId !== null && Auth::isSuperAdmin()) || $range,
+            'limit' => $limit,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
             'selectedBranchId' => $branchId,
         ]);

@@ -74,14 +74,28 @@ class ExpenseController extends Controller
     public function index(): void
     {
         Auth::authorize('expenses.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
         $categoryId = (int) ($_GET['category_id'] ?? 0);
         $branchId = $this->indexBranchId();
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 200);
+        $expenses = $this->expenses->paginated($status, $categoryId, $branchId, $filter['q'], $filter, $limit);
 
-        $this->view('expenses/index', [
+        if ($filter['export']) {
+            $this->exportList('Expenses', 'expenses', ['Expense No', 'Date', 'Category', 'Supplier', 'Total', 'Status', 'Branch'], array_map(static fn ($e) => [
+                $e['expense_no'], $e['expense_date'], $e['category_name'], $e['supplier_name'], number_format((float) $e['total_amount'], 2, '.', ''), $e['status'], $e['branch_name'],
+            ], $expenses), $filter);
+        }
+
+        $this->listPage('expenses/index', [
             'title' => 'Expenses',
-            'expenses' => $this->expenses->paginated($status, $categoryId, $branchId),
+            'expenses' => $expenses,
             'categories' => $this->categories->allCategories(true),
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $categoryId > 0 || ($branchId !== null && Auth::isSuperAdmin()) || $range,
+            'limit' => $limit,
             'status' => $status,
             'categoryId' => $categoryId,
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],

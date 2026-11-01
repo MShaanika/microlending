@@ -6,7 +6,8 @@ use App\Core\Model;
 
 class DebitOrderCancellation extends Model
 {
-    public function paginated(string $status = '', ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (date requested) and min/max (amount cancelled) */
+    public function paginated(string $status = '', ?int $branchId = null, string $search = '', array $filter = [], int $limit = 200): array
     {
         $sql = "SELECT c.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.branch_id AS borrower_branch_id, l.loan_no
                 FROM debit_order_cancellations c
@@ -22,7 +23,10 @@ class DebitOrderCancellation extends Model
             $sql .= " AND b.branch_id = ?";
             $params[] = $branchId;
         }
-        $sql .= " ORDER BY c.id DESC LIMIT 200";
+        $sql .= \App\Support\ListFilter::searchSql(['c.cancellation_no', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 'l.loan_no'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('c.created_at', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('c.amount_cancelled', $filter['min'] ?? null, $filter['max'] ?? null, $params);
+        $sql .= " ORDER BY c.id DESC LIMIT " . (int) $limit;
         return $this->all($sql, $params);
     }
 

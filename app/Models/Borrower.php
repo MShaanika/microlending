@@ -8,7 +8,8 @@ class Borrower extends Model
 {
     protected string $table = 'borrowers';
 
-    public function paginated(string $search = '', string $status = '', int $limit = 50, ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (registration date) */
+    public function paginated(string $search = '', string $status = '', int $limit = 50, ?int $branchId = null, array $filter = []): array
     {
         $sql = "SELECT b.*, br.branch_name
                 FROM borrowers b
@@ -16,11 +17,8 @@ class Borrower extends Model
                 WHERE 1=1";
         $params = [];
 
-        if ($search !== '') {
-            $sql .= " AND (b.first_name LIKE ? OR b.last_name LIKE ? OR b.borrower_no LIKE ? OR b.loan_ref_no LIKE ? OR b.id_number LIKE ? OR b.phone LIKE ?)";
-            $like = '%' . $search . '%';
-            array_push($params, $like, $like, $like, $like, $like, $like);
-        }
+        $sql .= \App\Support\ListFilter::searchSql(['b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 'b.borrower_no', 'b.loan_ref_no', 'b.id_number', 'b.phone', 'b.email'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('b.created_at', $filter['from'] ?? null, $filter['to'] ?? null, $params);
 
         if ($status !== '') {
             $sql .= " AND b.status = ?";

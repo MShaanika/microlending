@@ -35,13 +35,27 @@ class TicketController extends Controller
     public function index(): void
     {
         Auth::authorize('tickets.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
         $branchId = Auth::can('tickets.manage') ? null : (Auth::branchId() ?? 0);
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 200);
+        $tickets = $this->tickets->paginated($status, $branchId, $limit, $filter['q'], $filter);
 
-        $this->view('tickets/index', [
+        if ($filter['export']) {
+            $this->exportList('Support tickets', 'tickets', ['Ticket No', 'Branch', 'Subject', 'Priority', 'Raised by', 'Assigned to', 'Status'], array_map(static fn ($t) => [
+                $t['ticket_no'], $t['branch_name'] ?? '', $t['subject'], $t['priority'], $t['raised_by_name'] ?? '', $t['assigned_to_name'] ?? '', $t['status'],
+            ], $tickets), $filter);
+        }
+
+        $this->listPage('tickets/index', [
             'title' => 'Support Tickets',
-            'tickets' => $this->tickets->paginated($status, $branchId),
+            'tickets' => $tickets,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
         ]);
     }
 

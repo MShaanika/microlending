@@ -6,7 +6,8 @@ use App\Core\Model;
 
 class Expense extends Model
 {
-    public function paginated(string $status = '', int $categoryId = 0, ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (expense date) and min/max (total amount) */
+    public function paginated(string $status = '', int $categoryId = 0, ?int $branchId = null, string $search = '', array $filter = [], int $limit = 200): array
     {
         $sql = "SELECT e.*, c.category_name, br.branch_name
                 FROM expenses e
@@ -28,7 +29,10 @@ class Expense extends Model
             $params[] = $branchId;
         }
 
-        $sql .= " ORDER BY e.id DESC LIMIT 200";
+        $sql .= \App\Support\ListFilter::searchSql(['e.expense_no', 'e.supplier_name', 'c.category_name'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('e.expense_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('e.total_amount', $filter['min'] ?? null, $filter['max'] ?? null, $params);
+        $sql .= " ORDER BY e.id DESC LIMIT " . (int) $limit;
 
         return $this->all($sql, $params);
     }

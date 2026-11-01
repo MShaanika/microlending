@@ -62,13 +62,27 @@ class LetterController extends Controller
     public function index(): void
     {
         Auth::authorize('documents.view');
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $filter = \App\Support\ListFilter::fromRequest($_GET);
+        $range = \App\Support\ListFilter::isRange($filter);
+        $status = $filter['status'];
         $branchId = $this->indexBranchId();
+        $limit = $filter['export'] ? \App\Support\ListFilter::EXPORT_LIMIT : ($range ? 1000 : 100);
+        $documents = $this->documents->paginated($status, $limit, $branchId, $filter['q'], $filter);
 
-        $this->view('letters/index', [
+        if ($filter['export']) {
+            $this->exportList('Letters', 'letters', ['Document No', 'Borrower', 'Title', 'Type', 'Status', 'Requested'], array_map(static fn ($d) => [
+                $d['document_no'], $d['borrower_name'], $d['document_title'], $d['template_type'], $d['status'] === 'Draft' ? 'Pending' : $d['status'], substr((string) $d['generated_at'], 0, 10),
+            ], $documents), $filter);
+        }
+
+        $this->listPage('letters/index', [
             'title' => 'Borrower Letter Requests',
-            'documents' => $this->documents->paginated($status, 100, $branchId),
+            'documents' => $documents,
             'status' => $status,
+            'search' => $filter['q'],
+            'filter' => $filter,
+            'filtersActive' => $filter['q'] !== '' || $status !== '' || $range,
+            'limit' => $limit,
         ]);
     }
 

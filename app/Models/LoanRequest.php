@@ -11,7 +11,8 @@ class LoanRequest extends Model
         return $this->all("SELECT * FROM loan_requests WHERE borrower_id = ? ORDER BY id DESC", [$borrowerId]);
     }
 
-    public function paginated(string $status = '', int $limit = 100): array
+    /** @param array $filter optional ListFilter keys: from/to (date requested) and min/max (amount) */
+    public function paginated(string $status = '', int $limit = 100, string $search = '', array $filter = []): array
     {
         $sql = "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.phone, b.borrower_no,
                        el.loan_no AS existing_loan_no, u.name AS reviewed_by_name,
@@ -27,6 +28,9 @@ class LoanRequest extends Model
             $sql .= " AND r.status = ?";
             $params[] = $status;
         }
+        $sql .= \App\Support\ListFilter::searchSql(['r.request_no', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 'b.phone', 'b.borrower_no', 'r.purpose'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('r.requested_at', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('r.requested_amount', $filter['min'] ?? null, $filter['max'] ?? null, $params);
 
         $sql .= " ORDER BY r.id DESC LIMIT " . (int) $limit;
 

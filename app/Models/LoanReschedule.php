@@ -6,7 +6,8 @@ use App\Core\Model;
 
 class LoanReschedule extends Model
 {
-    public function paginated(string $status = '', ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (request date) and min/max (new installment) */
+    public function paginated(string $status = '', ?int $branchId = null, string $search = '', array $filter = [], int $limit = 200): array
     {
         $sql = "SELECT r.*, l.loan_no, CONCAT(b.first_name,' ',b.last_name) AS borrower_name
                 FROM loan_reschedules r
@@ -22,7 +23,10 @@ class LoanReschedule extends Model
             $sql .= " AND r.branch_id = ?";
             $params[] = $branchId;
         }
-        $sql .= " ORDER BY r.id DESC LIMIT 200";
+        $sql .= \App\Support\ListFilter::searchSql(['r.reschedule_no', 'l.loan_no', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)"], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('r.request_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('r.new_installment_amount', $filter['min'] ?? null, $filter['max'] ?? null, $params);
+        $sql .= " ORDER BY r.id DESC LIMIT " . (int) $limit;
         return $this->all($sql, $params);
     }
 

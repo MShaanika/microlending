@@ -22,7 +22,8 @@ class GeneratedDocument extends Model
         );
     }
 
-    public function paginated(string $status = '', int $limit = 100, ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (generated date) */
+    public function paginated(string $status = '', int $limit = 100, ?int $branchId = null, string $search = '', array $filter = []): array
     {
         $sql = "SELECT g.*, t.template_name, t.template_type, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, b.email AS borrower_email, u.name AS generated_by_name
                 FROM generated_documents g
@@ -41,6 +42,8 @@ class GeneratedDocument extends Model
             $sql .= " AND b.branch_id = ?";
             $params[] = $branchId;
         }
+        $sql .= \App\Support\ListFilter::searchSql(['g.document_no', 'g.document_title', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 't.template_type'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('g.generated_at', $filter['from'] ?? null, $filter['to'] ?? null, $params);
 
         $sql .= " ORDER BY g.id DESC LIMIT " . (int) $limit;
 
@@ -82,7 +85,8 @@ class GeneratedDocument extends Model
      * documents, before a borrower/branch exists) -- a document is only
      * ever hidden from a branch, never from everyone.
      */
-    public function paginatedAll(string $sourceModule = '', string $status = '', string $search = '', int $limit = 200, ?int $branchId = null): array
+    /** @param array $filter optional ListFilter keys: from/to (generated date) */
+    public function paginatedAll(string $sourceModule = '', string $status = '', string $search = '', int $limit = 200, ?int $branchId = null, array $filter = []): array
     {
         $sql = "SELECT g.*, t.template_name, t.template_type,
                        CONCAT(b.first_name,' ',b.last_name) AS borrower_name, u.name AS generated_by_name
@@ -102,14 +106,13 @@ class GeneratedDocument extends Model
             $params[] = $status;
         }
         if ($search !== '') {
-            $sql .= " AND (g.document_no LIKE ? OR g.document_title LIKE ? OR b.first_name LIKE ? OR b.last_name LIKE ?)";
-            $like = '%' . $search . '%';
-            array_push($params, $like, $like, $like, $like);
+            $sql .= \App\Support\ListFilter::searchSql(['g.document_no', 'g.document_title', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)"], $search, $params);
         }
         if ($branchId !== null) {
             $sql .= " AND (b.branch_id = ? OR g.borrower_id IS NULL)";
             $params[] = $branchId;
         }
+        $sql .= \App\Support\ListFilter::dateSql('g.generated_at', $filter['from'] ?? null, $filter['to'] ?? null, $params);
 
         $sql .= " ORDER BY g.id DESC LIMIT " . (int) $limit;
 

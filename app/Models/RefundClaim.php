@@ -15,7 +15,8 @@ class RefundClaim extends Model
         );
     }
 
-    public function paginated(string $status = '', int $limit = 100): array
+    /** @param array $filter optional ListFilter keys: from/to (claim date) and min/max (claim amount) */
+    public function paginated(string $status = '', int $limit = 100, string $search = '', array $filter = []): array
     {
         $sql = "SELECT r.*, CONCAT(b.first_name,' ',b.last_name) AS borrower_name, l.loan_no,
                        COALESCE(pu.name, au.name, ru.name) AS last_action_by_name
@@ -32,6 +33,9 @@ class RefundClaim extends Model
             $sql .= " AND r.status = ?";
             $params[] = $status;
         }
+        $sql .= \App\Support\ListFilter::searchSql(['r.claim_no', 'b.first_name', 'b.last_name', "CONCAT(b.first_name, ' ', b.last_name)", 'l.loan_no', 'r.claim_type'], $search, $params);
+        $sql .= \App\Support\ListFilter::dateSql('r.claim_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
+        $sql .= \App\Support\ListFilter::amountSql('r.claim_amount', $filter['min'] ?? null, $filter['max'] ?? null, $params);
 
         $sql .= " ORDER BY r.id DESC LIMIT " . (int) $limit;
 

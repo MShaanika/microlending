@@ -87,6 +87,31 @@ class Controller
         View::renderFragment($view, $data);
     }
 
+    /**
+     * A filterable list screen: the AJAX filter bar (dist/js/list-filters.js) asks for just the page's content fragment, a normal visit gets
+     * the full page. Same $data either way.
+     */
+    protected function listPage(string $view, array $data): void
+    {
+        if ($this->isAjax()) {
+            $this->fragment($view, $data);
+            return;
+        }
+        $this->view($view, $data);
+    }
+
+    /**
+     * Sends the list the screen is showing (same query, same branch scope, same filters) as a CSV and records the download in the audit log.
+     *
+     * @param string[] $headers
+     * @param iterable<int, array<int, mixed>> $rows
+     */
+    protected function exportList(string $module, string $filename, array $headers, array $rows, array $filter): void
+    {
+        \App\Core\Audit::log('Export', $module, 'Exported ' . count($rows) . ' row(s) of the ' . $module . ' list to CSV.', ['filters' => array_filter($filter, static fn ($v) => $v !== null && $v !== '' && $v !== false)]);
+        \App\Support\CsvExport::send($filename . '_' . date('Ymd_His') . '.csv', $headers, $rows);
+    }
+
     /** JSON success response for an AJAX form submission (store/update). */
     protected function jsonSuccess(string $message, ?string $refresh = null, array $extra = []): void
     {

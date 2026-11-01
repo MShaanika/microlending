@@ -15,7 +15,7 @@ class LoanApplication extends Model
      *  to triage, not stranded outside every branch's inbox.
      */
     /** $from / $to are inclusive Y-m-d dates on the day the application was received; either may be null. */
-    public function paginated(string $status = '', string $source = '', int $limit = 100, ?int $branchId = null, ?string $from = null, ?string $to = null): array
+    public function paginated(string $status = '', string $source = '', int $limit = 100, ?int $branchId = null, ?string $from = null, ?string $to = null, string $search = '', ?float $min = null, ?float $max = null): array
     {
         $sql = "SELECT a.*, s.source_name, b.borrower_no, br.branch_name
                 FROM loan_applications a
@@ -40,15 +40,9 @@ class LoanApplication extends Model
             $params[] = $branchId;
         }
 
-        if ($from !== null) {
-            $sql .= " AND a.created_at >= ?";
-            $params[] = $from . ' 00:00:00';
-        }
-
-        if ($to !== null) {
-            $sql .= " AND a.created_at < ?";
-            $params[] = date('Y-m-d', strtotime($to . ' +1 day')) . ' 00:00:00';
-        }
+        $sql .= \App\Support\ListFilter::dateSql('a.created_at', $from, $to, $params);
+        $sql .= \App\Support\ListFilter::amountSql('a.requested_amount', $min, $max, $params);
+        $sql .= \App\Support\ListFilter::searchSql(['a.application_no', 'a.applicant_first_name', 'a.applicant_last_name', "CONCAT(a.applicant_first_name, ' ', a.applicant_last_name)", 'a.applicant_id_number', 'a.applicant_phone', 'a.applicant_email'], $search, $params);
 
         $sql .= " ORDER BY a.id DESC LIMIT " . (int) $limit;
 

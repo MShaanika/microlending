@@ -4,19 +4,20 @@
   <div class="card-body">
     <h4 class="card-title mb-3">Loan Reschedules</h4>
 
-    <form method="get" action="<?= url('/reschedules') ?>" class="row g-2 mb-3">
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Pending', 'Approved', 'Rejected', 'Implemented', 'Cancelled'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/reschedules'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Reschedule no, loan no or borrower'],
+          'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Approved', 'Rejected', 'Implemented', 'Cancelled']],
+          'date' => ['label' => 'Requested', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'amount' => ['label' => 'New installment', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($reschedules); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -27,7 +28,7 @@
         </thead>
         <tbody>
           <?php if (empty($reschedules)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4">No reschedule requests yet.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No reschedule requests yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($reschedules as $r): ?>
             <?php
@@ -54,6 +55,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

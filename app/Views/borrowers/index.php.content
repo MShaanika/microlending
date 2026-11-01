@@ -9,32 +9,20 @@
       </a>
     </div>
 
-    <form method="get" action="<?= url('/borrowers') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
-        <input type="text" name="q" class="form-control" placeholder="Search name, phone, ID number, loan ref no..." value="<?= e($search ?? '') ?>">
-      </div>
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Pending','Approved','Rejected','Blacklisted','Inactive'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <?php if (!empty($branches)): ?>
-        <div class="col-md-3">
-          <select name="branch_id" class="form-select">
-            <option value="">All Branches</option>
-            <?php foreach ($branches as $b): ?>
-              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      <?php endif; ?>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/borrowers'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Name, phone, ID number, loan ref no'],
+          'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Approved', 'Rejected', 'Blacklisted', 'Inactive']],
+          'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
+          'date' => ['label' => 'Registered', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($borrowers); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -53,7 +41,7 @@
         </thead>
         <tbody>
           <?php if (empty($borrowers)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4">No borrowers found.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No borrowers found.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($borrowers as $b): ?>
             <?php
@@ -86,6 +74,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

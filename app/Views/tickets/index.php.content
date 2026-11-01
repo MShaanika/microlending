@@ -9,19 +9,19 @@
       </a>
     </div>
 
-    <form method="get" action="<?= url('/tickets') ?>" class="row g-2 mb-3">
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Open', 'In Progress', 'Resolved', 'Closed'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/tickets'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Ticket no or subject'],
+          'status' => ['value' => $status ?? '', 'options' => ['Open', 'In Progress', 'Resolved', 'Closed']],
+          'date' => ['label' => 'Raised', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+          'export' => true,
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
+
+    <div data-list-results>
+    <?php $count = count($tickets); include __DIR__ . '/../partials/list_count.php'; ?>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -32,7 +32,7 @@
         </thead>
         <tbody>
           <?php if (empty($tickets)): ?>
-            <tr><td colspan="8" class="text-center text-muted py-4">No tickets found.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No tickets found.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($tickets as $t): ?>
             <?php
@@ -64,6 +64,7 @@
           <?php endforeach; ?>
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>
