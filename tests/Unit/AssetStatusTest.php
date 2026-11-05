@@ -54,6 +54,14 @@ class AssetStatusTest extends TestCase
         }
     }
 
+    public function testThePostableListIsExactlyTheStatusesThatCanPost(): void
+    {
+        $this->assertSame(['Active', 'Under Maintenance', 'Damaged'], AssetStatus::postable());
+        foreach (AssetStatus::ALL as $status) {
+            $this->assertSame(AssetStatus::canPostDepreciation($status), in_array($status, AssetStatus::postable(), true), "$status: the list and the rule agree");
+        }
+    }
+
     public function testStatusCanBeChangedWhileTheCompanyStillOwnsTheAsset(): void
     {
         foreach (['Active', 'Under Maintenance', 'Damaged', 'Fully Depreciated'] as $status) {

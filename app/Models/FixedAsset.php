@@ -239,6 +239,10 @@ class FixedAsset extends Model
     {
         $where = $branchId !== null ? " AND (branch_id = " . (int) $branchId . " OR branch_id IS NULL)" : "";
         $scheduleWhere = $branchId !== null ? " AND (a.branch_id = " . (int) $branchId . " OR a.branch_id IS NULL)" : "";
+        // Next month's charge is what would actually be posted, so only an asset that can still post counts. A disposed asset keeps its pending
+        // schedule rows (disposal does not cancel them) but they will never post, and a fully depreciated one has none left.
+        $postable = AssetStatus::postable();
+        $postableIn = implode(',', array_fill(0, count($postable), '?'));
         return [
             'count' => (int) $this->scalar("SELECT COUNT(*) FROM fixed_assets WHERE status != 'Disposed'{$where}"),
             'net_book_value' => (float) ($this->scalar("SELECT COALESCE(SUM(net_book_value),0) FROM fixed_assets WHERE status != 'Disposed'{$where}") ?: 0),
@@ -248,8 +252,9 @@ class FixedAsset extends Model
                            ROW_NUMBER() OVER (PARTITION BY s.asset_id ORDER BY s.period_no) AS rn
                     FROM asset_depreciation_schedules s
                     JOIN fixed_assets a ON a.id = s.asset_id
-                    WHERE s.status = 'Pending'{$scheduleWhere}
-                 ) t WHERE t.rn = 1"
+                    WHERE s.status = 'Pending' AND a.status IN ({$postableIn}){$scheduleWhere}
+                 ) t WHERE t.rn = 1",
+                $postable
             ) ?: 0),
         ];
     }

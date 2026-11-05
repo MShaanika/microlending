@@ -238,6 +238,49 @@ class FixedAssetRegisterTest extends TestCase
         $this->assertSame('Active', $this->status($id));
     }
 
+    // ---- next month's charge on the register -------------------------------------------------------------------------------
+
+    /** The dev database holds real assets, so the register total is read before and after the fixtures go in and only the difference is judged. */
+    public function testNextMonthsChargeCountsOnlyAssetsThatCanStillPost(): void
+    {
+        $before = $this->assets->totals()['monthly_charge'];
+
+        foreach (['Active', 'Under Maintenance', 'Damaged', 'Disposed', 'Written Off'] as $i => $status) {
+            $this->schedule($this->asset('charge' . $i, ['status' => $status]));
+        }
+
+        // each schedule has a pending first period of 600: the three assets still in use will post it next month, the disposed and written-off never will
+        $this->assertEqualsWithDelta(1800.0, $this->assets->totals()['monthly_charge'] - $before, 0.001);
+    }
+
+    public function testNextMonthsChargeIsTheFirstPendingPeriodOnlyAndDropsAnAssetOnceItIsDisposed(): void
+    {
+        $before = $this->assets->totals()['monthly_charge'];
+        $id = $this->asset('twoPeriods');
+        $this->schedule($id);
+        $this->assertEqualsWithDelta(600.0, $this->assets->totals()['monthly_charge'] - $before, 0.001, 'one period of the two, not both');
+
+        // exactly what a disposal leaves behind: the status changes and the pending rows stay
+        $this->assets->updateFields($id, ['status' => 'Disposed']);
+        $pending = (int) $this->db->query("SELECT COUNT(*) FROM asset_depreciation_schedules WHERE asset_id = $id AND status = 'Pending'")->fetchColumn();
+        $this->assertGreaterThan(0, $pending, 'the disposed asset still has pending rows');
+        $this->assertEqualsWithDelta(0.0, $this->assets->totals()['monthly_charge'] - $before, 0.001, 'but they no longer count');
+    }
+
+    public function testNextMonthsChargeFollowsTheBranchFilterAndStillIgnoresDisposedAssets(): void
+    {
+        $branchId = (int) $this->db->query('SELECT id FROM branches ORDER BY id LIMIT 1')->fetchColumn();
+        if ($branchId === 0) {
+            $this->markTestSkipped('The dev database has no branch to attach test assets to.');
+        }
+        $before = $this->assets->totals($branchId)['monthly_charge'];
+
+        $this->schedule($this->asset('inBranch', ['branch_id' => $branchId]));
+        $this->schedule($this->asset('disposedInBranch', ['branch_id' => $branchId, 'status' => 'Disposed']));
+
+        $this->assertEqualsWithDelta(600.0, $this->assets->totals($branchId)['monthly_charge'] - $before, 0.001);
+    }
+
     // ---- what the screens show --------------------------------------------------------------------------------------------
 
     /** @param array<string, mixed> $data */

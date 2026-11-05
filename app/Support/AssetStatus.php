@@ -44,6 +44,17 @@ class AssetStatus
         return in_array($status, self::CHOOSABLE, true);
     }
 
+    /**
+     * Every status for which canPostDepreciation() is true, derived from that rule so a query that must match the posting rule (such as next
+     * month's charge on the register) never keeps a list of its own.
+     *
+     * @return string[]
+     */
+    public static function postable(): array
+    {
+        return array_values(array_filter(self::ALL, [self::class, 'canPostDepreciation']));
+    }
+
     /** The company still owns it, so a person can still change its status. */
     public static function stillOwned(string $status): bool
     {
