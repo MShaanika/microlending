@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Core\Model;
+use App\Support\AssetStatus;
+use App\Support\ListFilter;
 
 class FixedAsset extends Model
 {
@@ -10,8 +12,11 @@ class FixedAsset extends Model
      * $branchId !== null shows that branch's assets plus any unassigned
      * (branch_id IS NULL) shared/company-wide asset -- an asset is only
      * ever hidden from a branch, never from everyone.
+     *
+     * $filter['from'] / ['to'] (inclusive Y-m-d, either may be missing) limit the list to assets acquired on those days, by purchase date.
+     * Added after the other arguments because the financial statements call this positionally.
      */
-    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null): array
+    public function paginated(string $search = '', string $status = '', int $limit = 100, ?int $branchId = null, array $filter = []): array
     {
         $sql = "SELECT a.*, c.category_name
                 FROM fixed_assets a
@@ -19,11 +24,7 @@ class FixedAsset extends Model
                 WHERE 1=1";
         $params = [];
 
-        if ($search !== '') {
-            $sql .= " AND (a.asset_no LIKE ? OR a.asset_name LIKE ? OR a.serial_no LIKE ?)";
-            $like = '%' . $search . '%';
-            array_push($params, $like, $like, $like);
-        }
+        $sql .= ListFilter::searchSql(['a.asset_no', 'a.asset_name', 'a.serial_no'], $search, $params);
 
         if ($status !== '') {
             $sql .= " AND a.status = ?";
@@ -34,6 +35,8 @@ class FixedAsset extends Model
             $sql .= " AND (a.branch_id = ? OR a.branch_id IS NULL)";
             $params[] = $branchId;
         }
+
+        $sql .= ListFilter::dateSql('a.purchase_date', $filter['from'] ?? null, $filter['to'] ?? null, $params);
 
         $sql .= " ORDER BY a.id DESC LIMIT " . (int) $limit;
 
@@ -184,10 +187,17 @@ class FixedAsset extends Model
                 [$assetId]
             );
 
+            // Posting never overwrites a status a person set: an asset marked Under Maintenance or Damaged stays that way, last period
+            // included (it is still owned and still shows in its own filter). Only an Active asset moves on to Fully Depreciated.
+            $status = $asset['status'];
+            if ($remainingPending === 0 && $status === AssetStatus::ACTIVE) {
+                $status = AssetStatus::FULLY_DEPRECIATED;
+            }
+
             $this->updateFields($assetId, [
                 'accumulated_depreciation' => $newAccumulated,
                 'net_book_value' => $newNbv,
-                'status' => $remainingPending === 0 ? 'Fully Depreciated' : 'Active',
+                'status' => $status,
             ]);
 
             $this->db->commit();
@@ -197,6 +207,32 @@ class FixedAsset extends Model
             $this->db->rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Moves a still-owned asset to Active, Under Maintenance or Damaged. Choosing Active for an asset whose every depreciation period is already
+     * posted gives Fully Depreciated, which is what it is; an asset with no schedule at all (a "No Depreciation" asset such as land) stays Active.
+     * The caller has checked the asset exists, is still owned and that $to is a choosable status.
+     *
+     * @return string the status the asset has now
+     */
+    public function changeStatus(int $id, string $to): string
+    {
+        if ($to === AssetStatus::ACTIVE && $this->allPeriodsPosted($id)) {
+            $to = AssetStatus::FULLY_DEPRECIATED;
+        }
+        $this->updateFields($id, ['status' => $to]);
+        return $to;
+    }
+
+    /** True when the asset has a depreciation schedule and none of its periods is still pending. */
+    private function allPeriodsPosted(int $assetId): bool
+    {
+        $row = $this->one(
+            "SELECT COUNT(*) AS total, COALESCE(SUM(status = 'Pending'), 0) AS pending FROM asset_depreciation_schedules WHERE asset_id = ?",
+            [$assetId]
+        );
+        return (int) ($row['total'] ?? 0) > 0 && (int) ($row['pending'] ?? 0) === 0;
     }
 
     public function totals(?int $branchId = null): array

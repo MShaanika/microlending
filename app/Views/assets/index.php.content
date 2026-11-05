@@ -51,63 +51,40 @@
       </a>
     </div>
 
-    <form method="get" data-list-filter action="<?= url('/fixed-assets') ?>" class="row g-2 mb-3">
-      <div class="col-md-4">
-        <input type="text" name="q" class="form-control" placeholder="Search asset no, name, serial..." value="<?= e($search ?? '') ?>">
-      </div>
-      <div class="col-md-3">
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <?php foreach (['Active','Fully Depreciated','Disposed','Written Off'] as $s): ?>
-            <option value="<?= $s ?>" <?= ($status ?? '') === $s ? 'selected' : '' ?>><?= $s ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <?php if (!empty($branches)): ?>
-        <div class="col-md-3">
-          <select name="branch_id" class="form-select">
-            <option value="">All Branches</option>
-            <?php foreach ($branches as $b): ?>
-              <option value="<?= (int) $b['id'] ?>" <?= (string) ($selectedBranchId ?? '') === (string) $b['id'] ? 'selected' : '' ?>><?= e($b['branch_name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      <?php endif; ?>
-      <div class="col-md-2">
-        <button class="btn btn-outline-secondary w-100" type="submit"><i class="mdi mdi-magnify"></i> Filter</button>
-      </div>
-    </form>
+    <?php
+      $bar = [
+          'action' => url('/fixed-assets'),
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Search asset no, name, serial...'],
+          'status' => ['value' => $status ?? '', 'options' => \App\Support\AssetStatus::ALL],
+          'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
+          'date' => ['label' => 'Acquisition date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
+      ];
+      include __DIR__ . '/../partials/list_filter_bar.php';
+    ?>
 
     <div data-list-results>
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
           <tr>
-            <th>Asset No</th><th>Name</th><th>Category</th><th>Nature</th><th>Cost</th><th>Acc. Depr.</th><th>NBV</th><th>Status</th><th class="text-end">Actions</th>
+            <th>Asset No</th><th>Name</th><th>Serial No</th><th>Category</th><th>Nature</th><th>Cost</th><th>Acc. Depr.</th><th>NBV</th><th>Status</th><th class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($assets)): ?>
-            <tr><td colspan="9" class="text-center text-muted py-4">No assets registered yet.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted py-4"><?= !empty($filtersActive) ? 'Nothing matches your filters.' : 'No assets registered yet.' ?></td></tr>
           <?php endif; ?>
           <?php foreach ($assets as $a): ?>
-            <?php
-              $badge = match ($a['status']) {
-                'Active' => 'success',
-                'Fully Depreciated' => 'info',
-                'Disposed' => 'secondary',
-                default => 'danger',
-              };
-            ?>
             <tr>
               <td><?= e($a['asset_no']) ?></td>
               <td><?= e($a['asset_name']) ?></td>
+              <td><?= ($a['serial_no'] ?? '') !== '' ? e($a['serial_no']) : '&mdash;' ?></td>
               <td><?= e($a['category_name']) ?></td>
               <td><?= e($a['asset_nature']) ?></td>
               <td><?= format_money($a['capitalized_cost']) ?></td>
               <td><?= format_money($a['accumulated_depreciation']) ?></td>
               <td><?= format_money($a['net_book_value']) ?></td>
-              <td><span class="badge bg-<?= $badge ?>"><?= e($a['status']) ?></span></td>
+              <td><?= \App\Support\AssetStatus::badge($a['status']) ?></td>
               <td class="text-end">
                 <a href="<?= url('/fixed-assets/' . $a['id']) ?>" class="btn btn-sm btn-outline-info"><i class="mdi mdi-eye"></i></a>
               </td>

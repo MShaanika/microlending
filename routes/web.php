@@ -1334,6 +1334,7 @@ $router->get('/fixed-assets/create', [AssetController::class, 'create']);
 $router->post('/fixed-assets', [AssetController::class, 'store']);
 $router->get('/fixed-assets/{id}', [AssetController::class, 'show']);
 $router->post('/fixed-assets/{id}/depreciate', [AssetController::class, 'depreciate']);
+$router->post('/fixed-assets/{id}/status', [AssetController::class, 'changeStatus']);
 $router->post('/fixed-assets/{id}/dispose', [AssetController::class, 'dispose']);
 
 // Borrower self-service portal (separate auth from staff /login)

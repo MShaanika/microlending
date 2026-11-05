@@ -14,6 +14,8 @@ use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\FixedAsset;
 use App\Services\DepreciationService;
+use App\Support\AssetStatus;
+use App\Support\ListFilter;
 
 class AssetController extends Controller
 {
@@ -70,16 +72,21 @@ class AssetController extends Controller
     public function index(): void
     {
         Auth::authorize('assets.view');
-        $search = trim((string) ($_GET['q'] ?? ''));
-        $status = trim((string) ($_GET['status'] ?? ''));
+        $filter = ListFilter::fromRequest($_GET);
+        $search = $filter['q'];
+        $status = $filter['status'];
         $branchId = $this->indexBranchId();
+        // a date range may match more than the everyday latest-100 view, so the list is longer while one is set
+        $range = $filter['from'] !== null || $filter['to'] !== null;
 
-        $this->view('assets/index', [
+        $this->listPage('assets/index', [
             'title' => 'Fixed Assets',
-            'assets' => $this->assets->paginated($search, $status, 100, $branchId),
+            'assets' => $this->assets->paginated($search, $status, $range ? 1000 : 100, $branchId, $filter),
             'totals' => $this->assets->totals($branchId),
             'search' => $search,
             'status' => $status,
+            'filter' => $filter,
+            'filtersActive' => $search !== '' || $status !== '' || $range || ($branchId !== null && Auth::isSuperAdmin()),
             'branches' => Auth::isSuperAdmin() ? $this->branches->all() : [],
             'selectedBranchId' => $branchId,
         ]);
@@ -266,8 +273,9 @@ class AssetController extends Controller
         }
 
         $existing = $this->assets->find($id);
-        if (!$existing || $existing['status'] !== 'Active') {
-            Session::flash('error', 'Only active assets can have a period posted.');
+        // Under Maintenance and Damaged assets are still owned, so they keep depreciating; Fully Depreciated, Disposed and Written Off do not.
+        if (!$existing || !AssetStatus::canPostDepreciation($existing['status'])) {
+            Session::flash('error', 'A period can only be posted for an Active, Under Maintenance or Damaged asset.');
             $this->redirect('/fixed-assets/' . $id);
         }
         $this->assertBranchAccess($existing);
@@ -281,6 +289,59 @@ class AssetController extends Controller
 
         Audit::log('Post', 'Assets', 'Posted depreciation period #' . $result['period']['period_no'] . ' for asset #' . $id . ' via journal #' . $result['journal_id']);
         Session::flash('success', 'Period ' . $result['period']['period_no'] . ' posted for ' . format_money($result['period']['depreciation_amount']) . '.');
+        $this->redirect('/fixed-assets/' . $id);
+    }
+
+    /** Moves a still-owned asset between Active, Under Maintenance and Damaged. Fully Depreciated and Disposed come from the books, not from here. */
+    public function changeStatus(string $id): void
+    {
+        Auth::authorize('assets.manage');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/fixed-assets/' . $id);
+        }
+
+        $asset = $this->assets->find($id);
+        if (!$asset) {
+            Session::flash('error', 'Asset not found.');
+            $this->redirect('/fixed-assets');
+        }
+        $this->assertBranchAccess($asset);
+
+        if (!AssetStatus::stillOwned($asset['status'])) {
+            Session::flash('error', 'This asset is ' . strtolower($asset['status']) . ', so its status can no longer be changed.');
+            $this->redirect('/fixed-assets/' . $id);
+        }
+
+        $to = (string) ($_POST['status'] ?? '');
+        if (!in_array($to, AssetStatus::CHOOSABLE, true)) {
+            Session::flash('error', 'Choose Active, Under Maintenance or Damaged.');
+            $this->redirect('/fixed-assets/' . $id);
+        }
+
+        $from = $asset['status'];
+        $now = $this->assets->changeStatus($id, $to);
+
+        if ($now === $from) {
+            Session::flash('success', 'No change: the asset is already ' . $from . '.');
+            $this->redirect('/fixed-assets/' . $id);
+        }
+
+        $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 255);
+        Audit::log(
+            'Update',
+            'Assets',
+            'Changed asset #' . $id . ' (' . $asset['asset_no'] . ') status from ' . $from . ' to ' . $now . ($note !== '' ? ': ' . $note : '.'),
+            ['asset_id' => $id, 'from' => $from, 'to' => $now]
+        );
+
+        $message = 'Status changed from ' . $from . ' to ' . $now . '.';
+        if ($to === AssetStatus::ACTIVE && $now === AssetStatus::FULLY_DEPRECIATED) {
+            $message = 'Status changed from ' . $from . ' to ' . $now . ': every depreciation period is already posted.';
+        }
+        Session::flash('success', $message);
         $this->redirect('/fixed-assets/' . $id);
     }
 

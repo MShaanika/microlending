@@ -1,13 +1,8 @@
 <?= flash_messages() ?>
 
 <?php
-  $badge = match ($asset['status']) {
-    'Active' => 'success',
-    'Fully Depreciated' => 'info',
-    'Disposed' => 'secondary',
-    default => 'danger',
-  };
   $label = $asset['asset_nature'] === 'Intangible' ? 'Amortization' : 'Depreciation';
+  $canChangeStatus = \App\Core\Auth::can('assets.manage') && \App\Support\AssetStatus::stillOwned($asset['status']);
   $hasPending = false;
   foreach ($schedule as $row) { if ($row['status'] === 'Pending') { $hasPending = true; break; } }
 ?>
@@ -18,7 +13,7 @@
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <h4 class="card-title mb-0"><?= e($asset['asset_name']) ?></h4>
-          <span class="badge bg-<?= $badge ?>"><?= e($asset['status']) ?></span>
+          <?= \App\Support\AssetStatus::badge($asset['status']) ?>
         </div>
         <p class="text-muted mb-3"><?= e($asset['asset_no']) ?> &middot; <?= e($asset['category_name']) ?> (<?= e($asset['asset_nature']) ?>)</p>
 
@@ -48,11 +43,17 @@
         <?php endif; ?>
 
         <div class="d-flex gap-2 flex-wrap">
-          <?php if ($asset['status'] === 'Active' && $hasPending): ?>
+          <?php if (\App\Support\AssetStatus::canPostDepreciation($asset['status']) && $hasPending): ?>
             <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/depreciate') ?>" onsubmit="return confirmSubmit(this, 'Post the next <?= strtolower($label) ?> period to the ledger?');">
               <?= csrf_field() ?>
               <button class="btn btn-info btn-sm"><i class="mdi mdi-calculator"></i> Post Next <?= $label ?> Period</button>
             </form>
+          <?php endif; ?>
+
+          <?php if ($canChangeStatus): ?>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#statusForm">
+              <i class="mdi mdi-wrench"></i> Change Status
+            </button>
           <?php endif; ?>
 
           <?php if ($asset['status'] !== 'Disposed'): ?>
@@ -61,6 +62,31 @@
             </button>
           <?php endif; ?>
         </div>
+
+        <?php if ($canChangeStatus): ?>
+        <div class="collapse mt-3" id="statusForm">
+          <form method="post" action="<?= url('/fixed-assets/' . $asset['id'] . '/status') ?>">
+            <?= csrf_field() ?>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Status</label>
+              <select name="status" class="form-select form-select-sm" required>
+                <?php if (!in_array($asset['status'], \App\Support\AssetStatus::CHOOSABLE, true)): ?>
+                  <option value="" disabled selected>Choose a status</option>
+                <?php endif; ?>
+                <?php foreach (\App\Support\AssetStatus::CHOOSABLE as $s): ?>
+                  <option value="<?= e($s) ?>" <?= $asset['status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Under Maintenance and Damaged assets are still owned, so they keep depreciating.</div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Note (optional)</label>
+              <input type="text" name="note" maxlength="255" class="form-control form-control-sm" placeholder="e.g. sent to the repair shop">
+            </div>
+            <button class="btn btn-info btn-sm w-100" type="submit">Save Status</button>
+          </form>
+        </div>
+        <?php endif; ?>
 
         <?php if ($asset['status'] !== 'Disposed'): ?>
         <div class="collapse mt-3" id="disposeForm">
