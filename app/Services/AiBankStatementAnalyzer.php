@@ -136,22 +136,12 @@ class AiBankStatementAnalyzer
             if ($bytes === false) {
                 continue;
             }
-            $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-            $mime = match ($ext) {
-                'pdf' => 'application/pdf',
-                'jpg', 'jpeg' => 'image/jpeg',
-                'png' => 'image/png',
-                default => null,
-            };
-            if ($mime === null) {
+            $part = self::contentPart(pathinfo($fullPath, PATHINFO_EXTENSION), $bytes, $doc['document_name'] ?: basename($fullPath));
+            if ($part === null) {
                 continue;
             }
 
-            $fileParts[] = [
-                'type' => 'input_file',
-                'filename' => $doc['document_name'] ?: basename($fullPath),
-                'file_data' => 'data:' . $mime . ';base64,' . base64_encode($bytes),
-            ];
+            $fileParts[] = $part;
         }
 
         if (empty($fileParts)) {
@@ -239,6 +229,34 @@ class AiBankStatementAnalyzer
             'data' => $data,
             'modelUsed' => $model,
         ];
+    }
+
+    /**
+     * One uploaded file as a content part of an OpenAI Responses API request. A PDF travels as a FILE (input_file); a photo or screenshot of a statement
+     * must travel as an IMAGE (input_image): sent as a file, OpenAI refuses it ("unsupported MIME type 'image/jpeg'") and the whole analysis fails
+     * (seen on a live application, 2026-11-09). Returns null for a type that cannot be read (uploads are limited to PDF, JPG, PNG and CSV; a CSV is
+     * analysed by another route and never comes here).
+     *
+     * @return ?array<string, string>
+     */
+    public static function contentPart(string $extension, string $bytes, string $name): ?array
+    {
+        $extension = strtolower($extension);
+        if ($extension === 'pdf') {
+            return ['type' => 'input_file', 'filename' => $name, 'file_data' => 'data:application/pdf;base64,' . base64_encode($bytes)];
+        }
+
+        $imageMime = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            default => null,
+        };
+        if ($imageMime === null) {
+            return null;
+        }
+
+        // 'high' detail: a statement is dense small print, and the automatic setting may read it at a resolution too low to make out the lines
+        return ['type' => 'input_image', 'image_url' => 'data:' . $imageMime . ';base64,' . base64_encode($bytes), 'detail' => 'high'];
     }
 
     private static function extractOutputText(array $body): ?string
