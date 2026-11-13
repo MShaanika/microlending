@@ -1322,9 +1322,11 @@ $router->post('/reports/cpl-export/batches/{id}/submit-sftp', [CplBatchControlle
 $router->get('/reports/cpl-export/uat-signoff', [CplUatTestController::class, 'index']);
 $router->post('/reports/cpl-export/uat-signoff/generate-daily', [CplUatTestController::class, 'generateDaily']);
 $router->post('/reports/cpl-export/uat-signoff/generate-monthly', [CplUatTestController::class, 'generateMonthly']);
+$router->post('/reports/cpl-export/uat-signoff/upload-file', [CplUatTestController::class, 'uploadFileToCreditinfo']);
 $router->get('/reports/cpl-export/uat-signoff/{id}', [CplUatTestController::class, 'show']);
 $router->get('/reports/cpl-export/uat-signoff/{id}/download', [CplUatTestController::class, 'download']);
 $router->post('/reports/cpl-export/uat-signoff/{id}/record-outcome', [CplUatTestController::class, 'recordOutcome']);
+$router->post('/reports/cpl-export/uat-signoff/{id}/upload-sftp', [CplUatTestController::class, 'uploadToCreditinfo']);
 
 // Fixed Assets: Depreciation & Amortization
 // Note: routed under /fixed-assets (not /assets) because /assets collides with

@@ -48,6 +48,73 @@
   </div>
 </div>
 
+<?php
+  $alreadyUploaded = !empty($upload['uploaded_at']);
+  // A result somebody recorded (Rejected, say) also means a file went to Creditinfo before, even without our upload note.
+  $recordedOutcome = (string) ($upload['recorded_outcome'] ?? '');
+  $sentBefore = $alreadyUploaded || $recordedOutcome !== '';
+  $uploadedWhen = $alreadyUploaded ? date('d M Y \a\t H:i', strtotime($upload['uploaded_at'])) : '';
+  $confirmText = $alreadyUploaded
+    ? $upload['filename'] . ' was already uploaded on ' . $uploadedWhen . '. Upload it again? Creditinfo may treat a second file with the same name as a duplicate.'
+    : ($recordedOutcome !== ''
+      ? 'A result is already recorded for this file (' . $recordedOutcome . '). Upload ' . $upload['filename'] . ' again? Creditinfo may treat a second file with the same name as a duplicate.'
+      : 'Upload ' . $upload['filename'] . ' to Creditinfo now? It is sent to their SFTP server and cannot be taken back.');
+  $mailText = $alreadyUploaded
+    ? "Subject: " . $upload['trading_name'] . " (" . $upload['supplier_ref'] . ") - CPL " . $upload['kind'] . " sign-off test file uploaded\n\n"
+      . "Hi,\n\n"
+      . "We have uploaded the CPL " . $upload['kind'] . " sign-off test file to the Creditinfo SFTP server on " . $uploadedWhen . ".\n\n"
+      . "File: " . $upload['filename'] . "\n"
+      . "Records: " . (int) $upload['record_count'] . " (the approved test IDs only)\n"
+      . "Supplier reference number: " . $upload['supplier_ref'] . "\n\n"
+      . "Please load it and send us the load report.\n\n"
+      . "Regards,\n" . $upload['trading_name']
+    : '';
+?>
+<div class="card mt-3" id="send-to-creditinfo">
+  <div class="card-body">
+    <h5 class="card-title">Send to Creditinfo</h5>
+    <p class="text-muted small">
+      Uploads this test file to the Creditinfo SFTP server, using the connection saved in
+      <a href="<?= url('/creditinfo/public-defaults/settings') ?>">Public Defaults Settings</a>.
+      It is always sent as a <strong>T702 (test)</strong> file and holds only the test IDs Creditinfo approved,
+      never a real borrower. Sending a file does not mean Creditinfo accepted it: record their load report below.
+    </p>
+
+    <?php if (!empty($upload['filename'])): ?>
+      <dl class="row small mb-2">
+        <dt class="col-sm-3">File name</dt>
+        <dd class="col-sm-9"><code><?= e($upload['filename']) ?></code> (<?= (int) $upload['record_count'] ?> records)</dd>
+        <?php if ($upload['destination'] !== ''): ?>
+          <dt class="col-sm-3">Destination</dt>
+          <dd class="col-sm-9"><?= e($upload['destination']) ?></dd>
+        <?php endif; ?>
+      </dl>
+    <?php endif; ?>
+
+    <?php if ($alreadyUploaded): ?>
+      <div class="alert alert-info small py-2"><strong>Already uploaded.</strong> <?= e($upload['uploaded_note']) ?></div>
+    <?php endif; ?>
+
+    <?php if ($upload['can_upload']): ?>
+      <form method="post" action="<?= url('/reports/cpl-export/uat-signoff/' . $batch['id'] . '/upload-sftp') ?>" onsubmit="<?= e('return confirm(' . json_encode($confirmText, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_SLASHES) . ');') ?>">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-primary btn-sm" data-busy-label="Uploading..."><i class="mdi mdi-cloud-upload"></i> <?= $sentBefore ? 'Upload again' : 'Upload to Creditinfo' ?></button>
+      </form>
+    <?php else: ?>
+      <div class="alert alert-warning small mb-0"><strong>Cannot upload yet.</strong> <?= e($upload['problem']) ?></div>
+    <?php endif; ?>
+
+    <?php if ($alreadyUploaded): ?>
+      <div class="mt-3">
+        <label class="form-label small fw-semibold" for="uatUploadMail">Message to send to your Creditinfo contacts</label>
+        <textarea id="uatUploadMail" class="form-control form-control-sm" rows="9" readonly><?= e($mailText) ?></textarea>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-2"
+          onclick="var b = this, t = document.getElementById('uatUploadMail'); t.focus(); t.select(); var ok = function () { b.textContent = 'Copied'; }; var fb = function () { var r = false; try { r = document.execCommand('copy'); } catch (e) {} b.textContent = r ? 'Copied' : 'Select the text and press Ctrl+C'; }; if (navigator.clipboard &amp;&amp; navigator.clipboard.writeText) { navigator.clipboard.writeText(t.value).then(ok, fb); } else { fb(); }">Copy message</button>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
 <div class="card mt-3">
   <div class="card-body">
     <h5 class="card-title">Submission Result</h5>

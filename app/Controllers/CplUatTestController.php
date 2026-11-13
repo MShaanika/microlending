@@ -9,23 +9,30 @@ use App\Core\Security;
 use App\Core\Session;
 use App\Models\CplBatch;
 use App\Models\CplSetting;
-use App\Services\CplRecordBuilder;
-use App\Services\CplUatTestDataService;
-use App\Services\CplValidationService;
+use App\Services\CplSftpUncertainException;
+use App\Services\CplUatBatchService;
+use App\Services\CplUatFileService;
+use App\Services\CplUatUploadService;
 use App\Services\CreditinfoSignOffService;
 
 /**
  * Creditinfo sign-off testing for CPL Daily and CPL Monthly -- generates a
  * file from synthetic data only (App\Services\CplUatTestDataService, built
  * exclusively from Creditinfo's three approved UAT National IDs), validates
- * it against the CPLv1.1 spec, and lets staff record the actual outcome
- * once Creditinfo has processed it. Never marks a file ACCEPTED
+ * it against the CPLv1.1 spec, can upload that test file (T702, synthetic
+ * data only -- see CplUatUploadService) to Creditinfo's SFTP gateway on an
+ * explicit click -- or send a standard test file made earlier and chosen from
+ * the computer, byte for byte as it is -- and lets staff record the actual
+ * outcome once Creditinfo has processed it. Never marks a file ACCEPTED
  * automatically -- see CplSetting/CreditinfoSignOffService's own docblocks.
- * No external submission happens from this controller; "submitting" to
- * Creditinfo remains a manual, out-of-band step staff record the result of.
+ * Uploading a file is not an outcome: the batch only becomes "Awaiting Load
+ * Report".
  */
 class CplUatTestController extends Controller
 {
+    /** A real sign-off test file is about 5 KB; anything much larger is not one. */
+    private const MAX_TEST_FILE_BYTES = 65536;
+
     private CplBatch $batches;
     private CplSetting $settings;
 
@@ -52,6 +59,7 @@ class CplUatTestController extends Controller
             'overall' => $signOff->overallSignOffStatus(),
             'latestDailyBatch' => $this->batches->latestOfType('Daily', true),
             'latestMonthlyBatch' => $this->batches->latestOfType('Monthly', true),
+            'fileUpload' => (new CplUatUploadService())->connectionStatus(),
         ]);
     }
 
@@ -64,48 +72,11 @@ class CplUatTestController extends Controller
             return;
         }
 
-        $transactionDate = date('Y-m-d');
-        $records = (new CplUatTestDataService())->dailyTestRecords($transactionDate);
-        $validator = new CplValidationService();
+        $batch = (new CplUatBatchService())->generate('Daily', date('Y-m-d'), (int) (Auth::user()['id'] ?? 0));
 
-        $blockingCount = 0;
-        $warningCount = 0;
-        $testRecords = [];
-        foreach ($records as $fields) {
-            $issues = $validator->validate($fields);
-            $status = $validator->overallStatus($issues);
-            if ($status === 'Blocking Error') {
-                $blockingCount++;
-            } elseif ($status === 'Warning') {
-                $warningCount++;
-            }
-            $testRecords[] = ['fields' => $fields, 'issues' => $issues, 'status' => $status];
-        }
-
-        $existing = $this->batches->findByTypeAndMonth('Daily', $transactionDate, true);
-        $data = [
-            'batch_type' => 'Daily',
-            'is_uat_test' => 1,
-            'month_end' => $transactionDate,
-            'status' => $blockingCount > 0 ? 'Draft' : 'Ready for Review',
-            'total_records' => count($records),
-            'blocking_error_count' => $blockingCount,
-            'warning_count' => $warningCount,
-            'generated_by' => Auth::user()['id'] ?? null,
-            'generated_at' => date('Y-m-d H:i:s'),
-            'test_records' => json_encode($testRecords),
-        ];
-
-        if ($existing) {
-            $this->batches->updateRecord((int) $existing['id'], $data);
-            $batchId = (int) $existing['id'];
-        } else {
-            $batchId = $this->batches->create($data);
-        }
-
-        Audit::log('Create', 'CPL', 'Generated CPL Daily UAT sign-off test file (' . count($records) . ' records)');
+        Audit::log('Create', 'CPL', 'Generated CPL Daily UAT sign-off test file (' . $batch['records'] . ' records)');
         Session::flash('success', 'CPL Daily test file generated and validated.');
-        $this->redirect('/reports/cpl-export/uat-signoff/' . $batchId);
+        $this->redirect('/reports/cpl-export/uat-signoff/' . $batch['id']);
     }
 
     public function generateMonthly(): void
@@ -117,43 +88,15 @@ class CplUatTestController extends Controller
             return;
         }
 
-        $monthEnd = date('Y-m-d', strtotime('last day of this month'));
-        $validator = new CplValidationService();
-        $testRecords = [];
-        $blockingCount = 0;
-        $warningCount = 0;
-        foreach ((new CplUatTestDataService())->monthlyTestRecords($monthEnd) as $fields) {
-            $issues = $validator->validate($fields);
-            $status = $validator->overallStatus($issues);
-            $blockingCount += $status === 'Blocking Error' ? 1 : 0;
-            $warningCount += $status === 'Warning' ? 1 : 0;
-            $testRecords[] = ['fields' => $fields, 'issues' => $issues, 'status' => $status];
-        }
-
-        $existing = $this->batches->findByTypeAndMonth('Monthly', $monthEnd, true);
-        $data = [
-            'batch_type' => 'Monthly',
-            'is_uat_test' => 1,
-            'month_end' => $monthEnd,
-            'status' => $blockingCount > 0 ? 'Draft' : 'Ready for Review',
-            'total_records' => count($testRecords),
-            'blocking_error_count' => $blockingCount,
-            'warning_count' => $warningCount,
-            'generated_by' => Auth::user()['id'] ?? null,
-            'generated_at' => date('Y-m-d H:i:s'),
-            'test_records' => json_encode($testRecords),
-        ];
-
-        if ($existing) {
-            $this->batches->updateRecord((int) $existing['id'], $data);
-            $batchId = (int) $existing['id'];
-        } else {
-            $batchId = $this->batches->create($data);
-        }
+        // The last COMPLETED month end, like the real monthly batch screen offers -- a monthly
+        // file is "as at" a month end that has passed, so "this month's" end is a future date
+        // until the month is over, and a bureau can reject a file dated in the future.
+        $monthEnd = date('Y-m-d', strtotime('last day of previous month'));
+        $batch = (new CplUatBatchService())->generate('Monthly', $monthEnd, (int) (Auth::user()['id'] ?? 0));
 
         Audit::log('Create', 'CPL', 'Generated CPL Monthly UAT sign-off test file');
         Session::flash('success', 'CPL Monthly test file generated and validated.');
-        $this->redirect('/reports/cpl-export/uat-signoff/' . $batchId);
+        $this->redirect('/reports/cpl-export/uat-signoff/' . $batch['id']);
     }
 
     public function show(string $id): void
@@ -169,7 +112,8 @@ class CplUatTestController extends Controller
         $this->view('reports/cpl_export/uat_signoff/show', [
             'title' => 'CPL ' . $batch['batch_type'] . ' Sign-off Test',
             'batch' => $batch,
-            'testRecords' => json_decode($batch['test_records'], true) ?: [],
+            'testRecords' => json_decode((string) $batch['test_records'], true) ?: [],
+            'upload' => (new CplUatUploadService())->describe($batch),
         ]);
     }
 
@@ -183,39 +127,157 @@ class CplUatTestController extends Controller
             return;
         }
 
-        $testRecords = json_decode($batch['test_records'], true) ?: [];
-        $builder = new CplRecordBuilder();
         // Sign-off test files are always the "Test" file type (T702),
         // regardless of the configured submission environment -- this file
-        // must never be mistaken for a live production submission.
-        $fileType = 'T702';
-        $supplierRef = preg_replace('/[^A-Za-z0-9_-]/', '_', $this->settings->supplierReferenceNumber() ?: 'PENDING');
-
-        if ($batch['batch_type'] === 'Daily') {
-            $lines = [];
-            foreach ($testRecords as $record) {
-                $lines[] = $builder->dailyRecord($record['fields'], $this->settings->supplierReferenceNumber(), $batch['month_end']);
-            }
-            $content = implode("\r\n", $lines);
-            $filename = $supplierRef . '_ALL_' . $fileType . '_D_' . str_replace('-', '', $batch['month_end']) . '_1_1.txt';
-        } else {
-            $lines = [];
-            foreach ($testRecords as $record) {
-                $lines[] = $builder->record($record['fields']);
-            }
-            $header = $builder->header($this->settings->supplierReferenceNumber(), $batch['month_end'], $this->settings->tradingName());
-            $trailer = $builder->trailer(count($lines) + 2);
-            $content = implode("\r\n", array_merge([$header], $lines, [$trailer]));
-            $filename = $supplierRef . '_ALL_' . $fileType . '_M_' . str_replace('-', '', $batch['month_end']) . '_1_1.txt';
+        // must never be mistaken for a live production submission. The same
+        // builder feeds the Upload button, so an uploaded file is what this
+        // download gives (a monthly header carries the day it was built).
+        try {
+            $file = (new CplUatFileService())->build($batch, $this->settings->supplierReferenceNumber(), $this->settings->tradingName());
+        } catch (\RuntimeException $e) {
+            Session::flash('error', $e->getMessage());
+            $this->redirect('/reports/cpl-export/uat-signoff/' . (int) $id);
+            return;
         }
 
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
         header('Content-Type: text/plain; charset=ASCII');
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
-        echo $content;
+        header('Content-Disposition: attachment;filename="' . $file['filename'] . '"');
+        echo $file['content'];
         exit;
+    }
+
+    /**
+     * Explicit click only. Sends this batch's synthetic T702 test file to
+     * Creditinfo over the SFTP connection saved in Public Defaults Settings,
+     * then marks the batch "Awaiting Load Report". The guards (test IDs only,
+     * T702 only, no blocking errors) and the order of events live in
+     * CplUatUploadService; a refused or failed upload leaves the batch as it was.
+     */
+    public function uploadToCreditinfo(string $id): void
+    {
+        Auth::authorize('reports.cpl_export');
+        $id = (int) $id;
+        $back = '/reports/cpl-export/uat-signoff/' . $id;
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect($back);
+            return;
+        }
+
+        try {
+            $result = (new CplUatUploadService())->upload($id, (int) (Auth::user()['id'] ?? 0));
+        } catch (\RuntimeException $e) {
+            // A connection that broke after data was written is not "did not go through": the file may be there.
+            $unknown = $e instanceof CplSftpUncertainException;
+            Audit::log('Update', 'CPL', 'Upload of CPL sign-off test batch #' . $id . ' to Creditinfo SFTP '
+                . ($unknown ? 'ended with an UNKNOWN result, the file may have reached Creditinfo: ' : 'did not go through: ') . $e->getMessage());
+            Session::flash('error', ($unknown ? 'The upload to Creditinfo may or may not have worked. ' : 'The upload to Creditinfo did not go through. ') . $e->getMessage());
+            $this->redirect($back);
+            return;
+        } catch (\Throwable $e) {
+            error_log('CPL sign-off test upload, batch #' . $id . ': ' . get_class($e) . ': ' . $e->getMessage());
+            Audit::log('Update', 'CPL', 'Upload of CPL sign-off test batch #' . $id . ' to Creditinfo SFTP failed with an unexpected error (' . get_class($e) . ')');
+            Session::flash('error', 'The upload to Creditinfo failed with an unexpected error, so it cannot be confirmed as sent. Check the error log, then try again.');
+            $this->redirect($back);
+            return;
+        }
+
+        Audit::log('Update', 'CPL', 'Uploaded CPL ' . $result['kind'] . ' sign-off TEST file ' . $result['filename'] . ' to Creditinfo SFTP (batch #' . $id . ')', [
+            'batch_id' => $id,
+            'file' => $result['filename'],
+            'host' => $result['host'],
+            'remote_path' => $result['remote_path'],
+            'bytes' => $result['bytes'],
+            'records' => $result['record_count'],
+        ]);
+
+        if ($result['recorded']) {
+            Session::flash('success', $result['filename'] . ' (' . $result['record_count'] . ' records) was uploaded to Creditinfo. Now email your Creditinfo contacts so they load it, and record their load report below.');
+        } else {
+            // flash_messages() only shows 'success' and 'error'; this one must not pass unnoticed.
+            Session::flash('error', $result['filename'] . ' WAS uploaded to Creditinfo at ' . date('d M Y H:i', strtotime($result['uploaded_at']))
+                . ', but that could not be saved on this page. Note the time yourself, email your Creditinfo contacts, and do not upload it again.');
+        }
+        $this->redirect($back);
+    }
+
+    /**
+     * Explicit click only. Sends a test file CHOSEN FROM THE COMPUTER -- one made earlier and kept, for example in the
+     * Downloads folder -- to Creditinfo exactly as it is, but only if it is the standard sign-off test file for the date
+     * in its name (CplUatFileService::inspectStandardFile). Anything else is refused before any connection is made.
+     * The browser's temporary copy is read once and never stored; only its base name is used, and only if it passes the
+     * strict test-file-name rule.
+     */
+    public function uploadFileToCreditinfo(): void
+    {
+        Auth::authorize('reports.cpl_export');
+        $back = '/reports/cpl-export/uat-signoff';
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect($back);
+            return;
+        }
+
+        $upload = $_FILES['test_file'] ?? null;
+        $uploadError = is_array($upload) && !is_array($upload['name'] ?? null) ? (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            Session::flash('error', in_array($uploadError, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+                ? 'That file is far too large to be a sign-off test file. Nothing was sent.'
+                : 'Choose the test file to upload first. Nothing was sent.');
+            $this->redirect($back);
+            return;
+        }
+        $tmpName = (string) ($upload['tmp_name'] ?? '');
+        $size = (int) ($upload['size'] ?? 0);
+        if (!is_uploaded_file($tmpName) || $size < 1 || $size > self::MAX_TEST_FILE_BYTES) {
+            Session::flash('error', 'That is not a sign-off test file (it is empty or far too large). Nothing was sent.');
+            $this->redirect($back);
+            return;
+        }
+
+        $filename = basename(str_replace('\\', '/', (string) ($upload['name'] ?? '')));
+        $content = (string) file_get_contents($tmpName);
+        $fingerprint = ['sha256' => hash('sha256', $content), 'bytes' => strlen($content)];
+
+        try {
+            $result = (new CplUatUploadService())->uploadFile($filename, $content, (int) (Auth::user()['id'] ?? 0));
+        } catch (\RuntimeException $e) {
+            $unknown = $e instanceof CplSftpUncertainException;
+            Audit::log('Update', 'CPL', 'Upload of a chosen CPL sign-off test file to Creditinfo SFTP '
+                . ($unknown ? 'ended with an UNKNOWN result, the file may have reached Creditinfo: ' : 'did not go through: ') . $e->getMessage(), $fingerprint);
+            Session::flash('error', ($unknown ? 'The upload to Creditinfo may or may not have worked. ' : 'The upload to Creditinfo did not go through. ') . $e->getMessage());
+            $this->redirect($back);
+            return;
+        } catch (\Throwable $e) {
+            error_log('CPL sign-off test file upload from the computer: ' . get_class($e) . ': ' . $e->getMessage());
+            Audit::log('Update', 'CPL', 'Upload of a chosen CPL sign-off test file to Creditinfo SFTP failed with an unexpected error (' . get_class($e) . ')', $fingerprint);
+            Session::flash('error', 'The upload to Creditinfo failed with an unexpected error, so it cannot be confirmed as sent. Check the error log, then try again.');
+            $this->redirect($back);
+            return;
+        }
+
+        Audit::log('Update', 'CPL', 'Uploaded CPL ' . $result['kind'] . ' sign-off TEST file ' . $result['filename'] . ' to Creditinfo SFTP (file chosen from the computer'
+            . ($result['batch_id'] !== null ? ', recorded on batch #' . $result['batch_id'] : '') . ')', $fingerprint + [
+            'file' => $result['filename'],
+            'host' => $result['host'],
+            'remote_path' => $result['remote_path'],
+            'records' => $result['record_count'],
+            'batch_id' => $result['batch_id'],
+        ]);
+
+        if ($result['recorded'] && $result['batch_id'] !== null) {
+            Session::flash('success', $result['filename'] . ' (' . $result['record_count'] . ' records) was uploaded to Creditinfo. Now email your Creditinfo contacts so they load it, and record their load report below.');
+            $this->redirect('/reports/cpl-export/uat-signoff/' . $result['batch_id']);
+            return;
+        }
+
+        // flash_messages() only shows 'success' and 'error'; this one must not pass unnoticed.
+        Session::flash('error', $result['filename'] . ' WAS uploaded to Creditinfo at ' . date('d M Y H:i', strtotime($result['uploaded_at']))
+            . ', but that could not be saved on the sign-off page. Note the time yourself, email your Creditinfo contacts, and do not upload it again.');
+        $this->redirect($back);
     }
 
     public function recordOutcome(string $id): void
