@@ -242,9 +242,9 @@ class CplUatFileServiceTest extends TestCase
      *
      * @return array{filename:string, content:string, kind:string, record_count:int}
      */
-    private function standardFile(string $type, string $creation = '20261110'): array
+    private function standardFile(string $type, string $creation = '20261110', ?string $date = null): array
     {
-        $file = $this->build($this->batch($type));
+        $file = $this->build($this->batch($type, [], $date));
         if ($type === 'Monthly') {
             $lines = explode("\r\n", $file['content']);
             $lines[0] = substr_replace($lines[0], $creation, 21, 8);
@@ -307,6 +307,16 @@ class CplUatFileServiceTest extends TestCase
         $this->assertStringContainsString('Nothing was sent', $refusal->getMessage());
     }
 
+    public function testARefusedFileThatCannotBeFixedIsToldWhatToDoInstead(): void
+    {
+        $file = $this->standardFile('Monthly');
+        $tampered = $this->withLine($file['content'], 3, static fn (string $l): string => substr_replace($l, $l[100] === 'Z' ? 'Y' : 'Z', 100, 1));
+
+        $refusal = $this->refusal(fn () => $this->inspect($file['filename'], $tampered), 'A changed file was accepted.');
+
+        $this->assertStringContainsString('use Generate on the sign-off page to make a new file', $refusal->getMessage());
+    }
+
     public function refusedChosenFiles(): array
     {
         $monthly = static fn (self $t): array => $t->standardFile('Monthly');
@@ -341,6 +351,18 @@ class CplUatFileServiceTest extends TestCase
                 $f = $daily($t);
                 return ['NA02629_ALL_T702_D_20261332_1_1.txt', $f['content'], 'NA02629', self::TRADING_NAME];
             }, 'is not a real date'],
+            'a file dated long ago (otherwise a perfect standard file)' => [static function (self $t) {
+                $f = $t->standardFile('Monthly', '20261110', '2019-12-31');
+                return [$f['filename'], $f['content'], 'NA02629', self::TRADING_NAME];
+            }, 'long ago'],
+            'a file dated in year 1 (otherwise a perfect standard file)' => [static function (self $t) {
+                $f = $t->standardFile('Daily', '20261110', '0001-01-31');
+                return [$f['filename'], $f['content'], 'NA02629', self::TRADING_NAME];
+            }, 'long ago'],
+            'a browser renamed the second copy (1)' => [static function (self $t) use ($monthly) {
+                $f = $monthly($t);
+                return [str_replace('.txt', ' (1).txt', $f['filename']), $f['content'], 'NA02629', self::TRADING_NAME];
+            }, 'added (1) to the name'],
             'a date in the future' => [static function (self $t) use ($daily) {
                 $f = $daily($t);
                 return ['NA02629_ALL_T702_D_20261201_1_1.txt', $f['content'], 'NA02629', self::TRADING_NAME];

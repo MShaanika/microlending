@@ -20,17 +20,25 @@ use App\Models\CplSetting;
  * only a person recording Creditinfo's own load report does that
  * (CplUatTestController::recordOutcome) -- and a file Creditinfo has already
  * accepted is never sent again, so a recorded Accepted cannot be undone by a
- * second upload.
+ * second upload. The one deliberate exception to "a failed upload leaves no
+ * trace": when the connection breaks WHILE sending (the file may or may not
+ * be at Creditinfo), the batch is marked UNCLEAR so nobody sends it again
+ * without asking Creditinfo first.
  */
 class CplUatUploadService
 {
     /** The note written on the batch after an upload; the sign-off page recognises an uploaded batch by this prefix. */
     public const NOTE_PREFIX = 'Uploaded to Creditinfo SFTP';
 
+    /** The note written instead when the connection broke while sending: the file may or may not be at Creditinfo. */
+    public const UNCLEAR_PREFIX = 'Upload attempt UNCLEAR';
+
     /** A second upload of the same batch this soon after the first is refused: a double click, a second tab or a replayed request. */
     public const RESEND_WINDOW_SECONDS = 120;
 
     private const CONNECTION_NOT_READY = 'The SFTP connection is not set up or not switched on yet. Complete it in Public Defaults Settings (host, username, password, folder, and SFTP enabled).';
+
+    private const EARLIER_RESULT = ' Earlier result: ';
 
     private CplBatch $batches;
     private CplSetting $settings;
@@ -60,11 +68,13 @@ class CplUatUploadService
 
     /**
      * What the sign-off test page needs to draw the upload section.
-     * 'problem' is the reason the button is not offered (null = ready).
-     * 'recorded_outcome' is any result already recorded for the batch (a file was sent, by this app or by hand).
+     * 'problem' is the reason the button is not offered (null = ready); 'hold' says when that reason is not an error but
+     * a deliberate wait ('recent': uploaded a moment ago; 'accepted': Creditinfo already accepted the file).
+     * 'recorded_outcome' is any result already recorded for the batch (a file was sent, by this app or by hand);
+     * 'unclear_note' is set when the last attempt ended with the connection breaking while sending.
      *
      * @param array<string,mixed> $batch cpl_batches row of a sign-off test batch
-     * @return array{filename:?string, kind:string, record_count:int, problem:?string, can_upload:bool, destination:string, uploaded_at:?string, uploaded_note:?string, recorded_outcome:?string, supplier_ref:string, trading_name:string}
+     * @return array{filename:?string, kind:string, record_count:int, problem:?string, hold:?string, can_upload:bool, destination:string, uploaded_at:?string, uploaded_note:?string, unclear_note:?string, recorded_outcome:?string, supplier_ref:string, trading_name:string}
      */
     public function describe(array $batch): array
     {
@@ -76,10 +86,12 @@ class CplUatUploadService
             'kind' => (string) ($batch['batch_type'] ?? ''),
             'record_count' => 0,
             'problem' => null,
+            'hold' => null,
             'can_upload' => false,
             'destination' => $this->sftp->destinationLabel(),
             'uploaded_at' => null,
             'uploaded_note' => null,
+            'unclear_note' => null,
             'recorded_outcome' => $outcome !== '' ? $outcome : null,
             'supplier_ref' => trim($supplierRef),
             'trading_name' => $tradingName,
@@ -90,7 +102,13 @@ class CplUatUploadService
             $out['filename'] = $file['filename'];
             $out['record_count'] = $file['record_count'];
             $this->files->assertUploadable($batch, $supplierRef, $file);
-            $this->assertMaySend($batch, (string) ($batch['batch_type'] ?? ''), (string) ($batch['month_end'] ?? ''));
+            $hold = $this->holdReason($batch);
+            if ($hold !== null) {
+                $out['hold'] = $hold;
+                $out['problem'] = $this->holdMessage($hold, $batch);
+            } else {
+                $this->assertNoRealFileClash((string) ($batch['batch_type'] ?? ''), (string) ($batch['month_end'] ?? ''));
+            }
         } catch (\RuntimeException $e) {
             $out['problem'] = $e->getMessage();
         }
@@ -105,6 +123,9 @@ class CplUatUploadService
             $out['uploaded_at'] = (string) $batch['submission_recorded_at'];
             $out['uploaded_note'] = $notes;
         }
+        if (str_starts_with($notes, self::UNCLEAR_PREFIX)) {
+            $out['unclear_note'] = $notes;
+        }
 
         return $out;
     }
@@ -113,6 +134,7 @@ class CplUatUploadService
      * @param callable|null $connect see CplSftpService::uploadTestFile() -- tests pass a fake connection
      * @return array{filename:string, kind:string, record_count:int, host:string, remote_path:string, bytes:int, uploaded_at:string, recorded:bool}
      * @throws \RuntimeException when the batch may not be uploaded or the upload fails; the batch is then left unchanged
+     *                           (except after a CplSftpUncertainException, which marks it UNCLEAR)
      */
     public function upload(int $batchId, int $userId, ?callable $connect = null): array
     {
@@ -126,7 +148,12 @@ class CplUatUploadService
         $this->files->assertUploadable($batch, $supplierRef, $file);
         $this->assertMaySend($batch, $file['kind'], (string) $batch['month_end']);
 
-        $sent = $this->sftp->uploadTestFile($file['filename'], $file['content'], $connect);
+        try {
+            $sent = $this->sftp->uploadTestFile($file['filename'], $file['content'], $connect);
+        } catch (CplSftpUncertainException $e) {
+            $this->recordUnclear($batchId, $userId, $file['filename'], $batch);
+            throw $e;
+        }
 
         // The file is with Creditinfo from here on. If writing it down fails, say so
         // instead of pretending the upload did not happen.
@@ -158,11 +185,12 @@ class CplUatUploadService
      * (CplUatFileService::inspectStandardFile). The upload is then recorded on
      * the sign-off batch of that type and date, which is generated first if
      * there is none yet. That happens only after a successful upload, so a
-     * refused or failed attempt leaves no trace in the batches.
+     * refused or failed attempt leaves no trace in the batches (again except
+     * after a CplSftpUncertainException, which marks the batch UNCLEAR).
      *
      * @param callable|null $connect see CplSftpService::uploadTestFile() -- tests pass a fake connection
      * @return array{filename:string, kind:string, record_count:int, host:string, remote_path:string, bytes:int, uploaded_at:string, recorded:bool, batch_id:?int}
-     * @throws \RuntimeException when the file is not the standard test file or the upload fails; nothing is recorded then
+     * @throws \RuntimeException when the file is not the standard test file or the upload fails
      */
     public function uploadFile(string $filename, string $content, int $userId, ?callable $connect = null): array
     {
@@ -171,7 +199,16 @@ class CplUatUploadService
         $existing = $this->batches->findByTypeAndMonth($info['kind'], $info['date'], true);
         $this->assertMaySend($existing, $info['kind'], $info['date']);
 
-        $sent = $this->sftp->uploadTestFile($filename, $content, $connect);
+        try {
+            $sent = $this->sftp->uploadTestFile($filename, $content, $connect);
+        } catch (CplSftpUncertainException $e) {
+            try {
+                $this->recordUnclear($this->batchService->ensure($info['kind'], $info['date'], $userId > 0 ? $userId : null), $userId, $filename, $existing);
+            } catch (\Throwable $inner) {
+                error_log('CPL sign-off test file ' . $filename . ' ended unclear and its batch could not be marked: ' . $inner->getMessage());
+            }
+            throw $e;
+        }
 
         $uploadedAt = date('Y-m-d H:i:s');
         $recorded = true;
@@ -198,6 +235,42 @@ class CplUatUploadService
     }
 
     /**
+     * Why this batch must not be sent right now although the file itself is fine: 'accepted' (Creditinfo already accepted
+     * it) or 'recent' (this app uploaded it within RESEND_WINDOW_SECONDS). Null when nothing holds it back.
+     *
+     * @param array<string,mixed>|null $batch
+     */
+    private function holdReason(?array $batch): ?string
+    {
+        if ($batch === null) {
+            return null;
+        }
+        if (($batch['submission_outcome'] ?? null) === 'Accepted') {
+            return 'accepted';
+        }
+        $recordedAt = (string) ($batch['submission_recorded_at'] ?? '');
+        if (($batch['submission_outcome'] ?? null) === 'Awaiting Load Report'
+            && $recordedAt !== ''
+            && str_starts_with((string) ($batch['submission_notes'] ?? ''), self::NOTE_PREFIX)
+        ) {
+            $age = time() - (int) strtotime($recordedAt);
+            if ($age >= 0 && $age < self::RESEND_WINDOW_SECONDS) {
+                return 'recent';
+            }
+        }
+        return null;
+    }
+
+    /** @param array<string,mixed> $batch */
+    private function holdMessage(string $reason, array $batch): string
+    {
+        if ($reason === 'accepted') {
+            return 'Creditinfo has already accepted this test file (the result is recorded on its page), so it does not need to be sent again.';
+        }
+        return 'This test file was uploaded a moment ago (at ' . date('H:i', (int) strtotime((string) $batch['submission_recorded_at'])) . '). Wait a couple of minutes, and check with Creditinfo, before sending it again.';
+    }
+
+    /**
      * Refuses a send that would do harm even though the file itself is fine. Read-only, and run before any connection.
      *
      * @param array<string,mixed>|null $batch the existing sign-off batch of this type and date, if there is one
@@ -205,29 +278,27 @@ class CplUatUploadService
      */
     private function assertMaySend(?array $batch, string $kind, string $date): void
     {
-        if ($batch !== null) {
-            if (($batch['submission_outcome'] ?? null) === 'Accepted') {
-                throw new \RuntimeException('Creditinfo has already accepted this test file (the result is recorded on its page), so it does not need to be sent again. Nothing was sent.');
-            }
-            $recordedAt = (string) ($batch['submission_recorded_at'] ?? '');
-            if (($batch['submission_outcome'] ?? null) === 'Awaiting Load Report'
-                && $recordedAt !== ''
-                && str_starts_with((string) ($batch['submission_notes'] ?? ''), self::NOTE_PREFIX)
-            ) {
-                $age = time() - (int) strtotime($recordedAt);
-                if ($age >= 0 && $age < self::RESEND_WINDOW_SECONDS) {
-                    throw new \RuntimeException('This test file was uploaded a moment ago (at ' . date('H:i', (int) strtotime($recordedAt)) . '). Wait a couple of minutes, and check with Creditinfo, before sending it again. Nothing was sent.');
-                }
-            }
+        $hold = $this->holdReason($batch);
+        if ($hold !== null) {
+            throw new \RuntimeException($this->holdMessage($hold, $batch));
         }
+        $this->assertNoRealFileClash($kind, $date);
+    }
 
-        // While the environment is not Production, the live monthly flow also names its files T702, so a real batch
-        // that was already approved or submitted for this month end has this very file name -- and put() overwrites.
-        if ($kind === 'Monthly' && !$this->settings->isProductionEnvironment()) {
-            $real = $this->batches->findByTypeAndMonth('Monthly', $date, false);
-            if ($real && in_array($real['status'] ?? '', ['Approved', 'Submitted'], true)) {
-                throw new \RuntimeException('A real CPL monthly batch for ' . $date . ' is already ' . strtolower((string) $real['status']) . ' and, while the environment in CPL Settings is not Production, it uses this very file name. Sending the test file would overwrite it, so nothing was sent.');
-            }
+    /**
+     * While the environment is not Production, the live monthly flow also names its files T702, so a real batch that was
+     * already approved or submitted for this month end has this very file name -- and put() overwrites.
+     *
+     * @throws \RuntimeException
+     */
+    private function assertNoRealFileClash(string $kind, string $date): void
+    {
+        if ($kind !== 'Monthly' || $this->settings->isProductionEnvironment()) {
+            return;
+        }
+        $real = $this->batches->findByTypeAndMonth('Monthly', $date, false);
+        if ($real && in_array($real['status'] ?? '', ['Approved', 'Submitted'], true)) {
+            throw new \RuntimeException('A real CPL monthly batch for ' . $date . ' is already ' . strtolower((string) $real['status']) . ' and, while the environment in CPL Settings is not Production, it uses this very file name. Sending the test file would overwrite it, so nothing was sent.');
         }
     }
 
@@ -239,20 +310,56 @@ class CplUatUploadService
      */
     private function recordUpload(int $batchId, int $userId, string $uploadedAt, string $filename, int $records, int $bytes, string $source, ?array $before): void
     {
-        $earlier = '';
-        $earlierOutcome = (string) ($before['submission_outcome'] ?? '');
-        if ($earlierOutcome !== '') {
-            $earlierNotes = trim((string) ($before['submission_notes'] ?? ''));
-            $personsNote = $earlierNotes !== '' && !str_starts_with($earlierNotes, self::NOTE_PREFIX);
-            $earlier = ' Earlier result: ' . $earlierOutcome . ($personsNote ? ' (' . substr($earlierNotes, 0, 300) . ')' : '') . '.';
-        }
-
         $this->batches->updateRecord($batchId, [
             'submission_outcome' => 'Awaiting Load Report',
             'submission_notes' => self::NOTE_PREFIX . ' on ' . date('d M Y H:i', strtotime($uploadedAt)) . ' as ' . $filename
-                . ' (' . $records . ' records, ' . $bytes . ' bytes' . ($source !== '' ? ', ' . $source : '') . '). Waiting for the Creditinfo load report.' . $earlier,
+                . ' (' . $records . ' records, ' . $bytes . ' bytes' . ($source !== '' ? ', ' . $source : '') . '). Waiting for the Creditinfo load report.' . $this->earlierResult($before),
             'submission_recorded_by' => $userId > 0 ? $userId : null,
             'submission_recorded_at' => $uploadedAt,
         ]);
+    }
+
+    /**
+     * The connection broke while sending, so the file may or may not be at Creditinfo. Mark the batch so the page keeps
+     * saying so (a flash message disappears on the next page load). Best effort: it never hides the original problem.
+     *
+     * @param array<string,mixed>|null $before
+     */
+    private function recordUnclear(int $batchId, int $userId, string $filename, ?array $before): void
+    {
+        try {
+            $this->batches->updateRecord($batchId, [
+                'submission_outcome' => 'Awaiting Load Report',
+                'submission_notes' => self::UNCLEAR_PREFIX . ' on ' . date('d M Y H:i') . ': the connection broke while ' . $filename
+                    . ' was being sent, so Creditinfo may or may not have it. Ask Creditinfo before sending it again.' . $this->earlierResult($before),
+                'submission_recorded_by' => $userId > 0 ? $userId : null,
+                'submission_recorded_at' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            error_log('CPL sign-off test file ' . $filename . ' ended unclear and batch #' . $batchId . ' could not be marked: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * The " Earlier result: ..." tail for a new note, so a result somebody recorded (Rejected, with the reason) is not
+     * lost when the file is sent again. Our own earlier notes already carry that tail: it is passed on, not rebuilt,
+     * so repeated uploads neither lose the reason nor pile up notes.
+     *
+     * @param array<string,mixed>|null $before
+     */
+    private function earlierResult(?array $before): string
+    {
+        $outcome = (string) ($before['submission_outcome'] ?? '');
+        if ($outcome === '') {
+            return '';
+        }
+        $notes = trim((string) ($before['submission_notes'] ?? ''));
+        if (str_starts_with($notes, self::NOTE_PREFIX) || str_starts_with($notes, self::UNCLEAR_PREFIX)) {
+            $at = strpos($notes, self::EARLIER_RESULT);
+            return $at !== false ? substr($notes, $at) : self::EARLIER_RESULT . $outcome . '.';
+        }
+        // Cut by characters, not bytes, so a multi-byte letter is never split (and the UPDATE never sees broken UTF-8).
+        $shortened = $notes === '' ? '' : mb_substr(mb_scrub($notes, 'UTF-8'), 0, 300, 'UTF-8');
+        return self::EARLIER_RESULT . $outcome . ($shortened !== '' ? ' (' . $shortened . ')' : '') . '.';
     }
 }

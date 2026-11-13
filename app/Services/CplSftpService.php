@@ -113,7 +113,7 @@ class CplSftpService
                 throw new \RuntimeException('Could not connect to ' . $host . ':' . $port . ' (' . $e->getMessage() . ').', 0, $e);
             }
             if (!$loggedIn) {
-                throw new \RuntimeException('SFTP login failed. Check the saved host, username and password in Public Defaults Settings.');
+                throw new \RuntimeException('SFTP login failed: Creditinfo\'s server refused the saved login. Nothing was sent. Do not keep trying; ask your administrator to check the user name and password in Public Defaults Settings.');
             }
             try {
                 $stored = $sftp->put($remotePath, $content);
@@ -122,7 +122,7 @@ class CplSftpService
                 throw new CplSftpUncertainException('The connection broke while the file was being sent (' . $e->getMessage() . '), so it may already have reached Creditinfo. Check with Creditinfo before sending it again.', 0, $e);
             }
             if (!$stored) {
-                throw new \RuntimeException('SFTP upload failed: ' . ($sftp->getLastSFTPError() ?: 'unknown error'));
+                throw new \RuntimeException('SFTP upload failed: ' . ($sftp->getLastSFTPError() ?: 'unknown error') . '. Nothing was recorded. A partly sent file may be on Creditinfo\'s server, so tell them before you try again.');
             }
         } finally {
             if (method_exists($sftp, 'disconnect')) {

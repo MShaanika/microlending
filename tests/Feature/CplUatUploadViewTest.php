@@ -153,18 +153,76 @@ class CplUatUploadViewTest extends TestCase
         $this->assertStringNotContainsString('id="uatUploadMail"', $html);
     }
 
-    public function testAnAcceptedFileOffersNoUploadAndSaysWhy(): void
+    public function testAnAcceptedFileOffersNoUploadAndSaysSoCalmly(): void
     {
         $html = $this->renderShow(
-            ['can_upload' => false, 'recorded_outcome' => 'Accepted', 'problem' => 'Creditinfo has already accepted this test file (the result is recorded on its page), so it does not need to be sent again. Nothing was sent.'],
+            ['can_upload' => false, 'hold' => 'accepted', 'recorded_outcome' => 'Accepted', 'problem' => 'Creditinfo has already accepted this test file (the result is recorded on its page), so it does not need to be sent again.'],
             ['submission_outcome' => 'Accepted', 'submission_notes' => 'Load report ref 123', 'submission_recorded_at' => '2026-11-12 09:00:00']
         );
 
-        $this->assertStringContainsString('Cannot upload yet.', $html);
-        $this->assertStringContainsString('already accepted this test file', $html);
+        $this->assertStringContainsString('Accepted by Creditinfo.', $html);
+        $this->assertStringContainsString('does not need to be sent again', $html);
+        $this->assertStringNotContainsString('Cannot upload yet', $html, 'nothing is outstanding, so it is not presented as an error');
+        $this->assertStringNotContainsString('Nothing was sent', $html);
         $this->assertStringNotContainsString('/upload-sftp', $html);
         $this->assertStringContainsString('Current outcome:', $html);
-        $this->assertStringContainsString('Accepted', $html);
+    }
+
+    public function testRightAfterAnUploadThePageExplainsTheWaitInsteadOfShowingAnErrorBox(): void
+    {
+        $html = $this->renderShow(
+            ['can_upload' => false, 'hold' => 'recent', 'recorded_outcome' => 'Awaiting Load Report', 'uploaded_at' => '2026-11-13 14:05:00',
+             'uploaded_note' => 'Uploaded to Creditinfo SFTP on 13 Nov 2026 14:05 as NA02629_ALL_T702_M_20261031_1_1.txt (5 records, 4912 bytes). Waiting for the Creditinfo load report.',
+             'problem' => 'This test file was uploaded a moment ago (at 14:05). Wait a couple of minutes, and check with Creditinfo, before sending it again.']
+        );
+
+        $this->assertStringContainsString('Already uploaded.', $html);
+        $this->assertStringContainsString('comes back in a couple of minutes', $html);
+        $this->assertStringContainsString('id="uatUploadMail"', $html, 'the message for Creditinfo is there to copy');
+        $this->assertStringNotContainsString('Cannot upload yet', $html, 'a successful upload must not be followed by an error-looking box');
+        $this->assertStringNotContainsString('Nothing was sent', $html);
+        $this->assertStringNotContainsString('/upload-sftp', $html);
+    }
+
+    public function testAnUnclearAttemptIsShownProminentlyAndTheConfirmQuestionSaysSo(): void
+    {
+        $note = 'Upload attempt UNCLEAR on 13 Nov 2026 14:07: the connection broke while NA02629_ALL_T702_M_20261031_1_1.txt was being sent, so Creditinfo may or may not have it. Ask Creditinfo before sending it again.';
+        $html = $this->renderShow(['unclear_note' => $note, 'recorded_outcome' => 'Awaiting Load Report'], ['submission_outcome' => 'Awaiting Load Report', 'submission_notes' => $note, 'submission_recorded_at' => '2026-11-13 14:07:00']);
+
+        $this->assertStringContainsString('The last upload attempt ended unclear.', $html);
+        $this->assertStringContainsString('Ask Creditinfo before sending it again', $html);
+        $this->assertStringContainsString('ended unclear: Creditinfo may already have it. Ask Creditinfo first', $this->onsubmitOf($html));
+        $this->assertStringContainsString('Upload again', $html);
+    }
+
+    public function testTheFirstUploadQuestionSaysWhatIsSentWhereAndThatItReplacesAFileOfTheSameName(): void
+    {
+        $question = $this->onsubmitOf($this->renderShow());
+
+        $this->assertStringContainsString('(5 test records)', $question);
+        $this->assertStringContainsString('Destination: sftp.test.invalid / In', $question);
+        $this->assertStringContainsString('A file with the same name there is replaced', $question);
+        $this->assertStringContainsString('cannot be taken back', $question);
+    }
+
+    public function testUploadingAgainSaysThatItReplacesTheEarlierFileAndSoDoesTheMessageToCreditinfo(): void
+    {
+        $html = $this->renderShow([
+            'uploaded_at' => '2026-11-13 14:05:00', 'recorded_outcome' => 'Awaiting Load Report',
+            'uploaded_note' => 'Uploaded to Creditinfo SFTP on 13 Nov 2026 14:05 as x.txt (5 records, 4912 bytes). Waiting for the Creditinfo load report. Earlier result: Rejected (bad ID).',
+        ]);
+
+        $this->assertStringContainsString('replaces that file on Creditinfo', $this->onsubmitOf($html));
+        $this->assertStringContainsString('sets the result back to Awaiting Load Report', $this->onsubmitOf($html));
+        $this->assertStringContainsString('This replaces the file we sent earlier, so please load this one.', $html);
+    }
+
+    public function testTheResultFormFieldsHaveLabelsForScreenReaders(): void
+    {
+        $html = $this->renderShow();
+
+        $this->assertStringContainsString('aria-label="Result from Creditinfo"', $html);
+        $this->assertStringContainsString('aria-label="Load report reference or rejection reason"', $html);
     }
 
     public function testAnUploadedBatchWhoseConnectionIsLaterSwitchedOffStillShowsTheRecord(): void
@@ -224,7 +282,11 @@ class CplUatUploadViewTest extends TestCase
         $this->assertStringContainsString('type="file" name="test_file"', $html);
         $this->assertStringContainsString('name="_csrf"', $html);
         $this->assertStringContainsString('sftp.test.invalid / In', $html);
-        $this->assertStringContainsString('if even one character', $html);
+        $this->assertStringContainsString('nothing is sent unless it matches', $html);
+        $this->assertStringContainsString('aria-label="Test file to upload"', $html);
+        $this->assertStringContainsString('data-destination="sftp.test.invalid / In"', $html);
+        $this->assertStringContainsString('this.dataset.destination', $this->onsubmitOf($html), 'the question reads the destination from the form');
+        $this->assertStringContainsString('already shows SUBMITTED', $html);
         $this->assertStringNotContainsString('Cannot upload yet', $html);
         $this->assertStringContainsString('cannot be taken back', $this->onsubmitOf($html));
     }

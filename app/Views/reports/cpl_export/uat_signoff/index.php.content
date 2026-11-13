@@ -86,12 +86,15 @@
   <div class="card-body">
     <h5 class="card-title">Upload a test file you already have</h5>
     <p class="text-muted small">
-      Made the test files earlier and kept them (for example in your Downloads folder)? Choose one here and it is sent to the
-      Creditinfo SFTP server exactly as it is, using the connection saved in
+      Made the test files earlier and kept them (for example in your Downloads folder)? Choose one here and it is sent to
+      Creditinfo's file server exactly as it is, using the connection saved in
       <a href="<?= url('/creditinfo/public-defaults/settings') ?>">Public Defaults Settings</a>.
-      Before anything is sent, the file is compared with the standard test file for the date in its name: if even one character
-      differs, nothing is sent. Upload one file at a time. Sending a file does not mean Creditinfo accepted it: record their
-      load report on that test file's page afterwards.
+      Pick the file exactly as it was downloaded from this system: do not open it and save it again. Before anything is sent,
+      it is compared with the standard test file for the date in its name, and nothing is sent unless it matches (for a monthly
+      file only the file-creation date may differ). Send the daily and the monthly file one at a time. If CPL Daily File or
+      CPL Monthly File above already shows SUBMITTED, that file has been sent: send it again only if Creditinfo asked you to.
+      After uploading you are taken to that test file's page, where a ready-made message for your Creditinfo contacts appears
+      and where you record Creditinfo's answer.
     </p>
 
     <?php if (!empty($fileUpload['destination'])): ?>
@@ -100,10 +103,11 @@
 
     <?php if (!empty($fileUpload['ready'])): ?>
       <form method="post" enctype="multipart/form-data" action="<?= url('/reports/cpl-export/uat-signoff/upload-file') ?>" class="row g-2 align-items-center"
-        onsubmit="var f = this.elements['test_file'].files[0]; if (!f) { return false; } return confirm('Upload ' + f.name + ' to Creditinfo now? It is sent to their SFTP server and cannot be taken back.');">
+        data-destination="<?= e((string) ($fileUpload['destination'] ?? '')) ?>"
+        onsubmit="var f = this.elements['test_file'].files[0]; if (!f) { return false; } return confirm('Send ' + f.name + ' to Creditinfo now? Destination: ' + this.dataset.destination + '. A file with the same name there is replaced, and if you already sent this file Creditinfo may treat a second copy as a duplicate. Once sent it cannot be taken back.');">
         <?= csrf_field() ?>
         <div class="col-md-8">
-          <input type="file" name="test_file" accept=".txt,text/plain" class="form-control form-control-sm" required>
+          <input type="file" name="test_file" accept=".txt,text/plain" class="form-control form-control-sm" aria-label="Test file to upload" required>
         </div>
         <div class="col-md-4">
           <button type="submit" class="btn btn-sm btn-primary w-100" data-busy-label="Uploading..."><i class="mdi mdi-cloud-upload"></i> Upload to Creditinfo</button>

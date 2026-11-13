@@ -33,6 +33,12 @@ class CplUatFileService
     /** Every synthetic account number starts with this -- see CplUatTestDataService. */
     public const ACCOUNT_PREFIX = 'UATTEST-';
 
+    /** A file chosen from the computer is dated recently: nothing before this is a sign-off test file (and no junk batch is created for it). */
+    private const EARLIEST_TEST_DATE = '2020-01-01';
+
+    /** What to do when a chosen file is refused and cannot be fixed. */
+    private const REMEDY = ' If you cannot fix it, use Generate on the sign-off page to make a new file and send that instead.';
+
     private const MONTHLY_LINE_LENGTH = CplRecordBuilder::RECORD_LENGTH;
     private const DAILY_LINE_LENGTH = CplRecordBuilder::RECORD_LENGTH + 18;
 
@@ -114,14 +120,14 @@ class CplUatFileService
             throw new \RuntimeException('This test batch has an unknown type, so it cannot be uploaded.');
         }
         if ((int) ($batch['blocking_error_count'] ?? 0) > 0) {
-            throw new \RuntimeException('This test file still has blocking validation errors. Generate it again and fix them before uploading.');
+            throw new \RuntimeException('This test file has blocking validation errors (see Validation Results below), so it cannot be sent. Generate a new one; if the errors come back, tell your developer.');
         }
 
         // A file is "as at" a date that has already happened, and a monthly one is dated a month end. (Test files
         // generated before this rule existed could carry the current month's end, which is a future date.)
         $monthEnd = (string) ($batch['month_end'] ?? '');
         if ($monthEnd > date('Y-m-d')) {
-            throw new \RuntimeException('This test file is dated ' . $monthEnd . ', which is in the future. Generate the ' . strtolower($type) . ' test file again.');
+            throw new \RuntimeException('This test file is dated ' . $monthEnd . ', which is in the future, so it cannot be sent. Use Generate on the sign-off page to make a current ' . strtolower($type) . ' test file instead.');
         }
         if ($type === 'Monthly' && $monthEnd !== date('Y-m-t', (int) strtotime($monthEnd))) {
             throw new \RuntimeException('A monthly test file is dated the last day of a month, and ' . $monthEnd . ' is not. Generate the monthly test file again.');
@@ -207,7 +213,7 @@ class CplUatFileService
         }
 
         if (!preg_match('/^([A-Za-z0-9]{1,10})_ALL_' . self::FILE_TYPE . '_([MD])_(\d{4})(\d{2})(\d{2})_1_1\.txt$/D', $filename, $m)) {
-            throw new \RuntimeException('"' . $this->printable($filename) . '" is not a sign-off test file name. A test file is named like ' . $ref . '_ALL_' . self::FILE_TYPE . '_M_20261031_1_1.txt (monthly) or ' . $ref . '_ALL_' . self::FILE_TYPE . '_D_20261110_1_1.txt (daily). Nothing was sent.');
+            throw new \RuntimeException('"' . $this->printable($filename) . '" is not a sign-off test file name. A test file is named like ' . $ref . '_ALL_' . self::FILE_TYPE . '_M_20261031_1_1.txt (monthly) or ' . $ref . '_ALL_' . self::FILE_TYPE . '_D_20261110_1_1.txt (daily). If your browser added (1) to the name, choose the original file or remove the (1). Nothing was sent.');
         }
         if ($m[1] !== $ref) {
             throw new \RuntimeException('This file name starts with ' . $m[1] . ', but the Supplier Reference Number in CPL Settings is ' . $ref . '. Nothing was sent.');
@@ -219,6 +225,9 @@ class CplUatFileService
         }
         if ($date > $today) {
             throw new \RuntimeException('The date in the file name (' . $date . ') is in the future. Nothing was sent.');
+        }
+        if ($date < self::EARLIEST_TEST_DATE) {
+            throw new \RuntimeException('The date in the file name (' . $date . ') is long ago; a sign-off test file is dated recently. Nothing was sent.');
         }
         if ($kind === 'Monthly' && $date !== date('Y-m-t', strtotime($date))) {
             throw new \RuntimeException('A monthly file is dated the last day of a month, and ' . $date . ' is not. Nothing was sent.');
@@ -247,7 +256,7 @@ class CplUatFileService
         }
 
         if ($content !== implode("\r\n", $expectedLines)) {
-            throw new \RuntimeException($this->describeDifference($kind, $content, $expectedLines));
+            throw new \RuntimeException($this->describeDifference($kind, $content, $expectedLines) . self::REMEDY);
         }
 
         return ['kind' => $kind, 'date' => $date, 'record_count' => count($standardRecords), 'creation_date' => $creationDate];

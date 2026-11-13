@@ -54,11 +54,16 @@
   $recordedOutcome = (string) ($upload['recorded_outcome'] ?? '');
   $sentBefore = $alreadyUploaded || $recordedOutcome !== '';
   $uploadedWhen = $alreadyUploaded ? date('d M Y \a\t H:i', strtotime($upload['uploaded_at'])) : '';
-  $confirmText = $alreadyUploaded
-    ? $upload['filename'] . ' was already uploaded on ' . $uploadedWhen . '. Upload it again? Creditinfo may treat a second file with the same name as a duplicate.'
-    : ($recordedOutcome !== ''
-      ? 'A result is already recorded for this file (' . $recordedOutcome . '). Upload ' . $upload['filename'] . ' again? Creditinfo may treat a second file with the same name as a duplicate.'
-      : 'Upload ' . $upload['filename'] . ' to Creditinfo now? It is sent to their SFTP server and cannot be taken back.');
+  $unclearNote = (string) ($upload['unclear_note'] ?? '');
+  $replaces = 'Uploading it again replaces that file on Creditinfo\'s server and sets the result back to Awaiting Load Report. Only do this if Creditinfo asked for it. Continue?';
+  $confirmText = $unclearNote !== ''
+    ? 'The last upload of ' . $upload['filename'] . ' ended unclear: Creditinfo may already have it. Ask Creditinfo first. Upload it again anyway?'
+    : ($alreadyUploaded
+      ? $upload['filename'] . ' was already uploaded on ' . $uploadedWhen . '. ' . $replaces
+      : ($recordedOutcome !== ''
+        ? 'A result is already recorded for this file (' . $recordedOutcome . '). ' . $replaces
+        : 'Send ' . $upload['filename'] . ' (' . (int) $upload['record_count'] . ' test records) to Creditinfo now? Destination: ' . $upload['destination'] . '. A file with the same name there is replaced. Once sent it cannot be taken back.'));
+  $isRepeat = $alreadyUploaded && str_contains((string) $upload['uploaded_note'], ' Earlier result: ');
   $mailText = $alreadyUploaded
     ? "Subject: " . $upload['trading_name'] . " (" . $upload['supplier_ref'] . ") - CPL " . $upload['kind'] . " sign-off test file uploaded\n\n"
       . "Hi,\n\n"
@@ -66,6 +71,7 @@
       . "File: " . $upload['filename'] . "\n"
       . "Records: " . (int) $upload['record_count'] . " (the approved test IDs only)\n"
       . "Supplier reference number: " . $upload['supplier_ref'] . "\n\n"
+      . ($isRepeat ? "This replaces the file we sent earlier, so please load this one.\n\n" : '')
       . "Please load it and send us the load report.\n\n"
       . "Regards,\n" . $upload['trading_name']
     : '';
@@ -77,7 +83,8 @@
       Uploads this test file to the Creditinfo SFTP server, using the connection saved in
       <a href="<?= url('/creditinfo/public-defaults/settings') ?>">Public Defaults Settings</a>.
       It is always sent as a <strong>T702 (test)</strong> file and holds only the test IDs Creditinfo approved,
-      never a real borrower. Sending a file does not mean Creditinfo accepted it: record their load report below.
+      never a real borrower. After uploading, a ready-made message for your Creditinfo contacts appears here.
+      Sending a file does not mean Creditinfo accepted it: record Creditinfo's answer under Submission Result below.
     </p>
 
     <?php if (!empty($upload['filename'])): ?>
@@ -91,11 +98,19 @@
       </dl>
     <?php endif; ?>
 
+    <?php if ($unclearNote !== ''): ?>
+      <div class="alert alert-danger small py-2"><strong>The last upload attempt ended unclear.</strong> <?= e($unclearNote) ?></div>
+    <?php endif; ?>
+
     <?php if ($alreadyUploaded): ?>
       <div class="alert alert-info small py-2"><strong>Already uploaded.</strong> <?= e($upload['uploaded_note']) ?></div>
     <?php endif; ?>
 
-    <?php if ($upload['can_upload']): ?>
+    <?php if (($upload['hold'] ?? null) === 'recent'): ?>
+      <p class="small text-muted mb-0">The Upload button comes back in a couple of minutes, in case you need it. Do not send this file again unless Creditinfo asks you to.</p>
+    <?php elseif (($upload['hold'] ?? null) === 'accepted'): ?>
+      <div class="alert alert-success small mb-0"><strong>Accepted by Creditinfo.</strong> This test file does not need to be sent again.</div>
+    <?php elseif ($upload['can_upload']): ?>
       <form method="post" action="<?= url('/reports/cpl-export/uat-signoff/' . $batch['id'] . '/upload-sftp') ?>" onsubmit="<?= e('return confirm(' . json_encode($confirmText, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_SLASHES) . ');') ?>">
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-primary btn-sm" data-busy-label="Uploading..."><i class="mdi mdi-cloud-upload"></i> <?= $sentBefore ? 'Upload again' : 'Upload to Creditinfo' ?></button>
@@ -134,7 +149,7 @@
     <form method="post" action="<?= url('/reports/cpl-export/uat-signoff/' . $batch['id'] . '/record-outcome') ?>" class="row g-2 mt-2">
       <?= csrf_field() ?>
       <div class="col-md-4">
-        <select name="submission_outcome" class="form-select form-select-sm" required>
+        <select name="submission_outcome" class="form-select form-select-sm" aria-label="Result from Creditinfo" required>
           <option value="">Select outcome</option>
           <option value="Awaiting Load Report">Submitted -- Awaiting Load Report</option>
           <option value="Accepted">Accepted</option>
@@ -143,7 +158,7 @@
         </select>
       </div>
       <div class="col-md-5">
-        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Load report reference / rejection reason">
+        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Load report reference / rejection reason" aria-label="Load report reference or rejection reason">
       </div>
       <div class="col-md-3">
         <button type="submit" class="btn btn-sm btn-primary w-100">Record Outcome</button>

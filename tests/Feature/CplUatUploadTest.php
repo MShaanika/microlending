@@ -23,7 +23,7 @@ use PHPUnit\Framework\TestCase;
  * So nothing here ever uses the stored settings or opens a real connection:
  * the settings are fakes (host sftp.test.invalid, which can never resolve) and
  * every upload goes through an injected fake connection. Test batches use
- * reserved past dates (2019) that no real sign-off data uses, and are deleted
+ * reserved past dates (2019 and 2020) that no real sign-off data uses, and are deleted
  * afterwards. (They must be past dates: a test file dated in the future is
  * refused.)
  */
@@ -31,8 +31,8 @@ class CplUatUploadTest extends TestCase
 {
     private const MONTHLY_END = '2019-11-30';
     private const DAILY_END = '2019-11-29';
-    private const CHOSEN_MONTHLY_END = '2019-12-31';
-    private const CHOSEN_DAILY_DATE = '2019-12-30';
+    private const CHOSEN_MONTHLY_END = '2020-12-31';
+    private const CHOSEN_DAILY_DATE = '2020-12-30';
     private const FUTURE_MONTHLY_END = '2099-12-31';
 
     private CplUatUploadFakeSftp $fake;
@@ -497,10 +497,89 @@ class CplUatUploadTest extends TestCase
                 $f->putOk = false;
                 $f->lastError = 'Failure';
             }, 'SFTP upload failed: Failure'],
-            'connection lost while sending' => [static function (CplUatUploadFakeSftp $f): void {
-                $f->putThrows = new \RuntimeException('Timed out waiting for SFTP packet response');
-            }, 'may already have reached Creditinfo'],
         ];
+    }
+
+    public function testAConnectionLostWhileSendingMarksTheBatchUnclearAndKeepsAnEarlierResult(): void
+    {
+        $batch = $this->seedBatch('Monthly', ['submission_outcome' => 'Rejected', 'submission_notes' => 'Rejected: ID 123 not found', 'submission_recorded_at' => date('Y-m-d H:i:s', time() - 3600)]);
+        $this->fake->putThrows = new \RuntimeException('Timed out waiting for SFTP packet response');
+
+        $refusal = $this->refusal(
+            fn () => $this->uploadService()->upload((int) $batch['id'], $this->userId, $this->connector()),
+            'A lost connection was treated as a clean failure.'
+        );
+
+        $this->assertInstanceOf(CplSftpUncertainException::class, $refusal);
+        $after = $this->reload((int) $batch['id']);
+        $this->assertSame('Awaiting Load Report', $after['submission_outcome']);
+        $this->assertStringStartsWith(CplUatUploadService::UNCLEAR_PREFIX, $after['submission_notes']);
+        $this->assertStringContainsString('Ask Creditinfo before sending it again', $after['submission_notes']);
+        $this->assertStringContainsString('Earlier result: Rejected (Rejected: ID 123 not found).', $after['submission_notes']);
+
+        $d = $this->uploadService()->describe($after);
+        $this->assertSame($after['submission_notes'], $d['unclear_note']);
+        $this->assertNull($d['uploaded_at'], 'an unclear attempt is not shown as an upload');
+        $this->assertNull($d['hold'], 'and it does not start the resend window');
+        $this->assertTrue($d['can_upload'], 'the person may still decide to send again, with the warning');
+    }
+
+    public function testAConnectionLostWhileSendingAChosenFileMarksItsBatchUnclearToo(): void
+    {
+        $file = $this->chosenFile('Daily');
+        $this->fake->putThrows = new \RuntimeException('Connection closed');
+
+        $refusal = $this->refusal(
+            fn () => $this->uploadService()->uploadFile($file['filename'], $file['content'], $this->userId, $this->connector()),
+            'A lost connection was treated as a clean failure.'
+        );
+
+        $this->assertInstanceOf(CplSftpUncertainException::class, $refusal);
+        $this->assertSame(1, $this->countBatchesDated(self::CHOSEN_DAILY_DATE), 'the batch exists so that the page can say so');
+        $batch = (new CplBatch())->findByTypeAndMonth('Daily', self::CHOSEN_DAILY_DATE, true);
+        $this->assertStringStartsWith(CplUatUploadService::UNCLEAR_PREFIX, $batch['submission_notes']);
+    }
+
+    public function testMarkingTheBatchUnclearNeverHidesTheOriginalProblem(): void
+    {
+        $batch = $this->seedBatch('Monthly');
+        $this->fake->putThrows = new \RuntimeException('Timed out');
+
+        $refusal = $this->refusal(
+            fn () => $this->uploadService([], [], new CplUatUploadThrowingBatch())->upload((int) $batch['id'], $this->userId, $this->connector()),
+            'The original problem was lost.'
+        );
+
+        $this->assertInstanceOf(CplSftpUncertainException::class, $refusal, 'the caller still hears that the send may have worked');
+        $this->assertStringContainsString('could not be marked', (string) file_get_contents($this->errorLogFile));
+    }
+
+    public function testAnEarlierRejectionReasonSurvivesSeveralReUploads(): void
+    {
+        $batch = $this->seedBatch('Monthly', ['submission_outcome' => 'Rejected', 'submission_notes' => 'Rejected: ID 123 not found', 'submission_recorded_at' => date('Y-m-d H:i:s', time() - 3600)]);
+        $service = $this->uploadService();
+        $service->upload((int) $batch['id'], $this->userId, $this->connector());
+        $this->makeTheLastUploadOlder((int) $batch['id'], 600);
+        $service->upload((int) $batch['id'], $this->userId, $this->connector());
+
+        $notes = $this->reload((int) $batch['id'])['submission_notes'];
+
+        $this->assertStringContainsString('Earlier result: Rejected (Rejected: ID 123 not found).', $notes, 'still there after the second upload');
+        $this->assertStringNotContainsString('Earlier result: Awaiting Load Report', $notes);
+        $this->assertSame(1, substr_count($notes, 'Earlier result:'));
+    }
+
+    public function testAnEarlierNoteWithAccentedLettersIsCutByCharactersNotBytes(): void
+    {
+        $note = 'a' . str_repeat('é', 400);   // 2-byte letters behind a 1-byte one: byte 300 falls inside a letter
+        $batch = $this->seedBatch('Monthly', ['submission_outcome' => 'Rejected', 'submission_notes' => $note, 'submission_recorded_at' => date('Y-m-d H:i:s', time() - 3600)]);
+
+        $result = $this->uploadService()->upload((int) $batch['id'], $this->userId, $this->connector());
+
+        $this->assertTrue($result['recorded'], 'broken UTF-8 would have made the database refuse the note');
+        $notes = $this->reload((int) $batch['id'])['submission_notes'];
+        $this->assertTrue(mb_check_encoding($notes, 'UTF-8'));
+        $this->assertStringContainsString('(a' . str_repeat('é', 299) . ')', $notes);
     }
 
     public function testAConnectionThatBreaksWhileSendingIsReportedAsUncertainNotAsNothingSent(): void
@@ -570,7 +649,7 @@ class CplUatUploadTest extends TestCase
         );
 
         $this->assertStringContainsString('uploaded a moment ago', $refusal->getMessage());
-        $this->assertStringContainsString('Nothing was sent', $refusal->getMessage());
+        $this->assertStringContainsString('Wait a couple of minutes', $refusal->getMessage());
         $this->assertCount(1, $this->connects, 'only the first one connected');
         $this->assertCount(1, $this->fake->puts);
     }
@@ -608,6 +687,7 @@ class CplUatUploadTest extends TestCase
         $d = $this->uploadService()->describe($after);
         $this->assertFalse($d['can_upload']);
         $this->assertStringContainsString('already accepted', $d['problem']);
+        $this->assertSame('accepted', $d['hold'], 'a deliberate wait, not an error');
         $this->assertSame('Accepted', $d['recorded_outcome']);
     }
 
@@ -711,6 +791,21 @@ class CplUatUploadTest extends TestCase
     public function realStatusesThatClash(): array
     {
         return ['approved' => ['Approved'], 'submitted' => ['Submitted']];
+    }
+
+    public function testThePageExplainsAClashWithARealMonthlyFileInsteadOfOfferingTheButton(): void
+    {
+        $this->seedRealMonthlyBatch('Submitted');
+        $batch = $this->seedBatch('Monthly');
+
+        $d = $this->uploadService(['submission_environment' => 'uat'])->describe($batch);
+
+        $this->assertFalse($d['can_upload']);
+        $this->assertStringContainsString('real CPL monthly batch', $d['problem']);
+        $this->assertNull($d['hold'], 'a clash is a real problem, not a deliberate wait');
+
+        $production = $this->uploadService(['submission_environment' => 'production'])->describe($batch);
+        $this->assertTrue($production['can_upload'], 'in Production the real file has another name, so there is no clash');
     }
 
     public function testTheSameClashIsCaughtForAFileChosenFromTheComputer(): void
@@ -830,6 +925,7 @@ class CplUatUploadTest extends TestCase
         $this->assertSame('Awaiting Load Report', $d['recorded_outcome']);
         $this->assertFalse($d['can_upload'], 'held back for a couple of minutes right after an upload');
         $this->assertStringContainsString('uploaded a moment ago', $d['problem']);
+        $this->assertSame('recent', $d['hold'], 'a deliberate wait, not an error');
         $this->assertStringNotContainsString('test-password', json_encode($d));
         $this->assertStringNotContainsString('test-user', json_encode($d));
 
@@ -863,7 +959,7 @@ class CplUatUploadTest extends TestCase
 
         $result = $this->uploadService()->uploadFile($file['filename'], $file['content'], $this->userId, $this->connector());
 
-        $this->assertSame(['In/NA02629_ALL_T702_M_20191231_1_1.txt' => $file['content']], $this->fake->puts, 'the very bytes that were chosen');
+        $this->assertSame(['In/NA02629_ALL_T702_M_20201231_1_1.txt' => $file['content']], $this->fake->puts, 'the very bytes that were chosen');
         $this->assertTrue($result['recorded']);
         $this->assertSame(5, $result['record_count']);
         $batch = $this->reload((int) $result['batch_id']);
@@ -873,7 +969,7 @@ class CplUatUploadTest extends TestCase
         $this->assertSame(5, (int) $batch['total_records']);
         $this->assertSame('Awaiting Load Report', $batch['submission_outcome'], 'sent is not accepted');
         $this->assertStringStartsWith(CplUatUploadService::NOTE_PREFIX, $batch['submission_notes']);
-        $this->assertStringContainsString('NA02629_ALL_T702_M_20191231_1_1.txt', $batch['submission_notes']);
+        $this->assertStringContainsString('NA02629_ALL_T702_M_20201231_1_1.txt', $batch['submission_notes']);
         $this->assertStringContainsString('file chosen from the computer', $batch['submission_notes']);
         $this->assertSame($this->userId, (int) $batch['submission_recorded_by']);
     }
@@ -884,7 +980,7 @@ class CplUatUploadTest extends TestCase
 
         $result = $this->uploadService()->uploadFile($file['filename'], $file['content'], $this->userId, $this->connector());
 
-        $this->assertSame(['In/NA02629_ALL_T702_D_20191230_1_1.txt' => $file['content']], $this->fake->puts);
+        $this->assertSame(['In/NA02629_ALL_T702_D_20201230_1_1.txt' => $file['content']], $this->fake->puts);
         $this->assertSame('Daily', $this->reload((int) $result['batch_id'])['batch_type']);
         $this->assertSame(2, $result['record_count']);
     }

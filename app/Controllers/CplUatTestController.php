@@ -180,7 +180,7 @@ class CplUatTestController extends Controller
         } catch (\Throwable $e) {
             error_log('CPL sign-off test upload, batch #' . $id . ': ' . get_class($e) . ': ' . $e->getMessage());
             Audit::log('Update', 'CPL', 'Upload of CPL sign-off test batch #' . $id . ' to Creditinfo SFTP failed with an unexpected error (' . get_class($e) . ')');
-            Session::flash('error', 'The upload to Creditinfo failed with an unexpected error, so it cannot be confirmed as sent. Check the error log, then try again.');
+            Session::flash('error', 'Something unexpected went wrong, so we cannot tell whether Creditinfo received the file. Do not upload it again yet: ask Creditinfo whether it arrived, and tell your administrator.');
             $this->redirect($back);
             return;
         }
@@ -254,7 +254,7 @@ class CplUatTestController extends Controller
         } catch (\Throwable $e) {
             error_log('CPL sign-off test file upload from the computer: ' . get_class($e) . ': ' . $e->getMessage());
             Audit::log('Update', 'CPL', 'Upload of a chosen CPL sign-off test file to Creditinfo SFTP failed with an unexpected error (' . get_class($e) . ')', $fingerprint);
-            Session::flash('error', 'The upload to Creditinfo failed with an unexpected error, so it cannot be confirmed as sent. Check the error log, then try again.');
+            Session::flash('error', 'Something unexpected went wrong, so we cannot tell whether Creditinfo received the file. Do not upload it again yet: ask Creditinfo whether it arrived, and tell your administrator.');
             $this->redirect($back);
             return;
         }
