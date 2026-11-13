@@ -186,7 +186,9 @@ $gaugeLabel = $hasGauge
       </div>
       <div class="d-flex gap-2 flex-wrap">
         <?php if ($hasPdf): ?>
-          <a href="<?= url('/applications/' . $appId . '/creditinfo/pdf') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box"></i> Download Creditinfo's PDF</a>
+          <button type="button" class="btn btn-info btn-sm" id="ciPdfToggle" aria-expanded="false" aria-controls="ciPdfPanel"><i class="mdi mdi-eye" aria-hidden="true"></i> Preview Creditinfo's PDF</button>
+          <a href="<?= url('/applications/' . $appId . '/creditinfo/pdf/preview') ?>" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box" aria-hidden="true"></i> Open in a new tab</a>
+          <a href="<?= url('/applications/' . $appId . '/creditinfo/pdf') ?>" class="btn btn-outline-secondary btn-sm" title="Saves the file to this computer. Some computers warn about downloaded PDFs; the preview does not save anything."><i class="mdi mdi-download" aria-hidden="true"></i> Download Creditinfo's PDF</a>
         <?php elseif (!empty($hasReportToken) && $reportStatus === 'Finished'): ?>
           <form method="post" action="<?= url('/applications/' . $appId . '/creditinfo/pdf/generate') ?>" class="d-inline">
             <?= csrf_field() ?>
@@ -197,6 +199,31 @@ $gaugeLabel = $hasGauge
       </div>
     </div>
   </div>
+
+<?php if ($hasPdf): ?>
+  <div class="card mb-3" id="ciPdfPanel" hidden>
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h5 class="mb-0"><i class="mdi mdi-file-pdf-box" aria-hidden="true"></i> Creditinfo's report (preview)</h5>
+        <a href="<?= url('/applications/' . $appId . '/creditinfo/pdf/preview') ?>" target="_blank" rel="noopener" class="small">Not showing? Open it in a new tab</a>
+      </div>
+      <iframe id="ciPdfFrame" title="Creditinfo credit report (PDF preview)" data-src="<?= url('/applications/' . $appId . '/creditinfo/pdf/preview') ?>" style="width:100%;height:80vh;border:1px solid #dfe4ea;border-radius:.4rem;background:#fff"></iframe>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById('ciPdfToggle'), panel = document.getElementById('ciPdfPanel'), frame = document.getElementById('ciPdfFrame');
+      if (!btn || !panel || !frame) { return; }
+      btn.addEventListener('click', function () {
+        var open = panel.hidden;
+        panel.hidden = !open;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open && !frame.getAttribute('src')) { frame.setAttribute('src', frame.getAttribute('data-src')); }
+        if (open) { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      });
+    })();
+  </script>
+<?php endif; ?>
 
 <?php if ($ex !== null && $hasReport): ?>
   <!-- ============================== the explanation ============================== -->

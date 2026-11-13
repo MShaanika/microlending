@@ -415,6 +415,7 @@ $router->post('/applications/{id}/creditinfo/consent', [CreditinfoAssessmentCont
 $router->post('/applications/{id}/creditinfo/run', [CreditinfoAssessmentController::class, 'runCheck']);
 $router->get('/applications/{id}/creditinfo/assessment', [CreditinfoAssessmentController::class, 'viewAssessment']);
 $router->get('/applications/{id}/creditinfo/pdf', [CreditinfoAssessmentController::class, 'downloadPdf']);
+$router->get('/applications/{id}/creditinfo/pdf/preview', [CreditinfoAssessmentController::class, 'previewPdf']);
 $router->post('/applications/{id}/creditinfo/pdf/generate', [CreditinfoAssessmentController::class, 'requestPdf']);
 $router->post('/applications/{id}/creditinfo/explain', [CreditinfoAssessmentController::class, 'explainAssessment']);
 $router->post('/applications/{id}/upload-bank-statement', [ApplicationController::class, 'uploadBankStatement']);

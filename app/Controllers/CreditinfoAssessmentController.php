@@ -567,6 +567,20 @@ class CreditinfoAssessmentController extends Controller
 
     public function downloadPdf(string $id): void
     {
+        $this->servePdf($id, false);
+    }
+
+    /**
+     * The same report shown inside the system (a browser's own PDF viewer in a frame or a new tab) instead of being saved to the computer.
+     * Some computers flag a downloaded PDF as a risky file; a preview never writes anything to disk.
+     */
+    public function previewPdf(string $id): void
+    {
+        $this->servePdf($id, true);
+    }
+
+    private function servePdf(string $id, bool $inline): void
+    {
         Auth::authorize('applications.credit_check');
         $id = (int) $id;
 
@@ -581,19 +595,24 @@ class CreditinfoAssessmentController extends Controller
         $cache = $this->reportCache->latestForApplication($id);
         $content = $cache ? $this->reportContent->findByReportCacheId((int) $cache['id']) : null;
         $pdf = $content ? $this->reportContent->decryptedPdf($content) : null;
+        $bytes = $pdf ? base64_decode($pdf, true) : false;
 
-        if (!$pdf) {
+        if ($bytes === false || !str_starts_with($bytes, '%PDF')) {
             Session::flash('error', 'No PDF is available for this application (not yet generated, or purged under the retention policy).');
             $this->redirect('/applications/' . $id . '/creditinfo/assessment');
             return;
         }
 
-        Audit::log('View', 'Creditinfo', 'Downloaded credit bureau PDF for application #' . $id);
+        Audit::log('View', 'Creditinfo', ($inline ? 'Previewed' : 'Downloaded') . ' credit bureau PDF for application #' . $id);
 
-        $bytes = base64_decode($pdf, true);
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="credit-report-' . $id . '.pdf"');
-        header('Content-Length: ' . strlen((string) $bytes));
+        header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="credit-report-' . $id . '.pdf"');
+        header('Content-Length: ' . strlen($bytes));
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+        if ($inline) {
+            header('X-Frame-Options: SAMEORIGIN');
+        }
         echo $bytes;
         exit;
     }

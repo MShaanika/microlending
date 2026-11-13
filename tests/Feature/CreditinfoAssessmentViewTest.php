@@ -631,6 +631,14 @@ class CreditinfoAssessmentViewTest extends TestCase
         $withPdf = $this->render($this->data(['hasPdf' => true]));
         $this->assertStringContainsString("Download Creditinfo's PDF", $withPdf);
         $this->assertStringContainsString('/creditinfo/pdf"', $withPdf);
+        $this->assertStringContainsString('/creditinfo/pdf/preview"', $withPdf);
+        $this->assertStringContainsString("Preview Creditinfo's PDF", $withPdf);
+        $this->assertStringContainsString('id="ciPdfFrame"', $withPdf);
+        $this->assertStringContainsString('data-src="', $withPdf, 'the PDF is only fetched when the preview is opened');
+        $this->assertDoesNotMatchRegularExpression('/<iframe[^>]* src="/', $withPdf);
+        $noPdf = $this->render($this->data(['hasPdf' => false]));
+        $this->assertStringNotContainsString('ciPdfFrame', $noPdf);
+        $this->assertStringNotContainsString('/pdf/preview', $noPdf);
         $this->assertStringContainsString('/creditinfo/pdf/generate"', $this->render($this->data(['hasPdf' => false, 'hasReportToken' => true])));
         $this->assertStringNotContainsString('/creditinfo/pdf/generate"', $this->render($this->data(['hasPdf' => false, 'hasReportToken' => false])));
     }
