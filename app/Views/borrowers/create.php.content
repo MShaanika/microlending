@@ -60,45 +60,72 @@
         <p class="text-muted small mt-2">Jump straight to the Documents tab below to upload what's needed.</p>
       </div>
 
-      <ul class="nav nav-tabs" id="borrowerTabs" role="tablist">
+      <style>
+        .bw-stepper { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: .25rem; padding: 0 0 .75rem; margin: 0 0 .5rem; list-style: none; border-bottom: 1px solid #dfe4ea; }
+        .bw-stepper .nav-item { flex: 1 0 auto; }
+        .bw-stepper .nav-link { display: flex; align-items: center; gap: .5rem; border: 0; border-radius: 2rem; padding: .45rem .8rem; color: #5b6676; background: #f1f4f8; white-space: nowrap; font-size: .85rem; }
+        .bw-stepper .nav-link .bw-num { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #d5dbe3; color: #26303c; font-weight: 700; font-size: .8rem; }
+        .bw-stepper .nav-link.active { background: #26303c; color: #fff; }
+        .bw-stepper .nav-link.active .bw-num { background: #fff; color: #26303c; }
+        .bw-stepper .nav-link.is-done .bw-num { background: #1a8f5c; color: #fff; }
+        .bw-stepper .nav-link.is-done .bw-num::before { content: "\2713"; }
+        .bw-stepper .nav-link.is-done .bw-num span { display: none; }
+        .bw-progress { height: 4px; background: #e8ecf1; border-radius: 4px; margin-bottom: 1rem; overflow: hidden; }
+        .bw-progress > div { height: 100%; background: #1a8f5c; width: 0; transition: width .2s; }
+        .bw-featured { border: 1px solid #dfe4ea; border-radius: .6rem; padding: .9rem 1rem; background: #f8fafc; }
+        .bw-step-error { border-color: #cf3a43 !important; }
+        @media (max-width: 575.98px) { .bw-stepper .nav-link .bw-label { display: none; } .bw-stepper .nav-link.active .bw-label { display: inline; } }
+      </style>
+      <ul class="nav bw-stepper" id="borrowerTabs" role="tablist">
         <li class="nav-item new-client-only" role="presentation">
-          <button class="nav-link active" id="tab-personal-btn" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
-            <i class="mdi mdi-account"></i> Personal
+          <button class="nav-link active" id="tab-personal-btn" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab" data-step="personal">
+            <span class="bw-num"><span>1</span></span><span class="bw-label"><i class="mdi mdi-account"></i> Personal</span>
           </button>
         </li>
         <li class="nav-item new-client-only" role="presentation">
-          <button class="nav-link" id="tab-address-btn" data-bs-toggle="tab" data-bs-target="#tab-address" type="button" role="tab">
-            <i class="mdi mdi-map-marker"></i> Address &amp; Contact
+          <button class="nav-link" id="tab-address-btn" data-bs-toggle="tab" data-bs-target="#tab-address" type="button" role="tab" data-step="address">
+            <span class="bw-num"><span>2</span></span><span class="bw-label"><i class="mdi mdi-map-marker"></i> Address &amp; Contact</span>
           </button>
         </li>
         <li class="nav-item new-client-only" role="presentation">
-          <button class="nav-link" id="tab-employment-btn" data-bs-toggle="tab" data-bs-target="#tab-employment" type="button" role="tab">
-            <i class="mdi mdi-briefcase"></i> Employment
+          <button class="nav-link" id="tab-employment-btn" data-bs-toggle="tab" data-bs-target="#tab-employment" type="button" role="tab" data-step="employment">
+            <span class="bw-num"><span>3</span></span><span class="bw-label"><i class="mdi mdi-briefcase"></i> Employment</span>
           </button>
         </li>
         <li class="nav-item new-client-only" role="presentation">
-          <button class="nav-link" id="tab-financial-btn" data-bs-toggle="tab" data-bs-target="#tab-financial" type="button" role="tab">
-            <i class="mdi mdi-calculator"></i> Financial
+          <button class="nav-link" id="tab-financial-btn" data-bs-toggle="tab" data-bs-target="#tab-financial" type="button" role="tab" data-step="financial">
+            <span class="bw-num"><span>4</span></span><span class="bw-label"><i class="mdi mdi-calculator"></i> Financial</span>
           </button>
         </li>
         <li class="nav-item new-client-only" role="presentation">
-          <button class="nav-link" id="tab-banking-btn" data-bs-toggle="tab" data-bs-target="#tab-banking" type="button" role="tab">
-            <i class="mdi mdi-bank"></i> Banking
+          <button class="nav-link" id="tab-banking-btn" data-bs-toggle="tab" data-bs-target="#tab-banking" type="button" role="tab" data-step="banking">
+            <span class="bw-num"><span>5</span></span><span class="bw-label"><i class="mdi mdi-bank"></i> Banking</span>
           </button>
         </li>
         <li class="nav-item new-client-only" role="presentation">
-          <button class="nav-link" id="tab-contacts-btn" data-bs-toggle="tab" data-bs-target="#tab-contacts" type="button" role="tab">
-            <i class="mdi mdi-account-multiple"></i> Next of Kin
+          <button class="nav-link" id="tab-contacts-btn" data-bs-toggle="tab" data-bs-target="#tab-contacts" type="button" role="tab" data-step="contacts">
+            <span class="bw-num"><span>6</span></span><span class="bw-label"><i class="mdi mdi-account-multiple"></i> Next of Kin</span>
+          </button>
+        </li>
+        <li class="nav-item new-client-only" role="presentation">
+          <button class="nav-link" id="tab-loan-btn" data-bs-toggle="tab" data-bs-target="#tab-loan" type="button" role="tab" data-step="loan">
+            <span class="bw-num"><span>7</span></span><span class="bw-label"><i class="mdi mdi-cash-multiple"></i> Loan Request</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="tab-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button" role="tab">
-            <i class="mdi mdi-file-document"></i> Documents
+          <button class="nav-link" id="tab-documents-btn" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button" role="tab" data-step="documents">
+            <span class="bw-num"><span>8</span></span><span class="bw-label"><i class="mdi mdi-file-document"></i> Documents</span>
+          </button>
+        </li>
+        <li class="nav-item new-client-only" role="presentation">
+          <button class="nav-link" id="tab-review-btn" data-bs-toggle="tab" data-bs-target="#tab-review" type="button" role="tab" data-step="review">
+            <span class="bw-num"><span>9</span></span><span class="bw-label"><i class="mdi mdi-check-all"></i> Review</span>
           </button>
         </li>
       </ul>
+      <div class="bw-progress" aria-hidden="true"><div id="bw-progress-bar"></div></div>
 
-      <div class="tab-content border border-top-0 p-3 mb-3" id="borrowerTabsContent">
+      <div class="tab-content p-1 mb-3" id="borrowerTabsContent">
 
         <!-- Personal -->
         <div class="tab-pane fade show active new-client-only" id="tab-personal" role="tabpanel">
@@ -471,19 +498,53 @@
           </button>
         </div>
 
+        <!-- Loan request -->
+        <div class="tab-pane fade new-client-only" id="tab-loan" role="tabpanel">
+          <p class="text-muted small">What the client wants to borrow. Staff can change it later when the application is screened.</p>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Amount the client wants to borrow (N$) <span class="text-danger">*</span></label>
+              <input type="number" step="0.01" min="1" inputmode="decimal" name="requested_amount" class="form-control <?= isset($errors['requested_amount']) ? 'is-invalid' : '' ?>" value="<?= old('requested_amount', $old) ?>" required>
+              <?php if (isset($errors['requested_amount'])): ?><div class="invalid-feedback d-block"><?= e($errors['requested_amount']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Repayment period (months)</label>
+              <input type="number" step="1" min="1" max="120" inputmode="numeric" name="requested_term_months" class="form-control <?= isset($errors['requested_term_months']) ? 'is-invalid' : '' ?>" value="<?= old('requested_term_months', $old) ?>">
+              <?php if (isset($errors['requested_term_months'])): ?><div class="invalid-feedback d-block"><?= e($errors['requested_term_months']) ?></div><?php endif; ?>
+            </div>
+            <div class="col-md-12 mb-3">
+              <label class="form-label">What the loan is for</label>
+              <textarea name="requested_purpose" rows="3" maxlength="1000" class="form-control" placeholder="For example: school fees, medical bills, stock for a small business"><?= e((string) ($old['requested_purpose'] ?? '')) ?></textarea>
+            </div>
+          </div>
+        </div>
+
         <!-- Documents -->
         <div class="tab-pane fade" id="tab-documents" role="tabpanel">
           <p class="text-muted small">Accepted formats: PDF, JPG, PNG &mdash; max 5MB each.</p>
+          <?php
+            // The two documents staff are asked for most, first and highlighted: the ID copy (front and back) and the latest payslip.
+            $featuredTypes = ['ID Copy' => 'Both sides of the ID, on one page or in one file', 'Payslip' => 'The most recent payslip'];
+            $featuredFirst = array_values(array_filter($documentRequirements, fn ($r) => isset($featuredTypes[$r['document_type']])));
+            usort($featuredFirst, fn ($a, $b) => array_search($a['document_type'], array_keys($featuredTypes)) <=> array_search($b['document_type'], array_keys($featuredTypes)));
+            $orderedRequirements = array_merge(
+                $featuredFirst,
+                array_values(array_filter($documentRequirements, fn ($r) => !isset($featuredTypes[$r['document_type']])))
+            );
+          ?>
           <div class="row">
-            <?php foreach ($documentRequirements as $req): ?>
+            <?php foreach ($orderedRequirements as $req): ?>
               <?php if ($req['document_type'] === 'Bank Statement') continue; ?>
               <div class="col-md-6 mb-3">
+                <div class="<?= isset($featuredTypes[$req['document_type']]) ? 'bw-featured' : '' ?>" data-doc-type="<?= e($req['document_type']) ?>">
                 <label class="form-label">
                   <?= e($req['requirement_name']) ?>
                   <?php if ((int) $req['is_required'] === 1): ?><span class="badge bg-warning text-dark">Required by disbursement</span><?php endif; ?>
                 </label>
                 <input type="file" name="documents[<?= (int) $req['id'] ?>]" class="form-control <?= isset($errors['documents.' . $req['id']]) ? 'is-invalid' : '' ?>" accept=".pdf,.jpg,.jpeg,.png">
+                <?php if (isset($featuredTypes[$req['document_type']])): ?><div class="form-text"><?= e($featuredTypes[$req['document_type']]) ?></div><?php endif; ?>
                 <?php if (isset($errors['documents.' . $req['id']])): ?><div class="invalid-feedback d-block"><?= e($errors['documents.' . $req['id']]) ?></div><?php endif; ?>
+                </div>
               </div>
             <?php endforeach; ?>
           </div>
@@ -530,11 +591,22 @@
           </div>
         </div>
 
+        <!-- Review -->
+        <div class="tab-pane fade new-client-only" id="tab-review" role="tabpanel">
+          <p class="text-muted small">Check the details, then press Save. Anything marked with a warning can still be added later from the application.</p>
+          <div id="bw-review" class="row g-3"></div>
+        </div>
+
       </div>
 
-      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Borrower</button>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" id="bw-back" class="btn btn-outline-secondary"><i class="mdi mdi-chevron-left"></i> Back</button>
+        <button type="button" id="bw-next" class="btn btn-info">Next <i class="mdi mdi-chevron-right"></i></button>
+        <button type="submit" id="bw-save" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Borrower</button>
+        <a href="<?= url('/borrowers') ?>" class="btn btn-outline-secondary ms-auto">Cancel</a>
+      </div>
+      <div id="bw-step-hint" class="small text-danger mt-2"></div>
       <div id="required-hint" class="small text-danger mt-2"></div>
-      <a href="<?= url('/borrowers') ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>
 </div>
@@ -745,5 +817,122 @@ document.addEventListener('DOMContentLoaded', function () {
     r.addEventListener('change', updateSubmitState);
   });
   updateSubmitState();
+});
+
+// ---- step wizard: Back / Next, a check on each finished step, a review step, Save only at the end ----
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.getElementById('borrower-form');
+  var back = document.getElementById('bw-back');
+  var next = document.getElementById('bw-next');
+  var save = document.getElementById('bw-save');
+  var hint = document.getElementById('bw-step-hint');
+  var bar = document.getElementById('bw-progress-bar');
+  if (!form || !back || !next || !save) return;
+
+  function mode() {
+    var c = document.querySelector('input[name="client_mode_toggle"]:checked');
+    return c ? c.value : 'new';
+  }
+  function visibleButtons() {
+    return Array.from(document.querySelectorAll('#borrowerTabs .nav-link')).filter(function (b) {
+      return !(mode() === 'existing' && b.closest('.new-client-only'));
+    });
+  }
+  function currentIndex(list) {
+    var i = list.findIndex(function (b) { return b.classList.contains('active'); });
+    return i < 0 ? 0 : i;
+  }
+  function paneOf(btn) { return document.querySelector(btn.getAttribute('data-bs-target')); }
+
+  function missingIn(pane) {
+    var gaps = [];
+    pane.querySelectorAll('[required], [data-js-required]').forEach(function (el) {
+      if (el.value.trim() === '') {
+        var wrap = el.closest('.mb-3'); var label = wrap ? wrap.querySelector('.form-label') : null;
+        gaps.push({ el: el, name: label ? label.textContent.replace(/\*/g, '').replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim() : (el.name || 'a field') });
+      }
+    });
+    var either = Array.from(pane.querySelectorAll('[data-js-either="identity"]'));
+    if (mode() === 'new' && either.length && either.every(function (el) { return el.value.trim() === ''; })) {
+      gaps.push({ el: either[0], name: 'ID Number or Passport No' });
+    }
+    return gaps;
+  }
+
+  function refresh() {
+    var list = visibleButtons();
+    var i = currentIndex(list);
+    var last = i === list.length - 1;
+    back.style.visibility = i === 0 ? 'hidden' : 'visible';
+    next.style.display = last ? 'none' : '';
+    save.style.display = last ? '' : 'none';
+    list.forEach(function (b, n) {
+      var gaps = missingIn(paneOf(b));
+      var done = n < i && gaps.length === 0;
+      b.classList.toggle('is-done', done);
+    });
+    if (bar) bar.style.width = (list.length > 1 ? (i / (list.length - 1)) * 100 : 100) + '%';
+    if (hint) hint.textContent = '';
+  }
+
+  function go(delta) {
+    var list = visibleButtons();
+    var i = currentIndex(list);
+    var target = list[i + delta];
+    if (!target || !window.bootstrap) return;
+    if (delta > 0) {
+      var gaps = missingIn(paneOf(list[i]));
+      if (gaps.length) {
+        if (hint) hint.textContent = 'Please fill in: ' + gaps.map(function (g) { return g.name; }).join(', ') + '.';
+        gaps[0].el.classList.add('is-invalid');
+        gaps[0].el.focus();
+        return;
+      }
+    }
+    new bootstrap.Tab(target).show();
+  }
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
+  function val(name) { var el = form.querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
+  function fileName(name) { var el = form.querySelector('[name="' + name + '"]'); return el && el.files && el.files.length ? el.files[0].name : ''; }
+
+  function buildReview() {
+    var box = document.getElementById('bw-review');
+    if (!box) return;
+    var name = [val('first_name'), val('middle_name'), val('last_name')].filter(Boolean).join(' ');
+    var amount = val('requested_amount');
+    var term = val('requested_term_months');
+    var docs = [];
+    form.querySelectorAll('[data-doc-type]').forEach(function (d) {
+      var input = d.querySelector('input[type="file"]');
+      var label = d.querySelector('.form-label');
+      docs.push({ label: label ? label.firstChild.textContent.trim() : '', file: input && input.files.length ? input.files[0].name : '', featured: d.classList.contains('bw-featured') });
+    });
+    var row = function (k, v) { return '<div class="d-flex justify-content-between border-bottom py-1"><span class="text-muted">' + esc(k) + '</span><strong>' + (v ? esc(v) : '<span class="text-muted">&mdash;</span>') + '</strong></div>'; };
+    var html = '<div class="col-md-6"><div class="bw-featured"><div class="fw-semibold mb-2"><i class="mdi mdi-account"></i> Client</div>'
+      + row('Name', name) + row('ID number', val('id_number') || val('passport_no')) + row('Phone', val('phone')) + row('Email', val('email')) + row('Employer', val('employer_name')) + row('Net salary', val('net_salary')) + '</div></div>'
+      + '<div class="col-md-6"><div class="bw-featured"><div class="fw-semibold mb-2"><i class="mdi mdi-cash-multiple"></i> Loan requested</div>'
+      + row('Amount (N$)', amount) + row('Period (months)', term) + row('Purpose', val('requested_purpose')) + '</div></div>'
+      + '<div class="col-12"><div class="bw-featured"><div class="fw-semibold mb-2"><i class="mdi mdi-file-document"></i> Documents</div>';
+    docs.forEach(function (d) {
+      html += '<div class="d-flex justify-content-between border-bottom py-1"><span>' + esc(d.label) + '</span>'
+        + (d.file ? '<span class="text-success"><i class="mdi mdi-check-circle"></i> ' + esc(d.file) + '</span>' : '<span class="' + (d.featured ? 'text-danger' : 'text-muted') + '"><i class="mdi mdi-alert-circle-outline"></i> not added yet</span>') + '</div>';
+    });
+    html += '</div></div>';
+    box.innerHTML = html;
+  }
+
+  back.addEventListener('click', function () { go(-1); });
+  next.addEventListener('click', function () { go(1); });
+  document.querySelectorAll('#borrowerTabs .nav-link').forEach(function (b) {
+    b.addEventListener('shown.bs.tab', function () {
+      if (b.getAttribute('data-step') === 'review') buildReview();
+      refresh();
+      window.scrollTo({ top: Math.max(0, document.getElementById('borrowerTabs').getBoundingClientRect().top + window.scrollY - 90), behavior: 'smooth' });
+    });
+  });
+  form.addEventListener('input', function (e) { if (e.target.classList) e.target.classList.remove('is-invalid'); });
+  document.querySelectorAll('input[name="client_mode_toggle"]').forEach(function (r) { r.addEventListener('change', refresh); });
+  refresh();
 });
 </script>

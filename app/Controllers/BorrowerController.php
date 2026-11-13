@@ -171,7 +171,7 @@ class BorrowerController extends Controller
         }
 
         $documentErrors = $this->validateDocumentUploads($_FILES['documents'] ?? []);
-        $errors = array_merge($errors, $documentErrors, $this->validateBankStatementUpload($_POST, $_FILES));
+        $errors = array_merge($errors, $documentErrors, $this->validateBankStatementUpload($_POST, $_FILES), $this->validateLoanRequest($_POST));
 
         if (!empty($errors)) {
             $this->view('borrowers/create', [
@@ -254,6 +254,9 @@ class BorrowerController extends Controller
             'bank_account_name' => trim($_POST['account_name'] ?? '') ?: null,
             'bank_account_number' => trim($_POST['account_number'] ?? '') ?: null,
             'bank_branch_code' => trim($_POST['bank_branch_code'] ?? '') ?: null,
+            'requested_amount' => round((float) ($_POST['requested_amount'] ?? 0), 2),
+            'requested_term_months' => (int) ($_POST['requested_term_months'] ?? 0) ?: null,
+            'requested_purpose' => trim($_POST['requested_purpose'] ?? '') ?: null,
             'status' => 'Submitted',
             'extra_data' => empty($extra) ? null : json_encode($extra),
         ];
@@ -969,6 +972,21 @@ class BorrowerController extends Controller
      * What the monthly CPL submission to Creditinfo cannot be built without (the same list CplReadinessService checks). Enforced here, not
      * only by the browser, because a New Client application is the source of the borrower record that CPL later reads.
      */
+    /** The loan the client is asking for (New Client mode): an amount is required, the period and purpose are optional. */
+    private function validateLoanRequest(array $post): array
+    {
+        $errors = [];
+        $amount = trim((string) ($post['requested_amount'] ?? ''));
+        if ($amount === '' || !is_numeric($amount) || (float) $amount <= 0 || (float) $amount > 100000000) {
+            $errors['requested_amount'] = 'Enter how much the client wants to borrow (an amount above zero).';
+        }
+        $term = trim((string) ($post['requested_term_months'] ?? ''));
+        if ($term !== '' && (!ctype_digit($term) || (int) $term < 1 || (int) $term > 120)) {
+            $errors['requested_term_months'] = 'The repayment period must be a whole number of months from 1 to 120.';
+        }
+        return $errors;
+    }
+
     private function validateCplRequired(array $data): array
     {
         $errors = [];
