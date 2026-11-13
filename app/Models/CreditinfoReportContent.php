@@ -35,7 +35,13 @@ class CreditinfoReportContent extends Model
         $existing = $this->findByReportCacheId($reportCacheId);
         $encrypted = Encryption::encrypt(json_encode($reportData));
         if ($existing) {
-            $this->updateFields((int) $existing['id'], ['report_content_encrypted' => $encrypted, 'report_token' => $reportToken]);
+            $changes = ['report_content_encrypted' => $encrypted, 'report_token' => $reportToken];
+            // An explanation describes the report it was made from. When the report is replaced it no longer applies. (Only touched when there is
+            // one, so a server that has not had the explanation column added yet is not affected.)
+            if (!empty($existing['explanation_encrypted'])) {
+                $changes['explanation_encrypted'] = null;
+            }
+            $this->updateFields((int) $existing['id'], $changes);
             return;
         }
         $this->create([
@@ -67,6 +73,35 @@ class CreditinfoReportContent extends Model
         }
         $json = Encryption::decrypt($contentRow['report_content_encrypted']);
         return $json !== null ? json_decode($json, true) : null;
+    }
+
+    /**
+     * Saves the plain-language explanation next to the report it explains (encrypted, like the report). Returns false when there is no stored
+     * report to attach it to. It lives on the report's own row, so the retention purge that deletes that row removes it too.
+     *
+     * @param array<string,mixed> $explanation
+     */
+    public function storeExplanation(int $reportCacheId, array $explanation): bool
+    {
+        $existing = $this->findByReportCacheId($reportCacheId);
+        if (!$existing) {
+            return false;
+        }
+        $this->updateFields((int) $existing['id'], [
+            'explanation_encrypted' => Encryption::encrypt((string) json_encode($explanation, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+        ]);
+        return true;
+    }
+
+    /** @return array<string,mixed>|null */
+    public function decryptedExplanation(array $contentRow): ?array
+    {
+        if (empty($contentRow['explanation_encrypted'])) {
+            return null;
+        }
+        $json = Encryption::decrypt($contentRow['explanation_encrypted']);
+        $data = $json !== null ? json_decode($json, true) : null;
+        return is_array($data) ? $data : null;
     }
 
     public function decryptedPdf(array $contentRow): ?string

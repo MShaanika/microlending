@@ -1,70 +1,619 @@
 <?php
+use App\Support\CreditinfoExplanationFormat as Fmt;
+use App\Support\CreditinfoPlainWords as Words;
+
+$appId = (int) $application['id'];
+$assessmentUrl = url('/applications/' . $appId . '/creditinfo/assessment');
+$explainUrl = url('/applications/' . $appId . '/creditinfo/explain');
+
 $statusBadge = [
     'Pending' => 'Unknown', 'New' => 'secondary', 'InProgress' => 'warning', 'Finished' => 'success',
     'Error' => 'danger', 'Rejected' => 'danger', 'Timeout' => 'danger',
 ][$cache['report_status'] ?? 'Unknown'] ?? 'secondary';
+
+$reportStatus = (string) ($cache['report_status'] ?? '');
+$isNil = ($cache['search_outcome'] ?? '') === 'SubjectNotFound';
+$hasReport = !$purged && !empty($reportData);
+$ex = is_array($explanation ?? null) ? $explanation : null;
+$aiConfigured = !empty($aiConfigured);
+// What "Explain" would send: the anonymous copy, and whether there is one ("ok"), nothing to explain ("empty") or it could not be made anonymous
+// safely ("unsafe"). The button is only offered when there is a copy that can go.
+$aiCopy = is_array($aiCopy ?? null) ? $aiCopy : [];
+$aiCopyState = (string) ($aiCopyState ?? 'ok');
+$canExplain = $aiConfigured && $aiCopyState === 'ok';
+
+// Everything the AI wrote is escaped where it is printed; the helpers below only build small pieces of markup.
+$plain = static fn (float $n): string => rtrim(rtrim(number_format($n, 2), '0'), '.');
+$level = (string) ($ex['risk_level'] ?? 'not_scored');
+$hasGauge = $ex !== null && in_array($level, ['very_low', 'low', 'average', 'high', 'very_high'], true);
+$score = isset($ex['score']) ? (float) $ex['score'] : null;
+$grade = $ex['grade'] ?? null;
+$pd = isset($ex['probability_of_default']) ? (float) $ex['probability_of_default'] : null;
+$unverified = (int) ($ex['meta']['unverified_figures'] ?? 0);
+// The real lender names, put back into the AI's words (it only ever saw Lender A, Lender B ...): staff need them to tell the applicant who is owed.
+$lenderNames = is_array($ex['lenders'] ?? null) ? $ex['lenders'] : [];
+$named = static fn ($text): string => Fmt::withLenderNames((string) $text, $lenderNames);
+$loans = Fmt::loanPosition(is_array($ex['accounts'] ?? null) ? $ex['accounts'] : [], is_array($ex['totals'] ?? null) ? $ex['totals'] : []);
+$bandsWorstFirst = array_reverse(Words::gradeScale());
+$gaugeLabel = $hasGauge
+    ? ($score !== null ? 'Credit score ' . $plain($score) . '. ' : '') . 'On a five-step scale from E, the highest risk, to A, the lowest risk, this record is in the band called ' . Words::riskLabel($level) . '.'
+    : '';
 ?>
-<?= flash_messages() ?>
+<style>
+  .ci-plain { color: #26303c; }
+  .ci-plain .ci-lv-very_low  { --ci-tone: #1a8f5c; --ci-on: #fff;    --ci-tint: #e5f4ec; --ci-ink: #0e6a40; }
+  .ci-plain .ci-lv-low       { --ci-tone: #5f9a2d; --ci-on: #fff;    --ci-tint: #edf5e3; --ci-ink: #3b6a14; }
+  .ci-plain .ci-lv-average   { --ci-tone: #e2b007; --ci-on: #2b2100; --ci-tint: #fbf3d6; --ci-ink: #6e5200; }
+  .ci-plain .ci-lv-high      { --ci-tone: #e8741c; --ci-on: #fff;    --ci-tint: #fcebdc; --ci-ink: #94440a; }
+  .ci-plain .ci-lv-very_high { --ci-tone: #cf3a43; --ci-on: #fff;    --ci-tint: #fae3e5; --ci-ink: #9a1d27; }
+  .ci-plain .ci-lv-not_scored, .ci-plain .ci-lv-no_record { --ci-tone: #647083; --ci-on: #fff; --ci-tint: #eceff3; --ci-ink: #3f4a5b; }
+  .ci-plain .ci-tone-danger  { --ci-tint: #fae3e5; --ci-ink: #9a1d27; }
+  .ci-plain .ci-tone-warning { --ci-tint: #fbf3d6; --ci-ink: #6e5200; }
+  .ci-plain .ci-tone-success { --ci-tint: #e5f4ec; --ci-ink: #0e6a40; }
+  .ci-plain .ci-tone-info    { --ci-tint: #e6eef8; --ci-ink: #254f86; }
+  .ci-plain .ci-tone-muted   { --ci-tint: #eceff3; --ci-ink: #3f4a5b; }
 
-<?php if (!empty($cache['is_uat_test_id'])): ?>
-  <div class="alert alert-warning"><strong>UAT TEST DATA</strong> — this result was generated against a Creditinfo-supplied UAT test National ID, not the applicant's real ID.</div>
-<?php endif; ?>
+  .ci-plain .ci-verdict { overflow: hidden; }
+  .ci-plain .ci-verdict-head { display: flex; flex-wrap: wrap; gap: 1.25rem 2rem; align-items: center; justify-content: space-between; padding: 1.5rem; background: var(--ci-tint); color: var(--ci-ink); }
+  .ci-plain .ci-verdict-main { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 1rem; row-gap: .6rem; align-items: center; flex: 1 1 22rem; min-width: 0; }
+  .ci-plain .ci-verdict-main .ci-summary { grid-column: 2; }
+  .ci-plain .ci-level-icon { flex: 0 0 3.25rem; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: var(--ci-tone); color: var(--ci-on); font-size: 1.8rem; }
+  .ci-plain .ci-eyebrow { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; opacity: .85; }
+  .ci-plain .ci-level { font-size: 1.75rem; line-height: 1.15; font-weight: 800; margin: .1rem 0 0; }
+  .ci-plain .ci-summary { margin: 0; color: #26303c; font-size: 1.02rem; line-height: 1.5; max-width: 46rem; }
+  .ci-plain .ci-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.25rem, 1fr)); gap: .75rem; flex: 0 1 26rem; min-width: 0; }
+  .ci-plain .ci-fact { background: #fff; border-radius: .6rem; padding: .7rem .85rem; color: #26303c; box-shadow: 0 1px 2px rgba(20, 30, 45, .08); }
+  .ci-plain .ci-fact-label { display: block; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: #5b6676; font-weight: 700; }
+  .ci-plain .ci-fact-value { display: block; font-size: 1.9rem; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ci-ink); }
+  .ci-plain .ci-fact-note { display: block; font-size: .74rem; color: #5b6676; line-height: 1.3; }
 
-<div class="card">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-      <h4 class="card-title">Credit Bureau Assessment</h4>
-      <a href="<?= url('/applications/' . $application['id']) ?>" class="btn btn-outline-secondary btn-sm">Back to Application</a>
+  .ci-plain .ci-verdict-body { padding: 1.25rem 1.5rem 1.4rem; }
+  .ci-plain .ci-gauge { position: relative; padding-top: 2.4rem; }
+  .ci-plain .ci-gauge-track { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+  .ci-plain .ci-seg { background: var(--ci-tone); color: var(--ci-on); text-align: center; padding: .4rem .2rem .45rem; border-radius: .35rem; opacity: .3; }
+  .ci-plain .ci-seg.is-active { opacity: 1; }
+  .ci-plain .ci-seg b { display: block; font-size: 1.15rem; line-height: 1.1; }
+  .ci-plain .ci-seg small { display: block; font-size: .68rem; line-height: 1.25; }
+  .ci-plain .ci-marker { position: absolute; top: 0; left: clamp(1.9rem, var(--ci-pos), calc(100% - 1.9rem)); transform: translateX(-50%); text-align: center; }
+  .ci-plain .ci-marker b { display: inline-block; min-width: 2.6rem; background: #1f2933; color: #fff; border-radius: .4rem; padding: .12rem .55rem; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  .ci-plain .ci-marker::after { content: ""; display: block; width: 0; height: 0; margin: 0 auto; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 8px solid #1f2933; }
+  .ci-plain .ci-gauge-ends { display: flex; justify-content: space-between; margin-top: .3rem; font-size: .74rem; color: #5b6676; }
+  .ci-plain .ci-trend { margin: 1rem 0 0; display: flex; gap: .5rem; align-items: flex-start; color: #26303c; }
+  .ci-plain .ci-trend i { color: #5b6676; font-size: 1.2rem; line-height: 1.35; }
+
+  .ci-plain .ci-section { margin-top: 1.25rem; }
+  .ci-plain .ci-section > .card-body { padding: 1.25rem 1.5rem; }
+  .ci-plain .ci-h { display: flex; gap: .5rem; align-items: center; font-size: 1.05rem; font-weight: 700; margin: 0 0 .15rem; }
+  .ci-plain .ci-h i { color: #5b6676; font-size: 1.3rem; }
+  .ci-plain .ci-sub { color: #5b6676; font-size: .85rem; margin: 0 0 .6rem; }
+
+  .ci-plain .ci-finding { display: flex; gap: .85rem; padding: .85rem 0; border-top: 1px solid #e8ecf1; }
+  .ci-plain .ci-finding:first-of-type { border-top: 0; }
+  .ci-plain .ci-finding-icon { flex: 0 0 2.15rem; width: 2.15rem; height: 2.15rem; border-radius: 50%; display: grid; place-items: center; background: var(--ci-tint); color: var(--ci-ink); font-size: 1.2rem; }
+  .ci-plain .ci-finding-title { font-weight: 700; }
+  .ci-plain .ci-finding-detail { margin: .1rem 0 0; color: #36424f; line-height: 1.5; }
+  .ci-plain .ci-pill { display: inline-block; background: var(--ci-tint); color: var(--ci-ink); border-radius: 999px; padding: .08rem .55rem; font-size: .72rem; font-weight: 700; vertical-align: .08em; margin-left: .35rem; white-space: nowrap; }
+
+  .ci-plain .ci-reasons { margin: 0; padding: 0; list-style: none; }
+  .ci-plain .ci-reasons li { display: flex; gap: .75rem; align-items: baseline; padding: .4rem 0; }
+  .ci-plain .ci-code { flex: 0 0 auto; font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; font-weight: 700; background: #eceff3; color: #3f4a5b; border-radius: .3rem; padding: .1rem .45rem; }
+
+  .ci-plain .ci-months { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr)); gap: .4rem; margin: .25rem 0 0; padding: 0; list-style: none; }
+  .ci-plain .ci-month { text-align: center; border-radius: .5rem; padding: .5rem .2rem .4rem; font-size: .78rem; background: var(--ci-tint); color: var(--ci-ink); }
+  .ci-plain .ci-month i { display: block; font-size: 1.35rem; line-height: 1.2; }
+  .ci-plain .ci-month b { display: block; font-weight: 700; }
+  .ci-plain .ci-month small { display: block; opacity: .8; font-size: .68rem; }
+  .ci-plain .ci-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; margin-top: .7rem; font-size: .8rem; color: #5b6676; }
+  .ci-plain .ci-legend span { display: inline-flex; align-items: center; gap: .3rem; }
+
+  .ci-plain .ci-accounts th { font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: #5b6676; font-weight: 700; white-space: nowrap; }
+  .ci-plain .ci-accounts td { vertical-align: middle; font-variant-numeric: tabular-nums; }
+  .ci-plain .ci-money-bad { color: #9a1d27; font-weight: 700; }
+  .ci-plain .ci-accounts td strong { color: #26303c; }
+  .ci-plain .ci-group th { background: var(--ci-tint); color: var(--ci-ink); font-size: .85rem; font-weight: 700; letter-spacing: 0; text-transform: none; white-space: normal; padding: .55rem .75rem; border-bottom: 0; }
+  .ci-plain .ci-group-note { font-weight: 500; margin-left: .35rem; }
+  .ci-plain .ci-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr)); gap: .75rem; margin: .4rem 0 1rem; }
+  .ci-plain .ci-tile { border: 1px solid #dfe4ea; border-radius: .6rem; padding: .7rem .85rem; background: #fff; }
+  .ci-plain .ci-tile.is-bad { background: #fae3e5; border-color: #f0c3c7; }
+  .ci-plain .ci-tile.is-good { background: #e5f4ec; border-color: #bfe3cf; }
+  .ci-plain .ci-tile-label { display: block; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: #5b6676; font-weight: 700; }
+  .ci-plain .ci-tile-value { display: block; font-size: 1.55rem; line-height: 1.15; font-weight: 800; font-variant-numeric: tabular-nums; color: #26303c; white-space: nowrap; }
+  .ci-plain .ci-tile.is-wide { grid-column: span 2; }
+  .ci-plain .ci-tile-note { display: block; font-size: .74rem; color: #5b6676; line-height: 1.3; }
+  .ci-plain .ci-tile.is-bad .ci-tile-label, .ci-plain .ci-tile.is-bad .ci-tile-value { color: #9a1d27; }
+  .ci-plain .ci-tile.is-good .ci-tile-label, .ci-plain .ci-tile.is-good .ci-tile-value { color: #0e6a40; }
+  .ci-plain .ci-loan-sentence { margin: 0 0 1rem; font-size: 1.02rem; line-height: 1.55; color: #26303c; }
+  .ci-plain .ci-loan-warning { margin: 0 0 1rem; padding: .7rem 1rem; border-radius: .6rem; background: #fbf3d6; color: #4f3b00; font-size: .9rem; line-height: 1.45; }
+
+  .ci-plain .ci-list { margin: 0; padding-left: 1.2rem; }
+  .ci-plain .ci-list li { padding: .15rem 0; line-height: 1.5; }
+  .ci-plain .ci-check { background: #f4f7fb; border-radius: .6rem; padding: 1rem 1.25rem; }
+  .ci-plain .ci-doubt { background: #fbf3d6; color: #4f3b00; border-radius: .6rem; padding: 1rem 1.25rem; }
+  .ci-plain .ci-doubt .ci-list li::marker { color: #6e5200; }
+
+  .ci-plain .ci-ai-note { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: center; justify-content: space-between; color: #5b6676; font-size: .82rem; }
+  .ci-plain .ci-ai-note p { margin: 0; flex: 1 1 24rem; line-height: 1.5; }
+
+  .ci-plain .ci-cta-icon { flex: 0 0 3.25rem; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: #e6eef8; color: #254f86; font-size: 1.8rem; }
+  .ci-plain .ci-privacy { margin: 0 0 1rem; padding: 0; list-style: none; color: #4a5565; }
+  .ci-plain .ci-privacy li { padding: .12rem 0; display: flex; gap: .45rem; align-items: baseline; }
+  .ci-plain .ci-privacy i { color: #1a8f5c; }
+
+  .ci-plain details.ci-details { margin-top: 1rem; border: 1px solid #dfe4ea; border-radius: .6rem; background: #fff; }
+  .ci-plain details.ci-details > summary { cursor: pointer; padding: .9rem 1.25rem; font-weight: 700; list-style: none; display: flex; gap: .55rem; align-items: center; flex-wrap: wrap; }
+  .ci-plain details.ci-details > summary::-webkit-details-marker { display: none; }
+  .ci-plain details.ci-details > summary::after { content: "\F140"; font-family: "Material Design Icons", "materialdesignicons", sans-serif; margin-left: auto; font-size: 1.3rem; color: #5b6676; transition: transform .15s ease; }
+  .ci-plain details.ci-details[open] > summary::after { transform: rotate(180deg); }
+  .ci-plain details.ci-details > summary small { font-weight: 400; color: #5b6676; }
+  .ci-plain details.ci-details > summary:focus-visible { outline: 2px solid #254f86; outline-offset: 2px; border-radius: .6rem; }
+  .ci-plain .ci-details-body { padding: 0 1.25rem 1.25rem; }
+  .ci-plain .ci-glossary dt { font-weight: 700; margin-top: .75rem; }
+  .ci-plain .ci-glossary dd { margin: .1rem 0 0; color: #36424f; line-height: 1.5; }
+  .ci-plain .ci-scale td, .ci-plain .ci-scale th { vertical-align: middle; }
+  .ci-plain .ci-scale tr.is-yours > * { background: var(--ci-tint); }
+  .ci-plain .ci-chip { display: inline-block; min-width: 2.3rem; text-align: center; border-radius: .35rem; background: var(--ci-tone); color: var(--ci-on); font-weight: 800; padding: .05rem .4rem; }
+
+  @media (prefers-reduced-motion: reduce) { .ci-plain details.ci-details > summary::after { transition: none; } }
+  @media (max-width: 575.98px) {
+    .ci-plain .ci-verdict-head, .ci-plain .ci-verdict-body, .ci-plain .ci-section > .card-body { padding-left: 1rem; padding-right: 1rem; }
+    .ci-plain .ci-level { font-size: 1.45rem; }
+    .ci-plain .ci-tile-money { grid-column: 1 / -1; }
+    /* On a phone the accounts table becomes a list: one block per account, each figure with its label, so nothing hides off to the right. */
+    .ci-plain .ci-accounts thead { display: none; }
+    .ci-plain .ci-accounts, .ci-plain .ci-accounts tbody, .ci-plain .ci-accounts tr, .ci-plain .ci-accounts th, .ci-plain .ci-accounts td { display: block; width: 100%; }
+    .ci-plain .ci-accounts tr { padding: .6rem .25rem; border-bottom: 1px solid #e8ecf1; }
+    .ci-plain .ci-accounts tr.ci-group { padding: 0; border-bottom: 0; margin-top: .6rem; }
+    .ci-plain .ci-accounts td { padding: .1rem 0; border: 0; text-align: left !important; }
+    .ci-plain .ci-accounts td[data-label]::before { content: attr(data-label); display: inline-block; min-width: 6.25rem; color: #5b6676; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; font-weight: 700; }
+    .ci-plain .ci-verdict-main .ci-summary { grid-column: 1 / -1; }
+    .ci-plain .ci-level-icon { flex-basis: 2.75rem; width: 2.75rem; height: 2.75rem; font-size: 1.5rem; }
+    .ci-plain .ci-seg small { display: none; }
+  }
+</style>
+
+<div class="ci-plain">
+  <?= flash_messages() ?>
+
+  <?php if (!empty($cache['is_uat_test_id'])): ?>
+    <div class="alert alert-warning"><strong>UAT TEST DATA</strong> — this result was generated against a Creditinfo-supplied UAT test National ID, not the applicant's real ID.</div>
+  <?php endif; ?>
+
+  <div class="card mb-3">
+    <div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-1">Credit Bureau Assessment</h4>
+        <div class="text-muted small">Creditinfo's report on this applicant, explained in plain words · Enquiry of <?= e(date('d M Y H:i', strtotime((string) $cache['created_at']))) ?></div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <?php if ($hasPdf): ?>
+          <a href="<?= url('/applications/' . $appId . '/creditinfo/pdf') ?>" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box"></i> Download Creditinfo's PDF</a>
+        <?php elseif (!empty($hasReportToken) && $reportStatus === 'Finished'): ?>
+          <form method="post" action="<?= url('/applications/' . $appId . '/creditinfo/pdf/generate') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box"></i> Generate/View PDF</button>
+          </form>
+        <?php endif; ?>
+        <a href="<?= url('/applications/' . $appId) ?>" class="btn btn-outline-secondary btn-sm">Back to Application</a>
+      </div>
+    </div>
+  </div>
+
+<?php if ($ex !== null && $hasReport): ?>
+  <!-- ============================== the explanation ============================== -->
+  <div class="card ci-verdict ci-lv-<?= e($level) ?>">
+    <div class="ci-verdict-head">
+      <div class="ci-verdict-main">
+        <div class="ci-level-icon"><i class="mdi <?= e(Fmt::levelIcon($level)) ?>" aria-hidden="true"></i></div>
+        <div>
+          <div class="ci-eyebrow">What the credit bureau says</div>
+          <div class="ci-level"><?= e(Words::riskLabel($level)) ?></div>
+        </div>
+        <?php if (($ex['summary'] ?? '') !== ''): ?><p class="ci-summary"><?= e($named($ex['summary'])) ?></p><?php endif; ?>
+      </div>
+      <?php if ($score !== null || $grade !== null || $pd !== null): ?>
+        <div class="ci-facts">
+          <?php if ($score !== null): ?>
+            <div class="ci-fact"><span class="ci-fact-label">Credit score</span><span class="ci-fact-value"><?= e($plain($score)) ?></span><span class="ci-fact-note">on a scale of 250 to 900</span></div>
+          <?php endif; ?>
+          <?php if ($grade !== null): ?>
+            <div class="ci-fact"><span class="ci-fact-label">Grade</span><span class="ci-fact-value"><?= e($grade) ?></span><span class="ci-fact-note">A is the best, E is the worst</span></div>
+          <?php endif; ?>
+          <?php if ($pd !== null): ?>
+            <?php $in100 = (int) round($pd); ?>
+            <div class="ci-fact"><span class="ci-fact-label">Chance of default</span><span class="ci-fact-value"><?= e($plain($pd)) ?>%</span><span class="ci-fact-note"><?= $in100 >= 1 ? 'about ' . $in100 . ' in every 100 similar people' : 'fewer than 1 in 100 similar people' ?></span></div>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
     </div>
 
-    <table class="table table-borderless" style="max-width: 640px;">
-      <tbody>
-        <tr><td class="text-muted">Outcome</td><td><?= e($cache['search_outcome']) ?></td></tr>
-        <tr><td class="text-muted">Report Status</td><td><span class="badge bg-<?= $statusBadge ?>"><?= e($cache['report_status']) ?></span></td></tr>
-        <tr><td class="text-muted">Workflow Reference</td><td><?= e($cache['workflow_id'] ?? '—') ?></td></tr>
-        <tr><td class="text-muted">Request Reference</td><td><?= e($cache['request_id'] ?? '—') ?></td></tr>
-        <tr><td class="text-muted">National ID Used</td><td><?= e(substr((string) $cache['national_id_used'], 0, 4)) ?>••••••<?php if (!empty($cache['is_uat_test_id'])): ?> <span class="badge bg-warning-subtle text-warning">UAT test ID</span><?php endif; ?></td></tr>
-        <tr><td class="text-muted">Enquiry Date</td><td><?= e(date('d M Y H:i', strtotime($cache['created_at']))) ?></td></tr>
-      </tbody>
-    </table>
-
-    <?php if ($hasPdf): ?>
-      <a href="<?= url('/applications/' . $application['id'] . '/creditinfo/pdf') ?>" class="btn btn-info btn-sm mb-3"><i class="mdi mdi-file-pdf-box"></i> Download PDF</a>
-    <?php elseif (!empty($hasReportToken) && ($cache['report_status'] ?? '') === 'Finished'): ?>
-      <form method="post" action="<?= url('/applications/' . $application['id'] . '/creditinfo/pdf/generate') ?>" class="d-inline mb-3">
-        <?= csrf_field() ?>
-        <button type="submit" class="btn btn-outline-info btn-sm"><i class="mdi mdi-file-pdf-box"></i> Generate/View PDF</button>
-      </form>
-    <?php endif; ?>
-
-    <p class="text-muted small mb-3">
-      <?php if ($retentionActive): ?>
-        Creditinfo Report Retention: <?= (int) $retentionDays ?> days after decision.
-      <?php else: ?>
-        Creditinfo Report Retention: <strong>Awaiting Compliance Configuration</strong> -- report content is kept indefinitely until an approved retention period is configured and activated.
-      <?php endif; ?>
-    </p>
-
-    <?php if ($purged): ?>
-      <div class="alert alert-secondary small">Report content has been purged under the data retention policy. Enquiry reference, date, and outcome remain on record above.</div>
-    <?php elseif ($reportData): ?>
-      <hr>
-      <h5>Report Sections</h5>
-      <p class="text-muted small">Raw <code>CreditinfoReportPlus</code> sections as returned by Creditinfo.</p>
-      <?php foreach ($reportData['report'] ?? $reportData as $section => $value): ?>
-        <?php if (is_array($value) && !empty($value)): ?>
-          <div class="mb-3">
-            <h6 class="mb-1"><?= e(ucfirst((string) $section)) ?></h6>
-            <pre class="bg-light p-2 small" style="max-height: 300px; overflow: auto;"><?= e(json_encode($value, JSON_PRETTY_PRINT)) ?></pre>
+    <?php if ($hasGauge || !empty($ex['trend_note'])): ?>
+      <div class="ci-verdict-body">
+        <?php if ($hasGauge): ?>
+          <div class="ci-gauge" role="img" aria-label="<?= e($gaugeLabel) ?>">
+            <?php $position = Words::gaugePosition($score); ?>
+            <?php if ($position !== null): ?>
+              <div class="ci-marker" style="--ci-pos: <?= e((string) $position) ?>%;"><b><?= e($plain($score)) ?></b></div>
+            <?php endif; ?>
+            <div class="ci-gauge-track" aria-hidden="true">
+              <?php foreach ($bandsWorstFirst as $band): ?>
+                <div class="ci-seg ci-lv-<?= e($band['level']) ?><?= $band['level'] === $level ? ' is-active' : '' ?>">
+                  <b><?= e(substr($band['grades'], 0, 1)) ?></b>
+                  <small><?= e($band['label']) ?></small>
+                </div>
+              <?php endforeach; ?>
+            </div>
+            <div class="ci-gauge-ends" aria-hidden="true"><span>Highest risk</span><span>Lowest risk</span></div>
           </div>
         <?php endif; ?>
-      <?php endforeach; ?>
-    <?php elseif (($cache['search_outcome'] ?? '') === 'SubjectNotFound'): ?>
-      <div class="alert alert-secondary small">No record found for this subject at Creditinfo (NIL report) -- a legitimate result, not an error.</div>
-    <?php elseif (in_array($cache['report_status'] ?? '', ['New', 'InProgress'], true)): ?>
-      <div class="alert alert-info small">Report is still processing. Check back shortly.</div>
-    <?php else: ?>
-      <p class="text-muted small mb-0">No report content available.</p>
+        <?php if (!empty($ex['trend_note'])): ?>
+          <p class="ci-trend"><i class="mdi mdi-chart-line" aria-hidden="true"></i><span><?= e($named($ex['trend_note'])) ?></span></p>
+        <?php endif; ?>
+      </div>
     <?php endif; ?>
   </div>
+
+  <?php if ($loans['count'] > 0 || $loans['owed'] !== null || $loans['overdue'] !== null || !empty($ex['closed_note'])): ?>
+    <?php
+      $groups = Fmt::groupAccounts(is_array($ex['accounts'] ?? null) ? $ex['accounts'] : []);
+      $groupInfo = [
+          'behind' => ['title' => 'Overdue now', 'tone' => 'danger', 'icon' => 'mdi-alert'],
+          'on_time' => ['title' => 'Active and up to date', 'tone' => 'success', 'icon' => 'mdi-check-circle'],
+          'unclear' => ['title' => 'Open, status not clear', 'tone' => 'muted', 'icon' => 'mdi-help-circle-outline'],
+      ];
+      $groupNote = static function (string $key, array $rows): string {
+          $p = Fmt::loanPosition($rows);
+          $text = $p['count'] . ($p['count'] === 1 ? ' account' : ' accounts');
+          if ($key === 'behind' && $p['overdue'] !== null && $p['overdue'] > 0) {
+              return $text . ', ' . Fmt::money($p['overdue']) . ' overdue';
+          }
+          return $p['owed'] !== null ? $text . ', ' . Fmt::money($p['owed']) . ' still owed' : $text;
+      };
+      $sourceNote = static fn (?string $source): string => $source === 'report' ? 'from the credit report' : ($source === 'listed' ? 'added up from the accounts below' : 'not stated');
+      $sentence = Fmt::loanSentence($loans, $lenderNames);
+      $overdueClass = $loans['overdue'] === null ? '' : ($loans['overdue'] > 0 ? 'is-bad' : 'is-good');
+      // A long amount (N$12,345,678.90) gets a tile two columns wide, so a number is never cut in the middle.
+      $owedText = Fmt::money($loans['owed']);
+      $overdueText = Fmt::money($loans['overdue']);
+      $wideTile = static fn (string $text): string => mb_strlen($text) > 11 ? ' is-wide' : '';
+    ?>
+    <div class="card ci-section ci-loans">
+      <div class="card-body">
+        <h5 class="ci-h"><i class="mdi mdi-bank" aria-hidden="true"></i> Loans and accounts right now</h5>
+        <p class="ci-sub">What the credit report shows the applicant owes today, so you can explain it to them. The AI only saw Lender A, Lender B and so on; the real names are put back here from the report.</p>
+
+        <?php if ($loans['count'] > 0 || $loans['owed'] !== null || $loans['overdue'] !== null): ?>
+          <div class="ci-tiles">
+            <?php if ($loans['count'] > 0): ?>
+              <div class="ci-tile"><span class="ci-tile-label">Open accounts</span><span class="ci-tile-value"><?= (int) $loans['count'] ?></span><span class="ci-tile-note">loans, cards and overdrafts</span></div>
+              <div class="ci-tile <?= $loans['behind'] > 0 ? 'is-bad' : 'is-good' ?>"><span class="ci-tile-label">Behind on payments</span><span class="ci-tile-value"><?= (int) $loans['behind'] ?></span><span class="ci-tile-note"><?= $loans['behind'] > 0 ? 'overdue now' : 'none overdue' ?></span></div>
+            <?php endif; ?>
+            <div class="ci-tile ci-tile-money<?= $wideTile($owedText) ?>"><span class="ci-tile-label">Still owed</span><span class="ci-tile-value"><?= e($owedText) ?></span><span class="ci-tile-note"><?= e($sourceNote($loans['owed_source'])) ?></span></div>
+            <div class="ci-tile ci-tile-money <?= e($overdueClass) ?><?= $wideTile($overdueText) ?>"><span class="ci-tile-label">Overdue</span><span class="ci-tile-value"><?= e($overdueText) ?></span><span class="ci-tile-note"><?= e($sourceNote($loans['overdue_source'])) ?></span></div>
+          </div>
+        <?php endif; ?>
+
+        <?php if ($sentence !== ''): ?><p class="ci-loan-sentence"><?= e($sentence) ?></p><?php endif; ?>
+        <?php if ($loans['differs']): ?>
+          <p class="ci-loan-warning"><i class="mdi mdi-alert-circle-outline" aria-hidden="true"></i> The totals in the credit report do not match the accounts listed below, so an account may be missing from the list. Check the technical details at the bottom of the page.</p>
+        <?php endif; ?>
+
+        <?php if ($loans['count'] > 0): ?>
+          <div class="table-responsive">
+            <table class="table ci-accounts no-datatable align-middle mb-0">
+              <thead>
+                <tr><th>Lender and account</th><th class="text-end">Overdue</th><th>How late</th><th class="text-end">Still owes</th></tr>
+              </thead>
+              <?php foreach ($groups as $groupKey => $rows): ?>
+                <?php if ($rows === []) { continue; } ?>
+                <tbody>
+                  <tr class="ci-group ci-tone-<?= e($groupInfo[$groupKey]['tone']) ?>">
+                    <th colspan="4" scope="colgroup"><i class="mdi <?= e($groupInfo[$groupKey]['icon']) ?>" aria-hidden="true"></i> <?= e($groupInfo[$groupKey]['title']) ?> <span class="ci-group-note"><?= e($groupNote($groupKey, $rows)) ?></span></th>
+                  </tr>
+                  <?php foreach ($rows as $account): ?>
+                    <?php
+                      $days = $account['days_late'] ?? null;
+                      $owes = $account['owes'] ?? null;
+                      $overdue = $account['overdue'] ?? null;
+                      $lenderLabel = trim((string) ($account['lender'] ?? ''));
+                    ?>
+                    <tr>
+                      <td>
+                        <?php if ($lenderLabel !== ''): ?><strong><?= e($named($lenderLabel)) ?></strong><?php else: ?><span class="text-muted">Lender not named</span><?php endif; ?>
+                        <?php if (!empty($account['unverified'])): ?><span class="ci-pill ci-tone-warning" title="A figure on this row could not be found in the report. Check it in the technical details below.">Check figures</span><?php endif; ?>
+                        <br><span class="text-muted small"><?= e((string) ($account['kind'] ?? 'Account')) ?></span>
+                      </td>
+                      <td class="text-end<?= !empty($overdue) ? ' ci-money-bad' : '' ?>" data-label="Overdue"><?= e(Fmt::money($overdue !== null ? (float) $overdue : null)) ?></td>
+                      <td data-label="How late">
+                        <?php if ($days !== null && $days > 0): ?>
+                          <?= e(number_format((int) $days)) ?> <?= (int) $days === 1 ? 'day' : 'days' ?><?php if ($days >= 30): ?><br><span class="text-muted small"><?= e(Fmt::humanDays((int) $days)) ?></span><?php endif; ?>
+                        <?php else: ?>
+                          <span class="text-muted">—</span>
+                        <?php endif; ?>
+                      </td>
+                      <td class="text-end" data-label="Still owes"><?= e(Fmt::money($owes !== null ? (float) $owes : null)) ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              <?php endforeach; ?>
+            </table>
+          </div>
+        <?php endif; ?>
+        <?php if (!empty($ex['closed_note'])): ?><p class="mt-3 mb-0 text-muted"><i class="mdi mdi-information-outline" aria-hidden="true"></i> <?= e($named($ex['closed_note'])) ?></p><?php endif; ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($ex['findings'])): ?>
+    <div class="card ci-section">
+      <div class="card-body">
+        <h5 class="ci-h"><i class="mdi mdi-clipboard-text" aria-hidden="true"></i> In plain words</h5>
+        <p class="ci-sub">The most important points first.</p>
+        <?php foreach ($ex['findings'] as $finding): ?>
+          <?php
+            if (!is_array($finding)) {
+                continue;
+            }
+            $fStatus = (string) ($finding['status'] ?? 'info');
+            $fTitle = (string) ($finding['title'] ?? '');
+            $fDetail = (string) ($finding['detail'] ?? '');
+          ?>
+          <div class="ci-finding ci-tone-<?= e(Fmt::statusTone($fStatus)) ?>">
+            <div class="ci-finding-icon"><i class="mdi <?= e(Fmt::statusIcon($fStatus)) ?>" aria-hidden="true"></i></div>
+            <div>
+              <div class="ci-finding-title">
+                <?= e($named($fTitle)) ?>
+                <span class="ci-pill"><?= e(Fmt::statusWord($fStatus)) ?></span>
+                <?php if (!empty($finding['uncertain'])): ?><span class="ci-pill ci-tone-muted" title="The AI was not sure what part of the report meant here.">Not sure</span><?php endif; ?>
+                <?php if (!empty($finding['unverified'])): ?><span class="ci-pill ci-tone-warning" title="A figure in this point could not be found in the report. Check it in the technical details below.">Check figures</span><?php endif; ?>
+              </div>
+              <?php if ($fDetail !== ''): ?><p class="ci-finding-detail"><?= e($named($fDetail)) ?></p><?php endif; ?>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($ex['reasons'])): ?>
+    <div class="card ci-section">
+      <div class="card-body">
+        <h5 class="ci-h"><i class="mdi mdi-help-circle-outline" aria-hidden="true"></i> Why the score is what it is</h5>
+        <p class="ci-sub">Creditinfo gives short codes for the main reasons. Here they are written out.</p>
+        <ul class="ci-reasons">
+          <?php foreach ($ex['reasons'] as $reason): ?>
+            <?php if (!is_array($reason)) { continue; } ?>
+            <li><?php if (!empty($reason['code'])): ?><span class="ci-code"><?= e($reason['code']) ?></span><?php endif; ?><span><?= e($named($reason['meaning'] ?? '')) ?></span></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($ex['months'])): ?>
+    <div class="card ci-section">
+      <div class="card-body">
+        <h5 class="ci-h"><i class="mdi mdi-calendar-check" aria-hidden="true"></i> Payments over the last <?= count($ex['months']) ?> months</h5>
+        <p class="ci-sub">One box for each month, oldest first, as the AI read them from the report.</p>
+        <ul class="ci-months">
+          <?php foreach ($ex['months'] as $i => $month): ?>
+            <?php
+              if (!is_array($month)) {
+                  continue;
+              }
+              $mKey = (string) ($month['month'] ?? '');
+              $mState = (string) ($month['state'] ?? 'no_data');
+              $state = Fmt::monthState($mState);
+              $tone = ['ok' => 'success', 'late' => 'danger'][$mState] ?? 'muted';
+              $showYear = $i === 0 || substr($mKey, 5, 2) === '01';
+            ?>
+            <li class="ci-month ci-tone-<?= e($tone) ?>" title="<?= e(Fmt::monthLabel($mKey, true) . ': ' . $state['word']) ?>">
+              <i class="mdi <?= e($state['icon']) ?>" aria-hidden="true"></i>
+              <b><?= e(Fmt::monthLabel($mKey)) ?></b>
+              <small><?= $showYear ? e(substr($mKey, 0, 4)) : '&nbsp;' ?></small>
+              <span class="visually-hidden"><?= e($state['word']) ?></span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+        <div class="ci-legend">
+          <span><i class="mdi mdi-check" aria-hidden="true"></i> Paid on time</span>
+          <span><i class="mdi mdi-close" aria-hidden="true"></i> Late or missed</span>
+          <span><i class="mdi mdi-minus" aria-hidden="true"></i> No information</span>
+        </div>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($ex['check_next'])): ?>
+    <div class="card ci-section">
+      <div class="card-body">
+        <h5 class="ci-h"><i class="mdi mdi-lightbulb-on-outline" aria-hidden="true"></i> You could ask the applicant</h5>
+        <p class="ci-sub">Questions the record raises. They are suggestions, not decisions.</p>
+        <div class="ci-check"><ul class="ci-list">
+          <?php foreach ($ex['check_next'] as $line): ?><?php if (is_string($line) && $line !== ''): ?><li><?= e($named($line)) ?></li><?php endif; ?><?php endforeach; ?>
+        </ul></div>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($ex['uncertainties']) || $unverified > 0): ?>
+    <div class="card ci-section">
+      <div class="card-body">
+        <h5 class="ci-h"><i class="mdi mdi-alert-circle-outline" aria-hidden="true"></i> Worth double-checking</h5>
+        <div class="ci-doubt"><ul class="ci-list">
+          <?php if ($unverified > 0): ?>
+            <li><strong><?= (int) $unverified ?> figure<?= $unverified === 1 ? '' : 's' ?></strong> in this explanation could not be matched to the report. Where a point says "Check figures", compare it with the technical details below before relying on it.</li>
+          <?php endif; ?>
+          <?php foreach (($ex['uncertainties'] ?? []) as $line): ?><?php if (is_string($line) && $line !== ''): ?><li><?= e($named($line)) ?></li><?php endif; ?><?php endforeach; ?>
+        </ul></div>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <div class="card ci-section">
+    <div class="card-body ci-ai-note">
+      <p>
+        <i class="mdi mdi-robot" aria-hidden="true"></i>
+        Explained by the AI analyser<?= !empty($ex['meta']['generated_at']) ? ' on ' . e(date('d M Y H:i', strtotime((string) $ex['meta']['generated_at']))) : '' ?>,
+        from an anonymous copy of the report: no names, ID numbers, addresses, phone numbers or lender names were sent. The lenders' names were put back on this page from the report.
+        It is a reading aid. Creditinfo's report is the official record, and nothing here approves or declines anything.
+      </p>
+      <?php if ($canExplain): ?>
+        <form method="post" action="<?= e($explainUrl) ?>" class="m-0">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn-outline-secondary btn-sm" data-busy-label="Explaining… about half a minute"><i class="mdi mdi-refresh" aria-hidden="true"></i> Explain again</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+
+<?php elseif ($hasReport): ?>
+  <!-- ============================== a report, not yet explained ============================== -->
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex gap-3 flex-wrap flex-md-nowrap align-items-start">
+        <div class="ci-cta-icon"><i class="mdi mdi-auto-fix" aria-hidden="true"></i></div>
+        <div class="flex-grow-1">
+          <h5 class="mb-1">Understand this report in half a minute</h5>
+          <p class="mb-2">Creditinfo's report is full of codes and bureau words. Press the button and the AI analyser will write it out in simple language: what the score means, which loans are overdue or still running and for how much, and what you could ask the applicant.</p>
+          <ul class="ci-privacy small">
+            <li><i class="mdi mdi-lock-outline" aria-hidden="true"></i><span>Only an anonymous copy goes to the AI: no names, ID numbers, addresses, phone numbers or lender names.</span></li>
+            <li><i class="mdi mdi-check" aria-hidden="true"></i><span>Every figure is checked against the report afterwards, and anything that does not match is marked.</span></li>
+            <li><i class="mdi mdi-check" aria-hidden="true"></i><span>It only explains the record. It never approves or declines an application.</span></li>
+          </ul>
+          <?php if ($canExplain): ?>
+            <form method="post" action="<?= e($explainUrl) ?>" class="m-0">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-info" data-busy-label="Explaining… about half a minute"><i class="mdi mdi-auto-fix" aria-hidden="true"></i> Explain this report</button>
+            </form>
+          <?php else: ?>
+            <button type="button" class="btn btn-info" disabled><i class="mdi mdi-auto-fix" aria-hidden="true"></i> Explain this report</button>
+            <p class="text-muted small mt-2 mb-0">
+              <?php if (!$aiConfigured): ?>
+                AI explanations are not set up yet. An administrator can add the key under Settings &gt; AI Settings.
+              <?php elseif ($aiCopyState === 'empty'): ?>
+                This report has no credit record sections that can be explained.
+              <?php else: ?>
+                This report cannot be made anonymous safely, so it is not sent to the AI.
+              <?php endif; ?>
+            </p>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<?php elseif ($purged): ?>
+  <div class="alert alert-secondary">Report content has been purged under the data retention policy, so it can no longer be shown or explained. The enquiry reference, date, and outcome remain on record in the technical details below.</div>
+
+<?php elseif ($isNil): ?>
+  <div class="card ci-verdict ci-lv-no_record">
+    <div class="ci-verdict-head">
+      <div class="ci-verdict-main">
+        <div class="ci-level-icon"><i class="mdi <?= e(Fmt::levelIcon('no_record')) ?>" aria-hidden="true"></i></div>
+        <div>
+          <div class="ci-eyebrow">What the credit bureau says</div>
+          <div class="ci-level">No credit record found</div>
+        </div>
+        <p class="ci-summary">Creditinfo has no credit history for this person. That is a normal result, not an error. It does not mean the person is a bad risk, and it does not mean they are a good one.</p>
+      </div>
+    </div>
+    <div class="ci-verdict-body">
+      <h5 class="ci-h"><i class="mdi mdi-lightbulb-on-outline" aria-hidden="true"></i> What you can do</h5>
+      <ul class="ci-list mb-0">
+        <li>Ask for other proof of how the person handles money, such as payslips and recent bank statements.</li>
+        <li>Check that the ID number was typed correctly. A wrong number also gives "no record".</li>
+        <li>For a first loan, a smaller amount is a common way to start building a record.</li>
+      </ul>
+    </div>
+  </div>
+
+<?php elseif (in_array($reportStatus, ['New', 'InProgress'], true)): ?>
+  <div class="alert alert-info"><i class="mdi mdi-timer-sand" aria-hidden="true"></i> Creditinfo is still preparing this report. Check back shortly.</div>
+
+<?php elseif (in_array($reportStatus, ['Error', 'Rejected', 'Timeout'], true)): ?>
+  <div class="alert alert-danger">Creditinfo could not return this report (status: <?= e($reportStatus) ?>). Go back to the application and run the credit bureau check again.</div>
+
+<?php else: ?>
+  <div class="alert alert-secondary">No report content is available for this enquiry.</div>
+<?php endif; ?>
+
+<?php if ($hasReport || $isNil): ?>
+  <details class="ci-details">
+    <summary><i class="mdi mdi-book-open-variant" aria-hidden="true"></i> How to read a Creditinfo report <small>the grades and the words, explained</small></summary>
+    <div class="ci-details-body">
+      <h6 class="mt-2">The grade scale</h6>
+      <p class="text-muted small">Creditinfo turns a person's payment history into a score from 250 to 900, then into a grade. This is Creditinfo's own scale.</p>
+      <div class="table-responsive">
+        <table class="table table-sm ci-scale no-datatable mb-0">
+          <thead><tr><th>Grade</th><th>Score</th><th>Risk</th><th>What it usually means</th></tr></thead>
+          <tbody>
+            <?php foreach (Words::gradeScale() as $band): ?>
+              <tr class="ci-lv-<?= e($band['level']) ?><?= $ex !== null && $band['level'] === $level ? ' is-yours' : '' ?>">
+                <td><span class="ci-chip"><?= e(substr($band['grades'], 0, 1)) ?></span> <span class="text-muted small"><?= e($band['grades']) ?></span></td>
+                <td class="text-nowrap"><?= (int) $band['from'] ?> to <?= (int) $band['to'] ?></td>
+                <td><strong><?= e($band['label']) ?></strong><?= $ex !== null && $band['level'] === $level ? ' <span class="text-muted small">(this applicant)</span>' : '' ?></td>
+                <td><?= e($band['meaning']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+            <tr><td><span class="ci-chip" style="background:#647083;color:#fff">XX</span></td><td>—</td><td><strong>Not scored</strong></td><td>There is not enough information to give a score.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h6 class="mt-4">What do these words mean?</h6>
+      <dl class="ci-glossary mb-0">
+        <?php foreach (Words::glossary() as $entry): ?>
+          <dt><?= e($entry['term']) ?></dt>
+          <dd><?= e($entry['meaning']) ?></dd>
+        <?php endforeach; ?>
+      </dl>
+    </div>
+  </details>
+<?php endif; ?>
+
+  <details class="ci-details">
+    <summary><i class="mdi mdi-file-document" aria-hidden="true"></i> Technical details <small>references, retention and the report exactly as Creditinfo sent it</small></summary>
+    <div class="ci-details-body">
+      <table class="table table-borderless no-datatable" style="max-width: 640px;">
+        <tbody>
+          <tr><td class="text-muted">Outcome</td><td><?= e($cache['search_outcome']) ?></td></tr>
+          <tr><td class="text-muted">Report Status</td><td><span class="badge bg-<?= $statusBadge ?>"><?= e($cache['report_status']) ?></span></td></tr>
+          <tr><td class="text-muted">Workflow Reference</td><td><?= e($cache['workflow_id'] ?? '—') ?></td></tr>
+          <tr><td class="text-muted">Request Reference</td><td><?= e($cache['request_id'] ?? '—') ?></td></tr>
+          <tr><td class="text-muted">National ID Used</td><td><?= e(substr((string) $cache['national_id_used'], 0, 4)) ?>••••••<?php if (!empty($cache['is_uat_test_id'])): ?> <span class="badge bg-warning-subtle text-warning">UAT test ID</span><?php endif; ?></td></tr>
+          <tr><td class="text-muted">Enquiry Date</td><td><?= e(date('d M Y H:i', strtotime((string) $cache['created_at']))) ?></td></tr>
+        </tbody>
+      </table>
+
+      <p class="text-muted small mb-3">
+        <?php if ($retentionActive): ?>
+          Creditinfo Report Retention: <?= (int) $retentionDays ?> days after decision. The plain-words explanation is kept with the report and removed with it.
+        <?php else: ?>
+          Creditinfo Report Retention: <strong>Awaiting Compliance Configuration</strong> -- report content is kept indefinitely until an approved retention period is configured and activated.
+        <?php endif; ?>
+      </p>
+
+      <?php if ($hasReport): ?>
+        <h6>What the AI receives</h6>
+        <?php if ($aiCopyState === 'unsafe'): ?>
+          <p class="text-muted small">This report cannot be made anonymous safely, so nothing can be sent to the AI.</p>
+        <?php elseif ($aiCopyState === 'empty'): ?>
+          <p class="text-muted small">This report has no credit record sections, so there is nothing to send to the AI.</p>
+        <?php elseif ($aiCopy !== []): ?>
+          <p class="text-muted small">When you press Explain, only this anonymous copy of the report is sent: personal details are removed, lenders are renamed Lender A, Lender B and so on, and long lists are shortened. If anything below could identify a person, do not use the button and tell your system administrator.</p>
+          <pre class="bg-light p-2 small" style="max-height: 300px; overflow: auto;"><?= e((string) json_encode($aiCopy, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></pre>
+        <?php endif; ?>
+
+        <h6 class="mt-4">Report sections</h6>
+        <p class="text-muted small">Raw <code>CreditinfoReportPlus</code> sections as returned by Creditinfo. Use them to double-check the explanation above.</p>
+        <?php foreach ($reportData['report'] ?? $reportData as $section => $value): ?>
+          <?php if (is_array($value) && !empty($value)): ?>
+            <div class="mb-3">
+              <h6 class="mb-1"><?= e(ucfirst((string) $section)) ?></h6>
+              <pre class="bg-light p-2 small" style="max-height: 300px; overflow: auto;"><?= e(json_encode($value, JSON_PRETTY_PRINT)) ?></pre>
+            </div>
+          <?php endif; ?>
+        <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+  </details>
 </div>

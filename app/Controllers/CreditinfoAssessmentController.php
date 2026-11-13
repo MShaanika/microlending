@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Database;
 use App\Core\Idempotency;
 use App\Core\IdempotencyBusyException;
 use App\Core\IdempotencyReplayException;
@@ -16,9 +17,12 @@ use App\Models\CreditinfoReportCache;
 use App\Models\CreditinfoReportContent;
 use App\Models\CreditinfoSetting;
 use App\Models\LoanApplication;
+use App\Models\NotificationSetting;
 use App\Models\RetentionPolicy;
 use App\Services\CreditinfoApiException;
 use App\Services\CreditinfoBureauClient;
+use App\Services\CreditinfoReportExplainer;
+use App\Services\CreditinfoReportMinimizer;
 use App\Support\CreditinfoV3Codes;
 
 /**
@@ -39,6 +43,9 @@ use App\Support\CreditinfoV3Codes;
 class CreditinfoAssessmentController extends Controller
 {
     private const UAT_TEST_IDS = ['77082851070', '8005041272341', '74082851070'];
+
+    /** Each "Explain" is a paid call to the AI provider, so the same report cannot be explained again within this many seconds. */
+    private const EXPLAIN_COOLDOWN_SECONDS = 60;
 
     private LoanApplication $applications;
     private CreditBureauConsent $consents;
@@ -369,6 +376,7 @@ class CreditinfoAssessmentController extends Controller
             }
         }
         $retentionActive = $retentionRow && (int) $retentionRow['is_active'] === 1;
+        [$aiCopy, $aiCopyState] = is_array($reportData) && $reportData !== [] ? $this->anonymousCopy($reportData) : [[], 'ok'];
 
         $this->view('creditinfo/assessment', [
             'title' => 'Credit Bureau Assessment',
@@ -380,7 +388,121 @@ class CreditinfoAssessmentController extends Controller
             'purged' => !$content && $cache['purged_at'],
             'retentionActive' => $retentionActive,
             'retentionDays' => $retentionActive ? (int) $retentionRow['retention_days'] : null,
+            // The plain-words explanation (made on request by the AI analyser, stored encrypted beside the report it explains).
+            'explanation' => $content ? $this->reportContent->decryptedExplanation($content) : null,
+            'aiConfigured' => (new NotificationSetting())->get('OPENAI_API_KEY') !== '',
+            // What "Explain" would send, shown so anyone can see for themselves what leaves the system.
+            'aiCopy' => $aiCopy,
+            'aiCopyState' => $aiCopyState,
         ]);
+    }
+
+    /**
+     * The anonymous copy of the stored report that "Explain" sends to the AI.
+     *
+     * @param array<string,mixed> $stored
+     * @return array{0: array<string,mixed>, 1: string} the copy and its state: "ok", "empty" (no credit record sections) or "unsafe" (an
+     *         identifier could not be removed, so nothing can be sent)
+     */
+    private function anonymousCopy(array $stored): array
+    {
+        try {
+            $copy = (new CreditinfoReportMinimizer())->minimize(CreditinfoReportExplainer::sectionsOf($stored));
+        } catch (\Throwable $e) {
+            return [[], 'unsafe'];
+        }
+        return $copy === [] ? [[], 'empty'] : [$copy, 'ok'];
+    }
+
+    /**
+     * Explains the stored report in plain words. The AI analyser is given an ANONYMOUS copy only (CreditinfoReportMinimizer removes names, IDs,
+     * addresses, contact details and lender names first), and what it answers is checked against the report before it is saved
+     * (CreditinfoReportExplainer). The explanation is stored encrypted on the report's own row, so the retention purge removes it with the report.
+     * Only ever reads and explains: nothing here changes the credit check, the application or any decision.
+     */
+    public function explainAssessment(string $id): void
+    {
+        Auth::authorize('applications.credit_check');
+        $id = (int) $id;
+        $back = '/applications/' . $id . '/creditinfo/assessment';
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect($back);
+            return;
+        }
+
+        $application = $this->applications->find($id);
+        if (!$application) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+        $this->assertBranchAccess($application);
+
+        $cache = $this->reportCache->latestForApplication($id);
+        $content = $cache ? $this->reportContent->findByReportCacheId((int) $cache['id']) : null;
+        $report = $content ? $this->reportContent->decryptedReport($content) : null;
+        if (!is_array($report) || $report === []) {
+            Session::flash('error', 'There is no stored report to explain. It may still be processing, or it may have been purged under the retention policy.');
+            $this->redirect($back);
+            return;
+        }
+
+        $earlier = $this->reportContent->decryptedExplanation($content);
+        $generatedAt = $earlier ? strtotime((string) ($earlier['meta']['generated_at'] ?? '')) : false;
+        $waited = $generatedAt ? time() - $generatedAt : null;
+        if ($waited !== null && $waited >= 0 && $waited < self::EXPLAIN_COOLDOWN_SECONDS) {
+            Session::flash('error', 'This report was only just explained. Please wait ' . (self::EXPLAIN_COOLDOWN_SECONDS - $waited) . ' seconds before asking again.');
+            $this->redirect($back);
+            return;
+        }
+
+        // The AI can take a while to answer; the provider call has its own time limit.
+        @set_time_limit(150);
+        $result = $this->explainer()->explain($report);
+        $this->keepDatabaseAlive();
+
+        if (!$result['success']) {
+            Audit::log('Uncertain', 'Creditinfo', 'Plain-words explanation failed for application #' . $id, ['error' => $result['error']]);
+            Session::flash('error', $result['error']);
+            $this->redirect($back);
+            return;
+        }
+
+        $explanation = $result['explanation'];
+        $explanation['meta']['generated_by'] = Auth::user()['id'] ?? null;
+        if (!$this->reportContent->storeExplanation((int) $cache['id'], $explanation)) {
+            Session::flash('error', 'The explanation was made but could not be saved. Please try again.');
+            $this->redirect($back);
+            return;
+        }
+
+        // No personal data in the audit trail, and not the name of the AI model either: which parts of the report were explained, and how many
+        // figures could not be matched.
+        Audit::log('Create', 'Creditinfo', 'Explained the credit bureau report in plain words for application #' . $id, [
+            'sections' => $explanation['meta']['sections'] ?? [],
+            'unverified_figures' => $explanation['meta']['unverified_figures'] ?? 0,
+            'replaced_earlier_explanation' => $earlier !== null,
+        ]);
+        Session::flash('success', 'Done. The report is explained below.');
+        $this->redirect($back);
+    }
+
+    /** The AI explainer the action uses; a method of its own so the tests can hand in one that talks to a fake provider. */
+    protected function explainer(): CreditinfoReportExplainer
+    {
+        return new CreditinfoReportExplainer();
+    }
+
+    /** A long AI call can outlast the database's idle timeout; make sure the connection is alive before anything is written afterwards. */
+    private function keepDatabaseAlive(): void
+    {
+        try {
+            Database::connection()->query('SELECT 1');
+        } catch (\Throwable $e) {
+            Database::reconnect();
+        }
     }
 
     /**
