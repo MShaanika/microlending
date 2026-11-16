@@ -14,11 +14,13 @@ use App\Services\CplRecordBuilder;
 use App\Services\CplValidationService;
 use App\Services\LegacyCplExtract;
 use App\Services\LegacyCplMapper;
+use App\Services\LegacyIdFixList;
 use App\Services\LegacyLoanBookReader;
+use App\Services\LegacySpotCheck;
 
 require __DIR__ . '/../bootstrap/app.php';
 
-$opts = getopt('', ['as-of:', 'supplier::', 'trading::']);
+$opts = getopt('', ['as-of:', 'supplier::', 'trading::', 'exclude-applicant::', 'application-status::']);
 $asOf = (string) ($opts['as-of'] ?? '');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOf) || $asOf !== date('Y-m-t', (int) strtotime($asOf))) {
     fwrite(STDERR, "--as-of must be a month end, for example 2026-10-31\n");
@@ -63,6 +65,47 @@ foreach ($result['exceptions'] as $e) {
 }
 fclose($csv);
 
+// Staff list 1: customers whose ID must be fixed, with a lead from the applications received through this system (their ID comes from the credit check).
+// Test applications are left out: --exclude-applicant="First Last" (repeat the option for more), e.g. the test applicant of the pilot. --application-status=Submitted
+// restricts the leads to applications in that status; by default every status counts.
+$excluded = array_map(static fn ($n): string => strtolower(trim((string) preg_replace('/\s+/', ' ', (string) $n))), (array) ($opts['exclude-applicant'] ?? []));
+$statusFilter = (string) ($opts['application-status'] ?? '');
+$sql = "SELECT applicant_id_number AS id_number, applicant_first_name AS first_name, applicant_last_name AS last_name, applicant_phone AS phone FROM loan_applications WHERE applicant_id_number IS NOT NULL AND applicant_id_number <> ''";
+$params = [];
+if ($statusFilter !== '') {
+    $sql .= ' AND status = ?';
+    $params[] = $statusFilter;
+}
+$stmt = App\Core\Database::connection()->prepare($sql);
+$stmt->execute($params);
+$applications = [];
+$skippedTest = 0;
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $full = strtolower(trim((string) preg_replace('/\s+/', ' ', $row['first_name'] . ' ' . $row['last_name'])));
+    if ($full !== '' && in_array($full, $excluded, true)) {
+        $skippedTest++;
+        continue;
+    }
+    $applications[] = $row;
+}
+$fixRows = (new LegacyIdFixList())->build($result['exceptions'], $applications);
+$fix = fopen($dir . '/ids_to_fix.csv', 'w');
+fputcsv($fix, ['borrower_id (old system)', 'name', 'phone', 'loan references', 'problem', 'suggested ID (confirm against the ID copy)', 'confidence', 'matched on']);
+foreach ($fixRows as $r) {
+    fputcsv($fix, [$r['borrower_id'], $r['name'], $r['phone'], $r['loans'], $r['problem'], $r['suggested_id'], $r['confidence'], $r['matched_with']]);
+}
+fclose($fix);
+$withLead = count(array_filter($fixRows, static fn (array $r): bool => $r['confidence'] !== ''));
+
+// Staff list 2: about 30 accounts to compare with the old system's own screens.
+$sample = (new LegacySpotCheck())->sample($result['details'], 30, $asOf);
+$spot = fopen($dir . '/spot_check.csv', 'w');
+fputcsv($spot, ['loan_id', 'loan reference (find it in the old system)', 'borrower', 'type in file', 'amount lent', 'total owed at start', 'paid up to month end', 'opening balance', 'current balance', 'amount overdue', 'months in arrears', 'instalment', 'last payment', 'matches the old system? (yes/no)']);
+foreach ($sample as $d) {
+    fputcsv($spot, [$d['loan_id'], $d['ref_no'], $d['borrower_name'], $d['kind'], $d['amount_lent'], $d['total_owed_at_start'], $d['paid'], $d['opening_balance'], $d['current_balance'], $d['amount_overdue'], $d['months_in_arrears'], $d['instalment'], $d['last_payment'], '']);
+}
+fclose($spot);
+
 $s = $result['summary'];
 $lines = [
     'Candidate monthly CPL file, as at ' . $s['as_of'] . ' (built ' . date('Y-m-d H:i') . ')',
@@ -71,6 +114,8 @@ $lines = [
     'Accounts that cannot be sent (see exceptions.csv): ' . $s['blocked'],
     'Left out: ' . ($result['excluded'] === [] ? 'none' : json_encode($result['excluded'])),
     'Totals in the file (N$, whole dollars): opening ' . $s['opening_balance'] . ', current ' . $s['current_balance'] . ', overdue ' . $s['amount_overdue'] . ', accounts in arrears ' . $s['accounts_in_arrears'],
+    'Customers to fix: ' . count($fixRows) . ' (see ids_to_fix.csv; ' . $withLead . ' have a suggested ID from ' . count($applications) . ' applications received here' . ($skippedTest > 0 ? ', ' . $skippedTest . ' test application(s) left out' : '') . ')',
+    'Spot check: ' . count($sample) . ' accounts in spot_check.csv to compare with the old system',
     'Arrears are an ESTIMATE (the old system keeps no instalment schedule): check about 30 loans against the old system before any live use.',
 ];
 file_put_contents($dir . '/summary.txt', implode("\n", $lines) . "\n");

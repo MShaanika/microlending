@@ -15,7 +15,7 @@ final class LegacyLoanBookReader
     }
 
     /**
-     * Every loan that could belong in a file as at $asOf (released, completed or written off), with its payments and first due date, ready for LegacyCplMapper.
+     * Every loan that could belong in a file (released, completed or written off), with its payments and first due date, ready for LegacyCplMapper.
      *
      * @return array<int, array{loan: array<string,mixed>, payments: array<int,array{amount:string,date:string}>, first_due: ?string}>
      */

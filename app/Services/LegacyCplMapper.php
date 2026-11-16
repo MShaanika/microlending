@@ -41,7 +41,7 @@ final class LegacyCplMapper
      *        date_written_off, firstname, middlename, lastname, id_number, identity, gender, contact_no, address, company_name, gross_salary, payment_day
      * @param array<int,array{amount:float|int|string,date:string}> $payments repayments of this loan
      * @param string|null $firstDue the loan's first due date as the old system stores it ("2026-12-00": only year and month are reliable)
-     * @return array{fields: ?array<string,mixed>, excluded: ?string, notes: string[]}
+     * @return array{fields: ?array<string,mixed>, excluded: ?string, notes: string[], facts?: array<string,float>}
      */
     public function map(array $loan, array $payments, ?string $firstDue, string $asOf): array
     {
@@ -136,7 +136,7 @@ final class LegacyCplMapper
             $fields['status_date'] = str_replace('-', '', (string) $lastPayment);
         }
 
-        return ['fields' => $fields, 'excluded' => null, 'notes' => $notes];
+        return ['fields' => $fields, 'excluded' => null, 'notes' => $notes, 'facts' => ['paid' => round($paid, 2), 'total_owed_at_start' => $final]];
     }
 
     /** @return array{fields: null, excluded: string, notes: string[]} */

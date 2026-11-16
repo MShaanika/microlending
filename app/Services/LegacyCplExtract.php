@@ -21,6 +21,7 @@ final class LegacyCplExtract
      * @return array{
      *   file: string,
      *   records: int,
+     *   details: array<int, array<string,mixed>>,
      *   exceptions: array<int, array{loan_id:int, borrower_id:int, account_no:string, reasons:string[], notes:string[]}>,
      *   excluded: array<string,int>,
      *   summary: array<string,mixed>
@@ -32,6 +33,7 @@ final class LegacyCplExtract
         $exceptions = [];
         $excluded = [];
         $warningRecords = 0;
+        $details = [];
         $byStatus = ['active' => 0, 'C' => 0, 'W' => 0];
         $totals = ['opening_balance' => 0, 'current_balance' => 0, 'amount_overdue' => 0, 'accounts_in_arrears' => 0];
 
@@ -54,6 +56,9 @@ final class LegacyCplExtract
                     'account_no' => (string) $fields['account_no'],
                     'reasons' => array_map(static fn (array $i): string => $i['field'] . ': ' . $i['message'], $blocking),
                     'notes' => $mapped['notes'],
+                    'name' => trim(($loan['firstname'] ?? '') . ' ' . ($loan['lastname'] ?? '')),
+                    'ref_no' => (string) ($loan['ref_no'] ?? ''),
+                    'phone' => (string) ($loan['contact_no'] ?? ''),
                 ];
                 continue;
             }
@@ -61,6 +66,22 @@ final class LegacyCplExtract
                 $warningRecords++;
             }
 
+            $details[] = [
+                'loan_id' => (int) $loan['id'],
+                'ref_no' => (string) ($loan['ref_no'] ?? ''),
+                'borrower_id' => (int) ($loan['borrower_id'] ?? 0),
+                'borrower_name' => trim(($loan['firstname'] ?? '') . ' ' . ($loan['lastname'] ?? '')),
+                'kind' => $fields['status_code'] ?? ((int) $fields['months_in_arrears'] > 0 ? 'active, in arrears' : 'active'),
+                'amount_lent' => (float) ($loan['amount'] ?? 0),
+                'total_owed_at_start' => (float) ($mapped['facts']['total_owed_at_start'] ?? 0),
+                'paid' => (float) ($mapped['facts']['paid'] ?? 0),
+                'opening_balance' => (int) $fields['opening_balance'],
+                'current_balance' => (int) $fields['current_balance'],
+                'amount_overdue' => (int) $fields['amount_overdue'],
+                'months_in_arrears' => (int) $fields['months_in_arrears'],
+                'instalment' => (int) $fields['instalment_amount'],
+                'last_payment' => (string) ($fields['date_of_last_payment'] ?? ''),
+            ];
             $lines[] = $this->builder->record($fields);
             $byStatus[$fields['status_code'] ?? 'active']++;
             $totals['opening_balance'] += (int) $fields['opening_balance'];
@@ -78,6 +99,7 @@ final class LegacyCplExtract
         return [
             'file' => $file,
             'records' => count($lines),
+            'details' => $details,
             'exceptions' => $exceptions,
             'excluded' => $excluded,
             'summary' => ['as_of' => $asOf, 'sent' => count($lines), 'with_warnings' => $warningRecords, 'blocked' => count($exceptions), 'by_status' => $byStatus] + $totals,
