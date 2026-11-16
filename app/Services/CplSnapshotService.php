@@ -47,6 +47,10 @@ class CplSnapshotService
     {
         $existing = $this->batches->findByTypeAndMonth('Monthly', $monthEnd);
 
+        if ($existing && ($existing['source'] ?? 'Local') === 'SolidFin') {
+            throw new \RuntimeException('This month batch was built from the old loan system (SolidFin); rebuild it with bin/cpl_legacy_extract.php --create-batch.');
+        }
+
         if ($existing && !in_array($existing['status'], self::REGENERATABLE_STATUSES, true)) {
             throw new \RuntimeException('This month\'s batch is already ' . $existing['status'] . ' and cannot be regenerated.');
         }

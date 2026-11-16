@@ -27,3 +27,6 @@ Thumbs.db
 
 /storage/bank_import_previews/*
 !/storage/bank_import_previews/.gitkeep
+
+# Real customer data written by the legacy CPL extract
+/storage/exports/cpl_legacy_*/

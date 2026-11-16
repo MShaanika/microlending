@@ -2,7 +2,7 @@
 
 /**
  * READ-ONLY review run for the loan book still kept in the old loan system (SolidFin, the admin_area folder): builds the candidate monthly CPL file, the list of
- * accounts that cannot be sent and totals to check, into storage/exports/cpl_legacy_<date>/. It never uploads anything, never writes to either database, and the
+ * accounts that cannot be sent and totals to check, into storage/exports/cpl_legacy_<date>/. It never uploads anything, never writes to the old system's database (only with --create-batch --user=<id> does it store the file as a CPL batch in this system for review), and the
  * candidate file is deliberately NOT named like a Creditinfo file.
  *
  *   LEGACY_DB_HOST=127.0.0.1 LEGACY_DB_PORT=3306 LEGACY_DB_NAME=... LEGACY_DB_USER=... LEGACY_DB_PASS=... php bin/cpl_legacy_extract.php --as-of=2026-10-31
@@ -14,13 +14,15 @@ use App\Services\CplRecordBuilder;
 use App\Services\CplValidationService;
 use App\Services\LegacyCplExtract;
 use App\Services\LegacyCplMapper;
+use App\Services\LegacyIdCorrections;
 use App\Services\LegacyIdFixList;
 use App\Services\LegacyLoanBookReader;
 use App\Services\LegacySpotCheck;
+use App\Services\LegacyStaffSheet;
 
 require __DIR__ . '/../bootstrap/app.php';
 
-$opts = getopt('', ['as-of:', 'supplier::', 'trading::', 'exclude-applicant::', 'application-status::']);
+$opts = getopt('', ['as-of:', 'supplier::', 'trading::', 'exclude-applicant::', 'application-status::', 'create-batch', 'user:', 'corrections:']);
 $asOf = (string) ($opts['as-of'] ?? '');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOf) || $asOf !== date('Y-m-t', (int) strtotime($asOf))) {
     fwrite(STDERR, "--as-of must be a month end, for example 2026-10-31\n");
@@ -49,7 +51,30 @@ $settings = new App\Models\CplSetting();
 $supplier = (string) ($opts['supplier'] ?? '') ?: $settings->supplierReferenceNumber();
 $trading = (string) ($opts['trading'] ?? '') ?: $settings->tradingName();
 
-$result = (new LegacyCplExtract(new LegacyLoanBookReader($pdo), new LegacyCplMapper(), new CplValidationService(), new CplRecordBuilder()))->monthly($asOf, $supplier, $trading);
+// --corrections=<completed staff sheet .xlsx/.csv>: ID numbers staff filled in on the sheet this script wrote earlier. They only overlay the file being built;
+// nothing is written to the old system. Rows that cannot be used are listed in corrections_rejected.csv for the staff to redo.
+$correctionsApplied = [];
+$correctionReport = null;
+if (array_key_exists('corrections', $opts) && (!is_string($opts['corrections']) || $opts['corrections'] === '')) {
+    fwrite(STDERR, "Use --corrections=<path to the completed sheet>\n");
+    exit(1);
+}
+if (!empty($opts['corrections'])) {
+    $reader = new LegacyIdCorrections();
+    try {
+        $correctionReport = $reader->parse($reader->readFile((string) $opts['corrections']), date('Y-m-d'));
+    } catch (Throwable $e) {
+        fwrite(STDERR, 'Could not read the corrections sheet: ' . $e->getMessage() . "
+");
+        exit(1);
+    }
+    // Only customers who are really missing details may be corrected: find them with a first run WITHOUT corrections.
+    $baseline = (new LegacyCplExtract(new LegacyLoanBookReader($pdo), new LegacyCplMapper(), new CplValidationService(), new CplRecordBuilder()))->monthly($asOf, $supplier, $trading);
+    $correctionReport = $reader->restrictTo($correctionReport, array_values(array_unique(array_map(static fn (array $e): int => $e['borrower_id'], $baseline['exceptions']))));
+    $correctionsApplied = $correctionReport['applied'];
+}
+
+$result = (new LegacyCplExtract(new LegacyLoanBookReader($pdo), new LegacyCplMapper(), new CplValidationService(), new CplRecordBuilder()))->monthly($asOf, $supplier, $trading, $correctionsApplied);
 
 $dir = dirname(__DIR__) . '/storage/exports/cpl_legacy_' . $asOf;
 if (!is_dir($dir) && !mkdir($dir, 0750, true)) {
@@ -95,6 +120,16 @@ foreach ($fixRows as $r) {
     fputcsv($fix, [$r['borrower_id'], $r['name'], $r['phone'], $r['loans'], $r['problem'], $r['suggested_id'], $r['confidence'], $r['matched_with']]);
 }
 fclose($fix);
+(new LegacyStaffSheet())->write($fixRows, $dir . '/missing_details_for_staff.xlsx', $asOf);
+@unlink($dir . '/corrections_rejected.csv');
+if ($correctionReport !== null && $correctionReport['rejected'] !== []) {
+    $rej = fopen($dir . '/corrections_rejected.csv', 'w');
+    fputcsv($rej, ['sheet row', 'customer no', 'why it was not used']);
+    foreach ($correctionReport['rejected'] as $r) {
+        fputcsv($rej, [$r['row'], $r['borrower_id'], $r['why']]);
+    }
+    fclose($rej);
+}
 $withLead = count(array_filter($fixRows, static fn (array $r): bool => $r['confidence'] !== ''));
 
 // Staff list 2: about 30 accounts to compare with the old system's own screens.
@@ -107,6 +142,12 @@ foreach ($sample as $d) {
 fclose($spot);
 
 $s = $result['summary'];
+$batchLine = '';
+if (isset($opts['create-batch'])) {
+    // Puts the file into the normal CPL batch screens for review and approval (still nothing is uploaded). Writes to THIS system's database only.
+    $batchId = (new App\Services\LegacyCplBatchService())->store($result, $asOf, isset($opts['user']) ? (int) $opts['user'] : null);
+    $batchLine = 'CPL batch #' . $batchId . ' created/refreshed for review under Reports > CPL (' . ($s['blocked'] > 0 ? 'Draft: ' . $s['blocked'] . ' accounts still cannot be sent' : 'Ready for Review') . ')';
+}
 $lines = [
     'Candidate monthly CPL file, as at ' . $s['as_of'] . ' (built ' . date('Y-m-d H:i') . ')',
     'Records in the file: ' . $s['sent'] . ' (of which with warnings: ' . $s['with_warnings'] . ')',
@@ -115,8 +156,13 @@ $lines = [
     'Left out: ' . ($result['excluded'] === [] ? 'none' : json_encode($result['excluded'])),
     'Totals in the file (N$, whole dollars): opening ' . $s['opening_balance'] . ', current ' . $s['current_balance'] . ', overdue ' . $s['amount_overdue'] . ', accounts in arrears ' . $s['accounts_in_arrears'],
     'Customers to fix: ' . count($fixRows) . ' (see ids_to_fix.csv; ' . $withLead . ' have a suggested ID from ' . count($applications) . ' applications received here' . ($skippedTest > 0 ? ', ' . $skippedTest . ' test application(s) left out' : '') . ')',
+    'Staff sheet for the customers still missing details: missing_details_for_staff.xlsx (' . count($fixRows) . ' customers)',
+    $correctionReport === null ? 'Corrections sheet: none used' : 'Corrections sheet: ' . count($correctionReport['applied']) . ' IDs used (' . $s['corrected_accounts'] . ' accounts in this file), ' . count($correctionReport['rejected']) . ' rows not usable (corrections_rejected.csv), ' . $correctionReport['unanswered'] . ' rows still empty',
     'Spot check: ' . count($sample) . ' accounts in spot_check.csv to compare with the old system',
     'Arrears are an ESTIMATE (the old system keeps no instalment schedule): check about 30 loans against the old system before any live use.',
 ];
+if ($batchLine !== '') {
+    $lines[] = $batchLine;
+}
 file_put_contents($dir . '/summary.txt', implode("\n", $lines) . "\n");
 echo implode("\n", $lines) . "\nWritten to $dir\n";

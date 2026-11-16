@@ -98,6 +98,7 @@ class CplBatchController extends Controller
             'errorRecords' => $this->snapshots->forBatch((int) $id, 'Blocking Error'),
             'warningRecords' => $this->snapshots->forBatch((int) $id, 'Warning'),
             'sftpReady' => (new CplSftpService())->isReady(),
+            'legacyExceptions' => ($batch['source'] ?? 'Local') === 'SolidFin' ? (json_decode((string) $batch['legacy_exceptions'], true) ?: []) : [],
         ]);
     }
 
@@ -168,7 +169,8 @@ class CplBatchController extends Controller
             return;
         }
 
-        $fileContent = $this->buildFileFromSnapshots($id, $batch['month_end']);
+        // A batch built from the old loan system has no snapshots: its file was frozen when it was created.
+        $fileContent = ($batch['source'] ?? 'Local') === 'SolidFin' ? $batch['file_content'] : $this->buildFileFromSnapshots($id, $batch['month_end']);
 
         $this->batches->updateRecord($id, [
             'status' => 'Approved',

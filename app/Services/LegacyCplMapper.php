@@ -87,9 +87,15 @@ final class LegacyCplMapper
 
         [$overdue, $monthsInArrears] = $isWrittenOff || $isClosed ? [0, 0] : $this->arrears($final, $months, $paid, $instalment, $firstDue, (int) ($loan['payment_day'] ?? 25), $asOf, $notes);
 
-        [$naId, $nonNaId, $dob, $idNote] = $this->identity((string) ($loan['id_number'] ?? ''), (string) ($loan['identity'] ?? ''));
-        if ($idNote !== null) {
-            $notes[] = $idNote;
+        if (isset($loan['corrected_identity'])) {
+            // supplied by staff on the missing-details sheet (already checked by LegacyIdCorrections)
+            ['na_id' => $naId, 'non_na_id' => $nonNaId, 'date_of_birth' => $dob] = $loan['corrected_identity'];
+            $notes[] = 'ID number taken from the staff sheet, not from the old system';
+        } else {
+            [$naId, $nonNaId, $dob, $idNote] = $this->identity((string) ($loan['id_number'] ?? ''), (string) ($loan['identity'] ?? ''));
+            if ($idNote !== null) {
+                $notes[] = $idNote;
+            }
         }
 
         [$line1, $line2, $line3] = $this->addressLines((string) ($loan['address'] ?? ''));

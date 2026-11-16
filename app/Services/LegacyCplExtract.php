@@ -18,6 +18,7 @@ final class LegacyCplExtract
     }
 
     /**
+     * @param array<int, array{na_id:string, non_na_id:string, date_of_birth:?string}> $corrections identities checked by LegacyIdCorrections, by old-system customer number
      * @return array{
      *   file: string,
      *   records: int,
@@ -27,22 +28,29 @@ final class LegacyCplExtract
      *   summary: array<string,mixed>
      * }
      */
-    public function monthly(string $asOf, string $supplierRef, string $tradingName): array
+    public function monthly(string $asOf, string $supplierRef, string $tradingName, array $corrections = []): array
     {
         $lines = [];
         $exceptions = [];
         $excluded = [];
         $warningRecords = 0;
         $details = [];
+        $correctedAccounts = 0;
         $byStatus = ['active' => 0, 'C' => 0, 'W' => 0];
         $totals = ['opening_balance' => 0, 'current_balance' => 0, 'amount_overdue' => 0, 'accounts_in_arrears' => 0];
 
         foreach ($this->reader->loans() as $entry) {
             $loan = $entry['loan'];
+            if (isset($corrections[(int) ($loan['borrower_id'] ?? 0)])) {
+                $loan['corrected_identity'] = $corrections[(int) $loan['borrower_id']];
+            }
             $mapped = $this->mapper->map($loan, $entry['payments'], $entry['first_due'], $asOf);
             if ($mapped['excluded'] !== null) {
                 $excluded[$mapped['excluded']] = ($excluded[$mapped['excluded']] ?? 0) + 1;
                 continue;
+            }
+            if (isset($loan['corrected_identity'])) {
+                $correctedAccounts++;
             }
             $fields = $mapped['fields'];
             $fields['data'] = 'D';
@@ -102,7 +110,7 @@ final class LegacyCplExtract
             'details' => $details,
             'exceptions' => $exceptions,
             'excluded' => $excluded,
-            'summary' => ['as_of' => $asOf, 'sent' => count($lines), 'with_warnings' => $warningRecords, 'blocked' => count($exceptions), 'by_status' => $byStatus] + $totals,
+            'summary' => ['as_of' => $asOf, 'sent' => count($lines), 'with_warnings' => $warningRecords, 'blocked' => count($exceptions), 'by_status' => $byStatus, 'corrected_accounts' => $correctedAccounts] + $totals,
         ];
     }
 }
