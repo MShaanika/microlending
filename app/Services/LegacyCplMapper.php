@@ -115,7 +115,7 @@ final class LegacyCplMapper
             'employer_detail' => $this->clean($loan['company_name'] ?? ''),
             'income' => (int) round((float) ($loan['gross_salary'] ?? 0)),
             'income_frequency' => 'M',
-            'account_no' => self::accountNumber($this->accountPrefix, (int) $loan['id']),
+            'account_no' => ($loan['account_no_override'] ?? '') !== '' ? (string) $loan['account_no_override'] : self::accountNumber($this->accountPrefix, (int) $loan['id']),
             'type_of_account' => $months === 1 ? 'M' : 'P',
             'terms' => $months === 1 ? 0 : $months,
             'payment_type' => '00',

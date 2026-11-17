@@ -8,7 +8,7 @@ use PDO;
  * Reads the loan book of the OLD loan system (SolidFin) through a connection that is only ever used for SELECT. Portable SQL (no vendor functions), so the
  * same code runs against the real MariaDB and the in-memory test database.
  */
-final class LegacyLoanBookReader
+final class LegacyLoanBookReader implements LegacyLoanSource
 {
     public function __construct(private PDO $pdo)
     {

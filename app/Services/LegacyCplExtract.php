@@ -10,7 +10,7 @@ namespace App\Services;
 final class LegacyCplExtract
 {
     public function __construct(
-        private LegacyLoanBookReader $reader,
+        private LegacyLoanSource $reader,
         private LegacyCplMapper $mapper,
         private CplValidationService $validator,
         private CplRecordBuilder $builder

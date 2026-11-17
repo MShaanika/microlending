@@ -24,17 +24,26 @@ final class LegacyCplBatchService
      * @param array<string,mixed> $result LegacyCplExtract::monthly() output
      * @throws \RuntimeException when this month already has a batch that must not be overwritten
      */
-    public function store(array $result, string $monthEnd, ?int $userId): int
+    public function store(array $result, string $monthEnd, ?int $userId, ?string $origin = null): int
     {
         $existing = $this->batches->findByTypeAndMonth('Monthly', $monthEnd);
         if ($existing && ($existing['source'] ?? 'Local') !== 'SolidFin') {
             throw new \RuntimeException('This month already has a batch built from this system\'s own loans; it will not be replaced.');
+        }
+        if ($existing) {
+            $existingOrigin = json_decode((string) ($existing['legacy_summary'] ?? ''), true)['origin'] ?? null;
+            if ($existingOrigin !== $origin) {
+                throw new \RuntimeException('This month already has a batch built from a different source (' . ($existingOrigin ?? 'the old loan system') . '); it will not be replaced by this one.');
+            }
         }
         if ($existing && !in_array($existing['status'], self::REGENERATABLE, true)) {
             throw new \RuntimeException('This month\'s batch is already ' . $existing['status'] . ' and cannot be rebuilt.');
         }
 
         $s = $result['summary'];
+        if ($origin !== null) {
+            $s['origin'] = $origin; // shown on the batch screen instead of the default "old loan system" label
+        }
         $data = [
             'source' => 'SolidFin',
             'status' => (int) $s['blocked'] > 0 ? 'Draft' : 'Ready for Review',

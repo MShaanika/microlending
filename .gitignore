@@ -30,3 +30,4 @@ Thumbs.db
 
 # Real customer data written by the legacy CPL extract
 /storage/exports/cpl_legacy_*/
+/storage/exports/cpl_applications_*/

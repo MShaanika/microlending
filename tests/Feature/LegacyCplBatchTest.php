@@ -80,6 +80,30 @@ class LegacyCplBatchTest extends TestCase
         $svc->store($this->result(0, 'CHANGED'), self::MONTH, null);
     }
 
+    public function testABatchFromAnotherSourceIsNeverReplacedByThisOne(): void
+    {
+        $svc = new LegacyCplBatchService();
+        $svc->store($this->result(0, 'BOOK'), self::MONTH, null);
+
+        try {
+            $svc->store($this->result(0, 'APPLICATIONS'), self::MONTH, null, 'Built from the approved online applications');
+            $this->fail('the old-system batch must not be replaced');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('different source', $e->getMessage());
+        }
+        $this->assertSame('BOOK', $this->row()['file_content']);
+
+        $svc->store($this->result(0, 'BOOK2'), self::MONTH, null);
+        $this->assertSame('BOOK2', $this->row()['file_content'], 'the same source may refresh its own batch');
+    }
+
+    public function testTheOriginLabelIsKeptWithTheBatch(): void
+    {
+        (new LegacyCplBatchService())->store($this->result(0), self::MONTH, null, 'Built from the approved online applications');
+
+        $this->assertSame('Built from the approved online applications', json_decode($this->row()['legacy_summary'], true)['origin']);
+    }
+
     public function testAnOwnLoansBatchForTheMonthIsNeverReplaced(): void
     {
         (new CplBatch())->create(['batch_type' => 'Monthly', 'month_end' => self::MONTH, 'status' => 'Draft']);
