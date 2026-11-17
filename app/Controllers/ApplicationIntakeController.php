@@ -164,6 +164,13 @@ class ApplicationIntakeController extends Controller
         $this->sources->logSubmission((int) $source['id'], $ip);
         Audit::log('Create', 'Applications', 'Online application ' . $applicationNo . ' submitted via ' . $source['source_name'] . '.');
 
+        // tell the staff who answer the Loan Questions (never lets a problem here fail the applicant's submission)
+        (new \App\Services\LoanFollowupAlerts())->newApplication(
+            (int) $applicationId,
+            $applicationNo,
+            trim((string) ($applicationData['applicant_first_name'] ?? '') . ' ' . (string) ($applicationData['applicant_last_name'] ?? ''))
+        );
+
         $warnings = array_merge($fileErrors, $signatureErrors);
         if (!empty($warnings)) {
             // The applicant sees a success page whatever happens to a file, so staff need the trace on the application itself.

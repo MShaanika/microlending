@@ -924,6 +924,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
   </div>
 </div>
 
+<?php (static function (): void { require VIEW_PATH . '/layouts/_loan_question_popup.php'; })(); // in its own scope so it cannot overwrite the page's variables ?>
 <script>window.APP_BASE_URL = <?= json_encode(url('')) ?>;</script>
 <script src="<?= asset('assets/libs/jquery/dist/jquery.min.js') ?>"></script>
 <script src="<?= asset('assets/libs/select2/dist/js/select2.min.js') ?>"></script>

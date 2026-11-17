@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Security;
 use App\Core\Session;
 use App\Models\LoanFollowup;
+use App\Services\LoanFollowupAlerts;
 use App\Services\LoanFollowupFlow;
 
 /**
@@ -32,21 +33,9 @@ class LoanFollowupController extends Controller
         Auth::authorize('loans.followups');
         $this->followups->syncApplications();
 
-        $now = date('Y-m-d H:i:s');
-        $instalments = $this->followups->instalmentsByFollowup();
-        $cards = [];
-        $waiting = 0;
-        foreach ($this->followups->openWithApplications() as $f) {
-            $rows = $instalments[(int) $f['id']] ?? [];
-            $q = $this->flow->nextQuestion($f, $rows, $now);
-            if ($q === null) {
-                $waiting++;
-                continue;
-            }
-            $cards[] = ['f' => $f, 'q' => $q, 'instalments' => $rows];
-        }
-        // the ones that need attention (asked many times) and the oldest come first
-        usort($cards, static fn (array $a, array $b): int => [$b['q']['attention'], $a['f']['applied_at']] <=> [$a['q']['attention'], $b['f']['applied_at']]);
+        $set = (new LoanFollowupAlerts())->cards(date('Y-m-d H:i:s'));
+        $cards = $set['cards'];
+        $waiting = $set['waiting'];
 
         $this->view('loans/followups/index', [
             'title' => 'Loan Questions',
@@ -112,16 +101,16 @@ class LoanFollowupController extends Controller
             });
         } catch (\InvalidArgumentException | \DomainException $e) {
             Session::flash('error', $e->getMessage());
-            $this->redirect('/loans/followups');
+            $this->redirect($this->backTo());
             return;
         } catch (\PDOException $e) {
             Session::flash('error', 'Somebody else answered this at the same moment. Here is the current list.');
-            $this->redirect('/loans/followups');
+            $this->redirect($this->backTo());
             return;
         }
 
         Session::flash('success', 'Saved: ' . $note);
-        $this->redirect('/loans/followups');
+        $this->redirect($this->backTo());
     }
 
     public function answerInstalment(string $id, string $instalmentId): void
@@ -155,16 +144,16 @@ class LoanFollowupController extends Controller
             });
         } catch (\InvalidArgumentException | \DomainException $e) {
             Session::flash('error', $e->getMessage());
-            $this->redirect('/loans/followups');
+            $this->redirect($this->backTo());
             return;
         } catch (\PDOException $e) {
             Session::flash('error', 'Somebody else answered this at the same moment. Here is the current list.');
-            $this->redirect('/loans/followups');
+            $this->redirect($this->backTo());
             return;
         }
 
         Session::flash('success', 'Saved: ' . $note);
-        $this->redirect('/loans/followups');
+        $this->redirect($this->backTo());
     }
 
     /**
@@ -232,6 +221,23 @@ class LoanFollowupController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Where to go after an answer: the page the pop-up was shown on (an address inside this system only), otherwise the Loan Questions list.
+     * Only a plain path is accepted: no scheme, no host, no "//" and no backslash, so it can never send a person to another site.
+     */
+    private function backTo(): string
+    {
+        $r = (string) ($_POST['return'] ?? '');
+        $base = rtrim(base_url(), '/');
+        if ($base !== '' && str_starts_with($r, $base . '/')) {
+            $r = substr($r, strlen($base));
+        }
+        if ($r !== '' && $r[0] === '/' && !str_starts_with($r, '//') && !str_contains($r, '\\') && !preg_match('/[\x00-\x1F\x7F]/', $r) && !preg_match('#^/loans/followups/\d+/(answer|instalments|ignore|reopen)#', $r)) {
+            return $r;
+        }
+        return '/loans/followups';
     }
 
     private function requireCsrf(): void
