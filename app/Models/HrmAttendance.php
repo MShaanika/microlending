@@ -105,7 +105,10 @@ class HrmAttendance extends Model
     public function forRange(string $start, string $end): array
     {
         $rows = $this->query(
-            "SELECT * FROM hrm_attendances WHERE attendance_date BETWEEN ? AND ?",
+            "SELECT a.*, s.start_time AS shift_start_time, s.end_time AS shift_end_time
+             FROM hrm_attendances a
+             LEFT JOIN hrm_shifts s ON s.id = a.shift_id
+             WHERE a.attendance_date BETWEEN ? AND ?",
             [$start, $end]
         )->fetchAll();
 

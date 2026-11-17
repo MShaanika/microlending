@@ -11,6 +11,7 @@
     'present' => '<i class="mdi mdi-check att-present"></i>',
     'absent'  => '<i class="mdi mdi-close att-absent"></i>',
     'half'    => '<span class="att-half">&frac12;</span>',
+    'open'    => '<span class="att-open">IN</span>',
     'leave'   => '<i class="mdi mdi-flag att-leave"></i>',
     'holiday' => '<i class="mdi mdi-star att-holiday"></i>',
     'dayoff'  => '<span class="att-dayoff">&#8856;</span>',
@@ -78,6 +79,7 @@
       <span><?= $marks['present'] ?> Present</span>
       <span><?= $marks['absent'] ?> Absent</span>
       <span><?= $marks['half'] ?> Half day</span>
+      <span><?= $marks['open'] ?> Clocked in, not out</span>
       <span><?= $marks['leave'] ?> On leave</span>
       <span><?= $marks['holiday'] ?> Holiday</span>
       <span><?= $marks['dayoff'] ?> Day off</span>
@@ -199,6 +201,7 @@
   .att-present { color: #1f9d55; }
   .att-absent { color: #e03131; }
   .att-half { color: #f08c00; font-weight: 700; font-size: .95rem; }
+  .att-open { color: #1c7ed6; font-weight: 700; font-size: .7rem; }
   .att-leave { color: #7048e8; }
   .att-holiday { color: #f59f00; }
   .att-dayoff { color: #868e96; font-weight: 700; }

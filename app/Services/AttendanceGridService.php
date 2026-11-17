@@ -100,16 +100,24 @@ class AttendanceGridService
     {
         $flags = [];
 
-        if (!empty($employee['shift_start_time']) && !empty($record['clock_in'])) {
-            $graceEnd = new DateTime($date . ' ' . $employee['shift_start_time']);
+        // The shift the day was recorded under wins; the employee's current shift is only a fallback for rows saved without one.
+        // Otherwise changing someone's shift would re-judge every past day against the new hours.
+        $shiftStart = !empty($record['shift_id']) && !empty($record['shift_start_time']) ? $record['shift_start_time'] : ($employee['shift_start_time'] ?? null);
+        $shiftEnd = !empty($record['shift_id']) && !empty($record['shift_end_time']) ? $record['shift_end_time'] : ($employee['shift_end_time'] ?? null);
+
+        // Clocked in but not out yet is not "Absent" (that status is only stored as a placeholder until clock-out).
+        $open = !empty($record['clock_in']) && empty($record['clock_out']);
+
+        if (!empty($shiftStart) && !empty($record['clock_in'])) {
+            $graceEnd = new DateTime($date . ' ' . $shiftStart);
             $graceEnd->modify('+' . self::GRACE_MINUTES . ' minutes');
             if (new DateTime($record['clock_in']) > $graceEnd) {
                 $flags[] = 'late';
             }
         }
 
-        if (!empty($employee['shift_end_time']) && !empty($record['clock_out'])) {
-            $graceStart = new DateTime($date . ' ' . $employee['shift_end_time']);
+        if (!empty($shiftEnd) && !empty($record['clock_out'])) {
+            $graceStart = new DateTime($date . ' ' . $shiftEnd);
             $graceStart->modify('-' . self::GRACE_MINUTES . ' minutes');
             if (new DateTime($record['clock_out']) < $graceStart) {
                 $flags[] = 'early';
@@ -125,8 +133,15 @@ class AttendanceGridService
             'Absent' => 'absent',
             default => 'present',
         };
+        if ($open) {
+            $code = 'open';
+        }
+        // One verdict per cell: a day that counts as Absent is not also shown as Late.
+        if ($code === 'absent') {
+            $flags = array_values(array_diff($flags, ['late']));
+        }
 
-        $titleParts = [$record['status']];
+        $titleParts = [$open ? 'Clocked in, no clock-out recorded' : $record['status']];
         if ($record['clock_in']) {
             $titleParts[] = 'In ' . date('H:i', strtotime($record['clock_in']));
         }
