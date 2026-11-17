@@ -354,6 +354,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
                 ['label' => 'Loan Products & Plans', 'url' => url('/loan-products'), 'perm' => 'loans.view'],
                 ['label' => 'Portal Loan Requests', 'url' => url('/loan-requests'), 'perm' => 'loans.view'],
                 ['label' => 'Loan Reschedules', 'url' => url('/reschedules'), 'perm' => 'reschedules.view'],
+                ['label' => 'Loan Questions', 'url' => url('/loans/followups'), 'perm' => 'loans.followups'],
               ]],
             ]],
             'Collections' => ['icon' => 'mdi-bank', 'groups' => [

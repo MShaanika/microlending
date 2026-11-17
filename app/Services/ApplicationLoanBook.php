@@ -18,7 +18,9 @@ final class ApplicationLoanBook implements LegacyLoanSource
 {
     public const INTEREST_PERCENTAGE = 30.0;
 
-    /** @param array<int, array{application: array<string,mixed>, amount: float, paid_out: string}> $approved */
+    /**
+     * @param array<int, array{application: array<string,mixed>, amount: float, paid_out: string, pay_day?: int, months?: int, payments?: array<int,array{amount:string,date:string}>}> $approved
+     */
     public function __construct(private array $approved)
     {
     }
@@ -67,8 +69,8 @@ final class ApplicationLoanBook implements LegacyLoanSource
         $out = [];
         foreach ($this->approved as $a) {
             $app = $a['application'];
-            $payDay = (int) ($app['payment_day'] ?? 0);
-            $payDay = in_array($payDay, [20, 25, 30], true) ? $payDay : 25;
+            $payDay = (int) ($a['pay_day'] ?? $app['payment_day'] ?? 0);
+            $payDay = $payDay >= 1 && $payDay <= 31 ? min($payDay, 28) : 25;
             $out[] = [
                 'loan' => [
                     'id' => (int) $app['id'],
@@ -76,7 +78,7 @@ final class ApplicationLoanBook implements LegacyLoanSource
                     'account_no_override' => (string) $app['application_no'],
                     'borrower_id' => (int) $app['id'],
                     'amount' => $a['amount'],
-                    'months' => max(1, (int) ($app['requested_term_months'] ?? 1)),
+                    'months' => max(1, (int) ($a['months'] ?? $app['requested_term_months'] ?? 1)),
                     'interest_percentage' => self::INTEREST_PERCENTAGE,
                     'status' => 2,
                     'date_released' => $a['paid_out'],
@@ -93,7 +95,7 @@ final class ApplicationLoanBook implements LegacyLoanSource
                     'gross_salary' => (float) ($app['gross_salary'] ?? 0),
                     'payment_day' => $payDay,
                 ],
-                'payments' => [],
+                'payments' => $a['payments'] ?? [],
                 'first_due' => substr(self::firstInstalmentDate($a['paid_out'], $payDay), 0, 8) . '00',
             ];
         }
@@ -106,7 +108,7 @@ final class ApplicationLoanBook implements LegacyLoanSource
      */
     public static function firstInstalmentDate(string $paidOut, int $payDay): string
     {
-        $payDay = min(in_array($payDay, [20, 25, 30], true) ? $payDay : 25, 28);
+        $payDay = $payDay >= 1 && $payDay <= 31 ? min($payDay, 28) : 25;
         $month = (int) substr($paidOut, 5, 2);
         $year = (int) substr($paidOut, 0, 4);
         if ($payDay <= (int) substr($paidOut, 8, 2)) {

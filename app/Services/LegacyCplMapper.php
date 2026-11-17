@@ -177,7 +177,7 @@ final class LegacyCplMapper
             $notes[] = 'no usable first due date: arrears could not be worked out and are reported as nil';
             return [0, 0];
         }
-        $payDay = in_array($payDay, [20, 25, 30], true) ? min($payDay, 28) : 25;
+        $payDay = $payDay >= 1 && $payDay <= 31 ? min($payDay, 28) : 25;
         $dueCount = 0;
         for ($i = 0; $i < $months; $i++) {
             $due = date('Y-m-d', (int) strtotime(sprintf('%04d-%02d-%02d +%d month', $m[1], $m[2], $payDay, $i)));

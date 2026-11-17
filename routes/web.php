@@ -123,6 +123,7 @@ use App\Controllers\RecruitmentFrontendController;
 use App\Controllers\CollectionsController;
 use App\Controllers\ReportController;
 use App\Controllers\CplBatchController;
+use App\Controllers\LoanFollowupController;
 use App\Controllers\CplExportController;
 use App\Controllers\CplSettingController;
 use App\Controllers\CplUatTestController;
@@ -204,6 +205,13 @@ $router->post('/loan-products/{id}/toggle-active', [LoanProductController::class
 $router->post('/loan-products/plans/{planId}/toggle-active', [LoanProductController::class, 'togglePlanActive']);
 
 // Loans
+// Loan Questions (before /loans/{id} so that 'followups' is never read as a loan id)
+$router->get('/loans/followups', [LoanFollowupController::class, 'index']);
+$router->get('/loans/followups/{id}', [LoanFollowupController::class, 'show']);
+$router->post('/loans/followups/{id}/answer', [LoanFollowupController::class, 'answer']);
+$router->post('/loans/followups/{id}/instalments/{instalmentId}', [LoanFollowupController::class, 'answerInstalment']);
+$router->post('/loans/followups/{id}/ignore', [LoanFollowupController::class, 'ignore']);
+$router->post('/loans/followups/{id}/reopen', [LoanFollowupController::class, 'reopen']);
 $router->get('/loans', [LoanController::class, 'index']);
 $router->get('/loans/create', [LoanController::class, 'create']);
 $router->post('/loans', [LoanController::class, 'store']);

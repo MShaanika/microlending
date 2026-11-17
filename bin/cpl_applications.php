@@ -24,7 +24,7 @@ use App\Services\LegacyCplMapper;
 
 require __DIR__ . '/../bootstrap/app.php';
 
-$opts = getopt('', ['sheet', 'build', 'status:', 'exclude-applicant:', 'as-of:', 'answers:', 'create-batch', 'user:', 'supplier:', 'trading:']);
+$opts = getopt('', ['sheet', 'build', 'from-followups', 'status:', 'exclude-applicant:', 'as-of:', 'answers:', 'create-batch', 'user:', 'supplier:', 'trading:']);
 $excluded = (array) ($opts['exclude-applicant'] ?? []);
 $pdo = App\Core\Database::connection();
 $sheet = new ApplicationApprovalSheet();
@@ -55,39 +55,63 @@ if ($asOf > date('Y-m-d')) {
     fwrite(STDERR, "The as-of date may not be in the future.\n");
     exit(1);
 }
-$answersPath = (string) ($opts['answers'] ?? '');
-if ($answersPath === '') {
-    fwrite(STDERR, "Use --answers=<path to the completed sheet>\n");
-    exit(1);
-}
-try {
-    $rows = $sheet->readFile($answersPath);
-} catch (Throwable $e) {
-    fwrite(STDERR, 'Could not read the sheet: ' . $e->getMessage() . "\n");
-    exit(1);
-}
+$pending = [];
+if (isset($opts['from-followups'])) {
+    // The answers staff gave on the "Loan Questions" page instead of a sheet.
+    $model = new App\Models\LoanFollowup();
+    $entries = [];
+    $instalments = $model->instalmentsByFollowup();
+    $payments = $model->paymentsByInstalment();
+    foreach ($model->disbursedWithApplications() as $f) {
+        $app = $model->application((int) $f['id']);
+        if ($app) {
+            $entries[] = ['followup' => $f, 'application' => $app, 'instalments' => $instalments[(int) $f['id']] ?? [], 'payments' => $payments];
+        }
+    }
+    $built = (new App\Services\LoanFollowupCpl())->build($entries, $asOf);
+    $book = $built['book'];
+    $pending = $built['pending'];
+    $parsed = ['approved' => $entries, 'declined' => 0, 'unanswered' => count($pending), 'later' => [], 'rejected' => [], 'warnings' => []];
+} else {
+    $answersPath = (string) ($opts['answers'] ?? '');
+    if ($answersPath === '') {
+        fwrite(STDERR, "Use --answers=<path to the completed sheet> (or --from-followups to use the answers given on the Loan Questions page)\n");
+        exit(1);
+    }
+    try {
+        $rows = $sheet->readFile($answersPath);
+    } catch (Throwable $e) {
+        fwrite(STDERR, 'Could not read the sheet: ' . $e->getMessage() . "\n");
+        exit(1);
+    }
 
-$numbers = array_values(array_filter(array_map(static fn (array $r): string => trim((string) ($r['application_no'] ?? '')), $rows), static fn (string $n): bool => $n !== ''));
-$byNo = [];
-foreach (ApplicationLoanBook::fetch($pdo, null, $excluded, $numbers) as $a) {
-    $byNo[$a['application_no']] = $a;
-}
-$parsed = $sheet->parse($rows, $byNo, $asOf, date('Y-m-d'));
+    $numbers = array_values(array_filter(array_map(static fn (array $r): string => trim((string) ($r['application_no'] ?? '')), $rows), static fn (string $n): bool => $n !== ''));
+    $byNo = [];
+    foreach (ApplicationLoanBook::fetch($pdo, null, $excluded, $numbers) as $a) {
+        $byNo[$a['application_no']] = $a;
+    }
+    $parsed = $sheet->parse($rows, $byNo, $asOf, date('Y-m-d'));
 
-$approved = [];
-foreach ($parsed['approved'] as $no => $a) {
-    $approved[] = ['application' => $byNo[$no], 'amount' => $a['amount'], 'paid_out' => $a['paid_out']];
+    $approved = [];
+    foreach ($parsed['approved'] as $no => $a) {
+        $approved[] = ['application' => $byNo[$no], 'amount' => $a['amount'], 'paid_out' => $a['paid_out']];
+    }
+    $book = new ApplicationLoanBook($approved);
 }
 
 $settings = new App\Models\CplSetting();
 $supplier = (string) ($opts['supplier'] ?? '') ?: $settings->supplierReferenceNumber();
 $trading = (string) ($opts['trading'] ?? '') ?: $settings->tradingName();
-$result = (new LegacyCplExtract(new ApplicationLoanBook($approved), new LegacyCplMapper(), new CplValidationService(), new CplRecordBuilder()))->monthly($asOf, $supplier, $trading);
+$result = (new LegacyCplExtract($book, new LegacyCplMapper(), new CplValidationService(), new CplRecordBuilder()))->monthly($asOf, $supplier, $trading);
 
 $dir = dirname(__DIR__) . '/storage/exports/cpl_applications_' . $asOf;
 if (!is_dir($dir) && !mkdir($dir, 0750, true)) {
     fwrite(STDERR, "Could not create $dir\n");
     exit(1);
+}
+foreach ($pending as $p) {
+    $result['exceptions'][] = ['loan_id' => 0, 'borrower_id' => 0, 'account_no' => $p['application_no'], 'reasons' => ['instalment ' . $p['instalment_no'] . ' (due ' . $p['due_date'] . ') has no answer yet on the Loan Questions page'], 'notes' => [], 'name' => $p['name'], 'ref_no' => $p['application_no'], 'phone' => ''];
+    $result['summary']['blocked']++;
 }
 file_put_contents($dir . '/CANDIDATE_NOT_FOR_UPLOAD_monthly_' . $asOf . '.txt', $result['file']);
 
@@ -112,12 +136,12 @@ $s = $result['summary'];
 $inArrears = array_values(array_filter($result['details'], static fn (array $d): bool => $d['months_in_arrears'] > 0));
 $lines = [
     'Candidate monthly CPL file for the approved applications, as at ' . $asOf . ' (built ' . date('Y-m-d H:i') . ')',
-    'Sheet answers: approved ' . count($parsed['approved']) . ', not approved ' . $parsed['declined'] . ', not answered yet ' . $parsed['unanswered'] . ', unusable ' . count($parsed['rejected']) . ' (answers_rejected.csv)',
+    isset($opts['from-followups']) ? 'Answers from the Loan Questions page: ' . count($parsed['approved']) . ' paid-out loan(s) so far, ' . count($pending) . ' held back because an instalment due by the month end has no answer yet' : 'Sheet answers: approved ' . count($parsed['approved']) . ', not approved ' . $parsed['declined'] . ', not answered yet ' . $parsed['unanswered'] . ', unusable ' . count($parsed['rejected']) . ' (answers_rejected.csv)',
     'Approved but paid out after ' . $asOf . ' (left for a later month): ' . count($parsed['later']),
     'Records in the file: ' . $s['sent'] . ' (of which with warnings: ' . $s['with_warnings'] . ')',
     'Accounts that cannot be sent (see exceptions.csv): ' . $s['blocked'],
     'Totals in the file (N$, whole dollars): opening ' . $s['opening_balance'] . ', current ' . $s['current_balance'] . ', overdue ' . $s['amount_overdue'],
-    'ASSUMED: 30% interest, N$5.00 fee and 1.03% levy as in the old system; term as applied for; NO repayments yet; account number = application number.',
+    isset($opts['from-followups']) ? 'ASSUMED: 30% interest, N$5.00 fee and 1.03% levy as in the old system; payments are the ones reported on the Loan Questions page; account number = application number.' : 'ASSUMED: 30% interest, N$5.00 fee and 1.03% levy as in the old system; term as applied for; NO repayments yet; account number = application number.',
 ];
 if ($inArrears !== []) {
     $lines[] = 'CHECK: ' . count($inArrears) . ' account(s) show as in arrears only because no repayments are known: ' . implode(', ', array_column($inArrears, 'ref_no'));

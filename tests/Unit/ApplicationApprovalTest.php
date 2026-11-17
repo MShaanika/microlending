@@ -217,7 +217,7 @@ class ApplicationApprovalTest extends TestCase
         $this->assertSame('2026-10-28', ApplicationLoanBook::firstInstalmentDate('2026-10-02', 30));
         $this->assertSame('2026-11-25', ApplicationLoanBook::firstInstalmentDate('2026-10-30', 25));
         $this->assertSame('2027-01-20', ApplicationLoanBook::firstInstalmentDate('2026-12-20', 20));
-        $this->assertSame('2026-10-25', ApplicationLoanBook::firstInstalmentDate('2026-10-02', 15), 'an unknown pay day counts as the 25th');
+        $this->assertSame('2026-10-25', ApplicationLoanBook::firstInstalmentDate('2026-10-02', 0), 'an unknown pay day counts as the 25th');
     }
 
     public function testACommaIsOnlyEverAThousandsSeparator(): void
