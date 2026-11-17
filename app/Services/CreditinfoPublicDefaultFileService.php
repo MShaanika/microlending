@@ -109,6 +109,50 @@ class CreditinfoPublicDefaultFileService
         return implode('|', array_map([$this, 'sanitizeField'], $fields));
     }
 
+    /**
+     * One 36-field line from already-flat, already-checked data (the staff listing sheet, see PublicDefaultListingSheet) -- same
+     * column order, formatting and sanitising as renderLine(), which stays the one used for records held in the database.
+     * $r keys: id_type (1|2), id_number, dob (Y-m-d), first_name, second_name, surname, branch_code, account_no, amount, default_date (Y-m-d),
+     * status_code (1-8), employer, occupation, cell, home_tel, work_tel, postal1, postal2, postal_code, res1, res2, res_code, work1, work_code.
+     */
+    public function renderRecord(array $r, string $supplierReferenceNumber, string $action, \DateTimeImmutable $transactionDate): string
+    {
+        $fields = [
+            $supplierReferenceNumber,
+            (string) $r['id_number'],
+            self::COUNTRY_OF_ORIGIN,
+            (string) (int) $r['id_type'],
+            $this->formatDate($r['dob'] ?? null),
+            '',
+            (string) ($r['first_name'] ?? ''),
+            (string) ($r['second_name'] ?? ''),
+            (string) ($r['surname'] ?? ''),
+            (string) ($r['branch_code'] ?? ''),
+            (string) $r['account_no'],
+            $this->formatAmount((float) $r['amount']),
+            $this->formatDate($r['default_date'] ?? null),
+            (string) (int) $r['status_code'],
+            (string) ($r['employer'] ?? ''),
+            (string) ($r['occupation'] ?? ''),
+            $this->digitsOnly($r['cell'] ?? null),
+            $this->digitsOnly($r['home_tel'] ?? null),
+            $this->digitsOnly($r['work_tel'] ?? null),
+            $this->addressLine($r['postal1'] ?? null), $this->addressLine($r['postal2'] ?? null), '', '',
+            (string) ($r['postal_code'] ?? ''),
+            $this->addressLine($r['res1'] ?? null), $this->addressLine($r['res2'] ?? null), '', '',
+            (string) ($r['res_code'] ?? ''),
+            $this->addressLine($r['work1'] ?? null), '', '', '',
+            (string) ($r['work_code'] ?? ''),
+            $transactionDate->format('Ymd'),
+            $action,
+        ];
+        if (count($fields) !== 36) {
+            throw new \LogicException('Public Defaults line must have exactly 36 fields, built ' . count($fields) . '.');
+        }
+
+        return implode('|', array_map([$this, 'sanitizeField'], $fields));
+    }
+
     /** {SupplierReferenceNumber}_{T|L}_CCYYMMDD_HHMMSS.txt -- the vendor's own literal naming template, confirmed 2026-09-30. */
     public function buildFilename(string $supplierReferenceNumber, string $environment, \DateTimeImmutable $when): string
     {
@@ -176,6 +220,7 @@ class CreditinfoPublicDefaultFileService
     /** The format is pipe-delimited -- a stray "|" or newline in a name/address would silently corrupt column alignment for every field after it. */
     private function sanitizeField(string $value): string
     {
-        return trim(str_replace(["\r", "\n", '|'], ' ', $value));
+        // also tabs, other control characters and the Unicode line separators: none may reach the file inside a field
+        return trim(preg_replace('/[|\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', $value) ?? str_replace(["\r", "\n", '|'], ' ', $value));
     }
 }
