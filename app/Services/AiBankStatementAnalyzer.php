@@ -184,42 +184,55 @@ class AiBankStatementAnalyzer
             ],
         ];
 
-        $ch = curl_init('https://api.openai.com/v1/responses');
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-            ],
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => 120,
-        ]);
+        // An answer that has income and commitments but no expenses and no transactions is an incomplete answer (seen on a live application, 2026-11-19):
+        // it is asked for once more before it is accepted, and if it is still empty it is stored with a warning flag rather than as a silent "Completed".
+        $data = [];
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $ch = curl_init('https://api.openai.com/v1/responses');
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_TIMEOUT => 120,
+            ]);
 
-        $response = curl_exec($ch);
-        $curlError = curl_error($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+            $response = curl_exec($ch);
+            $curlError = curl_error($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-        if ($response === false) {
-            return ['success' => false, 'error' => 'Could not reach the AI provider: ' . $curlError];
+            if ($response === false) {
+                return ['success' => false, 'error' => 'Could not reach the AI provider: ' . $curlError];
+            }
+
+            $body = json_decode($response, true);
+
+            if ($httpCode < 200 || $httpCode >= 300) {
+                $error = $body['error']['message'] ?? ('AI provider returned HTTP ' . $httpCode);
+                return ['success' => false, 'error' => $error];
+            }
+
+            $jsonText = self::extractOutputText($body);
+            if ($jsonText === null) {
+                return ['success' => false, 'error' => 'The AI response did not contain the expected analysis output.'];
+            }
+
+            $data = json_decode($jsonText, true);
+            if (!is_array($data)) {
+                return ['success' => false, 'error' => 'The AI returned analysis that could not be parsed.'];
+            }
+
+            $data = self::repairExpensesFromTransactions($data);
+            if (!self::isMissingExpenses($data)) {
+                break;
+            }
         }
-
-        $body = json_decode($response, true);
-
-        if ($httpCode < 200 || $httpCode >= 300) {
-            $error = $body['error']['message'] ?? ('AI provider returned HTTP ' . $httpCode);
-            return ['success' => false, 'error' => $error];
-        }
-
-        $jsonText = self::extractOutputText($body);
-        if ($jsonText === null) {
-            return ['success' => false, 'error' => 'The AI response did not contain the expected analysis output.'];
-        }
-
-        $data = json_decode($jsonText, true);
-        if (!is_array($data)) {
-            return ['success' => false, 'error' => 'The AI returned analysis that could not be parsed.'];
+        if (self::isMissingExpenses($data)) {
+            $data['risk_flags'] = array_merge((array) ($data['risk_flags'] ?? []), [self::MISSING_EXPENSES_FLAG]);
         }
 
         return [
@@ -257,6 +270,68 @@ class AiBankStatementAnalyzer
 
         // 'high' detail: a statement is dense small print, and the automatic setting may read it at a resolution too low to make out the lines
         return ['type' => 'input_image', 'image_url' => 'data:' . $imageMime . ';base64,' . base64_encode($bytes), 'detail' => 'high'];
+    }
+
+    /** Shown with the analysis when the analyser twice returned no expense figures and no transactions. */
+    public const MISSING_EXPENSES_FLAG = 'The analyser returned no expenses and no transactions: analyse again before relying on this analysis.';
+
+    /** @var array<string,string> category name the analyser writes on a transaction => expense_breakdown key */
+    private const CATEGORY_BUCKETS = [
+        'bank fees' => 'bank_fees', 'transfer' => 'transfers', 'transfers' => 'transfers', 'cash withdrawal' => 'cash_withdrawals',
+        'cash withdrawals' => 'cash_withdrawals', 'living expenses' => 'living_expenses', 'other' => 'other',
+    ];
+
+    /** True when the analysis has no expense figures at all although it found income or commitments: the figures are missing, not zero. */
+    public static function isMissingExpenses(array $data): bool
+    {
+        $breakdownSum = 0.0;
+        foreach ((array) ($data['expense_breakdown'] ?? []) as $v) {
+            $breakdownSum += (float) $v;
+        }
+        $hasDebits = false;
+        foreach ((array) ($data['transactions'] ?? []) as $t) {
+            if (strcasecmp((string) ($t['type'] ?? ''), 'Debit') === 0 && (float) ($t['amount'] ?? 0) > 0) {
+                $hasDebits = true;
+                break;
+            }
+        }
+        $sawActivity = (float) ($data['average_monthly_income'] ?? 0) > 0 || (float) ($data['existing_commitments_total'] ?? 0) > 0;
+        return $sawActivity && $breakdownSum <= 0 && (float) ($data['average_monthly_expenses'] ?? 0) <= 0 && !$hasDebits;
+    }
+
+    /**
+     * When the analyser listed the transactions but left the expense totals at zero, the totals are worked out from the transactions it listed (each debit
+     * goes into the bucket named on it, unknown names into "other"). Nothing is changed when the expense figures are already there or there are no debits.
+     */
+    public static function repairExpensesFromTransactions(array $data): array
+    {
+        $breakdownSum = 0.0;
+        foreach ((array) ($data['expense_breakdown'] ?? []) as $v) {
+            $breakdownSum += (float) $v;
+        }
+        if ($breakdownSum > 0) {
+            return $data;
+        }
+        $buckets = ['bank_fees' => 0.0, 'transfers' => 0.0, 'cash_withdrawals' => 0.0, 'living_expenses' => 0.0, 'other' => 0.0];
+        $total = 0.0;
+        foreach ((array) ($data['transactions'] ?? []) as $t) {
+            $amount = (float) ($t['amount'] ?? 0);
+            if (strcasecmp((string) ($t['type'] ?? ''), 'Debit') !== 0 || $amount <= 0) {
+                continue;
+            }
+            $key = self::CATEGORY_BUCKETS[strtolower(trim((string) ($t['category'] ?? '')))] ?? 'other';
+            $buckets[$key] += $amount;
+            $total += $amount;
+        }
+        if ($total <= 0) {
+            return $data;
+        }
+        $data['expense_breakdown'] = array_map(static fn (float $v): float => round($v, 2), $buckets);
+        $months = max(1, (int) ($data['months_covered'] ?? 1));
+        if ((float) ($data['average_monthly_expenses'] ?? 0) <= 0) {
+            $data['average_monthly_expenses'] = round($total / $months, 2);
+        }
+        return $data;
     }
 
     private static function extractOutputText(array $body): ?string
