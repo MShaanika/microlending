@@ -165,11 +165,10 @@ class ApplicationIntakeController extends Controller
         Audit::log('Create', 'Applications', 'Online application ' . $applicationNo . ' submitted via ' . $source['source_name'] . '.');
 
         // tell the staff who answer the Loan Questions (never lets a problem here fail the applicant's submission)
-        (new \App\Services\LoanFollowupAlerts())->newApplication(
-            (int) $applicationId,
-            $applicationNo,
-            trim((string) ($applicationData['applicant_first_name'] ?? '') . ' ' . (string) ($applicationData['applicant_last_name'] ?? ''))
-        );
+        $applicantFullName = trim((string) ($applicationData['applicant_first_name'] ?? '') . ' ' . (string) ($applicationData['applicant_last_name'] ?? ''));
+        (new \App\Services\LoanFollowupAlerts())->newApplication((int) $applicationId, $applicationNo, $applicantFullName);
+        // ...and text the named staff (Notification Settings > SMS recipients). Same rule: never fails the submission.
+        (new \App\Services\StaffSmsAlerts())->newApplication((int) $applicationId, $applicationNo, $applicantFullName);
 
         $warnings = array_merge($fileErrors, $signatureErrors);
         if (!empty($warnings)) {

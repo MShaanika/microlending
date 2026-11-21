@@ -555,6 +555,8 @@ class ApplicationController extends Controller
         $closedDuplicates = $this->closeSupersededDuplicates($application, $userId);
 
         $applicantName = trim($application['applicant_first_name'] . ' ' . $application['applicant_last_name']);
+        // tell the person who disburses (never the approver themselves); one SMS per client however many approval steps happen
+        (new \App\Services\StaffSmsAlerts())->approved('application', $id, null, (string) $application['application_no'], $applicantName, $userId ? (int) $userId : null, (string) (Auth::user()['name'] ?? ''));
         $smsResult = TemplatedSmsService::send(
             'APPLICATION_APPROVED_SMS',
             (string) ($application['applicant_phone'] ?? ''),

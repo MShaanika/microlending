@@ -901,6 +901,16 @@ class LoanController extends Controller
         $this->loans->logStatus($id, 'Pending Approval', 'Approved', Auth::user()['id'] ?? null);
 
         Audit::log('Approve', 'Loans', 'Approved loan #' . $id);
+        // tell the person who disburses (never the approver themselves); one SMS per client even if the application was also approved
+        (new \App\Services\StaffSmsAlerts())->approved(
+            'loan',
+            !empty($loan['application_id']) ? (int) $loan['application_id'] : null,
+            $id,
+            (string) ($loan['loan_no'] ?? ('#' . $id)),
+            (string) ($loan['borrower_name'] ?? ''),
+            ($uid = (int) (Auth::user()['id'] ?? 0)) > 0 ? $uid : null,
+            (string) (Auth::user()['name'] ?? '')
+        );
         Events::fire('LoanApproved', ['loan_id' => $id, 'approved_by' => Auth::user()['id'] ?? null]);
         Session::flash('success', 'Loan approved.');
         $this->redirect('/loans/' . $id);

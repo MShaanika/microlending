@@ -76,9 +76,10 @@ class LoanFollowupController extends Controller
         $question = (string) ($_POST['question'] ?? '');
         $userId = (int) (Auth::user()['id'] ?? 0) ?: null;
         $now = date('Y-m-d H:i:s');
+        $approvedFor = null; // set when somebody answers "Yes, I approved this loan"
 
         try {
-            $note = $this->followups->transaction(function () use ($id, $question, $userId, $now): string {
+            $note = $this->followups->transaction(function () use ($id, $question, $userId, $now, &$approvedFor): string {
                 $f = $this->followups->lock($id);
                 $app = $f ? $this->followups->application($id) : null;
                 if (!$f || !$app || $f['status'] !== 'Open') {
@@ -97,6 +98,13 @@ class LoanFollowupController extends Controller
                     $this->followups->createInstalments($id, $this->flow->schedule((float) $fresh['approved_amount'], (int) ($fresh['term_months'] ?: ($app['requested_term_months'] ?: 1)), (string) $fresh['disbursed_on'], (int) $fresh['pay_day']));
                 }
                 Audit::log('Update', 'Loan Questions', $f['application_no'] . ': ' . $result['note']);
+                if ($question === 'approved' && ($result['update']['approved'] ?? null) === 'Yes') {
+                    $approvedFor = [
+                        'id' => (int) $app['id'],
+                        'no' => (string) $f['application_no'],
+                        'name' => trim((string) ($app['applicant_first_name'] ?? '') . ' ' . (string) ($app['applicant_last_name'] ?? '')),
+                    ];
+                }
                 return $result['note'];
             });
         } catch (\InvalidArgumentException | \DomainException $e) {
@@ -107,6 +115,11 @@ class LoanFollowupController extends Controller
             Session::flash('error', 'Somebody else answered this at the same moment. Here is the current list.');
             $this->redirect($this->backTo());
             return;
+        }
+
+        // only after the answer is safely saved: tell the person who disburses (never the one who answered); one SMS per client
+        if ($approvedFor !== null) {
+            (new \App\Services\StaffSmsAlerts())->approved('loan_question', $approvedFor['id'], null, $approvedFor['no'], $approvedFor['name'], $userId, (string) (Auth::user()['name'] ?? ''));
         }
 
         Session::flash('success', 'Saved: ' . $note);
