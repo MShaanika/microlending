@@ -430,6 +430,10 @@ $router->post('/applications/{id}/upload-bank-statement', [ApplicationController
 $router->post('/applications/{id}/analyze-bank-statements', [ApplicationController::class, 'analyzeBankStatements']);
 $router->post('/applications/{id}/approve', [ApplicationController::class, 'approve']);
 $router->post('/applications/{id}/reject', [ApplicationController::class, 'reject']);
+$router->post('/applications/{id}/request-correction', [ApplicationController::class, 'requestCorrection']);
+$router->post('/applications/{id}/extend-retention', [ApplicationController::class, 'extendRetention']);
+$router->get('/applications/{id}/edit', [ApplicationController::class, 'edit']);
+$router->post('/applications/{id}/update', [ApplicationController::class, 'update']);
 $router->post('/applications/{id}/convert', [ApplicationController::class, 'convert']);
 $router->get('/applications/{id}/documents/{documentId}', [ApplicationController::class, 'downloadDocument']);
 $router->get('/applications/{id}/generate/{templateCode}', [ApplicationController::class, 'generateDocument']);

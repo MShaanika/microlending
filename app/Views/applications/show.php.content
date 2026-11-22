@@ -167,8 +167,59 @@
             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm"><i class="mdi mdi-close"></i> Reject</button>
           <?php endif; ?>
 
+          <?php if (\App\Core\Auth::can('applications.edit') && in_array($application['status'], ['Submitted', 'Screening', 'Documents Required'], true) && empty($application['purged_at'])): ?>
+            <a href="<?= url('/applications/' . $application['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-pencil-outline"></i> Correct details</a>
+          <?php endif; ?>
+          <?php if (\App\Core\Auth::can('applications.request_correction') && empty($application['purged_at']) && !in_array($application['status'], ['Approved', 'Rejected', 'Converted to Loan', 'Cancelled'], true)): ?>
+            <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="collapse" data-bs-target="#correctionForm"><i class="mdi mdi-message-alert-outline"></i> Request correction</button>
+          <?php endif; ?>
+
           <a href="<?= url('/notifications/compose?application_id=' . $application['id'] . ($application['borrower_id'] ? '&borrower_id=' . (int) $application['borrower_id'] : '')) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-bell-ring-outline"></i> Notify Applicant</a>
         </div>
+
+        <?php
+          $issueFields = array_column($dataIssues ?? [], 'field');
+          $hasPhone = trim((string) ($application['applicant_phone'] ?? '')) !== '';
+        ?>
+        <?php if (!empty($application['purge_warned_at']) && empty($application['purged_at']) && \App\Core\Auth::can('applications.screen')): ?>
+          <div class="alert alert-danger mt-3 mb-2 small">
+            This application was never approved and is <strong>scheduled for automatic deletion</strong> (with its documents) to save space.
+            <form method="post" action="<?= url('/applications/' . $application['id'] . '/extend-retention') ?>" class="mt-2">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-sm btn-outline-danger">Keep it (postpone deletion)</button>
+            </form>
+          </div>
+        <?php endif; ?>
+        <?php if (!empty($dataIssues)): ?>
+          <div class="alert alert-warning mt-3 mb-2 small">
+            <strong>Data to fix before the credit check:</strong>
+            <ul class="mb-0 ps-3">
+              <?php foreach ($dataIssues as $issue): ?>
+                <li><?= e($issue['label']) ?> &mdash; <?= e($issue['problem']) ?> <em><?= e($issue['fix']) ?></em><?= $issue['severity'] === 'warning' ? ' (warning only)' : '' ?></li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
+        <?php endif; ?>
+        <?php if (\App\Core\Auth::can('applications.request_correction') && empty($application['purged_at']) && !in_array($application['status'], ['Approved', 'Rejected', 'Converted to Loan', 'Cancelled'], true)): ?>
+          <div class="collapse mt-2<?= !empty($dataIssues) ? ' show' : '' ?>" id="correctionForm">
+            <form method="post" action="<?= url('/applications/' . $application['id'] . '/request-correction') ?>" onsubmit="return confirmSubmit(this, 'Request this correction? The application moves to Documents Required.');">
+              <?= csrf_field() ?>
+              <div class="small fw-semibold mb-1">What must the applicant correct?</div>
+              <?php foreach (\App\Services\ApplicantCorrectionSms::REASONS as $code => $label): ?>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" name="reasons[]" value="<?= e($code) ?>" id="corr_<?= e($code) ?>"<?= in_array($code, $issueFields, true) ? ' checked' : '' ?>>
+                  <label class="form-check-label small" for="corr_<?= e($code) ?>"><?= e(ucfirst($label)) ?></label>
+                </div>
+              <?php endforeach; ?>
+              <input type="text" name="note" maxlength="40" class="form-control form-control-sm my-2" placeholder="Optional short note for the applicant (40 characters)">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="send_sms" value="1" id="corr_sms"<?= $hasPhone ? ' checked' : ' disabled' ?>>
+                <label class="form-check-label small" for="corr_sms">Also text the applicant<?= $hasPhone ? '' : ' (no phone number on file)' ?>. The text says what to fix, never the values.</label>
+              </div>
+              <button type="submit" class="btn btn-sm btn-warning w-100">Send correction request</button>
+            </form>
+          </div>
+        <?php endif; ?>
 
         <?php if ($canReject): ?>
           <div class="collapse mt-2" id="rejectForm">

@@ -75,7 +75,7 @@ class CreditinfoAssessmentController extends Controller
      * source has a value -- per instruction, DOB is never derived from
      * the National ID.
      */
-    private function resolveDateOfBirth(array $application): ?string
+    private function resolveRawDateOfBirth(array $application): ?string
     {
         $raw = null;
         if (!empty($application['borrower_id'])) {
@@ -88,6 +88,12 @@ class CreditinfoAssessmentController extends Controller
             $extra = $application['extra_data'] ? (json_decode((string) $application['extra_data'], true) ?: []) : [];
             $raw = !empty($extra['dob']) ? (string) $extra['dob'] : null;
         }
+        return $raw;
+    }
+
+    private function resolveDateOfBirth(array $application): ?string
+    {
+        $raw = $this->resolveRawDateOfBirth($application);
         if ($raw === null) {
             return null;
         }
@@ -102,6 +108,10 @@ class CreditinfoAssessmentController extends Controller
 
     private function assertBranchAccess(?array $application): void
     {
+        if ($application && !empty($application['purged_at'])) {
+            Session::flash('error', 'The personal data of this application was deleted, so nothing more can be done with it.');
+            $this->redirect('/applications');
+        }
         if (!$application || Auth::isSuperAdmin() || $application['branch_id'] === null) {
             return;
         }
@@ -204,47 +214,44 @@ class CreditinfoAssessmentController extends Controller
         }
         $isUatTestId = $uatTestId !== '';
         $nationalId = $isUatTestId ? $uatTestId : (string) ($application['applicant_id_number'] ?? '');
-        if ($nationalId === '') {
-            Session::flash('error', 'This application has no National ID on file to check.');
-            $this->redirect('/applications/' . $id);
-            return;
-        }
 
         // Gender code: vendor-confirmed (1=Male, 2=Female, CreditinfoV3Codes)
-        // but still read from CreditinfoSetting, not hardcoded here, so a
-        // future vendor correction stays a settings change. Blocked for
-        // 'Other' too -- there is no vendor-confirmed code for it.
+        // but still read from CreditinfoSetting, not hardcoded here. Null for
+        // 'Other'/blank -- there is no vendor-confirmed code for it.
         $genderCode = $application['applicant_gender'] ? $this->settings->genderCode((string) $application['applicant_gender']) : null;
-        if ($genderCode === null) {
-            Session::flash('error', 'Gender code mapping is not configured (Settings > Integrations > Creditinfo) -- cannot run a search for this applicant.');
-            $this->redirect('/applications/' . $id);
-            return;
-        }
 
         $inquiryReasonSearch = (int) $this->settings->get('creditinfo_inquiry_reason_search', (string) CreditinfoV3Codes::DEFAULT_NEW_CREDIT_INQUIRY_REASON);
         $inquiryReasonReport = $this->settings->get('creditinfo_inquiry_reason_report', (string) CreditinfoV3Codes::INQUIRY_REASON_CUSTOMER_INQUIRY);
         $userId = Auth::user()['id'] ?? null;
         $key = $this->idempotencyKey();
-        // Resolved from borrowers.date_of_birth (once linked) or
-        // loan_applications.extra_data['dob'] (Back Office intake only) --
-        // never derived from the National ID. Null when genuinely
-        // unavailable (Agent Self-Service / public online intake, not yet
-        // converted to a borrower).
-        //
-        // Confirmed live against UAT 2026-09-16: dateOfBirth (along with
-        // firstName/presentSurname/gender/mobilePhone) is a hard,
-        // server-side-required field on search/smart/individual -- sending
-        // it blank doesn't degrade gracefully, Creditinfo rejects the whole
-        // request with "DateOfBirth cannot be empty" (HTTP 400). Blocked
-        // here with the same pre-flight pattern as the gender code above,
-        // rather than letting a real applicant's missing DOB surface as a
-        // raw API validation error.
-        $dateOfBirth = $this->resolveDateOfBirth($application);
-        if ($dateOfBirth === null) {
-            Session::flash('error', 'This application has no date of birth on file -- Creditinfo requires it to run a search. Add it to the application/borrower record first.');
+
+        // Pre-flight: every field Creditinfo requires is checked here, ALL
+        // problems are reported together (field + how to fix), and nothing
+        // is sent to the bureau while any blocking problem remains. UAT
+        // test IDs are the vendor's own synthetic data and skip the
+        // ID/DOB sanity rules (their DOBs deliberately don't match).
+        $rawDob = $this->resolveRawDateOfBirth($application);
+        $issues = CreditCheckReadiness::check($application, $rawDob, $nationalId, $genderCode);
+        if ($isUatTestId) {
+            // The vendor's synthetic IDs/DOBs deliberately don't match each other or the applicant: keep every other rule.
+            $issues = array_values(array_filter($issues, fn ($i) => $i['field'] !== 'id_number' && $i['severity'] !== 'warning'));
+        }
+        $warnNote = '';
+        $blocking = CreditCheckReadiness::errors($issues);
+        if ($blocking) {
+            Audit::log('Uncertain', 'Creditinfo', 'Credit check blocked before sending for application #' . $id . ': ' . count($blocking) . ' data problem(s)', ['fields' => array_column($blocking, 'field')]);
+            Session::flash('error', CreditCheckReadiness::flashMessage($issues));
             $this->redirect('/applications/' . $id);
             return;
         }
+        if ($issues) { // warnings only: shown, not blocking
+            $warn = [];
+            foreach ($issues as $i) {
+                $warn[] = $i['label'] . ': ' . $i['problem'];
+            }
+            $warnNote = ' Please double-check: ' . implode(' | ', $warn);
+        }
+        $dateOfBirth = $this->resolveDateOfBirth($application);
 
         try {
             $this->applications->transaction(function () use ($id, $application, $consent, $nationalId, $isUatTestId, $environment, $genderCode, $dateOfBirth, $inquiryReasonSearch, $inquiryReasonReport, $userId, $key) {
@@ -330,13 +337,13 @@ class CreditinfoAssessmentController extends Controller
             return;
         } catch (CreditinfoApiException $e) {
             $this->applications->updateRecord($id, ['credit_check_status' => 'Error']);
-            Audit::log('Uncertain', 'Creditinfo', 'Credit bureau check failed for application #' . $id, ['exception' => $e->getMessage()]);
-            Session::flash('error', 'Credit bureau check failed: ' . $e->getMessage());
+            Audit::log('Uncertain', 'Creditinfo', 'Credit bureau check failed for application #' . $id, ['exception' => $e->getMessage(), 'fields_named_by_bureau' => array_column(CreditinfoErrorTranslator::fieldsFromBody($e->rawBody()), 0)]);
+            Session::flash('error', 'Credit bureau check failed. ' . CreditinfoErrorTranslator::translate($e));
             $this->redirect('/applications/' . $id);
             return;
         }
 
-        Session::flash('success', 'Credit bureau check completed.');
+        Session::flash('success', 'Credit bureau check completed.' . $warnNote);
         $this->redirect('/applications/' . $id);
     }
 

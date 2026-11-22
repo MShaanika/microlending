@@ -36,7 +36,7 @@ final class ApplicationLoanBook implements LegacyLoanSource
     {
         $sql = 'SELECT id, application_no, applicant_first_name, applicant_middle_name, applicant_last_name, applicant_id_number, applicant_gender, applicant_phone,
                        applicant_address, employer_name, gross_salary, payment_day, requested_amount, requested_term_months, status, created_at
-                FROM loan_applications WHERE 1 = 1';
+                FROM loan_applications WHERE purged_at IS NULL';
         $params = [];
         if ($status !== null && $status !== '') {
             $sql .= ' AND status = ?';

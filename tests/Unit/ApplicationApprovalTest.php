@@ -26,8 +26,8 @@ class ApplicationApprovalTest extends TestCase
         $this->pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $this->pdo->exec('CREATE TABLE loan_applications (id INTEGER PRIMARY KEY, application_no TEXT, applicant_first_name TEXT, applicant_middle_name TEXT, applicant_last_name TEXT,
             applicant_id_number TEXT, applicant_gender TEXT, applicant_phone TEXT, applicant_address TEXT, employer_name TEXT, gross_salary REAL, payment_day INT, requested_amount REAL,
-            requested_term_months INT, status TEXT, created_at TEXT)');
-        $ins = $this->pdo->prepare('INSERT INTO loan_applications VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            requested_term_months INT, status TEXT, created_at TEXT, purged_at TEXT)');
+        $ins = $this->pdo->prepare('INSERT INTO loan_applications VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)');
         $ins->execute([1, 'APP-1', 'Maria', '', 'Test', '85051500123', 'Female', '0811111111', 'Erf 1 Test Street', 'Employer A', 9000, 25, 1000, 1, 'Submitted', '2026-10-30 09:00:00']);
         $ins->execute([2, 'APP-2', 'Paul', 'J', 'Two', '90010100456', 'Male', '0822222222', 'Erf 2 Test Street', 'Employer B', 8000, 20, 6000, 5, 'Submitted', '2026-10-29 09:00:00']);
         $ins->execute([3, 'APP-3', 'Festus', '', 'Tester', '', 'Male', '0833333333', 'Erf 3', 'X', 0, 25, 500, 1, 'Submitted', '2026-10-31 09:00:00']);

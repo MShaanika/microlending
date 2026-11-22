@@ -20,7 +20,7 @@ class LoanFollowup extends Model
         $rows = $this->all(
             "SELECT a.id, a.application_no, a.applicant_first_name, a.applicant_last_name
              FROM loan_applications a LEFT JOIN loan_followups f ON f.application_id = a.id
-             WHERE f.id IS NULL AND a.created_at >= ? AND a.status NOT IN ('Rejected', 'Cancelled')
+             WHERE f.id IS NULL AND a.purged_at IS NULL AND a.created_at >= ? AND a.status NOT IN ('Rejected', 'Cancelled')
              ORDER BY a.id",
             [$from . ' 00:00:00']
         );
@@ -92,7 +92,7 @@ class LoanFollowup extends Model
             "SELECT f.*, a.applicant_first_name, a.applicant_middle_name, a.applicant_last_name, a.applicant_phone, a.applicant_id_number, a.requested_amount,
                     a.requested_term_months, a.payment_day AS application_pay_day, a.created_at AS applied_at
              FROM loan_followups f JOIN loan_applications a ON a.id = f.application_id
-             WHERE f.status = 'Open' ORDER BY a.created_at, f.id"
+             WHERE f.status = 'Open' AND a.purged_at IS NULL ORDER BY a.created_at, f.id"
         );
     }
 
@@ -160,7 +160,7 @@ class LoanFollowup extends Model
     {
         return $this->all(
             "SELECT f.*, a.id AS app_id FROM loan_followups f JOIN loan_applications a ON a.id = f.application_id
-             WHERE f.approved = 'Yes' AND f.disbursed = 'Yes' AND f.disbursed_on IS NOT NULL AND f.pay_day IS NOT NULL AND f.approved_amount IS NOT NULL ORDER BY f.disbursed_on, f.id"
+             WHERE a.purged_at IS NULL AND f.approved = 'Yes' AND f.disbursed = 'Yes' AND f.disbursed_on IS NOT NULL AND f.pay_day IS NOT NULL AND f.approved_amount IS NOT NULL ORDER BY f.disbursed_on, f.id"
         );
     }
 }

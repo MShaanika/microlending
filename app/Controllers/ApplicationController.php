@@ -72,6 +72,10 @@ class ApplicationController extends Controller
      */
     private function assertBranchAccess(?array $application): void
     {
+        if ($application && !empty($application['purged_at'])) {
+            Session::flash('error', 'The personal data of this application was deleted, so nothing more can be done with it.');
+            $this->redirect('/applications');
+        }
         if (!$application || Auth::isSuperAdmin() || $application['branch_id'] === null) {
             return;
         }
@@ -158,7 +162,18 @@ class ApplicationController extends Controller
         $consents = new \App\Models\CreditBureauConsent();
         $cplReadiness = (new \App\Services\CplReadinessService())->assess($application);
 
+        // Same data check the credit check runs, shown up-front so staff can fix it (or text the applicant) BEFORE clicking Run.
+        $extraForCheck = $application['extra_data'] ? (json_decode($application['extra_data'], true) ?: []) : [];
+        $dobForCheck = $extraForCheck['dob'] ?? null;
+        if (!empty($application['borrower_id'])) {
+            $b = (new \App\Models\Borrower())->find((int) $application['borrower_id']);
+            $dobForCheck = !empty($b['date_of_birth']) ? (string) $b['date_of_birth'] : $dobForCheck;
+        }
+        $genderForCheck = in_array((string) ($application['applicant_gender'] ?? ''), ['Male', 'Female'], true) ? 1 : null;
+        $dataIssues = !empty($application['purged_at']) ? [] : \App\Services\CreditCheckReadiness::check($application, $dobForCheck !== null ? (string) $dobForCheck : null, (string) ($application['applicant_id_number'] ?? ''), $genderForCheck);
+
         $this->view('applications/show', [
+            'dataIssues' => $dataIssues,
             'cplReadiness' => $cplReadiness,
             'title' => 'Application ' . $application['application_no'],
             'application' => $application,
@@ -173,6 +188,208 @@ class ApplicationController extends Controller
             'creditBureauConsent' => $consents->latestForApplication((int) $id),
             'creditBureauConsentUnconsumed' => $consents->latestUnconsumedForApplication((int) $id),
         ]);
+    }
+
+    private const EDITABLE_STATUSES = ['Submitted', 'Screening', 'Documents Required'];
+
+    /** Staff correct an applicant's personal details (the same fields the credit check needs). Open applications only. */
+    public function edit(string $id): void
+    {
+        Auth::authorize('applications.edit');
+        $application = $this->applications->find((int) $id);
+        if (!$application) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+        $this->assertBranchAccess($application);
+        if (!in_array($application['status'], self::EDITABLE_STATUSES, true) || !empty($application['purged_at'])) {
+            Session::flash('error', 'Only applications that are still open (Submitted, Screening, Documents Required) can be edited.');
+            $this->redirect('/applications/' . (int) $id);
+            return;
+        }
+        $extra = $application['extra_data'] ? (json_decode($application['extra_data'], true) ?: []) : [];
+        $this->view('applications/edit', [
+            'title' => 'Correct application ' . $application['application_no'],
+            'application' => $application,
+            'dob' => (string) ($extra['dob'] ?? ''),
+            'errors' => [],
+            'old' => [],
+        ]);
+    }
+
+    public function update(string $id): void
+    {
+        Auth::authorize('applications.edit');
+        $id = (int) $id;
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/applications/' . $id . '/edit');
+            return;
+        }
+        $application = $this->applications->find($id);
+        if (!$application) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+        $this->assertBranchAccess($application);
+        if (!in_array($application['status'], self::EDITABLE_STATUSES, true) || !empty($application['purged_at'])) {
+            Session::flash('error', 'Only applications that are still open can be edited.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $in = static fn (string $k): string => trim((string) ($_POST[$k] ?? ''));
+        $new = [
+            'applicant_first_name' => $in('first_name'),
+            'applicant_middle_name' => $in('middle_name'),
+            'applicant_last_name' => $in('last_name'),
+            'applicant_id_number' => preg_replace('/\s+/', '', $in('id_number')),
+            'applicant_gender' => $in('gender'),
+            'applicant_phone' => $in('phone'),
+            'applicant_email' => $in('email'),
+            'applicant_address' => $in('address'),
+        ];
+        $dob = $in('dob');
+        $phoneE164 = \App\Support\PhoneNumberNormalizer::toE164($new['applicant_phone']);
+        $genderCode = in_array($new['applicant_gender'], ['Male', 'Female'], true) ? 1 : null;
+        $probe = ['applicant_first_name' => $new['applicant_first_name'], 'applicant_last_name' => $new['applicant_last_name'], 'applicant_gender' => $new['applicant_gender'], 'applicant_phone' => $phoneE164 ?? $new['applicant_phone']];
+        $issues = \App\Services\CreditCheckReadiness::check($probe, $dob !== '' ? $dob : null, $new['applicant_id_number'], $genderCode);
+        $errors = [];
+        $fieldKey = ['first_name' => 'first_name', 'last_name' => 'last_name', 'id_number' => 'id_number', 'gender' => 'gender', 'phone' => 'phone', 'dob' => 'dob'];
+        foreach (\App\Services\CreditCheckReadiness::errors($issues) as $i) {
+            $errors[$fieldKey[$i['field']] ?? $i['field']] = $i['problem'] . ' ' . $i['fix'];
+        }
+        if ($new['applicant_email'] !== '' && !filter_var($new['applicant_email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'The e-mail address is not valid.';
+        }
+        if ($new['applicant_gender'] !== '' && !in_array($new['applicant_gender'], ['Male', 'Female', 'Other'], true)) {
+            $errors['gender'] = 'Choose Male, Female or Other.';
+        }
+        if ($errors) {
+            $this->view('applications/edit', [
+                'title' => 'Correct application ' . $application['application_no'],
+                'application' => $application,
+                'dob' => $dob,
+                'errors' => $errors,
+                'old' => $_POST,
+            ]);
+            return;
+        }
+
+        $extra = $application['extra_data'] ? (json_decode($application['extra_data'], true) ?: []) : [];
+        $changed = [];
+        $update = [];
+        foreach ($new as $col => $val) {
+            $val = $col === 'applicant_phone' ? ($phoneE164 ?? $val) : $val;
+            $old = (string) ($application[$col] ?? '');
+            if ($val !== $old) {
+                $changed[] = str_replace('applicant_', '', $col);
+            }
+            $update[$col] = $val === '' && $col !== 'applicant_first_name' && $col !== 'applicant_last_name' ? null : $val;
+        }
+        if ($dob !== '' && (string) ($extra['dob'] ?? '') !== \App\Support\DateOfBirth::normalize($dob)) {
+            $changed[] = 'date_of_birth';
+            $extra['dob'] = \App\Support\DateOfBirth::normalize($dob);
+            $update['extra_data'] = json_encode($extra);
+        }
+        if (!$changed) {
+            Session::flash('success', 'Nothing was changed.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+        $this->applications->updateRecord($id, $update);
+        $userId = Auth::user()['id'] ?? null;
+        $this->applications->addStatusHistory($id, $application['status'], $application['status'], $userId ? (int) $userId : null, 'Details corrected by staff: ' . implode(', ', $changed));
+        Audit::log('Update', 'Applications', 'Corrected details of application #' . $id . ': ' . implode(', ', $changed), ['application_id' => $id, 'fields' => $changed]);
+        Session::flash('success', 'Details saved (' . implode(', ', $changed) . '). You can now run the credit check.');
+        $this->redirect('/applications/' . $id);
+    }
+
+    /** "Keep": postpones the automatic deletion of an unapproved application by another retention period (and clears its warning). */
+    public function extendRetention(string $id): void
+    {
+        Auth::authorize('applications.screen');
+        $id = (int) $id;
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+        $application = $this->applications->find($id);
+        if (!$application || !empty($application['purged_at'])) {
+            Session::flash('error', 'Application not found, or its personal data was already deleted.');
+            $this->redirect('/applications');
+            return;
+        }
+        $this->assertBranchAccess($application);
+        if (in_array($application['status'], ['Approved', 'Converted to Loan'], true)) {
+            Session::flash('error', 'This application is already ' . $application['status'] . ', it is never deleted automatically.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+        $userId = Auth::user()['id'] ?? null;
+        (new \App\Services\ApplicationPurgeService())->extend($id, $userId ? (int) $userId : null, 'Kept: automatic deletion postponed by ' . \App\Services\ApplicationPurgeService::retentionDays() . ' days');
+        Audit::log('Update', 'Applications', 'Postponed automatic deletion of application #' . $id);
+        Session::flash('success', 'Kept. This application will not be deleted for another ' . \App\Services\ApplicationPurgeService::retentionDays() . ' days.');
+        $this->redirect('/applications/' . $id);
+    }
+
+    /** Staff asks the applicant (by SMS) to correct specific data. Moves the application to 'Documents Required' (a correction is outstanding) and records who asked and what. */
+    public function requestCorrection(string $id): void
+    {
+        Auth::authorize('applications.request_correction');
+        $id = (int) $id;
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+        $application = $this->applications->find($id);
+        if (!$application) {
+            Session::flash('error', 'Application not found.');
+            $this->redirect('/applications');
+            return;
+        }
+        $this->assertBranchAccess($application);
+
+        $codes = array_values(array_filter((array) ($_POST['reasons'] ?? []), 'is_string'));
+        $note = trim((string) ($_POST['note'] ?? ''));
+        $sendSms = !empty($_POST['send_sms']);
+        $userId = Auth::user()['id'] ?? null;
+        $applicantName = trim(($application['applicant_first_name'] ?? '') . ' ' . ($application['applicant_last_name'] ?? ''));
+
+        if (!$codes) {
+            Session::flash('error', 'Choose at least one thing the applicant must correct.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+        if (in_array($application['status'], ['Approved', 'Converted to Loan', 'Rejected', 'Cancelled'], true)) {
+            Session::flash('error', 'This application is already ' . $application['status'] . ', so a correction cannot be requested.');
+            $this->redirect('/applications/' . $id);
+            return;
+        }
+
+        $smsNote = 'No text sent (not requested).';
+        $smsQueued = false;
+        if ($sendSms) {
+            $res = (new \App\Services\ApplicantCorrectionSms())->request($id, (string) $application['application_no'], $applicantName, $application['applicant_phone'] ?? null, $codes, $note, $userId ? (int) $userId : null, $application['borrower_id'] ? (int) $application['borrower_id'] : null, (string) $application['status']);
+            $smsNote = $res['note'];
+            $smsQueued = (bool) $res['queued'];
+        }
+
+        $labels = array_map(fn ($c) => \App\Services\ApplicantCorrectionSms::REASONS[$c] ?? null, $codes);
+        $labels = implode(', ', array_filter($labels));
+        $old = (string) $application['status'];
+        if ($old !== 'Documents Required') {
+            $this->applications->updateRecord($id, ['status' => 'Documents Required']);
+        }
+        $this->applications->addStatusHistory($id, $old, 'Documents Required', $userId ? (int) $userId : null, 'Correction requested: ' . $labels . ($note !== '' ? ' (' . mb_substr($note, 0, 80) . ')' : '') . '. ' . ($smsQueued ? 'Applicant texted.' : $smsNote));
+        Audit::log('Update', 'Applications', 'Requested correction on application #' . $id . ': ' . $labels, ['application_id' => $id, 'reasons' => $codes, 'sms' => $sendSms ? $smsNote : 'not requested']);
+        Session::flash('success', 'Correction requested (' . $labels . '). ' . $smsNote);
+        $this->redirect('/applications/' . $id);
     }
 
     /** No status change -- purely an outbound courtesy SMS confirming the application arrived. Restricted to Submitted applications; once an application moves on (screened/approved/rejected), the applicant has already heard from a human, so this action no longer applies. */

@@ -94,6 +94,35 @@ class ApplicationIntakeController extends Controller
         }
         $extra = $this->withLoanTerms($_POST, $mappings, $extra);
 
+        // Refuse obviously wrong personal data while the applicant is still on the form (e.g. today's date typed as
+        // the date of birth), so staff never inherit it. Only fields this source actually collected are checked, so
+        // a source that does not map (say) gender or date of birth is never rejected for leaving it out.
+        $supplied = [
+            'dob' => isset($extra['dob']) && trim((string) $extra['dob']) !== '',
+            'first_name' => trim((string) ($canonical['applicant_first_name'] ?? '')) !== '',
+            'last_name' => trim((string) ($canonical['applicant_last_name'] ?? '')) !== '',
+            'gender' => trim((string) ($canonical['applicant_gender'] ?? '')) !== '',
+            'phone' => trim((string) ($canonical['applicant_phone'] ?? '')) !== '',
+        ];
+        $genderRaw = ucfirst(strtolower(trim((string) ($canonical['applicant_gender'] ?? ''))));
+        $dataIssues = array_values(array_filter(
+            \App\Services\CreditCheckReadiness::errors(\App\Services\CreditCheckReadiness::check(
+                $canonical,
+                isset($extra['dob']) ? (string) $extra['dob'] : null,
+                (string) ($canonical['applicant_id_number'] ?? '11111111111'),
+                in_array($genderRaw, ['Male', 'Female'], true) ? 1 : null
+            )),
+            fn ($i) => !empty($supplied[$i['field']] ?? false)
+        ));
+        if (!empty($dataIssues)) {
+            http_response_code(422);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Please correct the following and submit again: ' . implode(' ', array_map(fn ($i) => $i['problem'], $dataIssues)),
+            ]);
+            return;
+        }
+
         // Refuse before anything is saved, so the applicant is told on the form and can upload the right file.
         $blank = $this->blankBankStatements();
         if (!empty($blank)) {

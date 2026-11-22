@@ -22,7 +22,7 @@ class LoanApplication extends Model
                 LEFT JOIN intake_sources s ON s.id = a.intake_source_id
                 LEFT JOIN borrowers b ON b.id = a.borrower_id
                 LEFT JOIN branches br ON br.id = a.branch_id
-                WHERE 1=1";
+                WHERE a.purged_at IS NULL";
         $params = [];
 
         if ($status !== '') {
@@ -125,7 +125,7 @@ class LoanApplication extends Model
         return $this->all(
             "SELECT a.*, b.borrower_no FROM loan_applications a
              LEFT JOIN borrowers b ON b.id = a.borrower_id
-             WHERE a.agent_id = ? ORDER BY a.id DESC",
+             WHERE a.agent_id = ? AND a.purged_at IS NULL ORDER BY a.id DESC",
             [$agentId]
         );
     }
@@ -165,7 +165,7 @@ class LoanApplication extends Model
                 FROM loan_applications a
                 JOIN hrm_employees e ON e.id = a.agent_id
                 LEFT JOIN loans l ON l.application_id = a.id
-                WHERE a.agent_id IS NOT NULL";
+                WHERE a.agent_id IS NOT NULL AND a.purged_at IS NULL";
         $params = [];
 
         if (!empty($filters['agent_employee_id'])) {
@@ -208,7 +208,7 @@ class LoanApplication extends Model
 
     public function pendingCount(): int
     {
-        return (int) $this->scalar("SELECT COUNT(*) FROM loan_applications WHERE status = 'Submitted'");
+        return (int) $this->scalar("SELECT COUNT(*) FROM loan_applications WHERE status = 'Submitted' AND purged_at IS NULL");
     }
 
     public function addStatusHistory(int $applicationId, ?string $oldStatus, string $newStatus, ?int $changedBy, ?string $notes = null): int

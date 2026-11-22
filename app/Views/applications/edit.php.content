@@ -1,0 +1,48 @@
+<?= flash_messages() ?>
+<?php
+  $v = static function (string $key, $default) use ($old) { return array_key_exists($key, $old) ? (string) $old[$key] : (string) $default; };
+  $err = static function (string $key) use ($errors) { return isset($errors[$key]) ? '<div class="invalid-feedback d-block">' . e($errors[$key]) . '</div>' : ''; };
+  $cls = static function (string $key) use ($errors) { return isset($errors[$key]) ? 'is-invalid' : ''; };
+?>
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title mb-1">Correct application <?= e($application['application_no']) ?></h4>
+    <p class="text-muted small">Fix the applicant's details exactly as on the ID card. Every change is recorded in the status history and audit log. If you need help, call 063 234 341.</p>
+    <?php if (!empty($errors)): ?>
+      <div class="alert alert-danger small"><strong>Please fix the highlighted fields.</strong></div>
+    <?php endif; ?>
+    <?php if (!empty($application['borrower_id'])): ?>
+      <div class="alert alert-info small">This application is linked to a borrower record. The date of birth used for the credit check is the one on the borrower profile; correct it there too.</div>
+    <?php endif; ?>
+    <form method="post" action="<?= url('/applications/' . $application['id'] . '/update') ?>">
+      <?= csrf_field() ?>
+      <div class="row">
+        <div class="col-md-4 mb-3"><label class="form-label">First name <span class="text-danger">*</span></label>
+          <input type="text" name="first_name" class="form-control <?= $cls('first_name') ?>" value="<?= e($v('first_name', $application['applicant_first_name'])) ?>"><?= $err('first_name') ?></div>
+        <div class="col-md-4 mb-3"><label class="form-label">Middle name</label>
+          <input type="text" name="middle_name" class="form-control" value="<?= e($v('middle_name', $application['applicant_middle_name'])) ?>"></div>
+        <div class="col-md-4 mb-3"><label class="form-label">Surname <span class="text-danger">*</span></label>
+          <input type="text" name="last_name" class="form-control <?= $cls('last_name') ?>" value="<?= e($v('last_name', $application['applicant_last_name'])) ?>"><?= $err('last_name') ?></div>
+        <div class="col-md-4 mb-3"><label class="form-label">National ID (11 digits) <span class="text-danger">*</span></label>
+          <input type="text" name="id_number" inputmode="numeric" maxlength="20" class="form-control <?= $cls('id_number') ?>" value="<?= e($v('id_number', $application['applicant_id_number'])) ?>"><?= $err('id_number') ?></div>
+        <div class="col-md-4 mb-3"><label class="form-label">Date of birth <span class="text-danger">*</span></label>
+          <input type="date" name="dob" class="form-control <?= $cls('dob') ?>" min="<?= e(date('Y-m-d', strtotime('-100 years'))) ?>" max="<?= e(date('Y-m-d', strtotime('-18 years'))) ?>" value="<?= e($v('dob', $dob)) ?>"><?= $err('dob') ?></div>
+        <div class="col-md-4 mb-3"><label class="form-label">Gender <span class="text-danger">*</span></label>
+          <select name="gender" class="form-select <?= $cls('gender') ?>">
+            <option value="">Select</option>
+            <?php foreach (['Male', 'Female', 'Other'] as $g): ?>
+              <option value="<?= $g ?>"<?= $v('gender', $application['applicant_gender']) === $g ? ' selected' : '' ?>><?= $g ?></option>
+            <?php endforeach; ?>
+          </select><?= $err('gender') ?></div>
+        <div class="col-md-4 mb-3"><label class="form-label">Mobile phone <span class="text-danger">*</span></label>
+          <input type="text" name="phone" class="form-control <?= $cls('phone') ?>" value="<?= e($v('phone', $application['applicant_phone'])) ?>"><?= $err('phone') ?></div>
+        <div class="col-md-4 mb-3"><label class="form-label">E-mail</label>
+          <input type="text" name="email" class="form-control <?= $cls('email') ?>" value="<?= e($v('email', $application['applicant_email'])) ?>"><?= $err('email') ?></div>
+        <div class="col-md-12 mb-3"><label class="form-label">Address</label>
+          <textarea name="address" rows="2" class="form-control"><?= e($v('address', $application['applicant_address'])) ?></textarea></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Save corrections</button>
+      <a href="<?= url('/applications/' . $application['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>

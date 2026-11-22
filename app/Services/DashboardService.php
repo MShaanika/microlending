@@ -270,7 +270,7 @@ class DashboardService
                 'label' => 'Loan Applications',
                 'url' => url('/applications?status=Submitted'),
                 'count' => (int) $db->query(
-                    "SELECT COUNT(*) FROM loan_applications WHERE status IN ('Submitted','Screening','Documents Required')" . $branchClause('branch_id')
+                    "SELECT COUNT(*) FROM loan_applications WHERE status IN ('Submitted','Screening','Documents Required') AND purged_at IS NULL" . $branchClause('branch_id')
                 )->fetchColumn(),
             ],
             [

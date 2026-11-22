@@ -896,6 +896,9 @@ class BorrowerController extends Controller
         }
 
         $errors = $this->validate($_POST);
+        if (trim((string) ($_POST['date_of_birth'] ?? '')) !== '' && trim((string) $_POST['date_of_birth']) !== (string) ($borrower['date_of_birth'] ?? '') && ($dobMsg = \App\Support\DateOfBirth::check($_POST['date_of_birth'])) !== null) {
+            $errors['date_of_birth'] = $dobMsg;
+        }
 
         if (!empty($_POST['id_number']) && $this->borrowers->idNumberExists(trim($_POST['id_number']), $id)) {
             $errors['id_number'] = 'Another borrower already uses this ID number.';
@@ -998,8 +1001,8 @@ class BorrowerController extends Controller
         $dob = $text('date_of_birth');
         if ($dob === '') {
             $errors['date_of_birth'] = 'Date of Birth is required.';
-        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob) || strtotime($dob) === false || $dob > date('Y-m-d')) {
-            $errors['date_of_birth'] = 'Enter a valid Date of Birth.';
+        } elseif (($dobError = \App\Support\DateOfBirth::check($dob)) !== null) {
+            $errors['date_of_birth'] = $dobError;
         }
         $required = [
             'phone' => 'Phone',
