@@ -45,7 +45,7 @@ class RefundClaimController extends Controller
         $claims = $this->refundClaims->paginated($status, $limit, $filter['q'], $filter);
 
         if ($filter['export']) {
-            $this->exportList('Refund claims', 'refund_claims', ['Claim No', 'Borrower', 'Loan', 'Type', 'Amount', 'Status', 'Date', 'Last action by'], array_map(static fn ($c) => [
+            $this->exportList('Refund claims', 'refund_claims', ['Claim No', 'Client', 'Loan', 'Type', 'Amount', 'Status', 'Date', 'Last action by'], array_map(static fn ($c) => [
                 $c['claim_no'], $c['borrower_name'], $c['loan_no'], $c['claim_type'], number_format((float) $c['claim_amount'], 2, '.', ''), $c['status'], $c['claim_date'], $c['last_action_by_name'],
             ], $claims), $filter);
         }

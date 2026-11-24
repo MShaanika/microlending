@@ -28,13 +28,13 @@ class LoanRequestController extends Controller
         $requests = $this->loanRequests->paginated($status, $limit, $filter['q'], $filter);
 
         if ($filter['export']) {
-            $this->exportList('Loan requests', 'loan_requests', ['Request No', 'Borrower', 'Type', 'Amount', 'Term (months)', 'Purpose', 'Status', 'Submitted', 'Reviewed by'], array_map(static fn ($r) => [
+            $this->exportList('Loan requests', 'loan_requests', ['Request No', 'Client', 'Type', 'Amount', 'Term (months)', 'Purpose', 'Status', 'Submitted', 'Reviewed by'], array_map(static fn ($r) => [
                 $r['request_no'], $r['borrower_name'], $r['request_type'] ?? '', number_format((float) $r['requested_amount'], 2, '.', ''), $r['requested_term_months'], $r['purpose'], $r['status'], substr((string) $r['requested_at'], 0, 10), $r['reviewed_by_name'],
             ], $requests), $filter);
         }
 
         $this->listPage('loan_requests/index', [
-            'title' => 'Borrower Loan Requests',
+            'title' => 'Client Loan Requests',
             'requests' => $requests,
             'status' => $status,
             'search' => $filter['q'],

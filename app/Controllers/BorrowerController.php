@@ -14,6 +14,8 @@ use App\Models\Company;
 use App\Models\LoanApplication;
 use App\Models\PortalUser;
 use App\Models\UploadRequirement;
+use App\Services\BorrowerProfileService;
+use App\Services\StaleBorrowerFormException;
 use App\Services\EmailSenderService;
 use App\Services\SmsSenderService;
 
@@ -28,6 +30,7 @@ class BorrowerController extends Controller
     private PortalUser $portalUsers;
     private BorrowerAffordability $affordability;
     private LoanApplication $applications;
+    private BorrowerProfileService $profile;
 
     private const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
     private const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024; // 5MB
@@ -40,6 +43,7 @@ class BorrowerController extends Controller
         $this->uploadRequirements = new UploadRequirement();
         $this->affordability = new BorrowerAffordability();
         $this->applications = new LoanApplication();
+        $this->profile = new BorrowerProfileService();
     }
 
     public function index(): void
@@ -55,13 +59,13 @@ class BorrowerController extends Controller
         $borrowers = $this->borrowers->paginated($search, $status, $limit, $branchId, $filter);
 
         if ($filter['export']) {
-            $this->exportList('Borrowers', 'borrowers', ['Borrower No', 'Loan Ref No', 'Name', 'Phone', 'ID Number', 'Branch', 'Registered', 'Status'], array_map(static fn ($b) => [
+            $this->exportList('Clients', 'borrowers', ['Client No', 'Loan Ref No', 'Name', 'Phone', 'ID Number', 'Branch', 'Registered', 'Status'], array_map(static fn ($b) => [
                 $b['borrower_no'], $b['loan_ref_no'], trim($b['first_name'] . ' ' . $b['last_name']), $b['phone'], $b['id_number'], $b['branch_name'], substr((string) $b['created_at'], 0, 10), $b['status'],
             ], $borrowers), $filter);
         }
 
         $this->listPage('borrowers/index', [
-            'title' => 'Borrowers',
+            'title' => 'Clients',
             'borrowers' => $borrowers,
             'search' => $search,
             'status' => $status,
@@ -78,7 +82,7 @@ class BorrowerController extends Controller
         Auth::authorize('borrowers.create');
         $scopeBranchId = $this->scopeBranchId();
         $this->view('borrowers/create', [
-            'title' => 'Add Borrower',
+            'title' => 'Add Client',
             'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
             'documentRequirements' => $this->uploadRequirements->forBorrowers(),
             'existingBorrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
@@ -113,7 +117,7 @@ class BorrowerController extends Controller
             return;
         }
         if ((int) ($record['branch_id'] ?? 0) !== (int) Auth::branchId()) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/borrowers');
         }
     }
@@ -159,7 +163,7 @@ class BorrowerController extends Controller
 
         $idNumber = trim($_POST['id_number'] ?? '');
         if ($idNumber !== '' && $this->borrowers->idNumberExists($idNumber)) {
-            $errors['id_number'] = 'A borrower with this ID number already exists. Use "Existing Client" to add documents for them instead.';
+            $errors['id_number'] = 'A client with this ID number already exists. Use "Existing Client" to add documents for them instead.';
         } elseif ($idNumber !== '' && ($open = $this->applications->openApplicationForIdNumber($idNumber)) !== null) {
             // Name the blocking application: "New Client" saves an application first and only creates the borrower when that
             // application is approved and converted, so a person added earlier is usually sitting in Lending > Applications.
@@ -175,7 +179,7 @@ class BorrowerController extends Controller
 
         if (!empty($errors)) {
             $this->view('borrowers/create', [
-                'title' => 'Add Borrower',
+                'title' => 'Add Client',
                 'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
                 'documentRequirements' => $this->uploadRequirements->forBorrowers(),
                 'existingBorrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
@@ -262,19 +266,19 @@ class BorrowerController extends Controller
         ];
 
         $id = $this->applications->create($applicationData);
-        $this->applications->addStatusHistory($id, null, 'Submitted', $userId, 'Application created by staff via Add Borrower.');
+        $this->applications->addStatusHistory($id, null, 'Submitted', $userId, 'Application created by staff via Add Client.');
 
         $this->storeDocumentUploadsForApplication($id, $applicationNo, $_FILES['documents'] ?? [], $userId);
         $this->storeBankStatementUploadsForApplication($id, $applicationNo, $_POST, $_FILES, $userId);
 
-        Audit::log('Create', 'Applications', 'Created application ' . $applicationNo . ' via Add Borrower (staff intake).');
+        Audit::log('Create', 'Applications', 'Created application ' . $applicationNo . ' via Add Client (staff intake).');
         if (!empty($this->failedUploads)) {
             // The application itself is saved, but a file the server could not write must not vanish without a trace.
             $list = implode(', ', $this->failedUploads);
             $this->applications->addStatusHistory($id, 'Submitted', 'Submitted', $userId, 'These files could not be saved and must be uploaded again: ' . $list . '.');
             Session::flash('error', 'Application ' . $applicationNo . ' was created, but these files could NOT be saved: ' . $list . '. Upload them again from the application.');
         } else {
-            Session::flash('success', 'Application ' . $applicationNo . ' created. Screen and approve it to register the borrower.');
+            Session::flash('success', 'Application ' . $applicationNo . ' created. Screen and approve it to register the client.');
         }
         $this->redirect('/applications/' . $id);
     }
@@ -290,7 +294,7 @@ class BorrowerController extends Controller
         $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
 
         if (!$borrower) {
-            Session::flash('error', 'Select an existing borrower.');
+            Session::flash('error', 'Select an existing client.');
             $this->redirect('/borrowers/create');
             return;
         }
@@ -304,7 +308,7 @@ class BorrowerController extends Controller
         if (!empty($documentErrors)) {
             $scopeBranchId = $this->scopeBranchId();
             $this->view('borrowers/create', [
-                'title' => 'Add Borrower',
+                'title' => 'Add Client',
                 'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
                 'documentRequirements' => $this->uploadRequirements->forBorrowers(),
                 'existingBorrowers' => $this->borrowers->paginated('', '', 500, $scopeBranchId),
@@ -326,7 +330,7 @@ class BorrowerController extends Controller
             $this->affordability->create($affordabilityData);
         }
 
-        Audit::log('Update', 'Borrowers', 'Uploaded documents for existing borrower #' . $borrowerId . '.');
+        Audit::log('Update', 'Borrowers', 'Uploaded documents for existing client #' . $borrowerId . '.');
         if (!empty($this->failedUploads)) {
             Session::flash('error', 'These files could NOT be saved: ' . implode(', ', $this->failedUploads) . '. Upload them again.');
         } else {
@@ -754,13 +758,13 @@ class BorrowerController extends Controller
         $borrower = $this->borrowers->find((int) $id);
 
         if (!$borrower) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/borrowers');
         }
         $this->assertBranchAccess($borrower);
 
         $this->view('borrowers/show', [
-            'title' => 'Borrower: ' . $borrower['first_name'] . ' ' . $borrower['last_name'],
+            'title' => 'Client: ' . $borrower['first_name'] . ' ' . $borrower['last_name'],
             'borrower' => $borrower,
             'loans' => $this->borrowers->loansFor((int) $id),
             'bank' => $this->borrowers->bankDetails((int) $id),
@@ -783,7 +787,7 @@ class BorrowerController extends Controller
 
         $borrower = $this->borrowers->find($id);
         if (!$borrower) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/borrowers');
         }
         $this->assertBranchAccess($borrower);
@@ -795,9 +799,9 @@ class BorrowerController extends Controller
 
         $borrowerName = trim($borrower['first_name'] . ' ' . $borrower['last_name']);
         $company = (new Company())->primary();
-        $brandName = ($company['brand_name'] ?? '') ?: ($company['company_name'] ?? '') ?: 'the borrower portal';
+        $brandName = ($company['brand_name'] ?? '') ?: ($company['company_name'] ?? '') ?: 'the client portal';
         $portalUrl = full_url('/portal/login');
-        $message = "Hello $borrowerName, your $brandName borrower portal login is ready.\n"
+        $message = "Hello $borrowerName, your $brandName client portal login is ready.\n"
             . "Username: $username\nPassword: $tempPassword\nLog in at: $portalUrl";
 
         $deliveryNotes = [];
@@ -813,7 +817,7 @@ class BorrowerController extends Controller
             $deliveryNotes[] = 'no phone or email on file -- nothing could be auto-sent';
         }
 
-        Audit::log('Create', 'Borrower Portal', 'Provisioned/reset portal access for borrower #' . $id . ' (' . implode('; ', $deliveryNotes) . ')');
+        Audit::log('Create', 'Borrower Portal', 'Provisioned/reset portal access for client #' . $id . ' (' . implode('; ', $deliveryNotes) . ')');
         Session::flash('success', "Portal access ready (" . implode('; ', $deliveryNotes) . "). Username: $username / Temporary password: $tempPassword -- shown here as a backup in case delivery failed, it will not be shown again.");
         $this->redirect('/borrowers/' . $id);
     }
@@ -832,7 +836,7 @@ class BorrowerController extends Controller
 
         $borrower = $this->borrowers->find($id);
         if (!$borrower) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/borrowers');
             return;
         }
@@ -840,7 +844,7 @@ class BorrowerController extends Controller
 
         $portalUser = $this->portalUsers->findByBorrower($id);
         if (!$portalUser || !$portalUser['is_active']) {
-            Session::flash('error', 'This borrower does not have active portal access yet. Create portal access first.');
+            Session::flash('error', 'This client does not have active portal access yet. Create portal access first.');
             $this->redirect('/borrowers/' . $id);
             return;
         }
@@ -848,7 +852,7 @@ class BorrowerController extends Controller
         \App\Core\PortalAuth::loginForSupport((int) $portalUser['id']);
 
         $borrowerName = trim($borrower['first_name'] . ' ' . $borrower['last_name']);
-        Audit::log('Impersonate', 'Borrower Portal', 'Logged in to borrower portal for ' . $borrowerName . ' (#' . $id . ') for support');
+        Audit::log('Impersonate', 'Borrower Portal', 'Logged in to client portal for ' . $borrowerName . ' (#' . $id . ') for support');
 
         $this->redirect('/portal/dashboard');
     }
@@ -859,17 +863,34 @@ class BorrowerController extends Controller
         $borrower = $this->borrowers->find((int) $id);
 
         if (!$borrower) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/borrowers');
         }
         $this->assertBranchAccess($borrower);
 
+        $bid = (int) $borrower['id'];
+        $this->renderEdit($borrower, array_merge($borrower, $this->profile->formValues($bid)), $this->profile->contactsForForm($bid), [], $this->profile->loadedContactIdsForForm($bid), $this->profile->versionToken($bid));
+    }
+
+    /**
+     * @param array $values  what the form shows: the stored borrower, the employment/bank values under the form's field names, and (after a
+     *                       failed save) whatever was typed
+     * @param array $contacts the contact rows the form shows (id + fields)
+     * @param string $loadedContactIds comma-separated ids of the contacts the page originally loaded (only those may be deleted on save)
+     * @param string $loadedVersion the client version token the form was built from (kept from the post on a re-render, so a stale form stays stale)
+     */
+    private function renderEdit(array $borrower, array $values, array $contacts, array $errors, string $loadedContactIds, string $loadedVersion): void
+    {
         $scopeBranchId = $this->scopeBranchId();
         $this->view('borrowers/edit', [
-            'title' => 'Edit Borrower',
+            'title' => 'Edit Client',
             'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
-            'borrower' => $borrower,
-            'errors' => [],
+            'borrower' => $values,
+            'contacts' => $contacts,
+            'loadedContactIds' => $loadedContactIds,
+            'loadedVersion' => $loadedVersion,
+            'canEditBank' => Auth::can('borrowers.edit_bank'),
+            'errors' => $errors,
         ]);
     }
 
@@ -885,7 +906,7 @@ class BorrowerController extends Controller
 
         $borrower = $this->borrowers->find($id);
         if (!$borrower) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/borrowers');
         }
         $this->assertBranchAccess($borrower);
@@ -895,61 +916,55 @@ class BorrowerController extends Controller
             $_POST['branch_id'] = $scopeBranchId;
         }
 
-        $errors = $this->validate($_POST);
-        if (trim((string) ($_POST['date_of_birth'] ?? '')) !== '' && trim((string) $_POST['date_of_birth']) !== (string) ($borrower['date_of_birth'] ?? '') && ($dobMsg = \App\Support\DateOfBirth::check($_POST['date_of_birth'])) !== null) {
-            $errors['date_of_birth'] = $dobMsg;
+        // Bank details are behind their own permission. Without it the bank section is neither validated nor saved, and whatever bank
+        // fields a hand-made post carries are dropped so they can never show up as if they were the stored values.
+        $canEditBank = Auth::can('borrowers.edit_bank');
+        $typed = $_POST;
+        if (!$canEditBank) {
+            foreach (array_merge(array_keys(BorrowerProfileService::BANK_TEXT), ['account_type']) as $f) {
+                unset($typed[$f]);
+            }
         }
+        // The version token the form was built from: kept as posted on a re-render, so a stale form can never become "fresh" by failing once.
+        $postedVersion = is_string($_POST['loaded_version'] ?? null) ? $_POST['loaded_version'] : '';
+        $rerender = function (array $errors) use ($id, $borrower, $typed, $postedVersion): void {
+            $this->renderEdit(
+                $borrower,
+                array_merge($borrower, $this->profile->formValues($id), $typed, ['id' => $borrower['id'], 'borrower_no' => $borrower['borrower_no']]),
+                $this->profile->contactsForForm($id, $typed),
+                $errors,
+                $this->profile->loadedContactIdsForForm($id, $typed),
+                $postedVersion
+            );
+        };
 
-        if (!empty($_POST['id_number']) && $this->borrowers->idNumberExists(trim($_POST['id_number']), $id)) {
-            $errors['id_number'] = 'Another borrower already uses this ID number.';
-        }
-
-        if (!empty($_POST['loan_ref_no']) && $this->borrowers->loanRefNoExists(trim($_POST['loan_ref_no']), $id)) {
-            $errors['loan_ref_no'] = 'Another borrower already uses this loan ref no.';
-        }
-
-        if (!empty($errors)) {
-            $this->view('borrowers/edit', [
-                'title' => 'Edit Borrower',
-                'branches' => $scopeBranchId === null ? $this->branches->all() : array_values(array_filter($this->branches->all(), fn($b) => (int) $b['id'] === $scopeBranchId)),
-                'borrower' => array_merge($borrower, $_POST),
-                'errors' => $errors,
-            ]);
+        // Someone else saved this client since the form was opened: refuse, keep what was typed on screen.
+        $stale = $this->profile->staleFormError($_POST, $id);
+        if ($stale !== null) {
+            $rerender(['form' => $stale]);
             return;
         }
 
-        $this->borrowers->updateRecord($id, [
-            'branch_id' => (int) $_POST['branch_id'],
-            'loan_ref_no' => trim($_POST['loan_ref_no'] ?? '') ?: null,
-            'first_name' => trim($_POST['first_name']),
-            'middle_name' => trim($_POST['middle_name'] ?? '') ?: null,
-            'last_name' => trim($_POST['last_name']),
-            'gender' => $_POST['gender'] ?: null,
-            'date_of_birth' => $_POST['date_of_birth'] ?: null,
-            'id_number' => trim($_POST['id_number'] ?? '') ?: null,
-            'phone' => trim($_POST['phone'] ?? '') ?: null,
-            'home_telephone' => trim($_POST['home_telephone'] ?? '') ?: null,
-            'email' => trim($_POST['email'] ?? '') ?: null,
-            'marital_status' => $_POST['marital_status'] ?: null,
-            'nationality' => trim($_POST['nationality'] ?? '') ?: 'Namibian',
-            'status' => $_POST['status'] ?: $borrower['status'],
-            'title' => trim($_POST['title'] ?? '') ?: null,
-            'ownership_type' => $_POST['ownership_type'] ?: '00',
-            'residential_ownership' => $_POST['residential_ownership'] ?: null,
-            'residential_line1' => trim($_POST['residential_line1'] ?? '') ?: null,
-            'residential_line2' => trim($_POST['residential_line2'] ?? '') ?: null,
-            'residential_line3' => trim($_POST['residential_line3'] ?? '') ?: null,
-            'residential_line4' => trim($_POST['residential_line4'] ?? '') ?: null,
-            'residential_postal_code' => trim($_POST['residential_postal_code'] ?? '') ?: null,
-            'postal_line1' => trim($_POST['postal_line1'] ?? '') ?: null,
-            'postal_line2' => trim($_POST['postal_line2'] ?? '') ?: null,
-            'postal_line3' => trim($_POST['postal_line3'] ?? '') ?: null,
-            'postal_line4' => trim($_POST['postal_line4'] ?? '') ?: null,
-            'postal_postal_code' => trim($_POST['postal_postal_code'] ?? '') ?: null,
-        ]);
+        // First name / last name / branch / email here; the date-of-birth rule (only when the DOB changed), ID number and loan ref
+        // uniqueness, passport, employment, bank and contacts in the profile service.
+        $errors = array_merge($this->validate($_POST), $this->profile->validate($_POST, $borrower, $canEditBank));
 
-        Audit::log('Update', 'Borrowers', 'Updated borrower #' . $id);
-        Session::flash('success', 'Borrower updated successfully.');
+        if (!empty($errors)) {
+            $rerender($errors);
+            return;
+        }
+
+        try {
+            $changed = $this->profile->save($id, $borrower, $_POST, $canEditBank);
+        } catch (StaleBorrowerFormException $e) {
+            // changed between the check above and the save (caught under the row lock): nothing was written
+            $rerender(['form' => $e->getMessage()]);
+            return;
+        }
+
+        // Field NAMES only -- never the values (ID numbers, bank accounts, salaries are personal data).
+        Audit::log('Update', 'Borrowers', 'Updated client #' . $id . ($changed ? ' (changed: ' . implode(', ', $changed) . ')' : ' (no changes)'));
+        Session::flash('success', 'Client updated successfully.');
         $this->redirect('/borrowers/' . $id);
     }
 
@@ -966,8 +981,8 @@ class BorrowerController extends Controller
         $this->assertBranchAccess($this->borrowers->find($id));
 
         $this->borrowers->delete($id);
-        Audit::log('Delete', 'Borrowers', 'Deleted borrower #' . $id);
-        Session::flash('success', 'Borrower removed.');
+        Audit::log('Delete', 'Borrowers', 'Deleted client #' . $id);
+        Session::flash('success', 'Client removed.');
         $this->redirect('/borrowers');
     }
 

@@ -7,7 +7,7 @@
     <?php
       $bar = [
           'action' => url('/reschedules'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Reschedule no, loan no or borrower'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Reschedule no, loan no or client'],
           'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Approved', 'Rejected', 'Implemented', 'Cancelled']],
           'date' => ['label' => 'Requested', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
           'amount' => ['label' => 'New installment', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
@@ -23,7 +23,7 @@
       <table class="table table-hover align-middle">
         <thead>
           <tr>
-            <th>Reschedule No</th><th>Loan</th><th>Borrower</th><th>Old Term</th><th>New Term</th><th>New Installment</th><th>Status</th><th>Requested</th><th class="text-end">Action</th>
+            <th>Reschedule No</th><th>Loan</th><th>Client</th><th>Old Term</th><th>New Term</th><th>New Installment</th><th>Status</th><th>Requested</th><th class="text-end">Action</th>
           </tr>
         </thead>
         <tbody>

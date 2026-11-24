@@ -33,7 +33,7 @@ class CollectionsAiCallService
         . 'about loan {{loan_no}}, which is {{days_in_arrears}} days overdue with an outstanding balance of {{outstanding_balance}}. '
         . 'Explain the situation clearly and ask whether they can make a payment, and if so, try to agree a specific date and amount '
         . 'they can commit to. Be respectful and understanding -- never threaten, never raise your voice, never mention this call to '
-        . 'anyone other than the borrower themselves, and never contact them about this at their workplace. If they cannot commit to '
+        . 'anyone other than the client themselves, and never contact them about this at their workplace. If they cannot commit to '
         . 'anything today, thank them for their time and end the call politely.';
 
     /**
@@ -54,7 +54,7 @@ class CollectionsAiCallService
 
         $phone = trim((string) ($loan['borrower_phone'] ?? ''));
         if ($phone === '') {
-            return ['sent' => false, 'note' => 'This borrower has no phone number on file -- call not placed.'];
+            return ['sent' => false, 'note' => 'This client has no phone number on file -- call not placed.'];
         }
 
         $outstanding = ArrearsService::loanOutstanding($loanId, date('Y-m-d'));

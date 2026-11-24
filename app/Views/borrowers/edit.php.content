@@ -1,11 +1,68 @@
 <?= flash_messages() ?>
 
+<?php
+  $contacts = $contacts ?? [];
+  $loadedContactIds = (string) ($loadedContactIds ?? '');
+  $loadedVersion = (string) ($loadedVersion ?? '');
+  $canEditBank = (bool) ($canEditBank ?? true); // false = no borrowers.edit_bank: the bank section is shown read-only and ignored on save
+  $val = static fn (string $k): string => e((string) ($borrower[$k] ?? ''));
+  $err = static function (array $errors, string $k): string {
+    return isset($errors[$k]) ? '<div class="invalid-feedback d-block">' . e($errors[$k]) . '</div>' : '';
+  };
+  $bad = static fn (array $errors, string $k): string => isset($errors[$k]) ? 'is-invalid' : '';
+  // One contact row. $i is the position in the list (NOT the database id); the database id travels in a hidden field.
+  $renderContact = static function ($i, array $c, array $errors): string {
+    $p = 'contacts[' . $i . ']';
+    $ek = 'contacts.' . $i . '.';
+    $typeOptions = '';
+    $types = \App\Services\BorrowerProfileService::CONTACT_TYPES;
+    foreach ($types as $t) {
+      $typeOptions .= '<option value="' . e($t) . '"' . ((($c['contact_type'] ?? 'Next of Kin') === $t) ? ' selected' : '') . '>' . e($t) . '</option>';
+    }
+    $field = static function (string $name, string $label, string $type, string $cols) use ($p, $c, $errors, $ek): string {
+      $bad = isset($errors[$ek . $name]) ? ' is-invalid' : '';
+      $msg = isset($errors[$ek . $name]) ? '<div class="invalid-feedback d-block">' . e($errors[$ek . $name]) . '</div>' : '';
+      $max = (int) (\App\Services\BorrowerProfileService::CONTACT_TEXT[$name] ?? 150);
+      // the address is a TEXT column that may hold several lines: a textarea keeps the line breaks (a one-line input would flatten them)
+      if ($type === 'textarea') {
+        return '<div class="' . $cols . ' mb-3"><label class="form-label">' . $label . '</label>'
+          . '<textarea maxlength="' . $max . '" name="' . $p . '[' . $name . ']" class="form-control' . $bad . '" rows="1">' . e((string) ($c[$name] ?? '')) . '</textarea>' . $msg . '</div>';
+      }
+      return '<div class="' . $cols . ' mb-3"><label class="form-label">' . $label . '</label>'
+        . '<input type="' . ($type === 'email' ? 'text" inputmode="email' : $type) . '" maxlength="' . $max . '" name="' . $p . '[' . $name . ']" class="form-control' . $bad . '" value="' . e((string) ($c[$name] ?? '')) . '">' . $msg . '</div>';
+    };
+    $typeBad = isset($errors[$ek . 'contact_type']) ? ' is-invalid' : '';
+    $typeMsg = isset($errors[$ek . 'contact_type']) ? '<div class="invalid-feedback d-block">' . e($errors[$ek . 'contact_type']) . '</div>' : '';
+    $idMsg = isset($errors[$ek . 'id']) ? '<div class="col-12 text-danger small mb-2">' . e($errors[$ek . 'id']) . '</div>' : '';
+    return '<div class="row contact-row border-top pt-3 mt-2">'
+      . '<input type="hidden" name="' . $p . '[id]" value="' . e((string) ($c['id'] ?? '')) . '">' . $idMsg
+      . '<div class="col-md-2 mb-3"><label class="form-label">Type</label><select name="' . $p . '[contact_type]" class="form-select' . $typeBad . '">' . $typeOptions . '</select>' . $typeMsg . '</div>'
+      . $field('full_name', 'Full Name', 'text', 'col-md-3')
+      . $field('relationship', 'Relationship', 'text', 'col-md-2')
+      . $field('phone', 'Phone', 'text', 'col-md-2')
+      . $field('email', 'Email', 'email', 'col-md-2')
+      . $field('address', 'Address', 'textarea', 'col-md-11')
+      . '<div class="col-md-1 mb-3 d-flex align-items-end"><button type="button" class="btn btn-sm btn-outline-danger remove-contact-btn" title="Remove this contact"><i class="mdi mdi-delete"></i></button></div>'
+      . '</div>';
+  };
+  // a stored value that is not in the standard list (older data) stays selectable, so saving never silently drops it
+  $withCurrent = static function (array $options, string $current): array {
+    return ($current !== '' && !in_array($current, $options, true)) ? array_merge($options, [$current]) : $options;
+  };
+?>
+
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-3">Edit Borrower - <?= e($borrower['borrower_no']) ?></h4>
+    <h4 class="card-title mb-3">Edit Client - <?= e($borrower['borrower_no']) ?></h4>
 
     <form method="post" action="<?= url('/borrowers/' . $borrower['id']) ?>">
       <?= csrf_field() ?>
+      <input type="hidden" name="full_edit" value="1">
+      <input type="hidden" name="loaded_contact_ids" value="<?= e($loadedContactIds) ?>">
+      <input type="hidden" name="loaded_version" value="<?= e($loadedVersion) ?>">
+      <?php if (isset($errors['form'])): ?>
+        <div class="alert alert-danger"><i class="mdi mdi-alert-circle-outline me-1"></i> <?= e($errors['form']) ?></div>
+      <?php endif; ?>
 
       <div class="row">
         <div class="col-md-4 mb-3">
@@ -21,18 +78,19 @@
 
         <div class="col-md-4 mb-3">
           <label class="form-label">First Name <span class="text-danger">*</span></label>
-          <input type="text" name="first_name" class="form-control <?= isset($errors['first_name']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['first_name']) ?>">
+          <input type="text" name="first_name" maxlength="100" class="form-control <?= isset($errors['first_name']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['first_name']) ?>">
           <?php if (isset($errors['first_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['first_name']) ?></div><?php endif; ?>
         </div>
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Middle Name</label>
-          <input type="text" name="middle_name" class="form-control" value="<?= e($borrower['middle_name']) ?>">
+          <input type="text" name="middle_name" maxlength="100" class="form-control" value="<?= e($borrower['middle_name']) ?>">
+          <?= $err($errors, 'middle_name') ?>
         </div>
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Last Name <span class="text-danger">*</span></label>
-          <input type="text" name="last_name" class="form-control <?= isset($errors['last_name']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['last_name']) ?>">
+          <input type="text" name="last_name" maxlength="100" class="form-control <?= isset($errors['last_name']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['last_name']) ?>">
           <?php if (isset($errors['last_name'])): ?><div class="invalid-feedback d-block"><?= e($errors['last_name']) ?></div><?php endif; ?>
         </div>
 
@@ -58,35 +116,44 @@
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Date of Birth</label>
-          <input type="date" name="date_of_birth" class="form-control" value="<?= e($borrower['date_of_birth']) ?>">
+          <input type="date" name="date_of_birth" class="form-control <?= $bad($errors, 'date_of_birth') ?>" value="<?= e($borrower['date_of_birth']) ?>">
+          <?= $err($errors, 'date_of_birth') ?>
         </div>
 
         <div class="col-md-4 mb-3">
           <label class="form-label">ID Number</label>
-          <input type="text" name="id_number" class="form-control <?= isset($errors['id_number']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['id_number']) ?>">
+          <input type="text" name="id_number" maxlength="50" class="form-control <?= isset($errors['id_number']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['id_number']) ?>">
           <?php if (isset($errors['id_number'])): ?><div class="invalid-feedback d-block"><?= e($errors['id_number']) ?></div><?php endif; ?>
         </div>
 
         <div class="col-md-4 mb-3">
+          <label class="form-label">Passport No</label>
+          <input type="text" name="passport_no" maxlength="50" class="form-control <?= $bad($errors, 'passport_no') ?>" value="<?= $val('passport_no') ?>">
+          <?= $err($errors, 'passport_no') ?>
+        </div>
+
+        <div class="col-md-4 mb-3">
           <label class="form-label">Loan Ref No</label>
-          <input type="text" name="loan_ref_no" placeholder="SDLOAN000..." class="form-control <?= isset($errors['loan_ref_no']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['loan_ref_no']) ?>">
+          <input type="text" name="loan_ref_no" maxlength="30" placeholder="SDLOAN000..." class="form-control <?= isset($errors['loan_ref_no']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['loan_ref_no']) ?>">
           <div class="form-text">The client's own reference number -- this is what Collexia recognizes for this client.</div>
           <?php if (isset($errors['loan_ref_no'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_ref_no']) ?></div><?php endif; ?>
         </div>
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Phone</label>
-          <input type="text" name="phone" class="form-control" value="<?= e($borrower['phone']) ?>">
+          <input type="text" name="phone" maxlength="50" class="form-control" value="<?= e($borrower['phone']) ?>">
+          <?= $err($errors, 'phone') ?>
         </div>
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Home Telephone <span class="text-muted small">(optional)</span></label>
-          <input type="text" name="home_telephone" class="form-control" value="<?= e($borrower['home_telephone'] ?? '') ?>">
+          <input type="text" name="home_telephone" maxlength="20" class="form-control" value="<?= e($borrower['home_telephone'] ?? '') ?>">
+          <?= $err($errors, 'home_telephone') ?>
         </div>
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['email']) ?>">
+          <input type="email" name="email" maxlength="150" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>" value="<?= e($borrower['email']) ?>">
           <?php if (isset($errors['email'])): ?><div class="invalid-feedback d-block"><?= e($errors['email']) ?></div><?php endif; ?>
         </div>
 
@@ -102,7 +169,8 @@
 
         <div class="col-md-4 mb-3">
           <label class="form-label">Nationality</label>
-          <input type="text" name="nationality" class="form-control" value="<?= e($borrower['nationality']) ?>">
+          <input type="text" name="nationality" maxlength="100" class="form-control" value="<?= e($borrower['nationality']) ?>">
+          <?= $err($errors, 'nationality') ?>
         </div>
 
         <div class="col-md-4 mb-3">
@@ -181,8 +249,182 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Update Borrower</button>
+      <hr>
+      <div class="fw-semibold mb-2"><i class="mdi mdi-briefcase me-1"></i> Current Employment</div>
+      <p class="text-muted small">Changes update the current employment record; earlier employment history is kept. Clearing every field here ends the current employment.</p>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employer Name</label>
+          <input type="text" name="employer_name" maxlength="150" class="form-control <?= $bad($errors, 'employer_name') ?>" value="<?= $val('employer_name') ?>">
+          <?= $err($errors, 'employer_name') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employee No</label>
+          <input type="text" name="employee_no" maxlength="100" class="form-control <?= $bad($errors, 'employee_no') ?>" value="<?= $val('employee_no') ?>">
+          <?= $err($errors, 'employee_no') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Job Title</label>
+          <input type="text" name="job_title" maxlength="150" class="form-control <?= $bad($errors, 'job_title') ?>" value="<?= $val('job_title') ?>">
+          <?= $err($errors, 'job_title') ?>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employment Type</label>
+          <select name="employment_type" class="form-select <?= $bad($errors, 'employment_type') ?>">
+            <option value="">Select</option>
+            <?php foreach ($withCurrent(\App\Services\BorrowerProfileService::EMPLOYMENT_TYPES, (string) ($borrower['employment_type'] ?? '')) as $t): ?>
+              <option value="<?= e($t) ?>" <?= (($borrower['employment_type'] ?? '') === $t) ? 'selected' : '' ?>><?= e($t) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?= $err($errors, 'employment_type') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employment Start Date</label>
+          <input type="date" name="employment_start_date" class="form-control <?= $bad($errors, 'employment_start_date') ?>" value="<?= $val('employment_start_date') ?>">
+          <?= $err($errors, 'employment_start_date') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Salary Payment Day</label>
+          <input type="number" min="1" max="31" name="employment_payment_day" class="form-control <?= $bad($errors, 'employment_payment_day') ?>" value="<?= $val('employment_payment_day') ?>">
+          <?= $err($errors, 'employment_payment_day') ?>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Gross Salary</label>
+          <input type="number" step="0.01" min="0" name="gross_salary" class="form-control <?= $bad($errors, 'gross_salary') ?>" value="<?= $val('gross_salary') ?>">
+          <?= $err($errors, 'gross_salary') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Net Salary</label>
+          <input type="number" step="0.01" min="0" name="net_salary" class="form-control <?= $bad($errors, 'net_salary') ?>" value="<?= $val('net_salary') ?>">
+          <?= $err($errors, 'net_salary') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Income Frequency</label>
+          <select name="income_frequency" class="form-select <?= $bad($errors, 'income_frequency') ?>">
+            <option value="">Select</option>
+            <?php foreach (\App\Services\BorrowerProfileService::INCOME_FREQUENCIES as $code => $label): ?>
+              <option value="<?= $code ?>" <?= (($borrower['income_frequency'] ?? '') === (string) $code) ? 'selected' : '' ?>><?= $label ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?= $err($errors, 'income_frequency') ?>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employer Phone</label>
+          <input type="text" name="employer_phone" maxlength="50" class="form-control <?= $bad($errors, 'employer_phone') ?>" value="<?= $val('employer_phone') ?>">
+          <?= $err($errors, 'employer_phone') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employer Email</label>
+          <input type="text" inputmode="email" name="employer_email" maxlength="150" class="form-control <?= $bad($errors, 'employer_email') ?>" value="<?= $val('employer_email') ?>">
+          <?= $err($errors, 'employer_email') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Employer Address</label>
+          <textarea name="employer_address" class="form-control <?= $bad($errors, 'employer_address') ?>" rows="1"><?= $val('employer_address') ?></textarea>
+          <?= $err($errors, 'employer_address') ?>
+        </div>
+      </div>
+
+      <hr>
+      <div class="fw-semibold mb-2"><i class="mdi mdi-bank me-1"></i> Primary Bank Details</div>
+      <?php if (!$canEditBank): ?>
+        <p class="text-muted small"><i class="mdi mdi-lock-outline me-1"></i> You can see the bank details but not change them: changing bank details needs the "Edit Client Bank Details" permission.</p>
+        <div class="row">
+          <?php foreach ([['Bank Name', 'bank_name'], ['Account Name', 'account_name'], ['Account Number', 'account_number'], ['Account Type', 'account_type'], ['Bank Branch Name', 'bank_branch_name'], ['Bank Branch Code', 'bank_branch_code']] as [$bankLabel, $bankField]): ?>
+            <div class="col-md-4 mb-3">
+              <label class="form-label"><?= e($bankLabel) ?></label>
+              <input type="text" class="form-control" value="<?= $val($bankField) ?>" readonly disabled>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php else: ?>
+      <p class="text-muted small">The bank account used for disbursements and debit orders. Clearing every field here removes the primary bank record.</p>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank Name</label>
+          <input type="text" name="bank_name" maxlength="150" class="form-control <?= $bad($errors, 'bank_name') ?>" value="<?= $val('bank_name') ?>">
+          <?= $err($errors, 'bank_name') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Name</label>
+          <input type="text" name="account_name" maxlength="150" class="form-control <?= $bad($errors, 'account_name') ?>" value="<?= $val('account_name') ?>">
+          <?= $err($errors, 'account_name') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Number</label>
+          <input type="text" name="account_number" maxlength="100" class="form-control <?= $bad($errors, 'account_number') ?>" value="<?= $val('account_number') ?>">
+          <?= $err($errors, 'account_number') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Account Type</label>
+          <select name="account_type" class="form-select <?= $bad($errors, 'account_type') ?>">
+            <option value="">Select</option>
+            <?php foreach ($withCurrent(\App\Services\BorrowerProfileService::ACCOUNT_TYPES, (string) ($borrower['account_type'] ?? '')) as $t): ?>
+              <option value="<?= e($t) ?>" <?= (($borrower['account_type'] ?? '') === $t) ? 'selected' : '' ?>><?= e($t) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?= $err($errors, 'account_type') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank Branch Name</label>
+          <input type="text" name="bank_branch_name" maxlength="150" class="form-control <?= $bad($errors, 'bank_branch_name') ?>" value="<?= $val('bank_branch_name') ?>">
+          <?= $err($errors, 'bank_branch_name') ?>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Bank Branch Code</label>
+          <input type="text" name="bank_branch_code" maxlength="50" class="form-control <?= $bad($errors, 'bank_branch_code') ?>" value="<?= $val('bank_branch_code') ?>">
+          <?= $err($errors, 'bank_branch_code') ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <hr>
+      <div class="fw-semibold mb-2"><i class="mdi mdi-account-multiple me-1"></i> Next of Kin / Contacts</div>
+      <p class="text-muted small">Next of kin, guarantors or emergency contacts. Use the bin button to remove a contact; the change is saved when you press Update Client.</p>
+      <?= $err($errors, 'contacts') ?>
+      <div id="contacts-container">
+        <?php foreach ($contacts as $i => $c): ?>
+          <?= $renderContact($i, $c, $errors) ?>
+        <?php endforeach; ?>
+      </div>
+      <button type="button" id="add-contact-btn" class="btn btn-sm btn-outline-info mb-4">
+        <i class="mdi mdi-plus"></i> Add Contact
+      </button>
+
+      <button type="submit" class="btn btn-info waves-effect waves-light"><i class="mdi mdi-content-save"></i> Update Client</button>
       <a href="<?= url('/borrowers/' . $borrower['id']) ?>" class="btn btn-outline-secondary">Cancel</a>
     </form>
   </div>
 </div>
+
+<template id="contact-row-template">
+  <?= $renderContact('__INDEX__', ['id' => '', 'contact_type' => 'Next of Kin'], []) ?>
+</template>
+
+<script>
+(function () {
+  var container = document.getElementById('contacts-container');
+  var template = document.getElementById('contact-row-template');
+  var addBtn = document.getElementById('add-contact-btn');
+  var index = container.querySelectorAll('.contact-row').length;
+
+  function wire(row) {
+    row.querySelector('.remove-contact-btn').addEventListener('click', function () { row.remove(); });
+  }
+
+  container.querySelectorAll('.contact-row').forEach(wire);
+
+  addBtn.addEventListener('click', function () {
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = template.innerHTML.replace(/__INDEX__/g, index);
+    var row = wrapper.firstElementChild;
+    wire(row);
+    container.appendChild(row);
+    if (typeof window.initSelect2 === 'function') { window.initSelect2(row); }
+    index++;
+  });
+})();
+</script>

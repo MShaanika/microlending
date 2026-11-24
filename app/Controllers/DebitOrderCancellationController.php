@@ -69,7 +69,7 @@ class DebitOrderCancellationController extends Controller
         $cancellations = $this->cancellations->paginated($status, $this->indexBranchId(), $filter['q'], $filter, $limit);
 
         if ($filter['export']) {
-            $this->exportList('Debit order cancellations', 'debit_order_cancellations', ['Cancellation No', 'Borrower', 'Loan', 'Amount', 'Status', 'Requested'], array_map(static fn ($c) => [
+            $this->exportList('Debit order cancellations', 'debit_order_cancellations', ['Cancellation No', 'Client', 'Loan', 'Amount', 'Status', 'Requested'], array_map(static fn ($c) => [
                 $c['cancellation_no'], $c['borrower_name'], $c['loan_no'], number_format((float) $c['amount_cancelled'], 2, '.', ''), $c['status'], substr((string) $c['created_at'], 0, 10),
             ], $cancellations), $filter);
         }
@@ -139,7 +139,7 @@ class DebitOrderCancellationController extends Controller
             $errors['reason'] = 'A reason is required.';
         }
         if (!$debitOrder && empty($_POST['borrower_id'])) {
-            $errors['borrower_id'] = 'Select a borrower or link an existing debit order.';
+            $errors['borrower_id'] = 'Select a client or link an existing debit order.';
         }
 
         if (!empty($errors)) {

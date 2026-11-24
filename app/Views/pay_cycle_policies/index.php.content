@@ -3,12 +3,12 @@
 <div class="card mb-3">
   <div class="card-body">
     <h4 class="card-title mb-2">Pay-Cycle Policies</h4>
-    <p class="text-muted small">An employer-level template -- assign it to an employer once below, and every borrower currently captured under that employer inherits it automatically. Never inferred from the employer's name.</p>
+    <p class="text-muted small">An employer-level template -- assign it to an employer once below, and every client currently captured under that employer inherits it automatically. Never inferred from the employer's name.</p>
 
     <div class="table-responsive mb-3">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Policy</th><th>Normal Pay Day</th><th>Non-Business-Day Rule</th><th>Employers</th><th>Borrowers (direct)</th><th>Status</th></tr>
+          <tr><th>Policy</th><th>Normal Pay Day</th><th>Non-Business-Day Rule</th><th>Employers</th><th>Clients (direct)</th><th>Status</th></tr>
         </thead>
         <tbody>
           <?php if (empty($policies)): ?>
@@ -84,7 +84,7 @@
 <div class="card">
   <div class="card-body">
     <h5 class="card-title">Employer &rarr; Policy Mapping</h5>
-    <p class="text-muted small">Exact employer name match only -- pick from employer names already captured on borrower records, never a typed guess.</p>
+    <p class="text-muted small">Exact employer name match only -- pick from employer names already captured on client records, never a typed guess.</p>
 
     <div class="table-responsive mb-3">
       <table class="table table-hover align-middle">

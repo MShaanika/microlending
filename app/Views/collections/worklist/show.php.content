@@ -11,7 +11,7 @@
         <?php if (!empty($aiVoiceEnabled) && !empty($loan['borrower_phone'])): ?>
           <form method="post" action="<?= url('/collections/worklist/' . $loan['id'] . '/ai-call') ?>" onsubmit="return confirmSubmit(this, 'Place an AI call to ' + <?= json_encode($loan['borrower_name']) ?> + ' now?');">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-robot-outline"></i> Call Borrower (AI)</button>
+            <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-robot-outline"></i> Call Client (AI)</button>
           </form>
         <?php endif; ?>
         <a href="<?= url('/collections/worklist') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-arrow-left"></i> Back to Worklist</a>

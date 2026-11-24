@@ -62,7 +62,7 @@ $statusBadge = [
         <div class="form-text">
           Leave off until Collexia confirms this specific environment actually validates them -- 2026-10-16: sandbox
           rejected <code>dateOfBirth</code> outright ("9404 Unexpected field in input") and every mandate placement
-          for a borrower with a date of birth on file failed, split or not. Off falls back cleanly to the plain V3
+          for a client with a date of birth on file failed, split or not. Off falls back cleanly to the plain V3
           mandate body.
         </div>
       </div>
@@ -152,7 +152,7 @@ $statusBadge = [
       <hr>
       <h5 class="mb-1">EnCr &mdash; Enhanced Credit (loan payouts)</h5>
       <p class="text-muted small mb-3">
-        An optional way to pay a released loan out to the borrower's bank through Collexia instead of by hand. Uses the same
+        An optional way to pay a released loan out to the client's bank through Collexia instead of by hand. Uses the same
         host and credentials as EnDO above, so EnDO must be enabled too. <strong>While this is switched off (the default),
         loans are disbursed exactly as before</strong> and the Release form shows no EnCr option. Even when it is on, EnCr is
         a tick-box on each release, so any single loan can still be paid the usual way.

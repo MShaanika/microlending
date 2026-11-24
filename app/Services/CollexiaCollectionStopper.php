@@ -125,7 +125,7 @@ class CollexiaCollectionStopper
                     continue;
                 }
                 if ($a['status'] !== 1 || $a['date'] <= $stopAfter) {
-                    $out['messages'][] = $t['label'] . ': the ' . date('d M Y', strtotime($a['date'])) . ' collection can no longer be stopped (Collexia status ' . $a['status'] . '). If the borrower is debited, refund the overpayment.';
+                    $out['messages'][] = $t['label'] . ': the ' . date('d M Y', strtotime($a['date'])) . ' collection can no longer be stopped (Collexia status ' . $a['status'] . '). If the client is debited, refund the overpayment.';
                     continue;
                 }
                 try {

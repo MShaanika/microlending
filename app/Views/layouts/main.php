@@ -339,15 +339,15 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
           // removing), not because the routes/permissions changed.
           $menus = [
             'Lending' => ['icon' => 'mdi-cash-multiple', 'groups' => [
-              'Borrowers' => ['items' => [
-                ['label' => 'Borrower List', 'url' => url('/borrowers'), 'perm' => 'borrowers.view'],
+              'Clients' => ['items' => [
+                ['label' => 'Client List', 'url' => url('/borrowers'), 'perm' => 'borrowers.view'],
               ]],
               'Applications' => ['items' => [
                 ['label' => 'All Applications', 'url' => url('/applications'), 'perm' => 'applications.view'],
                 ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view'],
                 ['label' => 'Screening', 'url' => url('/applications?status=Screening'), 'perm' => 'applications.view'],
                 ['label' => 'Rejected Applications', 'url' => url('/applications?status=Rejected'), 'perm' => 'applications.view'],
-                ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view_submitted'],
+                ['label' => 'New Applications', 'url' => url('/applications?status=Submitted'), 'perm' => 'applications.view_submitted', 'unless' => 'applications.view'],
               ]],
               'Loans' => ['items' => [
                 ['label' => 'Loan List', 'url' => url('/loans'), 'perm' => 'loans.view'],
@@ -693,7 +693,7 @@ $footerTagline = $company['footer_tagline'] ?? 'Your trusted Loan Manager';
             foreach ($menu['groups'] as $groupName => $group) {
               $menus[$menuName]['groups'][$groupName]['items'] = array_values(array_filter(
                   $group['items'],
-                  fn ($item) => Auth::can($item['perm']) && !\App\Support\DemoMode::isPathHidden((string) parse_url($item['url'] ?? '', PHP_URL_PATH))
+                  fn ($item) => Auth::can($item['perm']) && !(isset($item['unless']) && Auth::can($item['unless'])) && !\App\Support\DemoMode::isPathHidden((string) parse_url($item['url'] ?? '', PHP_URL_PATH))
               ));
               if (empty($menus[$menuName]['groups'][$groupName]['items'])) {
                   unset($menus[$menuName]['groups'][$groupName]);

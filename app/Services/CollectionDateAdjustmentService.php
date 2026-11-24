@@ -432,7 +432,7 @@ class CollectionDateAdjustmentService
             $dayName,
             $direction,
             $adjusted->format('d M Y'),
-            $source === 'EMPLOYER_POLICY' ? 'the employer pay-cycle policy' : ($source === 'BORROWER_OVERRIDE' ? 'this borrower\'s override' : 'the assigned policy')
+            $source === 'EMPLOYER_POLICY' ? 'the employer pay-cycle policy' : ($source === 'BORROWER_OVERRIDE' ? 'this client\'s override' : 'the assigned policy')
         );
     }
 }

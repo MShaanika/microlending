@@ -43,7 +43,7 @@
       <table class="table table-hover align-middle">
         <thead>
           <tr>
-            <th>Debit Order No</th><th>Loan</th><th>Borrower</th><th>Bank</th><th>Amount</th>
+            <th>Debit Order No</th><th>Loan</th><th>Client</th><th>Bank</th><th>Amount</th>
             <th>Client No</th><th>Contract Reference</th><th>Merchant System Contract No</th><th>API Status</th>
             <th>Status</th><th>Created</th><th class="text-end">Action</th>
           </tr>

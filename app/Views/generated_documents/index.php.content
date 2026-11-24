@@ -11,7 +11,7 @@
     <?php
       $bar = [
           'action' => url('/generated-documents'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Document no, title or borrower'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Document no, title or client'],
           'status' => ['value' => $status ?? '', 'options' => ['Draft', 'Generated', 'Sent', 'Signed', 'Cancelled']],
           'selects' => [['name' => 'source_module', 'label' => 'Source', 'all' => 'All Sources', 'value' => $sourceModule ?? '', 'options' => array_combine($sourceModules ?? [], $sourceModules ?? [])]],
           'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
@@ -47,7 +47,7 @@
               <td><span class="badge bg-secondary"><?= e($d['source_module']) ?: 'n/a' ?></span></td>
               <td>
                 <?php if ($d['borrower_id']): ?>
-                  <a href="<?= url('/borrowers/' . $d['borrower_id']) ?>"><?= e($d['borrower_name']) ?: 'Borrower #' . $d['borrower_id'] ?></a>
+                  <a href="<?= url('/borrowers/' . $d['borrower_id']) ?>"><?= e($d['borrower_name']) ?: 'Client #' . $d['borrower_id'] ?></a>
                 <?php elseif ($d['loan_id']): ?>
                   <a href="<?= url('/loans/' . $d['loan_id']) ?>">Loan #<?= (int) $d['loan_id'] ?></a>
                 <?php else: ?>

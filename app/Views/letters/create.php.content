@@ -8,7 +8,7 @@ $arrearsLoans = array_filter($loans, fn ($l) => !empty($l['is_in_arrears']));
 <div class="card">
   <div class="card-body">
     <h4 class="card-title mb-1">Generate Letter</h4>
-    <p class="text-muted mb-3">Start a letter directly, without waiting for the borrower to request one via their portal. Generates automatically from the loan/borrower data where a template is configured.</p>
+    <p class="text-muted mb-3">Start a letter directly, without waiting for the client to request one via their portal. Generates automatically from the loan/client data where a template is configured.</p>
 
     <form method="post" action="<?= url('/letters') ?>">
       <?= csrf_field() ?>
@@ -57,7 +57,7 @@ $arrearsLoans = array_filter($loans, fn ($l) => !empty($l['is_in_arrears']));
             </div>
             <div class="form-check">
               <input class="form-check-input" type="radio" name="consolidation_scope" id="scope-all" value="all">
-              <label class="form-check-label" for="scope-all">All of a Borrower's Loans</label>
+              <label class="form-check-label" for="scope-all">All of a Client's Loans</label>
             </div>
           </div>
         </div>
@@ -72,9 +72,9 @@ $arrearsLoans = array_filter($loans, fn ($l) => !empty($l['is_in_arrears']));
           <?php if (isset($errors['loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_id']) ?></div><?php endif; ?>
         </div>
         <div class="mb-3" id="consolidation-borrower-wrap" style="display:none;">
-          <label class="form-label">Borrower <span class="text-danger">*</span></label>
+          <label class="form-label">Client <span class="text-danger">*</span></label>
           <select name="borrower_id" class="form-select <?= isset($errors['borrower_id']) ? 'is-invalid' : '' ?>">
-            <option value="">Select borrower</option>
+            <option value="">Select client</option>
             <?php foreach ($borrowers as $b): ?>
               <option value="<?= (int) $b['id'] ?>"><?= e($b['first_name'] . ' ' . $b['last_name']) ?> (<?= e($b['borrower_no']) ?>)</option>
             <?php endforeach; ?>

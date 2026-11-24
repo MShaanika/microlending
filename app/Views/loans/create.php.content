@@ -28,9 +28,9 @@
         </div>
 
         <div class="col-md-6 mb-3">
-          <label class="form-label">Borrower <span class="text-danger">*</span></label>
+          <label class="form-label">Client <span class="text-danger">*</span></label>
           <select name="borrower_id" id="borrower_id" class="form-select <?= isset($errors['borrower_id']) ? 'is-invalid' : '' ?>">
-            <option value="">Select borrower</option>
+            <option value="">Select client</option>
             <?php foreach ($borrowers as $b): ?>
               <option value="<?= $b['id'] ?>" <?= ((int) ($old['borrower_id'] ?? $preselected_borrower_id)) === (int) $b['id'] ? 'selected' : '' ?>>
                 <?= e($b['borrower_no'] . (!empty($b['loan_ref_no']) ? ' / ' . $b['loan_ref_no'] : '') . ' - ' . $b['first_name'] . ' ' . $b['last_name']) ?>
@@ -42,7 +42,7 @@
 
         <div class="col-md-6 mb-3">
           <label class="form-label">Loan Ref No</label>
-          <input type="text" name="loan_ref_no" id="loan_ref_no" placeholder="Select a borrower first" class="form-control <?= isset($errors['loan_ref_no']) ? 'is-invalid' : '' ?>" value="<?= old('loan_ref_no', $old) ?>">
+          <input type="text" name="loan_ref_no" id="loan_ref_no" placeholder="Select a client first" class="form-control <?= isset($errors['loan_ref_no']) ? 'is-invalid' : '' ?>" value="<?= old('loan_ref_no', $old) ?>">
           <div id="loan_ref_no_hint" class="form-text"></div>
           <?php if (isset($errors['loan_ref_no'])): ?><div class="invalid-feedback d-block"><?= e($errors['loan_ref_no']) ?></div><?php endif; ?>
         </div>
@@ -50,7 +50,7 @@
         <div class="col-md-6 mb-3 topup-only" style="display:none;">
           <label class="form-label">Existing Active Loan <span class="text-danger">*</span></label>
           <select name="existing_loan_id" id="existing_loan_id" class="form-select <?= isset($errors['existing_loan_id']) ? 'is-invalid' : '' ?>">
-            <option value="">Select borrower first</option>
+            <option value="">Select client first</option>
           </select>
           <div id="existing_loan_hint" class="form-text"></div>
           <?php if (isset($errors['existing_loan_id'])): ?><div class="invalid-feedback d-block"><?= e($errors['existing_loan_id']) ?></div><?php endif; ?>
@@ -122,7 +122,7 @@
           <label class="form-label">First Payment Due Date</label>
           <input type="date" name="first_due_date" id="first_due_date" class="form-control" value="<?= old('first_due_date', $old, date('Y-m-d')) ?>">
           <div class="form-text text-warning fw-semibold d-none" id="first_due_warning" role="alert"></div>
-          <div class="form-text">Defaults to Start Date (no automatic grace period) -- change it if the borrower's first payment should fall later. Every installment after the first is spaced a month apart from here.</div>
+          <div class="form-text">Defaults to Start Date (no automatic grace period) -- change it if the client's first payment should fall later. Every installment after the first is spaced a month apart from here.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label">Payment Day (1-31)</label>
@@ -233,7 +233,7 @@
     var loans = activeLoansByBorrower[borrowerSelect.value] || [];
     existingLoanSelect.innerHTML = '';
     if (!loans.length) {
-      existingLoanSelect.innerHTML = '<option value="">No active loans for this borrower</option>';
+      existingLoanSelect.innerHTML = '<option value="">No active loans for this client</option>';
       existingLoanHint.textContent = '';
       notifySelect2(existingLoanSelect);
       renderTopupCard();
@@ -313,17 +313,17 @@
     if (!borrowerSelect.value) {
       loanRefNoInput.value = '';
       loanRefNoInput.readOnly = false;
-      loanRefNoInput.placeholder = 'Select a borrower first';
+      loanRefNoInput.placeholder = 'Select a client first';
       loanRefNoHint.textContent = '';
     } else if (existing) {
       loanRefNoInput.value = existing;
       loanRefNoInput.readOnly = true;
-      loanRefNoHint.textContent = 'Already on file for this borrower -- reused automatically.';
+      loanRefNoHint.textContent = 'Already on file for this client -- reused automatically.';
     } else {
       loanRefNoInput.value = selectedLoanRefNo;
       loanRefNoInput.readOnly = false;
       loanRefNoInput.placeholder = 'SDLOAN000...';
-      loanRefNoHint.textContent = "This borrower doesn't have one on file yet -- enter it if the client has one.";
+      loanRefNoHint.textContent = "This client doesn't have one on file yet -- enter it if the client has one.";
     }
   }
 
@@ -372,7 +372,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     jQuery('#borrower_id').select2({
       width: '100%',
-      placeholder: 'Select borrower',
+      placeholder: 'Select client',
       allowClear: true,
     });
     // select2 changes the value via jQuery's synthetic trigger('change'), which

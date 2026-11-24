@@ -135,7 +135,7 @@ $withLead = count(array_filter($fixRows, static fn (array $r): bool => $r['confi
 // Staff list 2: about 30 accounts to compare with the old system's own screens.
 $sample = (new LegacySpotCheck())->sample($result['details'], 30, $asOf);
 $spot = fopen($dir . '/spot_check.csv', 'w');
-fputcsv($spot, ['loan_id', 'loan reference (find it in the old system)', 'borrower', 'type in file', 'amount lent', 'total owed at start', 'paid up to month end', 'opening balance', 'current balance', 'amount overdue', 'months in arrears', 'instalment', 'last payment', 'matches the old system? (yes/no)']);
+fputcsv($spot, ['loan_id', 'loan reference (find it in the old system)', 'client', 'type in file', 'amount lent', 'total owed at start', 'paid up to month end', 'opening balance', 'current balance', 'amount overdue', 'months in arrears', 'instalment', 'last payment', 'matches the old system? (yes/no)']);
 foreach ($sample as $d) {
     fputcsv($spot, [$d['loan_id'], $d['ref_no'], $d['borrower_name'], $d['kind'], $d['amount_lent'], $d['total_owed_at_start'], $d['paid'], $d['opening_balance'], $d['current_balance'], $d['amount_overdue'], $d['months_in_arrears'], $d['instalment'], $d['last_payment'], '']);
 }

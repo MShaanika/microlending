@@ -48,13 +48,13 @@ class CreditinfoDisputeController extends Controller
         $borrowerId = (int) ($_POST['borrower_id'] ?? 0);
         $borrower = $this->borrowers->find($borrowerId);
         if (!$borrower) {
-            Session::flash('error', 'Borrower not found.');
+            Session::flash('error', 'Client not found.');
             $this->redirect('/creditinfo/disputes');
             return;
         }
 
         if ($this->disputes->hasOpenDispute($borrowerId)) {
-            Session::flash('error', 'This borrower already has an open dispute on record.');
+            Session::flash('error', 'This client already has an open dispute on record.');
             $this->redirect('/creditinfo/disputes');
             return;
         }
@@ -69,8 +69,8 @@ class CreditinfoDisputeController extends Controller
             'recorded_by' => $userId,
         ]);
 
-        Audit::log('Create', 'Creditinfo', 'Opened Creditinfo dispute #' . $id . ' for borrower #' . $borrowerId);
-        Session::flash('success', 'Dispute recorded. New Public Default listings for this borrower are now blocked until it is resolved.');
+        Audit::log('Create', 'Creditinfo', 'Opened Creditinfo dispute #' . $id . ' for client #' . $borrowerId);
+        Session::flash('success', 'Dispute recorded. New Public Default listings for this client are now blocked until it is resolved.');
         $this->redirect('/creditinfo/disputes');
     }
 

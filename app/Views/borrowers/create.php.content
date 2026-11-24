@@ -13,7 +13,7 @@
 
 <div class="card">
   <div class="card-body">
-    <h4 class="card-title mb-1">Add Borrower</h4>
+    <h4 class="card-title mb-1">Add Client</h4>
 
     <div class="mb-3">
       <label class="form-label d-block">Is this a new or existing client? <span class="text-danger">*</span></label>
@@ -34,7 +34,7 @@
       <input type="hidden" name="client_mode" id="client_mode_field" value="<?= e($old['client_mode'] ?? 'new') ?>">
 
       <div id="existing-client-wrap" class="mb-3" style="display:none;">
-        <label class="form-label">Select Borrower <span class="text-danger">*</span></label>
+        <label class="form-label">Select Client <span class="text-danger">*</span></label>
         <!--
           No `required` here -- Select2 (applied sitewide to every <select>)
           hides the real element (tabindex="-1", visually replaced by its
@@ -49,7 +49,7 @@
           rejects an empty/invalid selection server-side regardless.
         -->
         <select name="existing_borrower_id" data-js-required="1" class="form-select <?= isset($errors['existing_borrower_id']) ? 'is-invalid' : '' ?>">
-          <option value="">Select borrower</option>
+          <option value="">Select client</option>
           <?php foreach ($existingBorrowers as $b): ?>
             <option value="<?= (int) $b['id'] ?>" <?= (($old['existing_borrower_id'] ?? '') == $b['id']) ? 'selected' : '' ?>>
               <?= e($b['borrower_no'] . ' - ' . $b['first_name'] . ' ' . $b['last_name']) ?>
@@ -602,7 +602,7 @@
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <button type="button" id="bw-back" class="btn btn-outline-secondary"><i class="mdi mdi-chevron-left"></i> Back</button>
         <button type="button" id="bw-next" class="btn btn-info">Next <i class="mdi mdi-chevron-right"></i></button>
-        <button type="submit" id="bw-save" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Borrower</button>
+        <button type="submit" id="bw-save" class="btn btn-success waves-effect waves-light"><i class="mdi mdi-content-save"></i> Save Client</button>
         <a href="<?= url('/borrowers') ?>" class="btn btn-outline-secondary ms-auto">Cancel</a>
       </div>
       <div id="bw-step-hint" class="small text-danger mt-2"></div>

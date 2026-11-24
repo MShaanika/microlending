@@ -7,7 +7,7 @@
     <table class="table table-borderless" style="max-width: 560px;">
       <tbody>
         <tr><td class="text-muted" style="width:200px;">Reference</td><td><?= e($pd['listing_reference']) ?></td></tr>
-        <tr><td class="text-muted">Borrower</td><td><?= e($pd['borrower_name']) ?></td></tr>
+        <tr><td class="text-muted">Client</td><td><?= e($pd['borrower_name']) ?></td></tr>
         <tr><td class="text-muted">Loan</td><td><?= e($pd['loan_no']) ?></td></tr>
         <tr><td class="text-muted">Current Status</td><td><span class="badge bg-secondary"><?= e($pd['status']) ?></span></td></tr>
       </tbody>

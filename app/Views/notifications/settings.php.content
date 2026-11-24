@@ -121,7 +121,7 @@
           <h4 class="card-title mb-0">AI Voice Calls</h4>
           <span class="badge bg-<?= $voiceConfigured ? 'success' : 'secondary' ?>"><?= $voiceConfigured ? 'Configured' : 'Not Configured' ?></span>
         </div>
-        <p class="text-muted small">Lets staff trigger a real AI phone conversation with a borrower from the Collections Worklist. Pick whichever provider you've signed up with below -- only the section for your chosen provider needs to be filled in.</p>
+        <p class="text-muted small">Lets staff trigger a real AI phone conversation with a client from the Collections Worklist. Pick whichever provider you've signed up with below -- only the section for your chosen provider needs to be filled in.</p>
 
         <form method="post" action="<?= url('/notifications/settings/voice') ?>" class="row g-2 mb-3">
           <?= csrf_field() ?>
@@ -164,7 +164,7 @@
           <div class="col-12">
             <label class="form-label small mb-0">Call Script (agent instructions)</label>
             <textarea name="ai_voice_script" class="form-control form-control-sm" rows="4" placeholder="Leave blank to use the built-in default collections script"><?= e($voice['AI_VOICE_SCRIPT'] ?? '') ?></textarea>
-            <small class="text-muted">Supports the same <code>{{merge_field}}</code> placeholders as SMS/email templates -- available: borrower_name, loan_no, days_in_arrears, outstanding_balance, company_name. Keep it respectful: no threats, no mention of the debt to anyone but the borrower, and never reference contacting them at work -- these reflect the debt-collection conduct rules that already apply.</small>
+            <small class="text-muted">Supports the same <code>{{merge_field}}</code> placeholders as SMS/email templates -- available: borrower_name, loan_no, days_in_arrears, outstanding_balance, company_name. Keep it respectful: no threats, no mention of the debt to anyone but the client, and never reference contacting them at work -- these reflect the debt-collection conduct rules that already apply.</small>
           </div>
 
           <div class="col-12"><hr class="my-1"><strong class="small text-muted">If using Retell AI</strong></div>

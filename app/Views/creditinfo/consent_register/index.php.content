@@ -3,11 +3,11 @@
 <div class="card">
   <div class="card-body">
     <h4 class="card-title">Creditinfo Consent Register</h4>
-    <p class="text-muted small">CBS credit check consent only, recorded from the application screen. Read-only. Public Defaults does not write here -- its own borrower notice/evidence is recorded per default on that record's own detail screen instead.</p>
+    <p class="text-muted small">CBS credit check consent only, recorded from the application screen. Read-only. Public Defaults does not write here -- its own client notice/evidence is recorded per default on that record's own detail screen instead.</p>
 
     <div class="table-responsive">
       <table class="table table-sm">
-        <thead><tr><th>Application</th><th>Borrower</th><th>Method</th><th>Reference</th><th>Recorded By</th><th>Recorded At</th><th>Consumed by CBS Check</th></tr></thead>
+        <thead><tr><th>Application</th><th>Client</th><th>Method</th><th>Reference</th><th>Recorded By</th><th>Recorded At</th><th>Consumed by CBS Check</th></tr></thead>
         <tbody>
           <?php foreach ($result['rows'] as $c): ?>
             <tr>

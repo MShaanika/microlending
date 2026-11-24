@@ -74,7 +74,7 @@
     <div class="table-responsive">
       <table class="table table-sm table-hover">
         <thead>
-          <tr><th>Loan</th><th>Borrower</th><th>Amount</th><th>Merchant System Contract No</th><th>Status</th></tr>
+          <tr><th>Loan</th><th>Client</th><th>Amount</th><th>Merchant System Contract No</th><th>Status</th></tr>
         </thead>
         <tbody>
           <?php if (empty($lines)): ?>

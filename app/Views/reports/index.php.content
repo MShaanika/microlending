@@ -361,10 +361,10 @@ function mlsToggleReportPeriod(type) {
     <div class="card h-100">
       <div class="card-header"><strong>Bad Debt Recovery</strong></div>
       <div class="card-body">
-        <p class="text-muted small">Recovery payments posted against written-off loans in this period &mdash; borrowers who were bad debt and have since paid. Select "Quarter" above for a quarterly view.</p>
+        <p class="text-muted small">Recovery payments posted against written-off loans in this period &mdash; clients who were bad debt and have since paid. Select "Quarter" above for a quarterly view.</p>
         <div class="table-responsive">
           <table class="table table-bordered no-datatable">
-            <thead><tr><th>Date</th><th>Loan</th><th>Borrower</th><th class="text-end">Recovered (N$)</th><th>Status</th></tr></thead>
+            <thead><tr><th>Date</th><th>Loan</th><th>Client</th><th class="text-end">Recovered (N$)</th><th>Status</th></tr></thead>
             <tbody>
               <?php if (empty($badDebtRecoveries)): ?>
                 <tr><td colspan="5" class="text-center text-muted py-3">No recoveries posted in this period.</td></tr>

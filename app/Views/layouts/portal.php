@@ -39,7 +39,7 @@
 
 <div class="d-md-flex">
   <nav class="portal-sidebar d-none d-md-block">
-    <div class="brand"><i class="mdi mdi-account-circle"></i> Borrower Portal</div>
+    <div class="brand"><i class="mdi mdi-account-circle"></i> Client Portal</div>
     <ul class="nav flex-column py-2">
       <?php
         $navItems = [
@@ -67,7 +67,7 @@
 
   <div class="portal-main w-100">
     <div class="portal-topbar d-flex d-md-none mb-0" data-bs-toggle="collapse" data-bs-target="#portalMobileNav" style="cursor:pointer;">
-      <span><i class="mdi mdi-menu"></i> Borrower Portal</span>
+      <span><i class="mdi mdi-menu"></i> Client Portal</span>
     </div>
     <div class="collapse d-md-none" id="portalMobileNav">
       <ul class="list-group list-group-flush">
@@ -88,7 +88,7 @@
     </div>
 
     <footer class="footer text-center py-3">
-      Micro Lending System &mdash; Borrower Portal
+      Micro Lending System &mdash; Client Portal
     </footer>
   </div>
 </div>

@@ -40,7 +40,7 @@ if ($mode === 'notice' && !$hasProblem) {
       <?php if (!$cc['upcoming']): ?><li class="text-muted">no upcoming collections are recorded</li><?php endif; ?>
     </ul>
     <?php if ($imminent): ?>
-      <div class="fw-semibold">A collection is due today or tomorrow and can no longer be stopped. If this payment clears that instalment, the borrower will be debited as well &mdash; the extra amount would have to be refunded as an overpayment.</div>
+      <div class="fw-semibold">A collection is due today or tomorrow and can no longer be stopped. If this payment clears that instalment, the client will be debited as well &mdash; the extra amount would have to be refunded as an overpayment.</div>
     <?php endif; ?>
     <div class="small">A payment made here does not change the mandate. If it clears an instalment that is still scheduled, you can stop that collection from the loan page straight after recording it.</div>
   </div>
@@ -53,7 +53,7 @@ if ($mode === 'notice' && !$hasProblem) {
         <div>
           Installment <strong>#<?= (int) $p['installment_no'] ?></strong> is already paid, but mandate <?= (int) $p['mandate'] ?> will still collect
           <strong><?= format_money($p['amount']) ?></strong> on <strong><?= e($when($p['collects_on'])) ?></strong>.
-          <?php if (!empty($p['imminent'])): ?><span class="fw-semibold">Due today or tomorrow &mdash; this can no longer be stopped. If the borrower is debited, refund the overpayment.</span><?php endif; ?>
+          <?php if (!empty($p['imminent'])): ?><span class="fw-semibold">Due today or tomorrow &mdash; this can no longer be stopped. If the client is debited, refund the overpayment.</span><?php endif; ?>
         </div>
         <?php if (empty($p['imminent']) && $canClick): ?>
           <form method="post" action="<?= $stopUrl ?>" onsubmit="return confirmSubmit(this, 'Stop the <?= e($fmtDate($p['collects_on'])) ?> collection of <?= e(number_format($p['amount'], 2)) ?> for installment #<?= (int) $p['installment_no'] ?> at Collexia? It will not be collected.');">

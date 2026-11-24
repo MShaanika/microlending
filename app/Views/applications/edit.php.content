@@ -12,7 +12,7 @@
       <div class="alert alert-danger small"><strong>Please fix the highlighted fields.</strong></div>
     <?php endif; ?>
     <?php if (!empty($application['borrower_id'])): ?>
-      <div class="alert alert-info small">This application is linked to a borrower record. The date of birth used for the credit check is the one on the borrower profile; correct it there too.</div>
+      <div class="alert alert-info small">This application is linked to a client record. The date of birth used for the credit check is the one on the client profile; correct it there too.</div>
     <?php endif; ?>
     <form method="post" action="<?= url('/applications/' . $application['id'] . '/update') ?>">
       <?= csrf_field() ?>

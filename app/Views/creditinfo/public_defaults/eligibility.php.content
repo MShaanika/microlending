@@ -9,7 +9,7 @@
 
     <table class="table table-borderless" style="max-width: 640px;">
       <tbody>
-        <tr><td class="text-muted" style="width:220px;">Borrower</td><td><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?> (<?= e($borrower['borrower_no']) ?>)</td></tr>
+        <tr><td class="text-muted" style="width:220px;">Client</td><td><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?> (<?= e($borrower['borrower_no']) ?>)</td></tr>
         <tr><td class="text-muted">Loan</td><td><?= e($loan['loan_no']) ?></td></tr>
         <tr><td class="text-muted">Original Loan Amount</td><td>N$<?= number_format((float) $loan['principal_amount'], 2) ?></td></tr>
         <tr><td class="text-muted">Outstanding Balance</td><td>N$<?= number_format($result['outstanding_balance'], 2) ?></td></tr>

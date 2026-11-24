@@ -71,7 +71,7 @@ class LoanController extends Controller
         $loans = $this->loans->paginated($search, $status, $limit, $branchId, true, $filter);
 
         if ($filter['export']) {
-            $this->exportList('Loans', 'loans', ['Loan No', 'Borrower', 'Product', 'Principal', 'Installment', 'Term (months)', 'Start date', 'Status', 'In arrears'], array_map(static fn ($l) => [
+            $this->exportList('Loans', 'loans', ['Loan No', 'Client', 'Product', 'Principal', 'Installment', 'Term (months)', 'Start date', 'Status', 'In arrears'], array_map(static fn ($l) => [
                 $l['loan_no'], $l['borrower_name'], $l['product_name'],
                 number_format((float) ((int) ($l['topup_count'] ?? 0) > 0 ? $l['combined_principal'] : $l['principal_amount']), 2, '.', ''),
                 number_format((float) ((int) ($l['topup_count'] ?? 0) > 0 ? $l['combined_installment'] : $l['installment_amount']), 2, '.', ''),
@@ -244,7 +244,7 @@ class LoanController extends Controller
         }
 
         if (!$borrower) {
-            $errors['borrower_id'] = 'Select a valid, approved borrower.';
+            $errors['borrower_id'] = 'Select a valid, approved client.';
         }
         if (!$product) {
             $errors['product_id'] = 'Select a valid loan product.';
@@ -261,7 +261,7 @@ class LoanController extends Controller
         // it's only ever validated/saved for a borrower who doesn't have one yet.
         $loanRefNo = trim((string) ($_POST['loan_ref_no'] ?? ''));
         if ($borrower && empty($borrower['loan_ref_no']) && $loanRefNo !== '' && $this->borrowers->loanRefNoExists($loanRefNo)) {
-            $errors['loan_ref_no'] = 'A borrower with this loan ref no. already exists.';
+            $errors['loan_ref_no'] = 'A client with this loan ref no. already exists.';
         }
 
         $principal = (float) ($_POST['principal_amount'] ?? 0);
@@ -281,7 +281,7 @@ class LoanController extends Controller
                 || (int) $existingLoan['borrower_id'] !== (int) $borrower['id']
                 || !in_array($existingLoan['loan_status'], ['Active', 'Current'], true)
             ) {
-                $errors['existing_loan_id'] = 'Select a valid active loan for this borrower.';
+                $errors['existing_loan_id'] = 'Select a valid active loan for this client.';
                 $existingLoan = null;
             } elseif ((new \App\Models\LoanReschedule())->hasImplementedReschedule((int) $existingLoan['id'])) {
                 $errors['existing_loan_id'] = 'This loan has been rescheduled and can no longer be topped up -- use Reschedule instead.';

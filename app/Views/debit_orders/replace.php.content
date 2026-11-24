@@ -115,7 +115,7 @@
 <div class="card">
   <div class="card-body">
     <h5 class="card-title">Step 2 &mdash; Register the new debit order</h5>
-    <p class="text-muted small">Built from the loan's current schedule. If the borrower has an instalment due in the next day or two, check it before cancelling so nothing is missed.</p>
+    <p class="text-muted small">Built from the loan's current schedule. If the client has an instalment due in the next day or two, check it before cancelling so nothing is missed.</p>
     <?php if ($isLive): ?>
       <span class="btn btn-outline-secondary disabled">Register new debit order (cancel the old one first)</span>
     <?php else: ?>

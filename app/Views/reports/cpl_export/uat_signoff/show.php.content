@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div>
         <h4 class="card-title mb-1">CPL <?= e($batch['batch_type']) ?> Sign-off Test &mdash; <?= e($batch['month_end']) ?></h4>
-        <p class="text-muted small mb-0">Synthetic UAT test data only -- built from Creditinfo's own approved test National IDs, never a real borrower or loan.</p>
+        <p class="text-muted small mb-0">Synthetic UAT test data only -- built from Creditinfo's own approved test National IDs, never a real client or loan.</p>
       </div>
       <span class="badge fs-6 bg-<?= $batch['blocking_error_count'] > 0 ? 'danger' : 'success' ?>"><?= $batch['blocking_error_count'] > 0 ? 'NOT READY' : 'READY' ?></span>
     </div>
@@ -83,7 +83,7 @@
       Uploads this test file to the Creditinfo SFTP server, using the connection saved in
       <a href="<?= url('/creditinfo/public-defaults/settings') ?>">Public Defaults Settings</a>.
       It is always sent as a <strong>T702 (test)</strong> file and holds only the test IDs Creditinfo approved,
-      never a real borrower. After uploading, a ready-made message for your Creditinfo contacts appears here.
+      never a real client. After uploading, a ready-made message for your Creditinfo contacts appears here.
       Sending a file does not mean Creditinfo accepted it: record Creditinfo's answer under Submission Result below.
     </p>
 

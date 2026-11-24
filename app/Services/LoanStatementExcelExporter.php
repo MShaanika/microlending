@@ -31,7 +31,7 @@ class LoanStatementExcelExporter
 
         $sheet->setCellValue('A2', 'Statement of Account');
         $sheet->setCellValue('A3', 'Loan No: ' . $loan['loan_no']);
-        $sheet->setCellValue('A4', 'Borrower: ' . $borrower['first_name'] . ' ' . $borrower['last_name']);
+        $sheet->setCellValue('A4', 'Client: ' . $borrower['first_name'] . ' ' . $borrower['last_name']);
         $sheet->setCellValue('A5', 'Date: ' . date('Y-m-d'));
 
         $row = 7;

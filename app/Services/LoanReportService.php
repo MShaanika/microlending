@@ -103,7 +103,7 @@ class LoanReportService
                         COUNT(DISTINCT CASE WHEN b.gender = 'Female' THEN b.id END) AS female_count
                  FROM loans l
                  JOIN borrowers b ON b.id = l.borrower_id
-                 JOIN borrower_employment be ON be.borrower_id = b.id AND be.is_current = 1
+                 JOIN borrower_employment be ON be.id = (SELECT be2.id FROM borrower_employment be2 WHERE be2.borrower_id = b.id AND be2.is_current = 1 ORDER BY be2.id DESC LIMIT 1)
                  WHERE l.loan_status IN " . self::ISSUED_STATUSES . "
                    AND DATE(COALESCE(l.quarter_month, l.created_at)) BETWEEN ? AND ?
                    AND be.gross_salary BETWEEN ? AND ?{$branchSql}"

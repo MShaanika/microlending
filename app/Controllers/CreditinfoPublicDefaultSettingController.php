@@ -96,6 +96,18 @@ class CreditinfoPublicDefaultSettingController extends Controller
 
         Audit::log('Update', 'Creditinfo', 'Updated Public Defaults settings');
 
+        // The standing approval of the automatic CPL submission was given for one SFTP destination (host, port, user name, folder): a changed one revokes it
+        // and turns that switch off. (A new password alone does not: it is not part of the destination.)
+        try {
+            if ((new \App\Services\CplAutoSubmissionService())->revokeIfSettingsChanged($userId)) {
+                Session::flash('success', 'Settings saved. Automatic CPL submission was switched OFF and its standing approval revoked, because the SFTP destination changed; turn it on again on the CPL Dashboard.');
+                $this->redirect('/creditinfo/public-defaults/settings');
+                return;
+            }
+        } catch (\Throwable $e) {
+            error_log('Public Defaults settings: could not check the CPL standing approval: ' . get_class($e));
+        }
+
         Session::flash('success', 'Settings saved.');
         $this->redirect('/creditinfo/public-defaults/settings');
     }

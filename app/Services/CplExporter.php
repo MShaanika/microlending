@@ -371,7 +371,11 @@ class CplExporter
              FROM loans l
              JOIN branches br ON br.id = l.branch_id
              JOIN borrowers b ON b.id = l.borrower_id
-             LEFT JOIN borrower_employment be ON be.borrower_id = b.id
+             LEFT JOIN borrower_employment be ON be.id = (
+                 SELECT be2.id FROM borrower_employment be2
+                 WHERE be2.borrower_id = b.id AND be2.is_current = 1
+                 ORDER BY be2.id DESC LIMIT 1
+             )
              WHERE l.loan_status IN ('Active','Current','Completed','Written Off')
                AND l.start_date <= ?
              ORDER BY l.id"

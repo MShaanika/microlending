@@ -6,7 +6,7 @@
 
     <table class="table table-borderless" style="max-width: 560px;">
       <tbody>
-        <tr><td class="text-muted" style="width:200px;">Borrower</td><td><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?></td></tr>
+        <tr><td class="text-muted" style="width:200px;">Client</td><td><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?></td></tr>
         <tr><td class="text-muted">Loan</td><td><?= e($loan['loan_no']) ?></td></tr>
         <tr><td class="text-muted">Outstanding Balance</td><td>N$<?= number_format($result['outstanding_balance'], 2) ?></td></tr>
         <tr><td class="text-muted">Days in Arrears</td><td><?= (int) $result['days_in_arrears'] ?></td></tr>
@@ -40,7 +40,7 @@
         <?php if (isset($errors['default_status_category'])): ?><div class="invalid-feedback"><?= e($errors['default_status_category']) ?></div><?php endif; ?>
       </div>
 
-      <h6>Borrower Notice / Evidence (item 8 -- optional at this stage, can be added later)</h6>
+      <h6>Client Notice / Evidence (item 8 -- optional at this stage, can be added later)</h6>
       <div class="row g-2 mb-3">
         <div class="col-md-4">
           <label class="form-label small">Notice Method</label>

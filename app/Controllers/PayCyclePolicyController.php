@@ -123,7 +123,7 @@ class PayCyclePolicyController extends Controller
         }
 
         Audit::log('Create', 'Collections', 'Mapped employer "' . $employerName . '" to pay-cycle policy #' . $policyId);
-        Session::flash('success', 'Every borrower currently captured under "' . $employerName . '" now inherits this policy automatically.');
+        Session::flash('success', 'Every client currently captured under "' . $employerName . '" now inherits this policy automatically.');
         $this->redirect('/pay-cycle-policies');
     }
 

@@ -26,7 +26,7 @@
             <thead>
               <tr>
                 <th><input type="checkbox" id="checkAll" checked></th>
-                <th>Reference</th><th>Borrower</th><th>Loan</th><th>Outstanding</th><th>Default Status Category</th>
+                <th>Reference</th><th>Client</th><th>Loan</th><th>Outstanding</th><th>Default Status Category</th>
               </tr>
             </thead>
             <tbody>

@@ -29,7 +29,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Loan</th><th>Borrower</th><th>Installment</th><th class="text-end">Days Overdue</th><th class="text-end">Base Amount</th><th class="text-end">Rate</th><th class="text-end">Penalty</th></tr>
+          <tr><th>Loan</th><th>Client</th><th>Installment</th><th class="text-end">Days Overdue</th><th class="text-end">Base Amount</th><th class="text-end">Rate</th><th class="text-end">Penalty</th></tr>
         </thead>
         <tbody>
           <?php if (empty($installments)): ?>

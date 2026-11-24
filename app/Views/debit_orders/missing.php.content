@@ -13,7 +13,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Loan</th><th>Borrower</th><th>Phone</th><th>Payment Day</th><th>Installment</th><th>Status</th><th class="text-end">Action</th></tr>
+          <tr><th>Loan</th><th>Client</th><th>Phone</th><th>Payment Day</th><th>Installment</th><th>Status</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($loans)): ?>

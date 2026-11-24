@@ -70,13 +70,13 @@ class LetterController extends Controller
         $documents = $this->documents->paginated($status, $limit, $branchId, $filter['q'], $filter);
 
         if ($filter['export']) {
-            $this->exportList('Letters', 'letters', ['Document No', 'Borrower', 'Title', 'Type', 'Status', 'Requested'], array_map(static fn ($d) => [
+            $this->exportList('Letters', 'letters', ['Document No', 'Client', 'Title', 'Type', 'Status', 'Requested'], array_map(static fn ($d) => [
                 $d['document_no'], $d['borrower_name'], $d['document_title'], $d['template_type'], $d['status'] === 'Draft' ? 'Pending' : $d['status'], substr((string) $d['generated_at'], 0, 10),
             ], $documents), $filter);
         }
 
         $this->listPage('letters/index', [
-            'title' => 'Borrower Letter Requests',
+            'title' => 'Client Letter Requests',
             'documents' => $documents,
             'status' => $status,
             'search' => $filter['q'],
@@ -140,7 +140,7 @@ class LetterController extends Controller
         if ($letterType === 'Completion Letter') {
             $loan = $loanId ? $this->loans->find($loanId) : null;
             if (!$loan || $loan['loan_status'] !== 'Completed' || ($branchId !== null && (int) $loan['branch_id'] !== $branchId)) {
-                $errors['loan_id'] = 'Select one of the borrower\'s completed loans.';
+                $errors['loan_id'] = 'Select one of the client\'s completed loans.';
             }
         } elseif ($letterType === 'Final Notice of Default') {
             // Arrears, not loan_status, is the real-time signal (same
@@ -149,7 +149,7 @@ class LetterController extends Controller
             $loan = $loanId ? $this->loans->find($loanId) : null;
             $isInArrears = $loan && \App\Services\ArrearsService::loanArrearsSummary((int) $loan['id'], date('Y-m-d'))['days_in_arrears'] > 0;
             if (!$loan || !$isInArrears || ($branchId !== null && (int) $loan['branch_id'] !== $branchId)) {
-                $errors['loan_id'] = 'Select one of the borrower\'s loans that is actually in arrears.';
+                $errors['loan_id'] = 'Select one of the client\'s loans that is actually in arrears.';
             }
         } elseif ($letterType === 'Consolidation Letter' && $scope === 'one') {
             $loan = $loanId ? $this->loans->find($loanId) : null;
@@ -159,7 +159,7 @@ class LetterController extends Controller
         } elseif ($letterType === 'Consolidation Letter' && $scope === 'all') {
             $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
             if (!$borrower || ($branchId !== null && (int) $borrower['branch_id'] !== $branchId)) {
-                $errors['borrower_id'] = 'Select a borrower.';
+                $errors['borrower_id'] = 'Select a client.';
             }
         }
 
@@ -207,7 +207,7 @@ class LetterController extends Controller
         try {
             $filePath = DocumentGenerationService::generate($document);
             $this->documents->markFulfilled($documentId, $filePath, Auth::user()['id'] ?? null);
-            Session::flash('success', 'Letter generated. Download it below, or the borrower can get it from their portal.');
+            Session::flash('success', 'Letter generated. Download it below, or the client can get it from their portal.');
         } catch (\RuntimeException $e) {
             Session::flash('error', 'Letter request created, but could not auto-generate: ' . $e->getMessage() . ' Use "Upload Prepared Letter" below instead.');
         }
@@ -263,7 +263,7 @@ class LetterController extends Controller
         $this->documents->markFulfilled($id, 'uploads/letters/' . $safeFolder . '/' . $storedName, Auth::user()['id'] ?? null);
 
         Audit::log('Fulfill', 'Documents', 'Uploaded prepared letter for request #' . $id);
-        Session::flash('success', 'Letter uploaded. The borrower can now download it from their portal.');
+        Session::flash('success', 'Letter uploaded. The client can now download it from their portal.');
         $this->redirect('/letters');
     }
 
@@ -303,7 +303,7 @@ class LetterController extends Controller
         $this->documents->markFulfilled($id, $filePath, Auth::user()['id'] ?? null);
 
         Audit::log('Generate', 'Documents', 'Auto-generated letter for request #' . $id);
-        Session::flash('success', 'Letter generated automatically. The borrower can now download it from their portal.');
+        Session::flash('success', 'Letter generated automatically. The client can now download it from their portal.');
         $this->redirect('/letters');
     }
 

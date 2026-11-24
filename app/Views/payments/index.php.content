@@ -9,7 +9,7 @@
     <?php
       $bar = [
           'action' => url('/payments'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Payment no, loan no, borrower or reference'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Payment no, loan no, client or reference'],
           'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Posted', 'Reversed', 'Cancelled']],
           'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
           'date' => ['label' => 'Payment date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
@@ -28,7 +28,7 @@
           <tr>
             <th>Payment No</th>
             <th>Loan No</th>
-            <th>Borrower</th>
+            <th>Client</th>
             <th>Date</th>
             <th>Source</th>
             <th>Amount</th>

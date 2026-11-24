@@ -89,7 +89,7 @@ class DataQualityServiceTest extends TestCase
         // DataQualityService::duplicateBorrowerPhones()).
         $issue = $this->issueFor('borrower_phone_group', $first);
         $this->assertNotNull($issue);
-        $this->assertStringContainsString('2 borrowers share phone number', $issue['description']);
+        $this->assertStringContainsString('2 clients share phone number', $issue['description']);
     }
 
     public function testDistinctPhoneNumbersAreNotFlagged(): void

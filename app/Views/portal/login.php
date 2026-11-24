@@ -10,7 +10,7 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
 <html dir="ltr" lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Borrower Portal Login | Micro Lending System</title>
+    <title>Client Portal Login | Micro Lending System</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link rel="icon" type="image/png" href="<?= asset('assets/images/favicon.png') ?>">
@@ -35,7 +35,7 @@ $success = class_exists(Session::class) ? Session::flash('success') : null;
 
             <div class="logo text-center">
                 <img src="<?= asset('assets/images/logo-icon.png') ?>" alt="logo" style="height:48px" class="mb-2">
-                <h3 class="box-title mb-3">Borrower Portal</h3>
+                <h3 class="box-title mb-3">Client Portal</h3>
                 <p class="text-muted">View your loans, schedules and payments</p>
             </div>
 

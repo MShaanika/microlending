@@ -74,7 +74,7 @@
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <h3 class="kpi-number mb-1"><?= (int) $kpis['total_borrowers'] ?></h3>
-            <span class="text-muted small">Total Borrowers</span>
+            <span class="text-muted small">Total Clients</span>
           </div>
           <span class="kpi-icon" style="background:#635bff"><i class="mdi mdi-account-multiple"></i></span>
         </div>
@@ -189,7 +189,7 @@
             <span class="kpi-icon" style="background:#2bd67b"><i class="mdi mdi-check-circle"></i></span>
           </div>
           <div class="kpi-footer">
-            <span class="text-muted small">Borrowers with an active mandate &mdash; view list</span>
+            <span class="text-muted small">Clients with an active mandate &mdash; view list</span>
           </div>
         </div>
       </div>
@@ -280,7 +280,7 @@
         <h4 class="card-title">Top Overdue Loans</h4>
         <div class="table-responsive">
           <table class="table table-sm table-hover">
-            <thead><tr><th>Loan</th><th>Borrower</th><th>Days</th><th class="text-end">Outstanding</th></tr></thead>
+            <thead><tr><th>Loan</th><th>Client</th><th>Days</th><th class="text-end">Outstanding</th></tr></thead>
             <tbody>
               <?php if (empty($topArrears)): ?>
                 <tr><td colspan="4" class="text-center text-muted py-3">No loans in arrears.</td></tr>
@@ -305,7 +305,7 @@
         <h4 class="card-title">Upcoming Installments <span class="text-muted small">(next 7 days)</span></h4>
         <div class="table-responsive">
           <table class="table table-sm table-hover">
-            <thead><tr><th>Loan</th><th>Borrower</th><th>Due</th><th class="text-end">Amount</th></tr></thead>
+            <thead><tr><th>Loan</th><th>Client</th><th>Due</th><th class="text-end">Amount</th></tr></thead>
             <tbody>
               <?php if (empty($upcomingDue)): ?>
                 <tr><td colspan="4" class="text-center text-muted py-3">No installments due in the next 7 days.</td></tr>
@@ -332,7 +332,7 @@
     <h4 class="card-title">Promised to Pay Today <span class="text-muted small">(<?= e(date('d M Y')) ?>)</span></h4>
     <div class="table-responsive">
       <table class="table table-sm table-hover">
-        <thead><tr><th>Borrower</th><th>Loan</th><th>Contact</th><th class="text-end">Promised Amount</th></tr></thead>
+        <thead><tr><th>Client</th><th>Loan</th><th>Contact</th><th class="text-end">Promised Amount</th></tr></thead>
         <tbody>
           <?php if (empty($promisesDueToday)): ?>
             <tr><td colspan="4" class="text-center text-muted py-3">No promises to pay due today.</td></tr>
@@ -407,7 +407,7 @@
     <p class="text-muted">Jump straight into any module.</p>
     <div class="row">
       <?php $modules = [
-        ['Borrowers','Borrower profiles and status','mdi-account-multiple','info', url('/borrowers')],
+        ['Clients','Client profiles and status','mdi-account-multiple','info', url('/borrowers')],
         ['Loans','Applications, approvals, releases, amortization schedules','mdi-cash-multiple','success', url('/loans')],
         ['Applications','Online intake, screening and approvals','mdi-telegram','primary', url('/applications')],
         ['Payments','Collections and schedule allocation','mdi-bank','primary', url('/payments')],

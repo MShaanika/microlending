@@ -59,3 +59,11 @@ $summary = sprintf(
 );
 \App\Core\JobHeartbeat::ping('evaluate_health_checks', $summary, 10);
 echo $summary;
+
+// The automatic CPL submission is watched from here too: this job keeps running when the CPL jobs themselves do not. It e-mails the staff (once a day)
+// when automatic submission is ON and a CPL job has not reported for more than 30 hours; it does nothing at all when the switch is OFF.
+try {
+    (new \App\Services\CplAutoSubmissionService())->watchCron();
+} catch (\Throwable $e) {
+    error_log('evaluate_health_checks: CPL cron watch failed: ' . get_class($e));
+}

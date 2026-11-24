@@ -20,7 +20,7 @@
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
-        <thead><tr><th>Write-Off No.</th><th>Loan</th><th>Borrower</th><th class="text-end">Outstanding</th><th class="text-end">Net Write-Off</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+        <thead><tr><th>Write-Off No.</th><th>Loan</th><th>Client</th><th class="text-end">Outstanding</th><th class="text-end">Net Write-Off</th><th>Status</th><th class="text-end">Action</th></tr></thead>
         <tbody>
           <?php if (empty($writeOffs)): ?>
             <tr><td colspan="7" class="text-center text-muted py-4">No write-offs yet.</td></tr>

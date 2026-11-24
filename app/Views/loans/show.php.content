@@ -94,7 +94,7 @@
           <p class="mb-3 text-muted small">Released by <?= e($loan['released_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($loan['released_at']))) ?></p>
         <?php endif; ?>
 
-        <p class="mb-1"><strong>Borrower:</strong> <a href="<?= url('/borrowers/' . $loan['borrower_id']) ?>"><?= e($loan['borrower_name']) ?></a></p>
+        <p class="mb-1"><strong>Client:</strong> <a href="<?= url('/borrowers/' . $loan['borrower_id']) ?>"><?= e($loan['borrower_name']) ?></a></p>
         <?php if ($isCombined): ?>
           <p class="mb-2"><span class="badge bg-info"><i class="mdi mdi-layers-outline"></i> Combined with <?= count($combined['tranches']) - 1 ?> top-up<?= count($combined['tranches']) - 1 === 1 ? '' : 's' ?></span>
             <a href="#combined" class="small">see the breakdown</a></p>
@@ -182,7 +182,7 @@
         <div class="d-flex gap-2 flex-wrap">
           <a href="<?= url('/loans/' . $loan['id'] . '/statement') ?>" target="_blank" class="btn btn-outline-info btn-sm"><i class="mdi mdi-receipt"></i> Statement of Account</a>
           <a href="<?= url('/loans/' . $loan['id'] . '/activity') ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-history"></i> Full Activity Log</a>
-          <a href="<?= url('/notifications/compose?borrower_id=' . $loan['borrower_id'] . '&loan_id=' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bell-ring-outline"></i> Notify Borrower</a>
+          <a href="<?= url('/notifications/compose?borrower_id=' . $loan['borrower_id'] . '&loan_id=' . $loan['id']) ?>" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-bell-ring-outline"></i> Notify Client</a>
 
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>
             <a href="<?= url('/loans/' . $loan['id'] . '/reschedule') ?>" class="btn btn-outline-warning btn-sm"><i class="mdi mdi-calendar-sync"></i> Reschedule</a>
@@ -249,7 +249,7 @@
                 <?php if ($encrOffer['ok']): ?>
                   <div class="form-text mb-0">Pays <?= format_money($loan['principal_amount']) ?> to <?= e($encrOffer['text']) ?>. EnCr generates its own reference, and that reference is what the Cash Book and General Journal show. Leave unticked to disburse the usual way.</div>
                 <?php else: ?>
-                  <div class="form-text text-danger mb-0">Not available for this borrower: <?= e($encrOffer['text']) ?></div>
+                  <div class="form-text text-danger mb-0">Not available for this client: <?= e($encrOffer['text']) ?></div>
                 <?php endif; ?>
               </div>
               <script>

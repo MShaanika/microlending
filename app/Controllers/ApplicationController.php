@@ -784,7 +784,7 @@ class ApplicationController extends Controller
         $deliveryNote = $smsResult['note'];
 
         Audit::log('Approve', 'Applications', 'Approved application #' . $id . ' (' . $deliveryNote . ')');
-        Session::flash('success', 'Application approved (' . $deliveryNote . '). Convert it to a borrower/loan below when ready.'
+        Session::flash('success', 'Application approved (' . $deliveryNote . '). Convert it to a client/loan below when ready.'
             . ($closedDuplicates > 0 ? ' ' . $closedDuplicates . ' duplicate application(s) for the same ID number were closed.' : ''));
         $this->redirect('/applications/' . $id);
     }
@@ -896,7 +896,7 @@ class ApplicationController extends Controller
                 $_POST['branch_id'] = $scopeBranchId;
             }
             if (empty($_POST['branch_id'])) {
-                Session::flash('error', 'Select a branch for the new borrower before converting.');
+                Session::flash('error', 'Select a branch for the new client before converting.');
                 $this->redirect('/applications/' . $id);
                 return;
             }
@@ -984,7 +984,7 @@ class ApplicationController extends Controller
             try {
                 $borrowerId = $this->borrowers->createFull($borrowerData, $bank, $employment, []);
             } catch (\PDOException $e) {
-                Session::flash('error', 'Could not create the borrower -- ' . ($application['applicant_id_number'] ? 'a borrower with ID number ' . $application['applicant_id_number'] . ' may already exist.' : 'please check the applicant\'s details.'));
+                Session::flash('error', 'Could not create the client -- ' . ($application['applicant_id_number'] ? 'a client with ID number ' . $application['applicant_id_number'] . ' may already exist.' : 'please check the applicant\'s details.'));
                 $this->redirect('/applications/' . $id);
                 return;
             }
@@ -1023,7 +1023,7 @@ class ApplicationController extends Controller
             }
 
             $this->applications->updateRecord($id, ['borrower_id' => $borrowerId]);
-            Audit::log('Create', 'Borrowers', 'Created borrower #' . $borrowerId . ' from application ' . $application['application_no']);
+            Audit::log('Create', 'Borrowers', 'Created client #' . $borrowerId . ' from application ' . $application['application_no']);
         }
 
         Session::flash('success', 'Applicant ready. Pick a loan product and plan to finish converting ' . $application['application_no'] . '.');

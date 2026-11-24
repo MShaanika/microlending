@@ -42,7 +42,7 @@ use App\Core\Session;
 
 <div class="row mb-4">
   <div class="col-6">
-    <h5>Borrower</h5>
+    <h5>Client</h5>
     <p class="mb-0"><?= e($borrower['first_name'] . ' ' . $borrower['last_name']) ?></p>
     <p class="mb-0"><?= e($borrower['borrower_no']) ?></p>
     <p class="mb-0"><?= e($borrower['phone'] ?: '') ?></p>

@@ -125,6 +125,19 @@ foreach ($copyFromProduction as $table) {
     $n = copyRows($source, $target, $table);
     echo sprintf("  %-34s %d\n", $table, $n);
 }
+// The copied CPL settings come from PRODUCTION: a sandbox must never send a live file to Creditinfo. Whatever production had switched on (automatic
+// submission, the Production environment, the live SFTP switch, the standing approval, a halt note) is forced back to the safe state here.
+if (in_array('cpl_settings', $sourceTables, true)) {
+    $forceSafe = $target->prepare('INSERT INTO cpl_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+    foreach ([
+        'cpl_auto_submit_enabled' => '0', 'submission_environment' => 'uat', 'sftp_submission_enabled' => 'off',
+        'cpl_auto_standing_approval' => '', 'cpl_auto_approval_revoked' => '', 'cpl_auto_halted_reason' => '',
+        'cpl_auto_enabled_by' => '', 'cpl_auto_enabled_at' => '',
+    ] as $k => $v) {
+        $forceSafe->execute([$k, $v]);
+    }
+    echo "  cpl_settings forced safe: automatic CPL submission OFF, environment uat, standing approval cleared\n";
+}
 // Branch names/codes/addresses are business information, but the contact phone/email can be a person's own.
 copyRows($source, $target, 'branches', null, function ($r) {
     $r['phone'] = '081 555 ' . str_pad((string) (700 + (int) $r['id']), 4, '0', STR_PAD_LEFT);

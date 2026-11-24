@@ -12,7 +12,7 @@
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
-        <thead><tr><th>Loan</th><th>Borrower</th><th class="text-end">Base Amount</th><th class="text-end">Rate</th><th class="text-end">Penalty</th><th>Status</th></tr></thead>
+        <thead><tr><th>Loan</th><th>Client</th><th class="text-end">Base Amount</th><th class="text-end">Rate</th><th class="text-end">Penalty</th><th>Status</th></tr></thead>
         <tbody>
           <?php if (empty($lines)): ?>
             <tr><td colspan="6" class="text-center text-muted py-4">No lines found for this run.</td></tr>

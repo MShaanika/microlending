@@ -15,7 +15,7 @@
 
     <div class="table-responsive">
       <table class="table table-sm">
-        <thead><tr><th>Reference</th><th>Borrower</th><th>Loan</th><th>Reason</th><th>Status</th><th>Requested By</th><th>Requested At</th><th></th></tr></thead>
+        <thead><tr><th>Reference</th><th>Client</th><th>Loan</th><th>Reason</th><th>Status</th><th>Requested By</th><th>Requested At</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($result['rows'] as $r): ?>
             <tr>

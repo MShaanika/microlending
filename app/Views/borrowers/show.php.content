@@ -24,6 +24,9 @@
         <p class="mb-1"><i class="mdi mdi-phone me-1"></i> <?= e($borrower['phone']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-email me-1"></i> <?= e($borrower['email']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-card-account-details me-1"></i> ID: <?= e($borrower['id_number']) ?: '&mdash;' ?></p>
+        <?php if (!empty($borrower['passport_no'])): ?>
+          <p class="mb-1"><i class="mdi mdi-passport me-1"></i> Passport: <?= e($borrower['passport_no']) ?></p>
+        <?php endif; ?>
         <p class="mb-1"><i class="mdi mdi-map-marker me-1"></i> <?= e($borrower['physical_address']) ?: '&mdash;' ?></p>
         <p class="mb-1"><i class="mdi mdi-bank me-1"></i> Branch: <?= e($borrower['branch_name']) ?></p>
         <p class="mb-0"><i class="mdi mdi-calendar me-1"></i> Registered: <?= e(date('d M Y', strtotime($borrower['created_at']))) ?><?= $borrower['created_by_name'] ? ' by ' . e($borrower['created_by_name']) : '' ?></p>
@@ -36,24 +39,24 @@
           <?php if ($borrower['status'] === 'Approved'): ?>
             <a href="<?= url('/loans/create?borrower_id=' . $borrower['id']) ?>" class="btn btn-sm btn-info"><i class="mdi mdi-cash-plus"></i> New Loan</a>
           <?php else: ?>
-            <button type="button" class="btn btn-sm btn-info" disabled title="Only approved borrowers can get a new loan."><i class="mdi mdi-cash-plus"></i> New Loan</button>
+            <button type="button" class="btn btn-sm btn-info" disabled title="Only approved clients can get a new loan."><i class="mdi mdi-cash-plus"></i> New Loan</button>
           <?php endif; ?>
-          <a href="<?= url('/notifications/compose?borrower_id=' . $borrower['id']) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-bell-ring-outline"></i> Notify Borrower</a>
+          <a href="<?= url('/notifications/compose?borrower_id=' . $borrower['id']) ?>" class="btn btn-sm btn-outline-secondary"><i class="mdi mdi-bell-ring-outline"></i> Notify Client</a>
         </div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-body">
-        <h4 class="card-title"><i class="mdi mdi-account-key me-1"></i> Borrower Portal Access</h4>
+        <h4 class="card-title"><i class="mdi mdi-account-key me-1"></i> Client Portal Access</h4>
         <?php if ($portalUser): ?>
           <p class="mb-1">Username: <strong><?= e($portalUser['username']) ?></strong></p>
           <p class="mb-1">Status: <span class="badge bg-<?= $portalUser['is_active'] ? 'success' : 'secondary' ?>"><?= $portalUser['is_active'] ? 'Active' : 'Disabled' ?></span></p>
           <p class="mb-3 text-muted small">Last login: <?= $portalUser['last_login'] ? e(date('d M Y H:i', strtotime($portalUser['last_login']))) : 'Never' ?></p>
         <?php else: ?>
-          <p class="text-muted mb-3">This borrower doesn't have portal access yet.</p>
+          <p class="text-muted mb-3">This client doesn't have portal access yet.</p>
         <?php endif; ?>
-        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $portalUser ? 'Reset this borrower\'s portal password?' : 'Create portal access for this borrower?' ?>');">
+        <form method="post" action="<?= url('/borrowers/' . $borrower['id'] . '/portal-access') ?>" class="d-inline" onsubmit="return confirmSubmit(this, '<?= $portalUser ? 'Reset the portal password for this client?' : 'Create portal access for this client?' ?>');">
           <?= csrf_field() ?>
           <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-key"></i> <?= $portalUser ? 'Reset Password' : 'Create Portal Access' ?></button>
         </form>
@@ -85,7 +88,7 @@
             </thead>
             <tbody>
               <?php if (empty($loans)): ?>
-                <tr><td colspan="6" class="text-center text-muted py-4">No loans yet for this borrower.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">No loans yet for this client.</td></tr>
               <?php endif; ?>
               <?php foreach ($loans as $loan): ?>
                 <tr>
@@ -116,9 +119,12 @@
               <p class="mb-1"><strong><?= e($employment['employer_name']) ?></strong></p>
               <p class="mb-1 text-muted"><?= $employment['job_title'] ? e($employment['job_title']) : '&mdash;' ?> &middot; <?= $employment['employment_type'] ? e($employment['employment_type']) : '&mdash;' ?></p>
               <p class="mb-1">Gross: <?= format_money($employment['gross_salary']) ?> &middot; Net: <?= format_money($employment['net_salary']) ?></p>
+              <?php $freqLabels = \App\Services\BorrowerProfileService::INCOME_FREQUENCIES; ?>
+              <p class="mb-1">Paid: <?= !empty($employment['income_frequency']) ? e($freqLabels[$employment['income_frequency']] ?? $employment['income_frequency']) : '&mdash;' ?><?= !empty($employment['payment_day']) ? ' &middot; day ' . (int) $employment['payment_day'] : '' ?></p>
               <p class="mb-1">Employee No: <?= $employment['employee_no'] ? e($employment['employee_no']) : '&mdash;' ?></p>
               <p class="mb-1">Started: <?= $employment['employment_start_date'] ? e($employment['employment_start_date']) : '&mdash;' ?></p>
-              <p class="mb-0">Employer Contact: <?= $employment['employer_phone'] ? e($employment['employer_phone']) : '&mdash;' ?> <?= $employment['employer_email'] ? '/ ' . e($employment['employer_email']) : '' ?></p>
+              <p class="mb-1">Employer Contact: <?= $employment['employer_phone'] ? e($employment['employer_phone']) : '&mdash;' ?> <?= $employment['employer_email'] ? '/ ' . e($employment['employer_email']) : '' ?></p>
+              <p class="mb-0">Employer Address: <?= !empty($employment['employer_address']) ? e($employment['employer_address']) : '&mdash;' ?></p>
             <?php endif; ?>
           </div>
         </div>
@@ -148,11 +154,11 @@
         <div class="table-responsive">
           <table class="table table-sm table-hover">
             <thead>
-              <tr><th>Type</th><th>Name</th><th>Relationship</th><th>Phone</th><th>Email</th></tr>
+              <tr><th>Type</th><th>Name</th><th>Relationship</th><th>Phone</th><th>Email</th><th>Address</th></tr>
             </thead>
             <tbody>
               <?php if (empty($contacts)): ?>
-                <tr><td colspan="5" class="text-center text-muted py-3">No contacts on file.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-3">No contacts on file.</td></tr>
               <?php endif; ?>
               <?php foreach ($contacts as $c): ?>
                 <tr>
@@ -161,6 +167,7 @@
                   <td><?= $c['relationship'] ? e($c['relationship']) : '&mdash;' ?></td>
                   <td><?= $c['phone'] ? e($c['phone']) : '&mdash;' ?></td>
                   <td><?= $c['email'] ? e($c['email']) : '&mdash;' ?></td>
+                  <td><?= !empty($c['address']) ? e($c['address']) : '&mdash;' ?></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>

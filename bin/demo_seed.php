@@ -81,6 +81,22 @@ foreach ($db->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAl
 $db->exec('SET FOREIGN_KEY_CHECKS = 1');
 echo "Wiped operational tables.\n";
 
+// cpl_settings survives the reseed (it holds the supplier reference number), but a demo must never send a live file to Creditinfo: force the switches
+// to the safe state every time, and clear any standing approval or halt note.
+try {
+    $forceSafe = $db->prepare('INSERT INTO cpl_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+    foreach ([
+        'cpl_auto_submit_enabled' => '0', 'submission_environment' => 'uat', 'sftp_submission_enabled' => 'off',
+        'cpl_auto_standing_approval' => '', 'cpl_auto_approval_revoked' => '', 'cpl_auto_halted_reason' => '',
+        'cpl_auto_enabled_by' => '', 'cpl_auto_enabled_at' => '',
+    ] as $k => $v) {
+        $forceSafe->execute([$k, $v]);
+    }
+    echo "CPL settings forced safe (automatic submission OFF, environment uat).\n";
+} catch (\Throwable $e) {
+    echo "CPL settings could not be forced safe (" . get_class($e) . "); check cpl_settings by hand.\n";
+}
+
 // ---------------------------------------------------------------------------
 // 2. Rebrand any hard-coded live-company wording in the kept reference data
 // ---------------------------------------------------------------------------

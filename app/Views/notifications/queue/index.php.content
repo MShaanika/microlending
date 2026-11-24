@@ -6,7 +6,7 @@
       <h4 class="card-title mb-0"><?= e($title) ?></h4>
       <a href="<?= url('/notifications/compose?channel=' . $channel) ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Compose</a>
     </div>
-    <p class="text-muted small">No gateway is connected yet, so nothing sends automatically &mdash; queue a message, send it yourself (call/SMS/email the borrower), then mark it here.</p>
+    <p class="text-muted small">No gateway is connected yet, so nothing sends automatically &mdash; queue a message, send it yourself (call/SMS/email the client), then mark it here.</p>
 
     <form method="get" data-list-filter action="<?= url($channel === 'Email' ? '/notifications/email' : '/notifications/sms') ?>" class="row g-2 mb-3">
       <div class="col-md-3">

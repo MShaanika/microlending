@@ -10,7 +10,7 @@
     <?php
       $bar = [
           'action' => url('/debit-order-cancellations'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Cancellation no, borrower or loan no'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Cancellation no, client or loan no'],
           'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Approved', 'Rejected', 'Cancelled']],
           'date' => ['label' => 'Requested', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
           'amount' => ['label' => 'Amount', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
@@ -25,7 +25,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Cancellation No</th><th>Borrower</th><th>Loan</th><th>Amount</th><th>Status</th><th>Requested</th><th class="text-end">Action</th></tr>
+          <tr><th>Cancellation No</th><th>Client</th><th>Loan</th><th>Amount</th><th>Status</th><th>Requested</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($cancellations)): ?>

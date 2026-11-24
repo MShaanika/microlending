@@ -136,7 +136,7 @@ class CreditinfoPublicDefaultBatchService
                 $borrower = $borrowerCache[$borrowerId] ??= $this->borrowers->find($borrowerId);
                 $loan = $loanCache[$loanId] ??= $this->loans->find($loanId);
                 if (!$borrower || !$loan) {
-                    throw new \RuntimeException('Record ' . $pd['listing_reference'] . ' is missing its borrower or loan record.');
+                    throw new \RuntimeException('Record ' . $pd['listing_reference'] . ' is missing its client or loan record.');
                 }
                 $branchId = $loan['branch_id'] ?? $pd['branch_id'] ?? null;
                 $branch = $branchId ? ($branchCache[$branchId] ??= $this->branches->find((int) $branchId)) : null;

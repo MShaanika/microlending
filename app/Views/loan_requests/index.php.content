@@ -3,13 +3,13 @@
 <div class="card">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h4 class="card-title mb-0">Borrower Loan Requests</h4>
+      <h4 class="card-title mb-0">Client Loan Requests</h4>
     </div>
 
     <?php
       $bar = [
           'action' => url('/loan-requests'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Request no, borrower, phone or purpose'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Request no, client, phone or purpose'],
           'status' => ['value' => $status ?? '', 'options' => ['Pending', 'Approved', 'Rejected', 'Converted to Application', 'Cancelled']],
           'date' => ['label' => 'Submitted', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
           'amount' => ['label' => 'Amount', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],
@@ -25,7 +25,7 @@
       <table class="table table-hover align-middle">
         <thead>
           <tr>
-            <th>Request No</th><th>Borrower</th><th>Type</th><th>Amount</th><th>Term</th><th>Purpose</th><th>Docs</th><th>Status</th><th>Submitted</th><th>Reviewed By</th><th class="text-end">Action</th>
+            <th>Request No</th><th>Client</th><th>Type</th><th>Amount</th><th>Term</th><th>Purpose</th><th>Docs</th><th>Status</th><th>Submitted</th><th>Reviewed By</th><th class="text-end">Action</th>
           </tr>
         </thead>
         <tbody>

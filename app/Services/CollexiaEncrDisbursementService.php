@@ -75,22 +75,22 @@ class CollexiaEncrDisbursementService
     {
         $bank = ($this->borrowers ??= new Borrower())->bankDetails($borrowerId);
         if (!$bank) {
-            throw new \RuntimeException('The borrower has no bank details on file.');
+            throw new \RuntimeException('The client has no bank details on file.');
         }
 
         $accountNo = preg_replace('/\s+/', '', (string) ($bank['account_number'] ?? ''));
         if ($accountNo === '' || !ctype_alnum($accountNo)) {
-            throw new \RuntimeException('The borrower\'s bank account number is missing or not a plain account number.');
+            throw new \RuntimeException('The client\'s bank account number is missing or not a plain account number.');
         }
 
         $banId = CollexiaV3Codes::banIdFromName((string) ($bank['bank_name'] ?? ''));
         if ($banId === null) {
-            throw new \RuntimeException('"' . trim((string) ($bank['bank_name'] ?? '')) . '" is not a bank Collexia can pay to. Correct the bank name on the borrower first.');
+            throw new \RuntimeException('"' . trim((string) ($bank['bank_name'] ?? '')) . '" is not a bank Collexia can pay to. Correct the bank name on the client first.');
         }
 
         $type = CollexiaV3Codes::accountTypeFromLabel((string) ($bank['account_type'] ?? ''));
         if ($type === null) {
-            throw new \RuntimeException('The borrower\'s bank account type is blank or not Savings / Cheque / Current -- set it in the borrower\'s bank details first.');
+            throw new \RuntimeException('The client\'s bank account type is blank or not Savings / Cheque / Current -- set it in the client\'s bank details first.');
         }
 
         return [
@@ -224,7 +224,7 @@ class CollexiaEncrDisbursementService
             $message .= ' — WARNING: Collexia paid out ' . number_format($paidOut, 2) . ' but the loan is ' . number_format((float) $d['amount'], 2) . '.';
         }
         if ($state === 'Failed') {
-            $message .= ' — the money did NOT leave. The loan is already released and posted in the books, so pay the borrower another way and correct the entry.';
+            $message .= ' — the money did NOT leave. The loan is already released and posted in the books, so pay the client another way and correct the entry.';
         }
 
         $this->loans->updateDisbursementFields($disbursementId, [

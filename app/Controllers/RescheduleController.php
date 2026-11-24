@@ -75,7 +75,7 @@ class RescheduleController extends Controller
         $reschedules = $this->reschedules->paginated($status, $branchId, $filter['q'], $filter, $limit);
 
         if ($filter['export']) {
-            $this->exportList('Reschedules', 'reschedules', ['Reschedule No', 'Loan', 'Borrower', 'Old term', 'New term', 'New installment', 'Status', 'Requested'], array_map(static fn ($r) => [
+            $this->exportList('Reschedules', 'reschedules', ['Reschedule No', 'Loan', 'Client', 'Old term', 'New term', 'New installment', 'Status', 'Requested'], array_map(static fn ($r) => [
                 $r['reschedule_no'], $r['loan_no'], $r['borrower_name'], $r['old_term_months'], $r['new_term_months'], number_format((float) $r['new_installment_amount'], 2, '.', ''), $r['status'], $r['request_date'],
             ], $reschedules), $filter);
         }

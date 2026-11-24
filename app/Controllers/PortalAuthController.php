@@ -21,7 +21,7 @@ class PortalAuthController extends Controller
         if (PortalAuth::check()) {
             $this->redirect('/portal/dashboard');
         }
-        $this->view('portal/login', ['title' => 'Borrower Portal Login']);
+        $this->view('portal/login', ['title' => 'Client Portal Login']);
     }
 
     public function login(): void
@@ -86,11 +86,11 @@ class PortalAuthController extends Controller
             $portalUsers->setResetToken((int) $user['id'], $tokenHash, $expiresAt);
 
             $resetLink = full_url('/portal/reset-password/' . $rawToken);
-            $message = "Hello,\n\nA password reset was requested for your borrower portal account. "
+            $message = "Hello,\n\nA password reset was requested for your client portal account. "
                 . "Click the link below to choose a new password. This link expires in " . self::RESET_TOKEN_TTL_MINUTES . " minutes.\n\n"
                 . $resetLink . "\n\nIf you didn't request this, you can safely ignore this email.";
 
-            $result = EmailSenderService::send((string) $user['email'], 'Reset Your Borrower Portal Password', $message);
+            $result = EmailSenderService::send((string) $user['email'], 'Reset Your Client Portal Password', $message);
 
             Audit::log('Create', 'Borrower Portal', 'Password reset requested for portal user #' . $user['id'] . ($result['success'] ? '' : ' (email send failed: ' . $result['error'] . ')'));
         } else {

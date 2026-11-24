@@ -70,7 +70,7 @@ class MandateCollectionAutoStop
 
             if (!empty($p['imminent'])) {
                 $out['problems'][] = 'Installment #' . (int) $p['installment_no'] . ' is already paid but mandate ' . (int) $p['mandate'] . ' is due to collect ' . format_money($p['amount']) . ' on ' . $fmt($p['collects_on'])
-                    . ' and that can no longer be stopped. If the borrower is debited, refund the overpayment.';
+                    . ' and that can no longer be stopped. If the client is debited, refund the overpayment.';
                 $this->record($loan, $mandate, $userId, 'Not stopped (due too soon): installment #' . (int) $p['installment_no'] . ' collects ' . $fmt($p['collects_on']) . '.', 0, $sid);
                 continue;
             }
@@ -102,7 +102,7 @@ class MandateCollectionAutoStop
                 $this->record($loan, $mandate, $userId, trim(implode(' ', $r['messages'])), $r['cancelled'], null);
             }
             if ($s['stoppable'] < $s['count']) {
-                $out['problems'][] = ($s['count'] - $s['stoppable']) . ' surplus collection(s) on the recurring mandate are due today or tomorrow and can no longer be stopped. If the borrower is debited, refund the overpayment.';
+                $out['problems'][] = ($s['count'] - $s['stoppable']) . ' surplus collection(s) on the recurring mandate are due today or tomorrow and can no longer be stopped. If the client is debited, refund the overpayment.';
             }
         }
 

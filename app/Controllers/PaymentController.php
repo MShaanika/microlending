@@ -76,7 +76,7 @@ class PaymentController extends Controller
         $payments = $this->payments->paginated($search, $limit, $branchId, $status, $filter);
 
         if ($filter['export']) {
-            $this->exportList('Payments', 'payments', ['Payment No', 'Loan No', 'Borrower', 'Date', 'Source', 'Reference', 'Amount received', 'Status', 'Recorded by'], array_map(static fn ($p) => [
+            $this->exportList('Payments', 'payments', ['Payment No', 'Loan No', 'Client', 'Date', 'Source', 'Reference', 'Amount received', 'Status', 'Recorded by'], array_map(static fn ($p) => [
                 $p['payment_no'], $p['loan_no'], $p['borrower_name'], $p['payment_date'], $p['payment_source'], $p['reference_no'],
                 number_format((float) $p['amount_received'], 2, '.', ''), $p['status'], $p['posted_by_name'],
             ], $payments), $filter);
@@ -270,7 +270,7 @@ class PaymentController extends Controller
             $this->redirect('/payments');
         }
 
-        Audit::log('Confirm', 'Collections', 'Confirmed borrower-reported payment #' . $id);
+        Audit::log('Confirm', 'Collections', 'Confirmed client-reported payment #' . $id);
         $confirmedLoanId = (int) ($this->payments->find($id)['loan_id'] ?? 0);
         Session::flash('success', trim('Payment confirmed and allocated to the schedule. ' . ($confirmedLoanId ? $this->autoStopCollections($confirmedLoanId) : '')));
         $this->redirect('/payments');
@@ -291,7 +291,7 @@ class PaymentController extends Controller
         $reason = trim($_POST['reason'] ?? '') ?: 'No reason given';
         $this->payments->rejectPending($id, Auth::user()['id'] ?? null, $reason);
 
-        Audit::log('Reject', 'Collections', 'Rejected borrower-reported payment #' . $id . ': ' . $reason);
+        Audit::log('Reject', 'Collections', 'Rejected client-reported payment #' . $id . ': ' . $reason);
         Session::flash('success', 'Payment reference rejected.');
         $this->redirect('/payments');
     }

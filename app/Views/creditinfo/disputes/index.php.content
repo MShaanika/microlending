@@ -3,10 +3,10 @@
 <div class="card mb-3">
   <div class="card-body">
     <h4 class="card-title">Record a New Dispute</h4>
-    <p class="text-muted small">Recording an open dispute here immediately blocks any new Public Default listing for this borrower (item 6's hard control), until it is resolved.</p>
+    <p class="text-muted small">Recording an open dispute here immediately blocks any new Public Default listing for this client (item 6's hard control), until it is resolved.</p>
     <form method="post" action="<?= url('/creditinfo/disputes') ?>" class="row g-2">
       <?= csrf_field() ?>
-      <div class="col-md-3"><input type="number" name="borrower_id" class="form-control form-control-sm" placeholder="Borrower ID" required></div>
+      <div class="col-md-3"><input type="number" name="borrower_id" class="form-control form-control-sm" placeholder="Client ID" required></div>
       <div class="col-md-3"><input type="text" name="reference" class="form-control form-control-sm" placeholder="Dispute reference (optional)"></div>
       <div class="col-md-4"><input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes"></div>
       <div class="col-md-2"><button type="submit" class="btn btn-sm btn-danger w-100">Open Dispute</button></div>
@@ -19,7 +19,7 @@
     <h4 class="card-title">Creditinfo Disputes</h4>
     <div class="table-responsive">
       <table class="table table-sm">
-        <thead><tr><th>Borrower</th><th>Reference</th><th>Status</th><th>Opened</th><th>Resolved</th><th>Recorded By</th><th></th></tr></thead>
+        <thead><tr><th>Client</th><th>Reference</th><th>Status</th><th>Opened</th><th>Resolved</th><th>Recorded By</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($disputes as $d): ?>
             <tr>

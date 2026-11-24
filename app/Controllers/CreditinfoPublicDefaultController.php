@@ -882,7 +882,7 @@ class CreditinfoPublicDefaultController extends Controller
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['Reference', 'Borrower', 'Loan', 'ID Number', 'Default Date', 'Original Amount', 'Outstanding', 'Listing Date', 'Status', 'Creditinfo Reference']);
+        fputcsv($out, ['Reference', 'Client', 'Loan', 'ID Number', 'Default Date', 'Original Amount', 'Outstanding', 'Listing Date', 'Status', 'Creditinfo Reference']);
         foreach ($rows as $r) {
             fputcsv($out, [
                 $r['listing_reference'], $r['borrower_name'], $r['loan_no'],
@@ -941,7 +941,7 @@ class CreditinfoPublicDefaultController extends Controller
             return;
         }
 
-        Audit::log('Create', 'Creditinfo', 'Recorded borrower notice for Public Default ' . $pd['listing_reference'], [], $pd['listing_reference']);
+        Audit::log('Create', 'Creditinfo', 'Recorded client notice for Public Default ' . $pd['listing_reference'], [], $pd['listing_reference']);
         Session::flash('success', 'Notice recorded.');
         $this->redirect('/creditinfo/public-defaults/' . $id);
     }

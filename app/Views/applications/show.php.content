@@ -42,7 +42,7 @@
         <?php endif; ?>
 
         <?php if ($application['borrower_id']): ?>
-          <p class="mt-2 mb-0"><a href="<?= url('/borrowers/' . $application['borrower_id']) ?>"><i class="mdi mdi-account"></i> View Borrower Record</a></p>
+          <p class="mt-2 mb-0"><a href="<?= url('/borrowers/' . $application['borrower_id']) ?>"><i class="mdi mdi-account"></i> View Client Record</a></p>
         <?php endif; ?>
       </div>
     </div>
@@ -238,10 +238,10 @@
 
         <?php if ($canConvert): ?>
           <hr>
-          <form method="post" action="<?= url('/applications/' . $application['id'] . '/convert') ?>" class="mt-2" onsubmit="return confirmSubmit(this, 'Convert this application to a borrower and proceed to loan creation?');">
+          <form method="post" action="<?= url('/applications/' . $application['id'] . '/convert') ?>" class="mt-2" onsubmit="return confirmSubmit(this, 'Convert this application to a client and proceed to loan creation?');">
             <?= csrf_field() ?>
             <?php if (!$application['borrower_id']): ?>
-              <label class="form-label small">Branch (for new borrower)</label>
+              <label class="form-label small">Branch (for new client)</label>
               <select name="branch_id" class="form-select form-select-sm mb-2">
                 <option value="">Select branch</option>
                 <?php foreach ($branches as $b): ?>
@@ -249,7 +249,7 @@
                 <?php endforeach; ?>
               </select>
             <?php endif; ?>
-            <button type="submit" class="btn btn-sm btn-info w-100"><i class="mdi mdi-account-convert"></i> Convert to Borrower &amp; Loan</button>
+            <button type="submit" class="btn btn-sm btn-info w-100"><i class="mdi mdi-account-convert"></i> Convert to Client &amp; Loan</button>
           </form>
         <?php endif; ?>
 
@@ -296,8 +296,17 @@
                   <td><?= e($doc['document_type']) ?></td>
                   <td><span class="badge bg-<?= $docBadge ?>"><?= e($doc['status']) ?></span></td>
                   <td><?= e(date('d M Y', strtotime($doc['uploaded_at']))) ?></td>
-                  <td class="text-end">
-                    <a href="<?= url('/applications/' . $application['id'] . '/documents/' . $doc['id']) ?>" target="_blank" class="btn btn-sm btn-outline-info"><i class="mdi mdi-download"></i></a>
+                  <td class="text-end text-nowrap">
+                    <?php
+                      $docUrl = url('/applications/' . $application['id'] . '/documents/' . $doc['id']);
+                      $docExt = strtolower(pathinfo((string) $doc['file_path'], PATHINFO_EXTENSION));
+                      $docKind = $docExt === 'pdf' ? 'pdf' : (in_array($docExt, ['jpg', 'jpeg', 'png'], true) ? 'image' : 'other');
+                    ?>
+                    <?php if ($docKind !== 'other'): ?>
+                      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#docPreviewModal"
+                              data-doc-url="<?= e($docUrl) ?>" data-doc-kind="<?= e($docKind) ?>" data-doc-name="<?= e($doc['document_name'] ?: $doc['document_type']) ?>" title="Preview"><i class="mdi mdi-eye-outline"></i> Preview</button>
+                    <?php endif; ?>
+                    <a href="<?= e($docUrl) ?>" target="_blank" class="btn btn-sm btn-outline-secondary" title="Open in a new tab / download"><i class="mdi mdi-download"></i></a>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -306,6 +315,45 @@
         </div>
       </div>
     </div>
+
+    <div class="modal fade" id="docPreviewModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="docPreviewTitle">Document</h5>
+            <a href="#" target="_blank" class="btn btn-sm btn-outline-secondary ms-auto me-2" id="docPreviewOpen"><i class="mdi mdi-open-in-new"></i> Open in new tab</a>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-0 text-center bg-light" id="docPreviewBody" style="min-height:60vh"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var modal = document.getElementById('docPreviewModal');
+        if (!modal) { return; }
+        var body = document.getElementById('docPreviewBody');
+        modal.addEventListener('show.bs.modal', function (ev) {
+          var b = ev.relatedTarget;
+          if (!b) { return; }
+          var url = b.getAttribute('data-doc-url'), kind = b.getAttribute('data-doc-kind');
+          document.getElementById('docPreviewTitle').textContent = b.getAttribute('data-doc-name') || 'Document';
+          document.getElementById('docPreviewOpen').setAttribute('href', url);
+          body.innerHTML = '';
+          var el;
+          if (kind === 'pdf') {
+            el = document.createElement('iframe');
+            el.style.cssText = 'width:100%;height:75vh;border:0';
+          } else {
+            el = document.createElement('img');
+            el.style.cssText = 'max-width:100%;max-height:75vh;object-fit:contain;margin:8px auto;display:block';
+          }
+          el.setAttribute('src', url);
+          body.appendChild(el);
+        });
+        modal.addEventListener('hidden.bs.modal', function () { body.innerHTML = ''; });
+      });
+    </script>
 
     <?php if ($screening): ?>
       <?php

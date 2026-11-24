@@ -206,7 +206,7 @@ class NotificationController extends Controller
         $borrower = $borrowerId ? $this->borrowers->find($borrowerId) : null;
         if ($borrower && $branchId !== null && (int) $borrower['branch_id'] !== $branchId) {
             $borrower = null;
-            $errors['borrower_id'] = 'Borrower not found.';
+            $errors['borrower_id'] = 'Client not found.';
         }
         $loan = $loanId ? $this->loans->find($loanId) : null;
         if ($loan && $branchId !== null && (int) $loan['branch_id'] !== $branchId) {

@@ -239,7 +239,7 @@ class PortalController extends Controller
             $this->storeLoanRequestDocuments($requestId, $requestNo, $_FILES['documents'] ?? []);
         }
 
-        Audit::log('Create', 'Loan Requests', 'Borrower portal ' . strtolower($requestType) . ' loan request #' . $requestId . ' by borrower #' . $borrowerId);
+        Audit::log('Create', 'Loan Requests', 'Client portal ' . strtolower($requestType) . ' loan request #' . $requestId . ' by client #' . $borrowerId);
         Session::flash('success', 'Your loan request has been submitted. Our team will review it shortly.');
         $this->redirect('/portal/loan-requests');
     }
@@ -308,7 +308,7 @@ class PortalController extends Controller
             'notes' => trim($_POST['notes'] ?? ''),
         ]);
 
-        Audit::log('Create', 'Collections', 'Borrower portal logged pending payment #' . $paymentId . ' for loan #' . $loanId);
+        Audit::log('Create', 'Collections', 'Client portal logged pending payment #' . $paymentId . ' for loan #' . $loanId);
         Session::flash('success', 'Payment reference submitted. Our team will confirm it and update your balance shortly.');
         $this->redirect('/portal/payments');
     }
@@ -418,7 +418,7 @@ class PortalController extends Controller
             'status' => 'Draft',
         ]);
 
-        Audit::log('Create', 'Documents', 'Borrower portal requested "' . $title . '" (#' . $documentId . ')');
+        Audit::log('Create', 'Documents', 'Client portal requested "' . $title . '" (#' . $documentId . ')');
         Session::flash('success', 'Your letter request has been submitted. Our team will prepare it and it will appear here once ready.');
         $this->redirect('/portal/letters');
     }
@@ -530,7 +530,7 @@ class PortalController extends Controller
 
         $this->storeRefundClaimDocuments($claimId, $claimNo, $_FILES['documents'] ?? []);
 
-        Audit::log('Create', 'Refund Claims', 'Borrower portal submitted refund claim #' . $claimId . ' by borrower #' . $borrowerId);
+        Audit::log('Create', 'Refund Claims', 'Client portal submitted refund claim #' . $claimId . ' by client #' . $borrowerId);
         Session::flash('success', 'Your refund claim has been submitted for review.');
         $this->redirect('/portal/refund-claims');
     }

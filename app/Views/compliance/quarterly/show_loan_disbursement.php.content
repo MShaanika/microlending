@@ -182,7 +182,7 @@
 ?>
 <div class="card mb-3">
   <div class="card-body">
-    <p class="text-muted small mb-3">"Total Repayment" above already includes each loan's own NAMFISA levy and duty stamp (the same components as the loan's total repayable amount). The figure below is the levy remittance owed to NAMFISA as a regulator, not an additional amount borrowers repay.</p>
+    <p class="text-muted small mb-3">"Total Repayment" above already includes each loan's own NAMFISA levy and duty stamp (the same components as the loan's total repayable amount). The figure below is the levy remittance owed to NAMFISA as a regulator, not an additional amount clients repay.</p>
     <div class="row">
       <div class="col-md-6 mb-2">
         <p class="mb-1 text-muted">Expenditure for the Month</p>

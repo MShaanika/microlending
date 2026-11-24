@@ -89,7 +89,7 @@ $statusBadge = match ($batch['status']) {
     <h5 class="card-title">Records in this Batch (<?= count($items) ?>)</h5>
     <div class="table-responsive">
       <table class="table table-sm">
-        <thead><tr><th>#</th><th>Reference</th><th>Borrower</th><th>Loan</th><th>Current Status</th></tr></thead>
+        <thead><tr><th>#</th><th>Reference</th><th>Client</th><th>Loan</th><th>Current Status</th></tr></thead>
         <tbody>
           <?php foreach ($items as $i): ?>
             <tr>

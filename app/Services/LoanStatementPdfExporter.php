@@ -99,7 +99,7 @@ class LoanStatementPdfExporter
 
             <table class="header"><tr>
                 <td style="width:50%">
-                    <h4>Borrower</h4>
+                    <h4>Client</h4>
                     <div>' . $e($borrower['first_name'] . ' ' . $borrower['last_name']) . '</div>
                     <div>' . $e($borrower['borrower_no']) . '</div>
                     <div>' . $e($borrower['phone'] ?: '') . '</div>

@@ -52,7 +52,7 @@ class GeneratedDocumentController extends Controller
         $documents = $this->documents->paginatedAll($sourceModule, $status, $search, $limit, $branchId, $filter);
 
         if ($filter['export']) {
-            $this->exportList('Generated documents', 'generated_documents', ['Document No', 'Title', 'Source', 'Borrower', 'Status', 'Generated', 'By'], array_map(static fn ($d) => [
+            $this->exportList('Generated documents', 'generated_documents', ['Document No', 'Title', 'Source', 'Client', 'Status', 'Generated', 'By'], array_map(static fn ($d) => [
                 $d['document_no'], $d['document_title'], $d['source_module'], $d['borrower_name'], $d['status'], $d['generated_at'], $d['generated_by_name'],
             ], $documents), $filter);
         }

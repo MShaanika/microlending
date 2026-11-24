@@ -12,7 +12,7 @@
     <?php
       $bar = [
           'action' => url('/loans'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Loan no, borrower, ID number or phone'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Loan no, client, ID number or phone'],
           'status' => ['value' => $status ?? '', 'options' => ['Draft','Pending Approval','Approved','Active','Completed','Denied','Written Off','Cancelled','Recovered - Closed','Arrear','Bad Debt','Bad Debt Recovery']],
           'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
           'date' => ['label' => 'Start date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
@@ -29,7 +29,7 @@
         <thead>
           <tr>
             <th>Loan No</th>
-            <th>Borrower</th>
+            <th>Client</th>
             <th>Product</th>
             <th>Principal</th>
             <th>Installment</th>

@@ -117,7 +117,7 @@ class DataQualityService
         return array_map(static fn ($r) => [
             'resource_type' => 'borrower',
             'resource_id' => (int) $r['id'],
-            'description' => sprintf('Approved borrower %s has no ID/passport number on file.', $r['full_name']),
+            'description' => sprintf('Approved client %s has no ID/passport number on file.', $r['full_name']),
         ], $rows);
     }
 
@@ -161,7 +161,7 @@ class DataQualityService
         return array_map(static fn ($r) => [
             'resource_type' => 'borrower_phone_group',
             'resource_id' => (int) $r['anchor_id'],
-            'description' => sprintf('%d borrowers share phone number %s: %s.', (int) $r['total'], $r['phone'], $r['borrower_nos']),
+            'description' => sprintf('%d clients share phone number %s: %s.', (int) $r['total'], $r['phone'], $r['borrower_nos']),
         ], $groups);
     }
 }

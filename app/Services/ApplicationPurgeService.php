@@ -24,8 +24,11 @@ use App\Models\User;
  *    loan question says approved/disbursed. An OPEN-status application is
  *    deleted only when staff answered "not approved, not going to approve";
  *    anything with a missing or unanswered question is only FLAGGED to staff.
- *  - Warn first: deletion needs purge_warned_at older than warning_days, newer
- *    than the last status change, AND a warning e-mail that was really Sent.
+ *  - Warn first: deletion needs purge_warned_at older than warning_days (but not
+ *    older than warning_days + 7), newer than the last status change, AND a
+ *    warning e-mail that was really Sent at least warning_days ago (sent_at).
+ *  - An application that was EVER approved (approved_at/approved_by, or an
+ *    'Approved' status-history row) is never purged, even if later Rejected.
  *  - Creditinfo consent / report-cache rows must never be deleted (audit
  *    record), so such applications are "tombstoned": all personal data wiped,
  *    the row kept with purged_at set.
@@ -38,6 +41,8 @@ final class ApplicationPurgeService
     public const OPEN_STATUSES = ['Submitted', 'Screening', 'Documents Required'];
     public const CLOSED_STATUSES = ['Rejected', 'Cancelled'];
     public const SOURCE_MODULE = 'Application Purge';
+    /** Applications named (and stamped) per daily warning digest. */
+    public const WARN_PER_RUN = 30;
 
     private \PDO $db;
 
@@ -101,6 +106,10 @@ final class ApplicationPurgeService
         )";
     }
 
+    /** Was this application ever approved (even if it was rejected afterwards)? Such an application is never purged. */
+    private const EVER_APPROVED = "(a.approved_at IS NOT NULL OR a.approved_by IS NOT NULL
+            OR EXISTS (SELECT 1 FROM loan_application_status_history ha WHERE ha.application_id = a.id AND ha.new_status = 'Approved'))";
+
     /** SQL fragment: every rule that makes an application eligible regardless of age. */
     private static function eligibleWhere(): string
     {
@@ -109,6 +118,7 @@ final class ApplicationPurgeService
         return "a.purged_at IS NULL
             AND a.borrower_id IS NULL
             AND a.status IN ($open, $closed)
+            AND NOT " . self::EVER_APPROVED . "
             AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.application_id = a.id)
             AND NOT EXISTS (SELECT 1 FROM creditinfo_public_defaults d WHERE d.loan_application_id = a.id)
             AND NOT " . self::heldSql() . "
@@ -116,9 +126,42 @@ final class ApplicationPurgeService
             AND NOT " . self::unsettledQuestionSql();
     }
 
-    /** A warning e-mail covering this application was really delivered (status Sent), around the time it was stamped. */
-    private const WARNING_SENT = "EXISTS (SELECT 1 FROM notification_queue q WHERE q.source_module = 'Application Purge' AND q.source_table = 'application_purge_warning'
-            AND q.status = 'Sent' AND q.created_at >= (a.purge_warned_at - INTERVAL 1 DAY) AND q.created_at <= (a.purge_warned_at + INTERVAL 1 DAY))";
+    /**
+     * A warning e-mail covering this application was really delivered (status Sent, sent_at set) and queued in the
+     * same run that stamped purge_warned_at (queue created_at within 1 hour of the stamp: both are MySQL NOW()).
+     * With $mustBeOldEnough the e-mail must also have been sent at least warning_days ago, so the "warned N days
+     * ago" clock starts when the e-mail was really SENT, not when it was queued (dispatch may fail or run late).
+     *
+     * Timezone: NotificationQueue::updateStatus() writes sent_at with PHP's date() (app timezone, Africa/Windhoek),
+     * whereas NOW() is the database server's clock. So the cut-off is computed in PHP, in the same clock as sent_at,
+     * and embedded as a literal. Never compare sent_at to NOW() directly.
+     */
+    private static function warningSentSql(bool $mustBeOldEnough): string
+    {
+        $sql = "EXISTS (SELECT 1 FROM notification_queue q WHERE q.source_module = 'Application Purge' AND q.source_table = 'application_purge_warning'
+            AND q.status = 'Sent' AND q.sent_at IS NOT NULL
+            AND q.created_at >= (a.purge_warned_at - INTERVAL 1 HOUR) AND q.created_at <= (a.purge_warned_at + INTERVAL 1 HOUR)";
+        if ($mustBeOldEnough) {
+            $sql .= " AND q.sent_at <= '" . date('Y-m-d H:i:s', strtotime('-' . self::warningDays() . ' days')) . "'";
+        }
+        return $sql . ')';
+    }
+
+    /** The stamp is only trusted for warning_days + 7 days; after that the warning is stale and must be re-sent. */
+    private static function warningMaxAgeDays(): int
+    {
+        return self::warningDays() + 7;
+    }
+
+    /** SQL fragment: the warning stamp is old enough, not too old, newer than the last status change, and really delivered long enough ago. */
+    private static function warnedForPurgeSql(): string
+    {
+        return "a.purge_warned_at IS NOT NULL
+                AND a.purge_warned_at <= (NOW() - INTERVAL " . self::warningDays() . " DAY)
+                AND a.purge_warned_at >= (NOW() - INTERVAL " . self::warningMaxAgeDays() . " DAY)
+                AND a.purge_warned_at >= " . self::ANCHOR . "
+                AND " . self::warningSentSql(true);
+    }
 
     /** Old applications held back ONLY by an unanswered / missing Loan Question: staff must answer it (flagged, never deleted). */
     public function blockedByLoanQuestion(?int $days = null): array
@@ -129,6 +172,7 @@ final class ApplicationPurgeService
         $sql = "SELECT a.id, a.application_no, a.status, " . self::ANCHOR . " AS anchor_at
                 FROM loan_applications a
                 WHERE a.purged_at IS NULL AND a.borrower_id IS NULL AND a.status IN ($open, $closed)
+                  AND NOT " . self::EVER_APPROVED . "
                   AND " . self::ANCHOR . " <= (NOW() - INTERVAL $days DAY)
                   AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.application_id = a.id)
                   AND NOT EXISTS (SELECT 1 FROM loan_followups f WHERE f.application_id = a.id AND (f.approved = 'Yes' OR f.disbursed = 'Yes'))
@@ -145,7 +189,6 @@ final class ApplicationPurgeService
     public function eligible(?int $days = null, bool $mustBeWarned = false, ?int $limit = null): array
     {
         $days = $days ?? self::retentionDays();
-        $warn = self::warningDays();
         $sql = "SELECT a.id, a.application_no, a.status, a.purge_warned_at,
                        " . self::ANCHOR . " AS anchor_at,
                        DATE_ADD(" . self::ANCHOR . ", INTERVAL $days DAY) AS due_at
@@ -153,8 +196,7 @@ final class ApplicationPurgeService
                 WHERE " . self::eligibleWhere() . "
                   AND " . self::ANCHOR . " <= (NOW() - INTERVAL $days DAY)";
         if ($mustBeWarned) {
-            $sql .= " AND a.purge_warned_at IS NOT NULL AND a.purge_warned_at <= (NOW() - INTERVAL $warn DAY)
-                      AND a.purge_warned_at >= " . self::ANCHOR . " AND " . self::WARNING_SENT;
+            $sql .= " AND " . self::warnedForPurgeSql();
         }
         $sql .= ' ORDER BY anchor_at' . ($limit ? ' LIMIT ' . (int) $limit : '');
         return $this->db->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
@@ -175,7 +217,12 @@ final class ApplicationPurgeService
         return $this->db->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    /** Phase 0: anything warned that is no longer eligible, or whose last status change is newer than the warning, loses its stamp. */
+    /**
+     * Phase 0: a stamp is cleared when the application is no longer eligible, when its last status change is newer than
+     * the warning, when the stamp is older than warning_days + 7 (stale), or when the stamp is older than
+     * warning_days + 1 and no warning e-mail was ever really Sent for it (so the next run re-queues the digest and the
+     * "scheduled for deletion" banner is never stuck on an e-mail that never went out).
+     */
     public function clearStaleWarnings(): int
     {
         $days = self::retentionDays();
@@ -183,20 +230,23 @@ final class ApplicationPurgeService
         $stmt = $this->db->prepare("UPDATE loan_applications a SET a.purge_warned_at = NULL
             WHERE a.purge_warned_at IS NOT NULL AND a.purged_at IS NULL
               AND (NOT (" . self::eligibleWhere() . " AND " . self::ANCHOR . " <= (NOW() - INTERVAL " . ($days - $warn) . " DAY))
-                   OR a.purge_warned_at < " . self::ANCHOR . ")");
+                   OR a.purge_warned_at < " . self::ANCHOR . "
+                   OR a.purge_warned_at < (NOW() - INTERVAL " . self::warningMaxAgeDays() . " DAY)
+                   OR (a.purge_warned_at < (NOW() - INTERVAL " . ($warn + 1) . " DAY) AND NOT " . self::warningSentSql(false) . "))");
         $stmt->execute();
         return $stmt->rowCount();
     }
 
     /**
      * Phase 1: one digest e-mail per recipient per day, then stamp purge_warned_at (only when a digest was queued).
-     * At most 50 applications per run get a first warning (a big backlog is worked off over several days).
+     * At most 30 applications per run get a first warning: exactly the ones NAMED in the digest are stamped, never
+     * one that was not listed (a big backlog is worked off over several days).
      * @return array{warned:int, emails:int}
      */
     public function warn(): array
     {
         $due = array_values(array_filter($this->dueSoon(), fn ($r) => $r['purge_warned_at'] === null));
-        $due = array_slice($due, 0, 50);
+        $due = array_slice($due, 0, self::WARN_PER_RUN);
         $blocked = $this->blockedByLoanQuestion();
         if (!$due && !$blocked) {
             return ['warned' => 0, 'emails' => 0];
@@ -212,12 +262,9 @@ final class ApplicationPurgeService
         }
         $earliest = date('Y-m-d', strtotime('+' . self::warningDays() . ' days'));
         $lines = [];
-        foreach (array_slice($due, 0, 30) as $r) {
+        foreach ($due as $r) {
             $when = max(substr((string) $r['due_at'], 0, 10), $earliest);
             $lines[] = $r['application_no'] . ' (' . $r['status'] . ') will be deleted on or after ' . $when;
-        }
-        if (count($due) > 30) {
-            $lines[] = '...and ' . (count($due) - 30) . ' more.';
         }
         $body = '';
         if ($due) {
@@ -301,9 +348,8 @@ final class ApplicationPurgeService
             $row->execute([$id]);
             $app = $row->fetch(\PDO::FETCH_ASSOC);
             $days = self::retentionDays();
-            $warn = self::warningDays();
             $still = $app ? $this->db->prepare("SELECT 1 FROM loan_applications a WHERE a.id = ? AND " . self::eligibleWhere() . " AND " . self::ANCHOR . " <= (NOW() - INTERVAL $days DAY)
-                AND a.purge_warned_at IS NOT NULL AND a.purge_warned_at <= (NOW() - INTERVAL $warn DAY) AND a.purge_warned_at >= " . self::ANCHOR . " AND " . self::WARNING_SENT) : null;
+                AND " . self::warnedForPurgeSql()) : null;
             if ($still) {
                 $still->execute([$id]);
             }

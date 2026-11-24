@@ -180,7 +180,7 @@ class CreditinfoPublicDefaultFileService
         if ($passport !== '') {
             return ['type' => self::ID_TYPE_PASSPORT, 'number' => $passport];
         }
-        throw new \RuntimeException('Borrower ' . ($borrower['borrower_no'] ?? $borrower['id'] ?? '?') . ' has neither an ID number nor a passport number on file -- cannot be submitted to Creditinfo.');
+        throw new \RuntimeException('Client ' . ($borrower['borrower_no'] ?? $borrower['id'] ?? '?') . ' has neither an ID number nor a passport number on file -- cannot be submitted to Creditinfo.');
     }
 
     private function formatDate(?string $date): string

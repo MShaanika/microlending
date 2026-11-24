@@ -3,15 +3,15 @@
 <div class="card">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-      <h4 class="card-title mb-0">Borrower Letter Requests</h4>
+      <h4 class="card-title mb-0">Client Letter Requests</h4>
       <a href="<?= url('/letters/create') ?>" class="btn btn-info btn-sm waves-effect waves-light"><i class="mdi mdi-plus"></i> Generate Letter</a>
     </div>
-    <p class="text-muted small">Completion and Consolidation letters, either requested by a borrower via their portal or started directly here. For each pending request, either click <strong>Generate Automatically</strong> to fill the template from the loan/borrower data, or prepare the letter on letterhead yourself and upload the final PDF.</p>
+    <p class="text-muted small">Completion and Consolidation letters, either requested by a client via their portal or started directly here. For each pending request, either click <strong>Generate Automatically</strong> to fill the template from the loan/client data, or prepare the letter on letterhead yourself and upload the final PDF.</p>
 
     <?php
       $bar = [
           'action' => url('/letters'),
-          'search' => ['value' => $search ?? '', 'placeholder' => 'Document no, title, borrower or type'],
+          'search' => ['value' => $search ?? '', 'placeholder' => 'Document no, title, client or type'],
           'status' => ['value' => $status ?? '', 'options' => ['Draft', 'Generated', 'Sent', 'Signed', 'Cancelled']],
           'date' => ['label' => 'Requested', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
           'export' => true,
@@ -25,7 +25,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Document No</th><th>Borrower</th><th>Title</th><th>Type</th><th>Status</th><th>Requested</th><th class="text-end">Action</th></tr>
+          <tr><th>Document No</th><th>Client</th><th>Title</th><th>Type</th><th>Status</th><th>Requested</th><th class="text-end">Action</th></tr>
         </thead>
         <tbody>
           <?php if (empty($documents)): ?>
@@ -71,7 +71,7 @@
                           <div class="modal-body">
                             <label class="form-label small">Recipient Email</label>
                             <input type="email" name="recipient_email" class="form-control form-control-sm" value="<?= e($d['borrower_email'] ?? '') ?>" required>
-                            <?php if (empty($d['borrower_email'])): ?><p class="text-muted small mt-1 mb-0">No email on file for this borrower -- enter one to send to.</p><?php endif; ?>
+                            <?php if (empty($d['borrower_email'])): ?><p class="text-muted small mt-1 mb-0">No email on file for this client -- enter one to send to.</p><?php endif; ?>
                           </div>
                           <div class="modal-footer">
                             <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

@@ -83,12 +83,37 @@ class ApplicationPurgeTest extends TestCase
         return (int) $this->db->lastInsertId();
     }
 
-    /** A warning e-mail that really was Sent (purge refuses to delete otherwise). */
-    private function sentWarning(int $daysAgo = 10): void
+    /**
+     * A warning e-mail that really was Sent (purge refuses to delete otherwise). Queued $daysAgo days ago (this must match
+     * the warned-at stamp), actually sent $sentDaysAgo days ago (default: same time), written like the dispatcher does:
+     * sent_at from PHP's date(), status Sent. $sentDaysAgo = null leaves sent_at empty (status Sent but no timestamp).
+     */
+    private function sentWarning(int $daysAgo = 10, ?int $sentDaysAgo = -1, string $status = 'Sent'): void
     {
+        $sentDaysAgo = $sentDaysAgo === -1 ? $daysAgo : $sentDaysAgo;
         $this->db->exec("INSERT INTO notification_queue (channel, recipient_name, recipient_contact, subject, message, source_module, source_table, source_id, status)
-            VALUES ('Email', 'T', 't@example.com', 's', 'm', 'Application Purge', 'application_purge_warning', 900000099, 'Sent')");
-        $this->db->exec("UPDATE notification_queue SET created_at = NOW() - INTERVAL $daysAgo DAY WHERE source_id = 900000099 AND source_module = 'Application Purge'");
+            VALUES ('Email', 'T', 't@example.com', 's', 'm', 'Application Purge', 'application_purge_warning', 900000099, '$status')");
+        $id = (int) $this->db->lastInsertId();
+        $this->db->exec("UPDATE notification_queue SET created_at = NOW() - INTERVAL $daysAgo DAY WHERE id = $id");
+        if ($sentDaysAgo !== null) {
+            $this->db->prepare('UPDATE notification_queue SET sent_at = ? WHERE id = ?')->execute([date('Y-m-d H:i:s', strtotime('-' . $sentDaysAgo . ' days')), $id]);
+        }
+    }
+
+    private function stamp(int $id): ?string
+    {
+        $v = $this->db->query("SELECT purge_warned_at FROM loan_applications WHERE id = $id")->fetchColumn();
+        return $v === false || $v === null ? null : (string) $v;
+    }
+
+    private function wipeQueue(): void
+    {
+        $this->db->exec("DELETE FROM notification_queue WHERE source_module = 'Application Purge' AND source_table = 'application_purge_warning' AND source_id = 900000099");
+    }
+
+    private function eligibleWarnedNos(): array
+    {
+        return array_column($this->svc->eligible(30, true), 'application_no');
     }
 
     private function followup(int $appId, string $status, ?string $approved, ?string $plans = null, ?string $disbursed = null): void
@@ -235,6 +260,149 @@ class ApplicationPurgeTest extends TestCase
         $id = $this->app('STALE', 'Approved', 60, 3);
         $this->svc->clearStaleWarnings();
         $this->assertFalse((bool) $this->db->query("SELECT purge_warned_at FROM loan_applications WHERE id = $id")->fetchColumn());
+    }
+
+    // ---- warning proof (A), digest stamping (B), stale stamps (C), ever-approved (D)
+
+    public function testWarningMustHaveBeenSentAtLeastWarningDaysAgo(): void
+    {
+        $id = $this->app('LATE', 'Rejected', 60, 10);
+        $this->sentWarning(10, 2); // queued 10 days ago, but only really sent 2 days ago (dispatch was down)
+        $this->assertFalse($this->svc->purge($id)['ok'], 'the clock starts when the e-mail is SENT');
+        $this->assertNotContains('APP-PRG-LATE', $this->eligibleWarnedNos());
+        $this->assertNotNull($this->stamp($id));
+        $this->wipeQueue();
+        $this->sentWarning(10, 8);
+        $this->assertTrue($this->svc->purge($id)['ok'], 'sent 8 days ago, 7 required');
+    }
+
+    public function testStatusSentWithoutSentAtIsNotProof(): void
+    {
+        $id = $this->app('NOSENTAT', 'Rejected', 60, 10);
+        $this->sentWarning(10, null);
+        $this->assertFalse($this->svc->purge($id)['ok']);
+        $this->assertNotContains('APP-PRG-NOSENTAT', $this->eligibleWarnedNos());
+    }
+
+    public function testSentWarningFromAnotherRunDoesNotCountForThisStamp(): void
+    {
+        $id = $this->app('OTHERRUN', 'Rejected', 60, 10);
+        $this->sentWarning(12); // a digest sent 2 days before this application was stamped
+        $this->assertFalse($this->svc->purge($id)['ok']);
+    }
+
+    public function testSentAtIsComparedInTheAppClockNotTheDatabaseClock(): void
+    {
+        // sent_at is written in PHP time: 7 days + 1 minute ago counts, 6 days 23 hours ago does not.
+        $id = $this->app('CLOCK', 'Rejected', 60, 10);
+        $this->sentWarning(10, null);
+        $qid = (int) $this->db->query("SELECT MAX(id) FROM notification_queue WHERE source_id = 900000099 AND source_module = 'Application Purge'")->fetchColumn();
+        $upd = $this->db->prepare('UPDATE notification_queue SET sent_at = ? WHERE id = ?');
+        $upd->execute([date('Y-m-d H:i:s', strtotime('-7 days -1 minute')), $qid]);
+        $this->assertContains('APP-PRG-CLOCK', $this->eligibleWarnedNos());
+        $upd->execute([date('Y-m-d H:i:s', strtotime('-6 days -23 hours')), $qid]);
+        $this->assertNotContains('APP-PRG-CLOCK', $this->eligibleWarnedNos());
+    }
+
+    public function testWarningTooOldIsNotTrustedAndIsCleared(): void
+    {
+        $id = $this->app('STAMPOLD', 'Rejected', 60, 15); // warning_days + 7 = 14
+        $this->sentWarning(15);
+        $this->assertFalse($this->svc->purge($id)['ok'], 'a 15 day old warning is stale');
+        $this->assertNotContains('APP-PRG-STAMPOLD', $this->eligibleWarnedNos());
+        $this->svc->clearStaleWarnings();
+        $this->assertNull($this->stamp($id), 'stale stamp removed so the next run re-warns');
+    }
+
+    public function testStampWithoutASentEmailIsClearedAfterWarningDaysPlusOne(): void
+    {
+        $notSent = $this->app('NOTSENT', 'Rejected', 60, 9);
+        $waiting = $this->app('WAITING', 'Rejected', 60, 5);
+        $this->sentWarning(9, null, 'Failed'); // a digest that never went out
+        $this->svc->clearStaleWarnings();
+        $this->assertNull($this->stamp($notSent), 'older than warning_days + 1 and no Sent e-mail: cleared');
+        $this->assertNotNull($this->stamp($waiting), 'only 5 days old: the e-mail may still be on its way');
+        $this->assertContains('APP-PRG-NOTSENT', array_column($this->svc->dueSoon(), 'application_no'), 'due again, so the next warn() re-queues the digest');
+    }
+
+    public function testStampWithADeliveredEmailIsKept(): void
+    {
+        $good = $this->app('GOODSENT', 'Rejected', 60, 9);
+        $this->sentWarning(9);
+        $this->svc->clearStaleWarnings();
+        $this->assertNotNull($this->stamp($good));
+    }
+
+    public function testLateSentWarningKeepsItsStampWhilePurgeWaits(): void
+    {
+        $id = $this->app('LATE2', 'Rejected', 60, 10);
+        $this->sentWarning(10, 2);
+        $this->svc->clearStaleWarnings();
+        $this->assertNotNull($this->stamp($id), 'delivered late but delivered: the stamp stays, purge just waits');
+        $this->assertFalse($this->svc->purge($id)['ok']);
+    }
+
+    public function testEverApprovedApplicationsAreNeverPurged(): void
+    {
+        $uid = (int) $this->db->query('SELECT id FROM users ORDER BY id LIMIT 1')->fetchColumn();
+        $a = $this->app('WASAPPR1', 'Rejected', 60, 10);
+        $this->db->exec("UPDATE loan_applications SET approved_at = NOW() - INTERVAL 50 DAY WHERE id = $a");
+        $b = $this->app('WASAPPR2', 'Rejected', 60, 10);
+        $this->db->prepare('UPDATE loan_applications SET approved_by = ? WHERE id = ?')->execute([$uid, $b]);
+        $c = $this->app('WASAPPR3', 'Rejected', 60, 10);
+        $hist = $this->db->prepare('INSERT INTO loan_application_status_history (application_id, old_status, new_status, changed_by, changed_at) VALUES (?, ?, ?, ?, NOW() - INTERVAL ? DAY)');
+        $hist->execute([$c, 'Screening', 'Approved', $uid, 59]);
+        $hist->execute([$c, 'Approved', 'Rejected', $uid, 55]);
+        $d = $this->app('NEVERAPPR', 'Rejected', 60, 10);
+        $this->sentWarning(10);
+        foreach ([$a, $b, $c] as $id) {
+            $this->assertFalse($this->svc->purge($id)['ok']);
+            $this->assertSame(1, (int) $this->db->query("SELECT COUNT(*) FROM loan_applications WHERE id = $id")->fetchColumn());
+        }
+        $this->assertSame(['APP-PRG-NEVERAPPR'], $this->eligibleNos());
+        $blocked = array_column($this->svc->blockedByLoanQuestion(30), 'application_no');
+        $this->assertSame([], array_values(array_filter($blocked, fn ($n) => str_starts_with($n, 'APP-PRG-WASAPPR'))), 'never even flagged');
+        $this->svc->clearStaleWarnings();
+        $this->assertNull($this->stamp($a), 'the warning of a once-approved application is withdrawn');
+        $this->assertNotNull($this->stamp($d));
+        $this->assertTrue($this->svc->purge($d)['ok']);
+    }
+
+    public function testDigestStampsOnlyTheApplicationsItNames(): void
+    {
+        $hasRecipient = false;
+        foreach (['applications.screen', 'loans.followups'] as $perm) {
+            foreach ((new \App\Models\User())->usersWithPermission($perm) as $u) {
+                $hasRecipient = $hasRecipient || !empty($u['email']);
+            }
+        }
+        if (!$hasRecipient) {
+            $this->markTestSkipped('no user with an e-mail address holds applications.screen / loans.followups locally');
+        }
+        $before = (int) $this->db->query('SELECT COALESCE(MAX(id), 0) FROM notification_queue')->fetchColumn();
+        $unstamped = $this->db->query("SELECT id FROM loan_applications WHERE purge_warned_at IS NULL AND application_no NOT LIKE 'APP-PRG-%'")->fetchAll(\PDO::FETCH_COLUMN);
+        $this->db->exec("DELETE FROM notification_queue WHERE source_module = 'Application Purge' AND source_table = 'application_purge_warning' AND source_id = " . (int) date('Ymd'));
+        try {
+            for ($i = 1; $i <= 35; $i++) {
+                $this->app(sprintf('DIG%02d', $i), 'Rejected', 4000 - $i); // very old, so they sort ahead of any real data
+            }
+            $w = $this->svc->warn();
+            $this->assertGreaterThan(0, $w['emails']);
+            $this->assertSame(ApplicationPurgeService::WARN_PER_RUN, $w['warned'], '35 were due; only the ones named are stamped');
+            $msg = (string) $this->db->query("SELECT message FROM notification_queue WHERE id > $before AND source_module = 'Application Purge' ORDER BY id LIMIT 1")->fetchColumn();
+            preg_match_all('/^(APP-PRG-DIG\d\d) \(/m', $msg, $named);
+            $this->assertCount(ApplicationPurgeService::WARN_PER_RUN, $named[1]);
+            $stamped = $this->db->query("SELECT application_no FROM loan_applications WHERE application_no LIKE 'APP-PRG-DIG%' AND purge_warned_at IS NOT NULL ORDER BY application_no")->fetchAll(\PDO::FETCH_COLUMN);
+            $sortedNamed = $named[1];
+            sort($sortedNamed);
+            $this->assertSame($sortedNamed, $stamped, 'exactly the named applications are stamped, none that was not named');
+            $this->assertStringNotContainsString('more.', $msg, 'no unnamed tail');
+        } finally {
+            $this->db->exec("DELETE FROM notification_queue WHERE id > $before AND source_module = 'Application Purge'");
+            if ($unstamped) {
+                $this->db->exec('UPDATE loan_applications SET purge_warned_at = NULL WHERE id IN (' . implode(',', array_map('intval', $unstamped)) . ')');
+            }
+        }
     }
 
     // ---- applicant correction SMS
