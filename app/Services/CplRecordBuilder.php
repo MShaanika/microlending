@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\AsciiText;
+
 /**
  * Pure fixed-width formatting engine for CPLv1.1 (Credit Providers Layout)
  * records -- no DB access, deliberately kept separate from CplExporter (the
@@ -123,7 +125,8 @@ class CplRecordBuilder
 
     private function pad(string $value, int $length, string $align): string
     {
-        $value = substr($value, 0, $length);
+        // pure ASCII first, so a byte is always a character: a multibyte character can never push a later field out of its position
+        $value = substr(AsciiText::clean($value), 0, $length);
         $fillChar = $align === 'NR' ? '0' : ' ';
         $padLeft = in_array($align, ['AR', 'NR'], true);
         return str_pad($value, $length, $fillChar, $padLeft ? STR_PAD_LEFT : STR_PAD_RIGHT);
@@ -147,11 +150,11 @@ class CplRecordBuilder
     public function header(string $supplierRef, string $monthEndDate, string $tradingName): string
     {
         $line = 'H'
-            . str_pad(substr($supplierRef, 0, 10), 10, ' ', STR_PAD_LEFT)
+            . str_pad(substr(AsciiText::clean($supplierRef), 0, 10), 10, ' ', STR_PAD_LEFT)
             . $this->date($monthEndDate)
             . '06'
             . $this->date(date('Y-m-d'))
-            . str_pad(substr($tradingName, 0, 60), 60, ' ', STR_PAD_RIGHT);
+            . str_pad(substr(AsciiText::clean($tradingName), 0, 60), 60, ' ', STR_PAD_RIGHT);
         return str_pad($line, self::RECORD_LENGTH, ' ', STR_PAD_RIGHT);
     }
 

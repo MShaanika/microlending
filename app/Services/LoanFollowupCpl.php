@@ -12,9 +12,12 @@ final class LoanFollowupCpl
     /**
      * @param array<int, array{followup: array<string,mixed>, application: array<string,mixed>, instalments: array<int,array<string,mixed>>, payments?: array<int, array<int, array{amount:string,paid_on:string}>>}> $entries
      * @param string $now the moment the file is built (a "not paid" answer whose re-ask time has passed is stale)
+     * @param bool $staleNoIsPending true (the manual flow): a "not paid" answer whose re-ask time has passed counts as unanswered. false (the automatic
+     *        submission): such an answer is a KNOWN fact - the instalment was not paid when staff last asked - and does not hold the file back; only an
+     *        instalment that was never answered does.
      * @return array{book: ApplicationLoanBook, pending: array<int, array{application_no:string, name:string, instalment_no:int, due_date:string}>}
      */
-    public function build(array $entries, string $asOf, ?string $now = null): array
+    public function build(array $entries, string $asOf, ?string $now = null, bool $staleNoIsPending = true): array
     {
         $now ??= date('Y-m-d H:i:s');
         $approved = [];
@@ -34,7 +37,7 @@ final class LoanFollowupCpl
                     continue;
                 }
                 $unsettled = $i['paid_amount'] === null || (float) $i['paid_amount'] < (float) $i['expected_amount'] - 0.004;
-                if (($i['answered_at'] === null && $i['paid_amount'] === null) || ($unsettled && !empty($i['next_ask_at']) && $i['next_ask_at'] <= $now)) {
+                if (($i['answered_at'] === null && $i['paid_amount'] === null) || ($staleNoIsPending && $unsettled && !empty($i['next_ask_at']) && $i['next_ask_at'] <= $now)) {
                     $unanswered ??= $i;
                     continue;
                 }

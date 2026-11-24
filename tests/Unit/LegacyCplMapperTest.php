@@ -64,10 +64,54 @@ class LegacyCplMapperTest extends TestCase
     {
         $r = $this->map($this->loan(), [['amount' => '440.00', 'date' => '2026-09-25 09:00:00']]);
 
-        // due 25 Sep and 25 Oct: 879.93 expected, 440 paid
+        // due 25 Sep and 25 Oct: 879.93 expected, 440 paid. The oldest unpaid instalment (25 Oct) is only 6 days past due on 31 Oct: the amount overdue is
+        // reported, but no whole month is in arrears yet.
         $this->assertSame(440, $r['fields']['amount_overdue']);
-        $this->assertSame(1, $r['fields']['months_in_arrears']);
+        $this->assertSame(0, $r['fields']['months_in_arrears']);
         $this->assertContains('arrears are an estimate (the old system keeps no instalment schedule)', $r['notes']);
+    }
+
+    public function testAMonthIsInArrearsOnlyOnceTheOldestUnpaidInstalmentIs30DaysPastDue(): void
+    {
+        $paid = [['amount' => '440.00', 'date' => '2026-09-25 09:00:00']];
+        $this->assertSame(0, $this->map($this->loan(), $paid, '2026-09-00', '2026-11-23')['fields']['months_in_arrears'], '29 days after 25 Oct');
+        $r = $this->map($this->loan(), $paid, '2026-09-00', '2026-11-24');
+        $this->assertSame(1, $r['fields']['months_in_arrears'], '30 days after 25 Oct');
+        $this->assertGreaterThan(0, $r['fields']['amount_overdue']);
+    }
+
+    public function testMonthsInArrearsNeverExceedTheWholeMonthsSinceTheAccountWasOpened(): void
+    {
+        // a 12 month loan opened on 5 Oct 2026 with a nonsense first-due month far in the past: nothing can be more months in arrears than the account is old
+        $r = $this->map($this->loan(['months' => 12, 'date_released' => '2026-10-05 10:00:00']), [], '2025-01-00');
+        $this->assertSame(0, $r['fields']['months_in_arrears']);
+        $this->assertGreaterThan(0, $r['fields']['amount_overdue'], 'the overdue amount is still reported');
+        $r = $this->map($this->loan(['months' => 12, 'date_released' => '2026-08-20 10:00:00']), [], '2025-01-00');
+        $this->assertLessThanOrEqual(2, $r['fields']['months_in_arrears'], 'whole months 20 Aug - 31 Oct');
+    }
+
+    public function testAClosedAccountCarriesAZeroInstalmentNothingOverdueAndNoArrears(): void
+    {
+        $f = $this->map($this->loan(['status' => 3]), [['amount' => '1320.00', 'date' => '2026-10-10 09:00:00']])['fields'];
+        $this->assertSame('C', $f['status_code']);
+        $this->assertSame(0, $f['instalment_amount']);
+        $this->assertSame(0, $f['amount_overdue']);
+        $this->assertSame(0, $f['months_in_arrears']);
+        $this->assertSame([], $this->blocking($f));
+    }
+
+    public function testNonAsciiTextIsTransliteratedToPlainAsciiNeverQuestionMarks(): void
+    {
+        $f = $this->map($this->loan([
+            'lastname' => "M\u{FC}ller-\u{D8}stergaard", 'firstname' => "Ren\u{E9}e", 'address' => "Erf 12 \u{201C}Caf\u{E9}\u{201D} Stra\u{DF}e Windhoek",
+            'company_name' => "Za\u{17C}\u{F3}\u{142}\u{107} \u{20AC}",
+        ]))['fields'];
+        foreach (['surname', 'forename1', 'residential_line1', 'residential_line2', 'residential_line3', 'employer_detail'] as $k) {
+            $this->assertMatchesRegularExpression('/^[\x20-\x7E]*$/', $f[$k], $k);
+            $this->assertStringNotContainsString('?', $f[$k], $k);
+        }
+        $this->assertSame('Muller-Ostergaard', $f['surname']);
+        $this->assertSame('Renee', $f['forename1']);
     }
 
     public function testNothingIsOverdueBeforeTheFirstInstalmentFalls(): void

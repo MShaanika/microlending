@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\AsciiText;
+
 /**
  * Turns one loan of the OLD loan system (SolidFin, the admin_area folder on the same server) into the field array that CplRecordBuilder and
  * CplValidationService already understand, so the bureau file for the loan book still being managed there is built by the same, already accepted code.
@@ -85,7 +87,7 @@ final class LegacyCplMapper
             return $this->excluded('closed before this month');
         }
 
-        [$overdue, $monthsInArrears] = $isWrittenOff || $isClosed ? [0, 0] : $this->arrears($final, $months, $paid, $instalment, $firstDue, (int) ($loan['payment_day'] ?? 25), $asOf, $notes);
+        [$overdue, $monthsInArrears] = $isWrittenOff || $isClosed ? [0, 0] : $this->arrears($final, $months, $paid, $instalment, $firstDue, (int) ($loan['payment_day'] ?? 25), $asOf, $released, $notes);
 
         if (isset($loan['corrected_identity'])) {
             // supplied by staff on the missing-details sheet (already checked by LegacyIdCorrections)
@@ -115,7 +117,7 @@ final class LegacyCplMapper
             'employer_detail' => $this->clean($loan['company_name'] ?? ''),
             'income' => (int) round((float) ($loan['gross_salary'] ?? 0)),
             'income_frequency' => 'M',
-            'account_no' => ($loan['account_no_override'] ?? '') !== '' ? (string) $loan['account_no_override'] : self::accountNumber($this->accountPrefix, (int) $loan['id']),
+            'account_no' => ($loan['account_no_override'] ?? '') !== '' ? $this->clean($loan['account_no_override']) : self::accountNumber($this->accountPrefix, (int) $loan['id']),
             'type_of_account' => $months === 1 ? 'M' : 'P',
             'terms' => $months === 1 ? 0 : $months,
             'payment_type' => '00',
@@ -127,7 +129,8 @@ final class LegacyCplMapper
             'current_balance' => $isClosed ? 0 : (int) round($balance),
             'current_balance_indicator' => 'D',
             'amount_overdue' => $overdue,
-            'instalment_amount' => $instalment,
+            // CPL v1.1: a closed account (status C) must report an instalment of zero. A written-off one must still report one (Creditinfo rule CUSTNAM074).
+            'instalment_amount' => $isClosed ? 0 : $instalment,
             'months_in_arrears' => $monthsInArrears,
         ];
 
@@ -160,38 +163,64 @@ final class LegacyCplMapper
         return $m[1] . '-' . $m[2] . '-' . $m[3];
     }
 
+    /** Plain printable ASCII only (a CPL file is ASCII and fixed width), single spaces, trimmed. */
     private function clean(mixed $text): string
     {
-        return trim((string) preg_replace('/\s+/', ' ', (string) $text));
+        return trim((string) preg_replace('/\s+/', ' ', AsciiText::clean((string) $text)));
     }
 
     /**
      * Instalments that should have been paid by the as-of date (first due month, the borrower's payment day) against what was paid.
      *
+     * Months in arrears (Creditinfo counts whole months): 0 while the oldest unpaid instalment is less than 30 days past its due date, and never more than
+     * the whole months the account has been open. The amount overdue is reported either way.
+     *
      * @param string[] $notes
      * @return array{0:int, 1:int} amount overdue, months in arrears
      */
-    private function arrears(float $final, int $months, float $paid, int $instalment, ?string $firstDue, int $payDay, string $asOf, array &$notes): array
+    private function arrears(float $final, int $months, float $paid, int $instalment, ?string $firstDue, int $payDay, string $asOf, string $released, array &$notes): array
     {
         if ($firstDue === null || !preg_match('/^(\d{4})-(\d{2})/', $firstDue, $m) || (int) $m[2] < 1 || (int) $m[2] > 12) {
             $notes[] = 'no usable first due date: arrears could not be worked out and are reported as nil';
             return [0, 0];
         }
         $payDay = $payDay >= 1 && $payDay <= 31 ? min($payDay, 28) : 25;
+        $dueDates = [];
         $dueCount = 0;
         for ($i = 0; $i < $months; $i++) {
             $due = date('Y-m-d', (int) strtotime(sprintf('%04d-%02d-%02d +%d month', $m[1], $m[2], $payDay, $i)));
+            $dueDates[] = $due;
             if ($due <= $asOf) {
                 $dueCount++;
             }
         }
-        $expected = min($final, $dueCount * ($final / $months));
+        $perInstalment = $final / $months;
+        $expected = min($final, $dueCount * $perInstalment);
         $overdue = (int) max(0, round($expected - $paid));
         if ($overdue === 0) {
             return [0, 0];
         }
         $notes[] = 'arrears are an estimate (the old system keeps no instalment schedule)';
-        return [$overdue, (int) min($months, max(1, ceil($overdue / max(1, $instalment))))];
+
+        // the oldest instalment that is not covered by what was paid, and how long ago it fell due
+        $covered = (int) floor(($paid + 0.005) / max(0.01, $perInstalment));
+        $oldestUnpaidDue = $dueDates[min($covered, $months - 1)];
+        $daysPastDue = $oldestUnpaidDue < $asOf ? (int) (new \DateTimeImmutable($oldestUnpaidDue))->diff(new \DateTimeImmutable($asOf))->days : 0;
+        if ($daysPastDue < 30) {
+            return [$overdue, 0];
+        }
+        $estimate = (int) min($months, max(1, ceil($overdue / max(1, $instalment))));
+        return [$overdue, max(0, min($estimate, self::wholeMonthsBetween($released, $asOf)))];
+    }
+
+    /** Whole calendar months from $from to $to (2026-08-20 -> 2026-10-31 = 2), never negative. */
+    public static function wholeMonthsBetween(string $from, string $to): int
+    {
+        if ($from >= $to) {
+            return 0;
+        }
+        $diff = (new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to));
+        return $diff->y * 12 + $diff->m;
     }
 
     /**

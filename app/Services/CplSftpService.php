@@ -98,6 +98,69 @@ class CplSftpService
             throw new \RuntimeException('The SFTP connection is not set up or not switched on. Complete it in Public Defaults Settings first (host, username, password, folder, and SFTP enabled).');
         }
 
+        return $this->transfer($filename, $content, $connect);
+    }
+
+    /**
+     * Uploads ONE automatically built LIVE file (file type L702, daily or monthly) to Creditinfo's SFTP folder. Used only by
+     * CplAutoSubmissionService, which has already decided, upstream, that the file may go (switch on, production, no blocking errors).
+     * It still refuses anything that is not a live L702 file name, and it needs the live CPL SFTP switch (sftp_submission_enabled) like a
+     * manual submission does. Same transport, same error behaviour as uploadTestFile(): a connection that breaks while sending raises
+     * CplSftpUncertainException (the file may be there), any other failure means nothing was delivered.
+     *
+     * @param callable|null $connect fn(string $host, int $port): fake connection in tests; null connects with phpseclib
+     * @return array{host:string, remote_path:string, bytes:int}
+     * @throws \RuntimeException
+     */
+    public function uploadLiveFile(string $filename, string $content, ?callable $connect = null): array
+    {
+        if ($this->instanceRefusesLive()) {
+            throw new \RuntimeException('Refusing to upload: this is a demo or sandbox instance, which never sends a live file to Creditinfo.');
+        }
+        if (!self::isSafeLiveFilename($filename)) {
+            throw new \RuntimeException('Refusing to upload: the file name is not a live L702 file name.');
+        }
+        if (!$this->isReady()) {
+            throw new \RuntimeException('CPL SFTP submission is not enabled -- switch it on in CPL Settings (it reuses the Public Defaults SFTP connection, which must also be configured).');
+        }
+        return $this->transfer($filename, $content, $connect, true);
+    }
+
+    /**
+     * A demo or sandbox copy of the system may only ever talk to vendor TEST environments (see DemoMode, used the same way by CollexiaClient and
+     * CreditinfoClient). A live L702 file is never uploaded from one, whatever its settings say. Overridable so tests can simulate it.
+     */
+    protected function instanceRefusesLive(): bool
+    {
+        return \App\Support\DemoMode::requiresTestEnvironment();
+    }
+
+    /**
+     * A short fingerprint of WHERE live files go: host, port, user name and remote folder (never the password). The standing approval of the automatic
+     * submission is only valid for the destination it was given for.
+     */
+    public function connectionFingerprint(): string
+    {
+        return sha1(implode('|', [
+            $this->sftpSettings->get('sftp_host'), (string) (int) $this->sftpSettings->get('sftp_port', '22'),
+            $this->sftpSettings->get('sftp_username'), $this->remoteDirectory(),
+        ]));
+    }
+
+    /** {supplier ref}_{recipient}_L702_{M|D}_{CCYYMMDD}_1_1.txt -- the only shape of file name an automatic LIVE upload may have. */
+    public static function isSafeLiveFilename(string $filename): bool
+    {
+        return (bool) preg_match('/^[A-Za-z0-9]{1,10}_[A-Za-z0-9]{1,7}_L702_[MD]_\d{8}_1_1\.txt$/D', $filename);
+    }
+
+    /**
+     * The shared upload: login, put, always disconnect. The caller has already checked the name and the switches.
+     *
+     * @param bool $putFalseIsUncertain a LIVE upload whose put() answers false after a good login may still have written part (or all) of the file, so it is
+     *        reported as CplSftpUncertainException, not as "nothing was sent". A sign-off test file keeps the plain error.
+     */
+    private function transfer(string $filename, string $content, ?callable $connect, bool $putFalseIsUncertain = false): array
+    {
         $host = $this->sftpSettings->get('sftp_host');
         $port = (int) $this->sftpSettings->get('sftp_port', '22');
         $username = $this->sftpSettings->get('sftp_username');
@@ -113,7 +176,7 @@ class CplSftpService
                 throw new \RuntimeException('Could not connect to ' . $host . ':' . $port . ' (' . $e->getMessage() . ').', 0, $e);
             }
             if (!$loggedIn) {
-                throw new \RuntimeException('SFTP login failed: Creditinfo\'s server refused the saved login. Nothing was sent. Do not keep trying; ask your administrator to check the user name and password in Public Defaults Settings.');
+                throw new CplSftpLoginRefusedException('SFTP login failed: Creditinfo\'s server refused the saved login. Nothing was sent. Do not keep trying; ask your administrator to check the user name and password in Public Defaults Settings.');
             }
             try {
                 $stored = $sftp->put($remotePath, $content);
@@ -122,6 +185,9 @@ class CplSftpService
                 throw new CplSftpUncertainException('The connection broke while the file was being sent (' . $e->getMessage() . '), so it may already have reached Creditinfo. Check with Creditinfo before sending it again.', 0, $e);
             }
             if (!$stored) {
+                if ($putFalseIsUncertain) {
+                    throw new CplSftpUncertainException('SFTP upload failed: ' . ($sftp->getLastSFTPError() ?: 'unknown error') . '. The server did not confirm the write, so part of the file, or all of it, may already be on Creditinfo\'s server. Check with Creditinfo before sending it again.');
+                }
                 throw new \RuntimeException('SFTP upload failed: ' . ($sftp->getLastSFTPError() ?: 'unknown error') . '. Nothing was recorded. A partly sent file may be on Creditinfo\'s server, so tell them before you try again.');
             }
         } finally {
@@ -155,6 +221,9 @@ class CplSftpService
         $batch = $this->batches->find($batchId);
         if (!$batch || $batch['status'] !== 'Approved' || empty($batch['file_content'])) {
             throw new \RuntimeException('Only an Approved batch with generated file content can be submitted via SFTP.');
+        }
+        if (CplAutoSubmissionService::isAutoBatch($batch)) {
+            throw new \RuntimeException('This batch belongs to the automatic submission and is sent (and recorded) only by it.');
         }
 
         $host = $this->sftpSettings->get('sftp_host');

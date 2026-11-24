@@ -11,6 +11,7 @@ use App\Models\CplBatch;
 use App\Models\CplMonthlySnapshot;
 use App\Models\CplSetting;
 use App\Services\ApprovalService;
+use App\Services\CplAutoSubmissionService;
 use App\Services\CplExporter;
 use App\Services\CplRecordBuilder;
 use App\Services\CplSftpService;
@@ -44,9 +45,17 @@ class CplBatchController extends Controller
     {
         Auth::authorize('reports.cpl_export');
 
+        $auto = null;
+        try {
+            $auto = (new CplAutoSubmissionService())->panel(max(1, (int) ($_GET['auto_page'] ?? 1)));
+        } catch (\Throwable $e) {
+            error_log('CPL dashboard: automatic submission panel unavailable: ' . $e->getMessage()); // e.g. the migration has not been run yet
+        }
+
         $this->view('reports/cpl_export/batches/index', [
             'title' => 'CPL Dashboard',
-            'batches' => $this->batches->recent(12),
+            'auto' => $auto,
+            'batches' => $this->batches->recentExcludingAutoDaily(12),
             'lastMonthEnd' => date('Y-m-d', strtotime('last day of previous month')),
             'accountTypeMappingConfirmed' => $this->settings->isAccountTypeMappingConfirmed(),
         ]);
@@ -115,6 +124,11 @@ class CplBatchController extends Controller
         $batch = $this->batches->find($id);
         if (!$batch || $batch['status'] !== 'Ready for Review') {
             Session::flash('error', 'Only a batch that is Ready for Review (no blocking errors) can be submitted for approval.');
+            $this->redirect('/reports/cpl-export/batches/' . $id);
+            return;
+        }
+        if (CplAutoSubmissionService::isAutoBatch($batch)) {
+            Session::flash('error', 'This batch belongs to the automatic submission: it is sent (or held back) by it, not through the approval steps.');
             $this->redirect('/reports/cpl-export/batches/' . $id);
             return;
         }

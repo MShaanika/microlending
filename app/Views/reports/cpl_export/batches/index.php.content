@@ -34,6 +34,135 @@
   </div>
 </div>
 
+<?php if (!empty($auto)): ?>
+<?php
+  $fmt = static function (?array $run): string {
+      if (!$run) {
+          return 'Has not run yet';
+      }
+      return date('d M Y H:i', strtotime((string) $run['at'])) . ' - ' . ($run['outcome'] ?? '') . ($run['records'] !== null ? ' (' . (int) $run['records'] . ' record(s))' : '');
+  };
+  $canSwitch = \App\Core\Auth::can('reports.cpl_approve');
+?>
+<div class="card mt-3 border-<?= $auto['enabled'] ? 'success' : 'secondary' ?>">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <h5 class="card-title mb-1">Automatic submissions to Creditinfo
+        <span class="badge bg-<?= $auto['enabled'] ? 'success' : 'secondary' ?>"><?= $auto['enabled'] ? 'ON' : 'OFF' ?></span>
+      </h5>
+      <?php if ($canSwitch): ?>
+        <?php if ($auto['enabled']): ?>
+          <form method="post" action="<?= url('/reports/cpl-export/auto/disable') ?>" onsubmit="return confirm('Turn automatic submission OFF? Files will still be prepared as drafts, but nothing will be sent.');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-outline-danger">Turn OFF</button>
+          </form>
+        <?php else: ?>
+          <a href="<?= url('/reports/cpl-export/auto/enable') ?>" class="btn btn-sm btn-primary">Turn ON...</a>
+        <?php endif; ?>
+      <?php endif; ?>
+    </div>
+    <p class="text-muted small mb-2">
+      When ON, the system builds the <strong>daily file</strong> (new loans paid out and loans fully paid, from the Loan Questions answers) and the
+      <strong>monthly file</strong> by itself and uploads them to Creditinfo as live (L702) files. When OFF, it only prepares drafts so you can see
+      what would be sent, and e-mails the staff. A file with any blocking problem, or any unanswered instalment, is never sent.
+    </p>
+
+    <div class="alert alert-warning py-2 small mb-3">
+      <strong>The monthly file is NOT the full loan book.</strong> <?= e($auto['warning']) ?>
+    </div>
+
+    <?php foreach ($auto['uncertain'] as $u): ?>
+      <div class="alert alert-danger small">
+        <strong>Waiting for your confirmation: batch #<?= (int) $u['id'] ?> (<?= e($u['batch_type']) ?>, <?= e($u['month_end']) ?>).</strong>
+        The connection broke while the file was being sent, so nobody knows whether Creditinfo has it. Nothing more is sent for this file type until you answer.
+        Ask Creditinfo whether they received <code><?= e((string) (json_decode((string) $u['legacy_summary'], true)['file_name'] ?? '')) ?></code>, then:
+        <?php if ($canSwitch): ?>
+          <div class="d-flex gap-2 mt-2 flex-wrap">
+            <form method="post" action="<?= url('/reports/cpl-export/auto/resolve/' . (int) $u['id']) ?>" onsubmit="return confirm('Confirm that Creditinfo HAS this file? Its loans will be marked as reported and will not be sent again.');">
+              <?= csrf_field() ?><input type="hidden" name="answer" value="has">
+              <button type="submit" class="btn btn-sm btn-outline-success">Creditinfo has this file</button>
+            </form>
+            <form method="post" action="<?= url('/reports/cpl-export/auto/resolve/' . (int) $u['id']) ?>" onsubmit="return confirm('Confirm that Creditinfo does NOT have this file? Its loans will be sent again in the next automatic file.');">
+              <?= csrf_field() ?><input type="hidden" name="answer" value="hasnot">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Creditinfo does NOT have this file</button>
+            </form>
+          </div>
+        <?php else: ?>
+          <em>(Only someone who may approve CPL batches can answer.)</em>
+        <?php endif; ?>
+      </div>
+    <?php endforeach; ?>
+
+    <?php if (!empty($auto['restricted_instance'])): ?>
+      <div class="alert alert-secondary py-2 small">This is a demo or sandbox copy of the system: it never sends a live file to Creditinfo, and automatic submission cannot be turned on here.</div>
+    <?php endif; ?>
+
+    <?php if (!empty($auto['halted'])): ?>
+      <div class="alert alert-danger small">
+        <strong>Automatic submission is STOPPED.</strong> Creditinfo's SFTP server refused the saved login on <?= e(date('d M Y H:i', strtotime((string) $auto['halted']['at']))) ?>
+        (the <?= e((string) ($auto['halted']['kind'] ?? '')) ?> file). The switch was turned off and nothing will be tried again until the SFTP user name and password
+        in Public Defaults Settings are fixed and you acknowledge it here (repeated wrong logins can lock the account).
+        <?php if ($canSwitch): ?>
+          <form method="post" action="<?= url('/reports/cpl-export/auto/acknowledge-halt') ?>" class="mt-2" onsubmit="return confirm('Have the SFTP settings been fixed? Acknowledging lifts the stop; the switch stays OFF until you turn it on again.');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-outline-danger">I fixed the SFTP settings - acknowledge</button>
+          </form>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
+
+    <?php if (!empty($auto['cron']['problem'])): ?>
+      <div class="alert alert-danger small">
+        <strong>The scheduled job is not running.</strong> Automatic submission is ON, but
+        <?php foreach (['daily', 'monthly'] as $k): $h = $auto['cron'][$k]; ?>
+          the <?= $k ?> job <?= $h['last'] === null ? 'has never reported' : 'last reported ' . e(date('d M Y H:i', strtotime((string) $h['last']))) . ' (' . e((string) $h['age_hours']) . ' hours ago)' ?><?= $k === 'daily' ? ';' : '.' ?>
+        <?php endforeach; ?>
+        A job that has not reported for more than <?= (int) \App\Services\CplAutoSubmissionService::HEARTBEAT_STALE_HOURS ?> hours means nothing is being sent. Ask the technical team to check the crontab.
+      </div>
+    <?php endif; ?>
+
+    <?php if (!empty($auto['approval_revoked']) && !$auto['enabled']): ?>
+      <div class="alert alert-warning py-2 small">The standing approval was revoked on <?= e(date('d M Y H:i', strtotime((string) $auto['approval_revoked']['at']))) ?>: <?= e((string) $auto['approval_revoked']['reason']) ?>.</div>
+    <?php endif; ?>
+
+    <?php if ($auto['enabled'] && !$auto['production']): ?>
+      <div class="alert alert-danger py-2 small">Automatic submission is ON, but the submission environment in CPL Settings is not Production, so no live file is sent.</div>
+    <?php elseif ($auto['enabled'] && !$auto['sftp_ready']): ?>
+      <div class="alert alert-danger py-2 small">Automatic submission is ON, but the live SFTP submission is not ready (see CPL Settings and Public Defaults Settings), so nothing is sent.</div>
+    <?php endif; ?>
+
+    <div class="row g-3 small">
+      <div class="col-md-6">
+        <div><span class="text-muted">Last daily run:</span> <?= e($fmt($auto['last_daily'])) ?></div>
+        <div><span class="text-muted">Last monthly run:</span> <?= e($fmt($auto['last_monthly'])) ?></div>
+        <div><span class="text-muted">Last successful submission:</span>
+          <?php if ($auto['last_success']): ?><?= e(date('d M Y H:i', strtotime((string) $auto['last_success']['at']))) ?> - <code><?= e((string) $auto['last_success']['file']) ?></code><?php else: ?>none yet<?php endif; ?></div>
+        <div><span class="text-muted">Next daily file:</span> <?= e($auto['next_daily']) ?></div>
+        <div><span class="text-muted">Next monthly file:</span> month end <?= e($auto['next_monthly_month_end']) ?>, due from <?= e($auto['next_monthly_due']) ?> (working day <?= (int) $auto['send_day'] ?> of the month)</div>
+      </div>
+      <div class="col-md-6">
+        <div><span class="text-muted">Loans tracked by Loan Questions (approved and paid out):</span> <strong><?= (int) $auto['tracked_loans'] ?></strong></div>
+        <div><span class="text-muted">Applications still awaiting an answer:</span> <strong><?= (int) $auto['awaiting_answer'] ?></strong></div>
+        <?php if ($auto['enabled'] && !empty($auto['standing_approval'])): ?>
+          <div><span class="text-muted">Standing approval:</span> given by <strong><?= e($auto['standing_approval']['user_name'] !== '' ? $auto['standing_approval']['user_name'] : 'user #' . (int) $auto['standing_approval']['user_id']) ?></strong>
+            on <?= e(date('d M Y H:i', strtotime((string) $auto['standing_approval']['at']))) ?> (replaces the approval of each batch; revoked by turning the switch off or changing the environment or SFTP destination)</div>
+        <?php endif; ?>
+        <?php if ($auto['enabled']): ?>
+          <div><span class="text-muted">Turned on:</span> <?= e($auto['enabled_at'] !== '' ? date('d M Y H:i', strtotime($auto['enabled_at'])) : '-') ?><?= $auto['since'] !== '' ? ' (daily registrations only for loans paid out on or after ' . e($auto['since']) . ')' : '' ?></div>
+        <?php endif; ?>
+        <?php if (!empty($auto['unsent'])): ?>
+          <div class="mt-1"><span class="text-muted">Prepared, not sent:</span>
+            <?php foreach ($auto['unsent'] as $b): ?>
+              <a href="<?= url('/reports/cpl-export/batches/' . (int) $b['id']) ?>"><?= e($b['batch_type'] . ' ' . $b['month_end']) ?></a> (<?= (int) $b['total_records'] ?><?= (int) $b['blocking_error_count'] > 0 ? ', ' . (int) $b['blocking_error_count'] . ' held back' : '' ?>)<?= $b === end($auto['unsent']) ? '' : ',' ?>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="card mt-3">
   <div class="card-body">
     <h5 class="card-title">Recent Batches</h5>
@@ -50,7 +179,7 @@
               };
             ?>
             <tr>
-              <td><a href="<?= url('/reports/cpl-export/batches/' . $b['id']) ?>"><?= e(date('F Y', strtotime($b['month_end']))) ?></a></td>
+              <td><a href="<?= url('/reports/cpl-export/batches/' . $b['id']) ?>"><?= e($b['batch_type'] === 'Daily' ? 'Daily ' . date('d M Y', strtotime($b['month_end'])) : date('F Y', strtotime($b['month_end']))) ?></a><?= \App\Services\CplAutoSubmissionService::isAutoBatch($b) ? ' <span class="badge bg-light text-dark">automatic</span>' : '' ?></td>
               <td><span class="badge bg-<?= $statusBadge ?>"><?= e($b['status']) ?></span></td>
               <td><?= (int) $b['total_records'] ?></td>
               <td class="<?= $b['blocking_error_count'] > 0 ? 'text-danger fw-bold' : '' ?>"><?= (int) $b['blocking_error_count'] ?></td>
@@ -67,3 +196,41 @@
     </div>
   </div>
 </div>
+
+<?php if (!empty($auto) && $auto['auto_total'] > 0): ?>
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 class="card-title">Automatic files <span class="text-muted small">(<?= (int) $auto['auto_total'] ?> in total, newest first)</span></h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>File</th><th>Status</th><th>Records</th><th>Held back</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach ($auto['auto_files'] as $b): ?>
+            <?php
+              $statusBadge = match ($b['status']) {
+                  'Approved' => 'success', 'Rejected' => 'danger',
+                  'Pending Approval' => 'info', 'Ready for Review' => 'primary',
+                  'Submitted' => 'dark', default => 'secondary',
+              };
+            ?>
+            <tr>
+              <td><a href="<?= url('/reports/cpl-export/batches/' . $b['id']) ?>"><?= e($b['batch_type'] === 'Daily' ? 'Daily ' . date('d M Y', strtotime($b['month_end'])) : 'Monthly ' . date('F Y', strtotime($b['month_end']))) ?></a></td>
+              <td><span class="badge bg-<?= $statusBadge ?>"><?= e($b['status']) ?></span></td>
+              <td><?= (int) $b['total_records'] ?></td>
+              <td class="<?= $b['blocking_error_count'] > 0 ? 'text-danger fw-bold' : '' ?>"><?= (int) $b['blocking_error_count'] ?></td>
+              <td><a href="<?= url('/reports/cpl-export/batches/' . $b['id']) ?>" class="btn btn-sm btn-outline-secondary">View</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php if ($auto['auto_pages'] > 1): ?>
+      <nav class="d-flex gap-2 align-items-center small">
+        <?php if ($auto['auto_page'] > 1): ?><a class="btn btn-sm btn-outline-secondary" href="<?= url('/reports/cpl-export/batches?auto_page=' . ($auto['auto_page'] - 1)) ?>">Newer</a><?php endif; ?>
+        <span>Page <?= (int) $auto['auto_page'] ?> of <?= (int) $auto['auto_pages'] ?></span>
+        <?php if ($auto['auto_page'] < $auto['auto_pages']): ?><a class="btn btn-sm btn-outline-secondary" href="<?= url('/reports/cpl-export/batches?auto_page=' . ($auto['auto_page'] + 1)) ?>">Older</a><?php endif; ?>
+      </nav>
+    <?php endif; ?>
+  </div>
+</div>
+<?php endif; ?>

@@ -94,6 +94,35 @@
         </div>
       </div>
 
+      <h5 class="mb-1 mt-4">Automatic Submission (daily and monthly files)</h5>
+      <p class="text-muted small mb-3">
+        The on/off switch is on the CPL Dashboard (it needs a confirmation). These settings tune it.
+        Changing the submission environment, the live SFTP switch, the SFTP folder, the Supplier Reference Number, the recipient or any of the automatic
+        settings below needs the CPL approval permission; every such change is recorded with the old and the new value, and a change of the destination
+        revokes the standing approval of the automatic submission (switching it off).
+      </p>
+      <div class="row g-3 mb-2">
+        <div class="col-md-3">
+          <label class="form-label small">Send the monthly file on working day number</label>
+          <input type="number" min="1" max="15" name="cpl_monthly_send_day" class="form-control form-control-sm" value="<?= e($settings['cpl_monthly_send_day'] ?? '3') ?>">
+          <div class="form-text">3 = the third working day of the month after the month end.</div>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small">Applicants left out of every automatic file (test applicants), one full name per line</label>
+          <textarea name="cpl_auto_excluded_names" rows="3" class="form-control form-control-sm" placeholder="First Last"><?= e($settings['cpl_auto_excluded_names'] ?? '') ?></textarea>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Also e-mail these user ids (comma separated, optional)</label>
+          <input type="text" name="cpl_auto_alert_user_ids" class="form-control form-control-sm" value="<?= e($settings['cpl_auto_alert_user_ids'] ?? '') ?>" placeholder="e.g. 3, 7">
+          <div class="form-text">Everybody who may use the CPL reports is e-mailed already.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small">Public address used in the alert e-mails (optional)</label>
+          <input type="url" name="cpl_public_base_url" class="form-control form-control-sm" maxlength="200" value="<?= e($settings['cpl_public_base_url'] ?? '') ?>" placeholder="https://your-domain.example/app">
+          <div class="form-text">The links in the automatic-submission e-mails start with this. Left empty, the address in the system configuration is used.</div>
+        </div>
+      </div>
+
       <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
     </form>
   </div>

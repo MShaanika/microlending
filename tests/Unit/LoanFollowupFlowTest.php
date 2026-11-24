@@ -245,7 +245,8 @@ class LoanFollowupFlowTest extends TestCase
         $no = $this->inst(1, '2026-11-25', '0', '2026-12-03 00:00:00', '2026-11-26 10:00:00');
         [, $late] = $this->monthly([$this->entry($this->paidOut(['disbursed_on' => '2026-11-03']), [$no])], '2026-11-30');
         $this->assertSame(1, $late['summary']['sent']);
-        $this->assertSame(1, $late['details'][0]['months_in_arrears']);
+        // the instalment fell due only 5 days before the month end: the amount is overdue, but no whole month is in arrears yet (30 days needed)
+        $this->assertSame(0, $late['details'][0]['months_in_arrears']);
         $this->assertGreaterThan(0, $late['details'][0]['amount_overdue']);
     }
 

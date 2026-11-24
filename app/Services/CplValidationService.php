@@ -92,6 +92,12 @@ class CplValidationService
             $add('BLOCKING', 'instalment_amount', 'Instalment Amount must be greater than 0 when the status is Written Off (W) or Terms Extended (E) -- Creditinfo rule CUSTNAM074.');
         }
 
+        // CPL v1.1: an account reported with a zero-balance status (C closed, V voluntary surrender, X written off and recovered, T transferred) must carry
+        // an Instalment Amount of zero; the bureaus reject the record otherwise.
+        if (in_array($fields['status_code'] ?? '', ['C', 'V', 'X', 'T'], true) && (int) ($fields['instalment_amount'] ?? 0) !== 0) {
+            $add('BLOCKING', 'instalment_amount', 'Instalment Amount must be 0 when the status is Closed (C), Voluntary surrender (V), Written off and recovered (X) or Transferred (T).');
+        }
+
         if ($accountType === 'M' && (int) ($fields['terms'] ?? 0) !== 0) {
             $add('BLOCKING', 'terms', 'Account Type M must always report Terms as 0000 (one-month loan).');
         }
