@@ -37,7 +37,7 @@ class AgentCommissionService
     private const COOLING_PERIOD_DAYS = 30;
 
     /** Any of these on another of the borrower's loans blocks commission outright. */
-    private const ACTIVE_LOAN_STATUSES = ['Draft', 'Pending Approval', 'Approved', 'Released', 'Active', 'Current'];
+    private const ACTIVE_LOAN_STATUSES = ['Draft', 'Pending Approval', 'Approved', 'Awaiting Payout', 'Released', 'Active', 'Current'];
 
     /**
      * Called right after a loan's loan_status flips to 'Active'

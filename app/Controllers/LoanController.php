@@ -28,6 +28,8 @@ use App\Services\LoanScheduleService;
 use App\Services\LoanStatementExcelExporter;
 use App\Services\LoanStatementPdfExporter;
 use App\Services\LoanStatementService;
+use App\Services\LoanStatementSummary;
+use App\Services\LoanReleaseService;
 use App\Services\LoanTimelineService;
 use App\Services\CombinedLoanService;
 use App\Services\TopUpService;
@@ -590,9 +592,11 @@ class LoanController extends Controller
         // The original loan with its released top-ups as ONE loan: combined totals, one schedule, tranche breakdown (read-only).
         $bundle = CombinedLoanService::forLoan($loan);
         $combined = $bundle ? ['tranches' => $bundle['tranches'], 'schedule' => $bundle['schedule']] : null;
+        $statement = $this->statementData($loan, $bundle);
 
         $this->view('loans/show', [
             'combined' => $combined,
+            'summary' => $statement['summary'],
             'title' => 'Loan ' . $loan['loan_no'],
             'loan' => $loan,
             'encrOffer' => $encrOffer,
@@ -739,17 +743,23 @@ class LoanController extends Controller
             'borrower' => $this->borrowers->find((int) $loan['borrower_id']),
             'company' => $this->companies->primary(),
             'ledger' => $statement['ledger'],
+            'summary' => $statement['summary'],
         ]);
     }
 
     /** What every statement output prints: this loan alone, or -- when it has released top-ups -- the original and its top-ups as one loan. */
-    private function statementData(array $loan): array
+    private function statementData(array $loan, array|false|null $bundle = false): array
     {
-        $bundle = CombinedLoanService::forLoan($loan);
-        if ($bundle) {
-            return ['loan' => $bundle['loan'], 'schedule' => $bundle['schedule'], 'ledger' => $bundle['ledger']];
+        // $bundle: CombinedLoanService::forLoan() when the caller already has it (null = no top-ups), false = look it up here
+        if ($bundle === false) {
+            $bundle = CombinedLoanService::forLoan($loan);
         }
-        return ['loan' => $loan, 'schedule' => $this->loans->schedule((int) $loan['id']), 'ledger' => LoanStatementService::ledger((int) $loan['id'])];
+        $data = $bundle
+            ? ['loan' => $bundle['loan'], 'schedule' => $bundle['schedule'], 'ledger' => $bundle['ledger'], 'ids' => array_map('intval', array_column($bundle['tranches'], 'id'))]
+            : ['loan' => $loan, 'schedule' => $this->loans->schedule((int) $loan['id']), 'ledger' => LoanStatementService::ledger((int) $loan['id']), 'ids' => [(int) $loan['id']]];
+        // the same headline figures (principal, charges, opening balance, still to pay) on every output
+        $data['summary'] = LoanStatementSummary::forLoan($data['loan'], $data['schedule'], $data['ledger'], $data['ids']);
+        return $data;
     }
 
     public function statementExcel(string $id): void
@@ -768,7 +778,7 @@ class LoanController extends Controller
         $statement = $this->statementData($loan);
         $company = $this->companies->primary();
 
-        $spreadsheet = LoanStatementExcelExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company);
+        $spreadsheet = LoanStatementExcelExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company, $statement['summary']);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -804,7 +814,7 @@ class LoanController extends Controller
         // response and corrupts it with "headers already sent" -- don't
         // rely on php.ini's output_buffering already being on.
         ob_start();
-        $pdf = LoanStatementPdfExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company);
+        $pdf = LoanStatementPdfExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company, $statement['summary']);
 
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -853,7 +863,7 @@ class LoanController extends Controller
         $company = $this->companies->primary();
         $statement = $this->statementData($loan);
 
-        $pdf = LoanStatementPdfExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company);
+        $pdf = LoanStatementPdfExporter::build($statement['loan'], $borrower, $statement['schedule'], $statement['ledger'], $company, $statement['summary']);
         $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $loan['loan_no']) . '.pdf';
 
         $result = EmailSenderService::send(
@@ -946,7 +956,9 @@ class LoanController extends Controller
         // otherwise this stays null and the release is exactly the manual one it always was).
         // Everything that can be checked is checked HERE, before anything is written, so a
         // refusal leaves the loan untouched. EnCr's own reference then replaces the typed one:
-        // it is what Collexia knows the payout by, and what the Cash Book and journal will show.
+        // it is what Collexia knows the payout by, and what the Cash Book and journal will show
+        // once Collexia confirms the money left -- until then the loan waits ("Awaiting Payout")
+        // and NOTHING is posted (see LoanReleaseService).
         $encr = null;
         if (!empty($_POST['pay_via_encr'])) {
             $encrService = new CollexiaEncrDisbursementService();
@@ -966,61 +978,23 @@ class LoanController extends Controller
             $referenceNo = $encr['reference'];
         }
         $disbursementId = 0;
+        $method = $encr ? 'Bank Transfer' : ((($_POST['disbursement_method'] ?? '') ?: 'Cash'));
+        $releaseService = new LoanReleaseService($this->loans, $this->journal, $this->accounts, $this->statutoryCharges, $this->bankAccounts);
+        if ($encr) {
+            $successMessage = 'Release started: the loan is waiting for Collexia to pay it out. Nothing is posted until Collexia confirms the money has left.';
+        }
 
         try {
-            $this->loans->transaction(function () use ($id, $loan, $userId, $bankAccount, $key, $successMessage, $referenceNo, $encr, &$disbursementId) {
+            $this->loans->transaction(function () use ($id, $loan, $userId, $bankAccount, $key, $successMessage, $referenceNo, $encr, $method, $releaseService, &$disbursementId) {
                 Idempotency::begin($key, 'loan.release', $userId);
 
-                // Locked, authoritative status check -- a second concurrent
-                // release request blocks here until this transaction
-                // commits or rolls back, then correctly sees the
-                // already-changed status instead of racing past it.
-                $locked = $this->loans->findForUpdate($id);
-                if (!$locked || $locked['loan_status'] !== 'Approved') {
-                    throw new \RuntimeException('Only approved loans can be released.');
-                }
+                // Locked status check, posting (manual) or waiting state (EnCr), disbursement record -- one
+                // transaction, same idempotency/lock coverage as before. See LoanReleaseService::release().
+                $disbursementId = $releaseService->release($id, $loan, $userId, $bankAccount, $method, $referenceNo, $encr ? $encr['reference'] : null);
 
-                // Post accounting first: if this fails (e.g. a closed
-                // accounting period), the whole transaction rolls back --
-                // the loan must not end up marked Active/disbursed with no
-                // journal behind it, or vice versa.
-                $this->postDisbursementAccounting($id, $loan, $userId, $bankAccount, $referenceNo);
-
-                // A flat, non-refundable fee loan earns its interest in full
-                // the moment it's disbursed -- recognize all of it right
-                // now, same transaction, same idempotency/lock coverage as
-                // everything else here. Progressive loans are unaffected --
-                // see InterestAccrualService::recognizeUpfront().
-                if ($loan['interest_recognition_method'] === 'Upfront') {
-                    \App\Services\InterestAccrualService::recognizeUpfront($id, date('Y-m-d'), $userId);
-                }
-
-                $this->loans->updateFields($id, [
-                    'loan_status' => 'Active',
-                    'released_by' => $userId,
-                    'released_at' => date('Y-m-d H:i:s'),
-                ]);
-                $this->loans->logStatus($id, 'Approved', 'Active', $userId, 'Loan released / disbursed.');
-                \App\Services\AgentCommissionService::onDisbursement($loan, $userId);
-
-                $disbursementId = $this->loans->createDisbursement([
-                    'loan_id' => $id,
-                    'borrower_id' => (int) $loan['borrower_id'],
-                    'disbursement_no' => generate_reference('DSB'),
-                    'disbursement_date' => date('Y-m-d'),
-                    'disbursement_method' => $encr ? 'Bank Transfer' : ($_POST['disbursement_method'] ?: 'Cash'),
-                    'bank_account_id' => $bankAccount ? $bankAccount['id'] : null,
-                    'amount' => (float) $loan['principal_amount'],
-                    'reference_no' => $referenceNo,
-                    'status' => 'Disbursed',
-                    'approved_by' => $userId,
-                    'approved_at' => date('Y-m-d H:i:s'),
-                    'disbursed_by' => $userId,
-                    'disbursed_at' => date('Y-m-d H:i:s'),
-                    'created_by' => $userId,
-                ] + ($encr ? ['encr_reference_no' => $encr['reference'], 'encr_state' => 'Not Sent'] : []));
-
-                Audit::log('Release', 'Loans', 'Released loan #' . $id, [], $key);
+                Audit::log('Release', 'Loans', $encr
+                    ? 'Started release of loan #' . $id . ' with Collexia EnCr payout ' . $encr['reference'] . ' (Awaiting Payout; nothing posted yet)'
+                    : 'Released loan #' . $id, [], $key);
                 Idempotency::complete($key, 'loan.release', 'REDIRECT', [
                     'flash_type' => 'success',
                     'flash_message' => $successMessage,
@@ -1039,20 +1013,10 @@ class LoanController extends Controller
             return;
         }
 
-        // Fired only after the transaction above has committed -- a listener
-        // must never observe a disbursement that could still roll back.
-        Events::fire('LoanDisbursed', ['loan_id' => $id, 'released_by' => $userId]);
-
-        // A released top-up changes what the original loan's live debit order should collect: flag it and cancel it so ONE new combined
-        // debit order can be registered (same as a reschedule).
-        $topupNote = !empty($loan['topup_of_loan_id'])
-            ? (new \App\Services\TopUpMandateAdjustment())->afterTopUpChange((int) $loan['topup_of_loan_id'], 'top-up ' . $loan['loan_no'] . ' was released', $userId)
-            : '';
-        $successMessage .= $topupNote;
-
-        // The EnCr payout goes out only now, after the release has committed -- see
-        // CollexiaEncrDisbursementService. If it can't be sent the loan stays released and
-        // posted (the books and the reference are already right), and Retry is one click.
+        // The EnCr payout goes out only now, after the waiting state has committed -- see
+        // CollexiaEncrDisbursementService. Nothing has been paid or posted yet, so the
+        // LoanDisbursed event and the top-up debit order adjustment wait for Collexia's
+        // Completed (LoanReleaseService::finaliseEncrPayout()). Retry is one click.
         if ($encr && $disbursementId) {
             $result = $encr['service']->send($disbursementId, $this->encrFrontEndUserName());
             $this->flashEncrDebug($encr['service'], 'EnCr transfer');
@@ -1061,12 +1025,17 @@ class LoanController extends Controller
             Session::flash(
                 $result['ok'] ? 'success' : 'error',
                 $result['ok']
-                    ? 'Loan released and posted. EnCr payout ' . $encr['reference'] . ' submitted to Collexia -- use "Check payout status" to confirm the money has left.' . $topupNote
-                    : 'Loan released and posted, but the EnCr payout was NOT sent: ' . $result['message'] . ' Use "Retry payout" on this page.'
+                    ? 'Payout ' . $encr['reference'] . ' submitted to Collexia. The loan is Awaiting Payout and nothing is posted yet -- use "Check payout status": once Collexia reports it Completed, the loan is released and posted.'
+                    : 'The payout did not go through: ' . $result['message'] . ' Nothing was posted. Retry, pay another way, or cancel the release.'
             );
             $this->redirect('/loans/' . $id);
             return;
         }
+
+        // Fired only after the transaction above has committed -- a listener
+        // must never observe a disbursement that could still roll back.
+        // A released top-up also changes what the original loan's live debit order should collect.
+        $successMessage .= $releaseService->afterRelease($id, $loan, $userId);
 
         Session::flash('success', $successMessage);
         $this->redirect('/loans/' . $id);
@@ -1108,15 +1077,83 @@ class LoanController extends Controller
             return;
         }
 
+        // A Completed status check releases and posts the waiting loan (LoanReleaseService::finaliseEncrPayout()).
         $service = new CollexiaEncrDisbursementService();
         $result = $what === 'send'
             ? $service->send((int) $disbursement['id'], $this->encrFrontEndUserName())
-            : $service->checkStatus((int) $disbursement['id'], $this->encrFrontEndUserName());
+            : $service->checkStatus((int) $disbursement['id'], $this->encrFrontEndUserName(), Auth::user()['id'] ?? null);
         $this->flashEncrDebug($service, $what === 'send' ? 'EnCr transfer (retry)' : 'EnCr transfer info');
 
         Audit::log('Update', 'Loans', ($what === 'send' ? 'Retried' : 'Checked') . ' EnCr payout ' . $disbursement['encr_reference_no'] . ' for loan #' . $id . ': ' . $result['message']);
         Session::flash($result['ok'] ? 'success' : 'error', $result['message']);
         $this->redirect('/loans/' . $id);
+    }
+
+    /**
+     * The EnCr payout did not go through (Not Sent or Failed, with a clear answer): release the loan the usual,
+     * manual way instead. Refused while Collexia might still pay it -- see LoanReleaseService::whyPayoutCannotBeAbandoned().
+     */
+    public function encrPayAnotherWay(string $id): void
+    {
+        $id = (int) $id;
+        if (!$loan = $this->encrWaitingLoanForAction($id)) {
+            return;
+        }
+
+        $userId = Auth::user()['id'] ?? null;
+        $bankAccountId = ($_POST['bank_account_id'] ?? '') !== '' ? (int) $_POST['bank_account_id'] : null;
+        $bankAccount = $bankAccountId ? $this->bankAccounts->find($bankAccountId) : null;
+        $method = (string) ($_POST['disbursement_method'] ?? '');
+        if (!in_array($method, ['Cash', 'Bank Transfer', 'Wallet', 'Other'], true)) {
+            $method = 'Cash';
+        }
+        $referenceNo = trim((string) ($_POST['reference_no'] ?? '')) ?: null;
+
+        $result = (new LoanReleaseService($this->loans, $this->journal, $this->accounts, $this->statutoryCharges, $this->bankAccounts))
+            ->payEncrLoanAnotherWay($id, $userId, $method, $bankAccount, $referenceNo);
+        if (!$result['ok']) {
+            Audit::log('Update', 'Loans', 'Refused to pay loan #' . $id . ' out another way: ' . $result['message']);
+        }
+        Session::flash($result['ok'] ? 'success' : 'error', $result['message']);
+        $this->redirect('/loans/' . $id);
+    }
+
+    /** The EnCr payout did not go through: put the loan back to Approved. Same restriction as paying another way. */
+    public function encrCancelRelease(string $id): void
+    {
+        $id = (int) $id;
+        if (!$this->encrWaitingLoanForAction($id)) {
+            return;
+        }
+
+        $result = (new LoanReleaseService($this->loans, $this->journal, $this->accounts, $this->statutoryCharges, $this->bankAccounts))
+            ->cancelEncrRelease($id, Auth::user()['id'] ?? null);
+        if (!$result['ok']) {
+            Audit::log('Update', 'Loans', 'Refused to cancel the release of loan #' . $id . ': ' . $result['message']);
+        }
+        Session::flash($result['ok'] ? 'success' : 'error', $result['message']);
+        $this->redirect('/loans/' . $id);
+    }
+
+    /** Permission, CSRF and branch checks shared by the two "the payout did not go through" actions; null (after redirecting) when refused. */
+    private function encrWaitingLoanForAction(int $id): ?array
+    {
+        Auth::authorize('loans.release');
+
+        if (!Security::verifyCsrf($_POST['_csrf'] ?? null)) {
+            Session::flash('error', 'Security token expired. Please try again.');
+            $this->redirect('/loans/' . $id);
+            return null;
+        }
+
+        $loan = $this->loans->find($id);
+        if (!$loan) {
+            Session::flash('error', 'Loan not found.');
+            $this->redirect('/loans');
+            return null;
+        }
+        $this->assertBranchAccess($loan);
+        return $loan;
     }
 
     /** Collexia's frontEndUserName: the one provisioned value, else the logged-in user's own username -- same rule as debit orders. */
@@ -1132,110 +1169,6 @@ class LoanController extends Controller
         $debug = $service->lastDebug();
         if ($debug !== null) {
             Session::flash('collexia_debug', json_encode(array_merge(['action' => $action], $debug)));
-        }
-    }
-
-    /**
-     * Principal and statutory charges are booked as owed the moment the
-     * loan is disbursed, not recognized piece by piece as collected:
-     *
-     *   Dr Loans Receivable (principal)
-     *   Dr NAMFISA Levy Receivable (levy)
-     *   Dr Stamp Duty Receivable (stamp)
-     *     Cr Bank Account (principal -- what actually leaves the bank)
-     *     Cr NAMFISA Levy Payable / Cr Stamp Duty Payable (statutory
-     *       amounts owed to government, collected from the borrower via
-     *       the loan; these don't move on collection -- they're already
-     *       fully booked here, both as what's owed FROM the borrower and
-     *       what's owed TO the authority)
-     *
-     * Interest is NOT booked here -- for a Progressive loan it's only
-     * earned period by period over the loan's term, recognized separately
-     * installment by installment as each one's due date arrives (or
-     * immediately, for an early payment). An Upfront loan's full interest
-     * IS recognized at disbursement, but by a separate call right after
-     * this method returns (see release()) -- kept out of this method since
-     * it isn't part of the principal/levy/stamp entry itself.
-     */
-    private function postDisbursementAccounting(int $loanId, array $loan, ?int $userId, ?array $bankAccount = null, ?string $referenceNo = null): void
-    {
-        $principal = (float) $loan['principal_amount'];
-        $levyTxn = $this->statutoryCharges->findNamfisaLevyByLoan($loanId);
-        $stampTxn = $this->statutoryCharges->findDutyStampByLoan($loanId);
-        $levy = $levyTxn ? (float) $levyTxn['levy_amount'] : 0.0;
-        $stamp = $stampTxn ? (float) $stampTxn['stamp_amount'] : 0.0;
-
-        $loanReceivable = $this->accounts->idByCode('1020');
-        $levyReceivable = $this->accounts->idByCode('1051');
-        $stampReceivable = $this->accounts->idByCode('1060');
-        $bankGlAccount = $bankAccount ? (int) $bankAccount['account_id'] : $this->accounts->idByCode('1010');
-        $bankLabel = $bankAccount ? $bankAccount['bank_name'] . ' - ' . $bankAccount['account_name'] : 'Bank Account';
-        $levyPayable = $this->accounts->idByCode('2030');
-        $stampPayable = $this->accounts->idByCode('2040');
-
-        $lines = [
-            [
-                'account_id' => $loanReceivable,
-                'debit' => round($principal, 2),
-                'credit' => 0,
-                'description' => 'Loan receivable for ' . $loan['loan_no'],
-            ],
-            [
-                'account_id' => $bankGlAccount,
-                'debit' => 0,
-                'credit' => $principal,
-                'description' => 'Loan disbursed from ' . $bankLabel . ' for ' . $loan['loan_no'],
-            ],
-        ];
-
-        if ($levy > 0) {
-            $lines[] = [
-                'account_id' => $levyReceivable,
-                'debit' => $levy,
-                'credit' => 0,
-                'description' => 'NAMFISA levy receivable for ' . $loan['loan_no'],
-            ];
-            $lines[] = [
-                'account_id' => $levyPayable,
-                'debit' => 0,
-                'credit' => $levy,
-                'description' => 'NAMFISA levy withheld for ' . $loan['loan_no'],
-            ];
-        }
-        if ($stamp > 0) {
-            $lines[] = [
-                'account_id' => $stampReceivable,
-                'debit' => $stamp,
-                'credit' => 0,
-                'description' => 'Stamp duty receivable for ' . $loan['loan_no'],
-            ];
-            $lines[] = [
-                'account_id' => $stampPayable,
-                'debit' => 0,
-                'credit' => $stamp,
-                'description' => 'Duty stamp withheld for ' . $loan['loan_no'],
-            ];
-        }
-
-        // The reference the user typed on the Release form (the bank transfer / payment
-        // reference) is what the Cash Book and General Journal display, so the entry can be
-        // matched line by line against the bank statement. The loan number is the fallback
-        // when none was entered, and stays in the description either way.
-        $journalId = $this->journal->post(
-            'LOAN_RELEASED',
-            'loans',
-            $loanId,
-            $referenceNo ?: $loan['loan_no'],
-            'Loan disbursed: ' . $loan['loan_no'],
-            $lines,
-            $userId
-        );
-
-        if ($levyTxn) {
-            $this->statutoryCharges->markNamfisaLevyPosted($loanId, $journalId);
-        }
-        if ($stampTxn) {
-            $this->statutoryCharges->markDutyStampPosted($loanId, $journalId);
         }
     }
 }

@@ -154,7 +154,7 @@ class LoanApplication extends Model
                            END
                          ELSE
                            CASE
-                             WHEN l.loan_status IN ('Draft','Pending Approval','Approved') THEN 'Approved'
+                             WHEN l.loan_status IN ('Draft','Pending Approval','Approved','Awaiting Payout') THEN 'Approved'
                              WHEN l.loan_status IN ('Released','Active','Current') THEN 'Disbursed'
                              WHEN l.loan_status = 'Completed' THEN 'Paid'
                              WHEN l.loan_status = 'Written Off' THEN 'Defaulted'

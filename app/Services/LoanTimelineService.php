@@ -86,7 +86,7 @@ class LoanTimelineService
             if (!empty($d['encr_reference_no'])) {
                 $detail .= ' · Collexia EnCr payout ' . $d['encr_state'] . ($d['encr_last_message'] ? ' (' . $d['encr_last_message'] . ')' : '');
             }
-            $add($d['disbursed_at'] ?: $dbClock($d['created_at']), 'disbursement', ($d['status'] === 'Cancelled' ? 'Disbursement cancelled: ' : 'Loan disbursed: ') . $money($d['amount']), $detail, $d['name']);
+            $add($d['disbursed_at'] ?: $dbClock($d['created_at']), 'disbursement', ($d['status'] === 'Cancelled' ? 'Disbursement cancelled: ' : ($d['status'] === 'Pending' ? 'Payout waiting for Collexia (nothing posted): ' : 'Loan disbursed: ')) . $money($d['amount']), $detail, $d['name']);
         }
 
         foreach ($q('SELECT p.*, u.name FROM payments p LEFT JOIN users u ON u.id = p.posted_by WHERE p.loan_id = ?', [$loanId]) as $p) {

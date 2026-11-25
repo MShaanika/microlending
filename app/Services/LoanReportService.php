@@ -26,7 +26,8 @@ class LoanReportService
 
     /** Loans that actually progressed past application -- the same set
      *  used for every "loans issued in period" breakdown below. */
-    private const ISSUED_STATUSES = "('Approved','Released','Active','Current','Completed','Written Off')";
+    // 'Awaiting Payout' (an approved loan whose Collexia EnCr payout is not confirmed yet) counts like 'Approved' here: issued, not disbursed.
+    private const ISSUED_STATUSES = "('Approved','Awaiting Payout','Released','Active','Current','Completed','Written Off')";
 
     public static function genderBreakdown(string $start, string $end, ?int $branchId = null): array
     {

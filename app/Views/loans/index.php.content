@@ -13,7 +13,7 @@
       $bar = [
           'action' => url('/loans'),
           'search' => ['value' => $search ?? '', 'placeholder' => 'Loan no, client, ID number or phone'],
-          'status' => ['value' => $status ?? '', 'options' => ['Draft','Pending Approval','Approved','Active','Completed','Denied','Written Off','Cancelled','Recovered - Closed','Arrear','Bad Debt','Bad Debt Recovery']],
+          'status' => ['value' => $status ?? '', 'options' => ['Draft','Pending Approval','Approved','Awaiting Payout','Active','Completed','Denied','Written Off','Cancelled','Recovered - Closed','Arrear','Bad Debt','Bad Debt Recovery']],
           'branches' => $branches ?? [], 'branch' => $selectedBranchId ?? null,
           'date' => ['label' => 'Start date', 'from' => $filter['from'] ?? '', 'to' => $filter['to'] ?? ''],
           'amount' => ['label' => 'Principal', 'min' => $filter['min'] ?? '', 'max' => $filter['max'] ?? ''],

@@ -65,6 +65,28 @@
 
 <?php $mode = 'notice'; include VIEW_PATH . '/loans/_collection_check.php'; ?>
 
+<?php if ($loan['loan_status'] === \App\Models\Loan::STATUS_AWAITING_PAYOUT): ?>
+  <?php
+    $waitState = $disbursement['encr_state'] ?? 'Not Sent';
+    $waitRef = $disbursement['encr_reference_no'] ?? '';
+    $waitAmount = format_money($disbursement['amount'] ?? $loan['principal_amount']);
+    $waitFailed = in_array($waitState, ['Not Sent', 'Failed'], true) && empty($disbursement['encr_maybe_received']);
+  ?>
+  <div class="alert alert-<?= $waitFailed ? 'danger' : 'warning' ?>" id="awaitingPayoutBanner">
+    <i class="mdi mdi-<?= $waitFailed ? 'alert-octagon-outline' : 'timer-sand' ?>"></i>
+    <?php if ($waitState === 'Completed'): ?>
+      <strong>Collexia has paid out <?= $waitAmount ?> (ref <?= e($waitRef) ?>), but the loan is not posted yet.</strong>
+      <?= e($disbursement['encr_last_message'] ?? '') ?> Use "Check payout status" again to post it.
+    <?php elseif ($waitFailed): ?>
+      <strong>The payout did not go through<?= !empty($disbursement['encr_last_message']) ? ': ' . e($disbursement['encr_last_message']) : '.' ?></strong>
+      Nothing was posted. <?= $waitState === 'Not Sent' ? 'Retry, pay another way, or cancel the release.' : 'Pay another way, or cancel the release (and release it again to try Collexia with a new reference).' ?>
+    <?php else: ?>
+      <strong>Waiting for Collexia to pay out <?= $waitAmount ?> (ref <?= e($waitRef) ?>). Nothing has been posted yet.</strong>
+      The loan is released and posted (and the schedule starts counting) only once Collexia confirms the money has left -- use "Check payout status".
+    <?php endif; ?>
+  </div>
+<?php endif; ?>
+
 <div class="row">
   <div class="col-lg-4">
     <div class="card">
@@ -99,23 +121,30 @@
           <p class="mb-2"><span class="badge bg-info"><i class="mdi mdi-layers-outline"></i> Combined with <?= count($combined['tranches']) - 1 ?> top-up<?= count($combined['tranches']) - 1 === 1 ? '' : 's' ?></span>
             <a href="#combined" class="small">see the breakdown</a></p>
         <?php endif; ?>
-        <p class="mb-1"><strong>Amount Borrowed:</strong> <?= format_money($headPrincipal) ?></p>
-        <?php if ($namfisaLevy > 0 && !$isCombined): ?>
-          <p class="mb-1 ps-3 text-muted small">+ NAMFISA Levy: <?= format_money($namfisaLevy) ?></p>
+        <p class="mb-1"><strong><?= e($summary['principal_label']) ?>:</strong> <?= format_money($summary['principal']) ?></p>
+        <?php if ($summary['levy'] > 0): ?>
+          <p class="mb-1 ps-3 text-muted small"><?= e($summary['levy_label']) ?>: <?= format_money($summary['levy']) ?></p>
         <?php endif; ?>
-        <?php if ($dutyStamp > 0 && !$isCombined): ?>
-          <p class="mb-1 ps-3 text-muted small">+ Duty Stamp: <?= format_money($dutyStamp) ?></p>
+        <?php if ($summary['stamp'] > 0): ?>
+          <p class="mb-1 ps-3 text-muted small"><?= e($summary['stamp_label']) ?>: <?= format_money($summary['stamp']) ?></p>
         <?php endif; ?>
-        <?php if (($namfisaLevy > 0 || $dutyStamp > 0) && !$isCombined): ?>
-          <p class="mb-1"><strong>Opening Principal Balance:</strong> <?= format_money($loan['principal_amount'] + $namfisaLevy + $dutyStamp) ?></p>
-        <?php endif; ?>
+        <p class="mb-1"><strong><?= e($summary['opening_label']) ?>:</strong> <?= format_money($summary['opening_balance']) ?></p>
         <p class="mb-1"><strong>Interest (<?= e($loan['interest_method']) ?>):</strong> <?= format_money($headInterest) ?></p>
         <p class="mb-1"><strong>Admin Fee:</strong> <?= format_money($headFee) ?></p>
         <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($headPayable) ?></p>
         <p class="mb-1"><strong>Installment:</strong> <?= format_money($headInstallment) ?> / month<?= $isCombined ? ' <span class="text-muted small">(all parts together)</span>' : '' ?></p>
         <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
         <p class="mb-1"><strong>Penalty Rate:</strong> <?= format_money($loan['penalty_rate']) ?>% per month (if overdue)</p>
-        <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($headMaturity) ?></p>
+        <p class="mb-1"><strong>Start date:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($headMaturity) ?></p>
+        <?php if (!empty($summary['disbursed_on'])): ?>
+          <p class="mb-1"><strong>Paid out on:</strong> <?= e($summary['disbursed_on']) ?>
+            <?php if (!$isCombined && strcmp((string) $loan['start_date'], (string) $summary['disbursed_on']) > 0): ?>
+              <span class="badge bg-warning text-dark" title="The start date was typed in when the loan was created and is what Creditinfo receives as the date the account was opened. It is later than the day the money was paid out."><i class="mdi mdi-alert-outline"></i> start date is after the payout</span>
+            <?php endif; ?>
+          </p>
+        <?php elseif (!$summary['paid_out']): ?>
+          <p class="mb-1 text-muted small">Not paid out yet.</p>
+        <?php endif; ?>
         <?php
           $firstDueRow = null;
           foreach ($schedule as $scheduleRow) {
@@ -133,7 +162,17 @@
           </p>
         <?php endif; ?>
         <p class="mb-1"><strong>Collected so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
-        <p class="mb-3"><strong>Current Outstanding Balance:</strong> <?= format_money($totalDue - $totalPaid) ?></p>
+        <?php if ($summary['paid_out']): ?>
+          <p class="mb-3"><strong>Current Outstanding Balance:</strong> <?= format_money($totalDue - $totalPaid) ?></p>
+        <?php else: ?>
+          <p class="mb-3"><strong>Current Outstanding Balance:</strong> <?= format_money(0) ?> <span class="text-muted small">(nothing is owed until the loan is paid out)</span></p>
+        <?php endif; ?>
+        <?php if (!empty($summary['problems'])): ?>
+          <div class="alert alert-danger py-2 px-3 small" id="statementMismatch">
+            <strong>These figures do not agree:</strong>
+            <ul class="mb-0 ps-3"><?php foreach ($summary['problems'] as $problem): ?><li><?= e($problem) ?></li><?php endforeach; ?></ul>
+          </div>
+        <?php endif; ?>
 
         <?php if (!empty($originalLoan)): ?>
           <p class="mb-1"><i class="mdi mdi-arrow-up-bold-circle-outline text-info"></i> Top-up of loan
@@ -247,7 +286,7 @@
                   <label class="form-check-label small" for="payViaEncr"><strong>Pay out through Collexia EnCr</strong></label>
                 </div>
                 <?php if ($encrOffer['ok']): ?>
-                  <div class="form-text mb-0">Pays <?= format_money($loan['principal_amount']) ?> to <?= e($encrOffer['text']) ?>. EnCr generates its own reference, and that reference is what the Cash Book and General Journal show. Leave unticked to disburse the usual way.</div>
+                  <div class="form-text mb-0">Pays <?= format_money($loan['principal_amount']) ?> to <?= e($encrOffer['text']) ?>. The loan then waits ("Awaiting Payout") and nothing is posted until Collexia confirms the money has left; the EnCr reference is what the Cash Book and General Journal will show. Leave unticked to disburse the usual way.</div>
                 <?php else: ?>
                   <div class="form-text text-danger mb-0">Not available for this client: <?= e($encrOffer['text']) ?></div>
                 <?php endif; ?>
@@ -287,8 +326,9 @@
             <h4 class="card-title mb-0">Collexia EnCr Payout</h4>
             <span class="badge bg-<?= $encrBadge ?>"><?= e($encrState) ?></span>
           </div>
+          <?php $encrWaiting = $loan['loan_status'] === \App\Models\Loan::STATUS_AWAITING_PAYOUT; ?>
           <p class="mb-1 mt-2"><strong>Reference:</strong> <code><?= e($disbursement['encr_reference_no']) ?></code>
-            <span class="text-muted small">(shown in the Cash Book and General Journal)</span></p>
+            <span class="text-muted small"><?= $encrWaiting ? '(nothing posted yet -- this becomes the Cash Book and General Journal reference once Collexia confirms the payment)' : '(shown in the Cash Book and General Journal)' ?></span></p>
           <p class="mb-1"><strong>Amount:</strong> <?= format_money($disbursement['amount']) ?></p>
           <?php if ($encrStatusName): ?>
             <p class="mb-1"><strong>Collexia status:</strong> <?= e($encrStatusName) ?><?= !empty($disbursement['encr_response_description']) ? ' — ' . e($disbursement['encr_response_description']) : '' ?>
@@ -298,19 +338,66 @@
             <div class="alert alert-<?= $encrState === 'Failed' ? 'danger' : ($encrState === 'Not Sent' ? 'warning' : 'light') ?> py-2 px-3 small mb-2"><?= e($disbursement['encr_last_message']) ?></div>
           <?php endif; ?>
           <?php if (\App\Core\Auth::can('loans.release')): ?>
+            <?php
+              $encrMaybe = !empty($disbursement['encr_maybe_received']);
+              $encrCanCheck = $encrState === 'Submitted' || $encrState === 'Failed' || ($encrState === 'Not Sent' && $encrMaybe) || ($encrState === 'Completed' && $encrWaiting);
+              $encrAbandonRefusal = $encrWaiting ? \App\Services\LoanReleaseService::whyPayoutCannotBeAbandoned($disbursement) : 'not waiting';
+            ?>
             <div class="d-flex gap-2 flex-wrap">
               <?php if ($encrState === 'Not Sent'): ?>
                 <form method="post" action="<?= url('/loans/' . $loan['id'] . '/encr/retry') ?>" onsubmit="return confirmSubmit(this, 'Send this payout to Collexia now? The same reference is re-used, so it cannot be paid twice.');">
                   <?= csrf_field() ?>
                   <button class="btn btn-warning btn-sm"><i class="mdi mdi-send"></i> Retry payout</button>
                 </form>
-              <?php elseif ($encrState !== 'Completed'): ?>
+              <?php endif; ?>
+              <?php if ($encrCanCheck): ?>
                 <form method="post" action="<?= url('/loans/' . $loan['id'] . '/encr/check') ?>">
                   <?= csrf_field() ?>
                   <button class="btn btn-outline-info btn-sm"><i class="mdi mdi-refresh"></i> Check payout status</button>
                 </form>
               <?php endif; ?>
+              <?php if ($encrWaiting && $encrAbandonRefusal === null): ?>
+                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#payAnotherWayForm"><i class="mdi mdi-cash"></i> Pay out another way</button>
+                <form method="post" action="<?= url('/loans/' . $loan['id'] . '/encr/cancel-release') ?>" onsubmit="return confirmSubmit(this, 'Cancel this release? The loan goes back to Approved. Nothing was posted, so nothing needs reversing.');">
+                  <?= csrf_field() ?>
+                  <button class="btn btn-outline-danger btn-sm"><i class="mdi mdi-undo"></i> Cancel release</button>
+                </form>
+              <?php endif; ?>
             </div>
+            <?php if ($encrWaiting && $encrAbandonRefusal !== null && $encrState !== 'Completed'): ?>
+              <p class="small text-muted mt-2 mb-0">Paying another way or cancelling the release is not possible right now: <?= e($encrAbandonRefusal) ?></p>
+            <?php endif; ?>
+            <?php if ($encrWaiting && $encrAbandonRefusal === null): ?>
+              <div class="collapse mt-3" id="payAnotherWayForm">
+                <form method="post" action="<?= url('/loans/' . $loan['id'] . '/encr/pay-another-way') ?>" onsubmit="return confirmSubmit(this, 'Release this loan the usual way? The disbursement is posted to the books now, and the Collexia payout is set aside for good.');">
+                  <?= csrf_field() ?>
+                  <p class="small mb-2">Releases the loan the usual way: posted to the books now, with the details below. The Collexia payout <?= e($disbursement['encr_reference_no']) ?> is set aside and will not be sent.</p>
+                  <div class="mb-2">
+                    <label class="form-label small mb-0">Disbursement Method</label>
+                    <select name="disbursement_method" class="form-select form-select-sm">
+                      <?php foreach (['Cash','Bank Transfer','Wallet','Other'] as $m): ?>
+                        <option value="<?= $m ?>"><?= $m ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small mb-0">Bank Account</label>
+                    <select name="bank_account_id" class="form-select form-select-sm">
+                      <option value="">Default (Bank Account)</option>
+                      <?php foreach ($bankAccounts as $b): ?>
+                        <option value="<?= $b['id'] ?>"><?= e($b['bank_name'] . ' - ' . $b['account_name']) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small mb-0">Reference No</label>
+                    <input type="text" name="reference_no" class="form-control form-control-sm" maxlength="100">
+                    <div class="form-text">Shown in the Cash Book and General Journal. Leave blank to use the loan number.</div>
+                  </div>
+                  <button class="btn btn-primary btn-sm w-100" type="submit">Confirm release</button>
+                </form>
+              </div>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       </div>
@@ -361,7 +448,7 @@
           <table class="table table-sm table-hover">
             <thead>
               <tr>
-                <th>#</th><th>Due Date</th><th>Opening Balance</th><th>Principal</th><th>Interest</th><th>Penalty Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing Balance</th><th>Status</th>
+                <th>#</th><th>Due Date</th><th>Opening Principal</th><th>Principal</th><th>Interest</th><th>Penalty Interest</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing Principal</th><th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -401,6 +488,7 @@
             </tbody>
           </table>
         </div>
+        <p class="text-muted small mb-0"><?= e(\App\Services\LoanStatementSummary::scheduleNote($summary)) ?></p>
       </div>
     </div>
   </div>

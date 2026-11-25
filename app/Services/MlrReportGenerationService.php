@@ -25,7 +25,8 @@ use App\Models\StatutoryCharge;
  */
 class MlrReportGenerationService
 {
-    private const ISSUED_STATUSES = "('Approved','Released','Active','Current','Completed','Written Off')";
+    // 'Awaiting Payout' (an approved loan whose Collexia EnCr payout is not confirmed yet) counts like 'Approved' here: issued, not disbursed.
+    private const ISSUED_STATUSES = "('Approved','Awaiting Payout','Released','Active','Current','Completed','Written Off')";
 
     private const SIZE_BANDS = [
         '0 - N$10,000' => [0, 10000],

@@ -15,9 +15,9 @@ use Dompdf\Options;
  */
 class LoanStatementPdfExporter
 {
-    public static function build(array $loan, array $borrower, array $schedule, array $ledger, array $company): string
+    public static function build(array $loan, array $borrower, array $schedule, array $ledger, array $company, ?array $summary = null): string
     {
-        $html = self::html($loan, $borrower, $schedule, $ledger, $company);
+        $html = self::html($loan, $borrower, $schedule, $ledger, $company, $summary);
 
         $options = new Options();
         $options->set('isRemoteEnabled', false);
@@ -31,14 +31,13 @@ class LoanStatementPdfExporter
         return $dompdf->output();
     }
 
-    private static function html(array $loan, array $borrower, array $schedule, array $ledger, array $company): string
+    /** The statement as HTML (public so tests can check the figures without rendering a PDF). */
+    public static function html(array $loan, array $borrower, array $schedule, array $ledger, array $company, ?array $summary = null): string
     {
         $e = fn ($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES);
         $money = fn ($v) => number_format((float) $v, 2);
-
-        $totalPaid = array_sum(array_column($schedule, 'total_paid'));
-        $totalDue = array_sum(array_column($schedule, 'total_due'));
-        $balance = $totalDue - $totalPaid;
+        $s = $summary ?? LoanStatementSummary::build($loan, $schedule, $ledger);
+        $sumOf = fn (string $col) => array_sum(array_map('floatval', array_column($schedule, $col)));
 
         $scheduleRows = '';
         foreach ($schedule as $row) {
@@ -108,9 +107,17 @@ class LoanStatementPdfExporter
                 <td style="width:50%; text-align:right">
                     <h4>Loan Summary</h4>
                     <div>Product: ' . $e($loan['product_name']) . '</div>
-                    <div>Principal: ' . $money($loan['principal_amount']) . '</div>
-                    <div>Opening Balance: ' . $money($loan['principal_amount']) . '</div>
-                    <div>Total Payable: ' . $money($loan['total_payable']) . '</div>
+                    <div>' . $e($s['principal_label']) . ': ' . $money($s['principal']) . '</div>
+                    ' . ($s['levy'] > 0 ? '<div>' . $e($s['levy_label']) . ': ' . $money($s['levy']) . '</div>' : '') . '
+                    ' . ($s['stamp'] > 0 ? '<div>' . $e($s['stamp_label']) . ': ' . $money($s['stamp']) . '</div>' : '') . '
+                    <div>' . $e($s['opening_label']) . ': ' . $money($s['opening_balance']) . '</div>
+                    <div>' . $e($s['interest_label']) . ': ' . $money($s['interest']) . '</div>
+                    ' . ($s['admin_fee'] > 0 ? '<div>+ Admin fee: ' . $money($s['admin_fee']) . '</div>' : '') . '
+                    <div>Total payable: ' . $money($s['total_payable']) . '</div>
+                    ' . ($s['penalties'] > 0 ? '<div>Penalties charged: ' . $money($s['penalties']) . '</div>' : '') . '
+                    <div>Paid: ' . $money($s['paid']) . '</div>
+                    <div><strong>Still to pay: ' . $money($s['outstanding']) . '</strong>' . ($s['paid_out'] ? '' : ' (not paid out yet)') . '</div>
+                    ' . ($s['disbursed_on'] ? '<div>Paid out on: ' . $e($s['disbursed_on']) . '</div>' : '') . '
                     <div>Status: ' . $e($loan['loan_status']) . '</div>
                 </td>
             </tr></table>
@@ -118,21 +125,29 @@ class LoanStatementPdfExporter
             <div class="section">
                 <h4>Amortization Schedule</h4>
                 <table class="data">
-                    <thead><tr><th>#</th><th>Due Date</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Penalty</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing</th><th>Status</th></tr></thead>
+                    <thead><tr><th>#</th><th>Due Date</th><th>Opening Principal</th><th>Principal</th><th>Interest</th><th>Penalty</th><th>Fees</th><th>Total Due</th><th>Paid</th><th>Closing Principal</th><th>Status</th></tr></thead>
                     <tbody>' . $scheduleRows . '</tbody>
                     <tfoot><tr class="totals">
-                        <td colspan="7" class="r">Total</td>
-                        <td class="r">' . $money($totalDue) . '</td>
-                        <td class="r">' . $money($totalPaid) . '</td>
-                        <td class="r">' . $money($balance) . '</td>
+                        <td colspan="3" class="r">Total</td>
+                        <td class="r">' . $money($sumOf('principal_due')) . '</td>
+                        <td class="r">' . $money($sumOf('interest_due')) . '</td>
+                        <td class="r">' . $money($sumOf('penalty_due')) . '</td>
+                        <td class="r">' . $money($sumOf('fees_due')) . '</td>
+                        <td class="r">' . $money($s['schedule_due']) . '</td>
+                        <td class="r">' . $money($s['paid']) . '</td>
                         <td></td>
+                        <td></td>
+                    </tr>
+                    <tr class="totals">
+                        <td colspan="11" class="r">' . $e(LoanStatementSummary::stillToPayLine($s)) . '</td>
                     </tr></tfoot>
                 </table>
-                <p class="footer-note">NAMFISA Levy and Duty Stamp are statutory charges remitted to the relevant Namibian authorities and are included in your total repayable amount.</p>
+                <p class="footer-note">' . $e(LoanStatementSummary::scheduleNote($s)) . '</p>
             </div>
 
             <div class="section">
                 <h4>Loan Statement (Transaction History)</h4>
+                ' . (!empty($ledger['notice']) ? '<p class="muted">' . $e($ledger['notice']) . '</p>' : '') . '
                 <table class="data">
                     <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
                     <tbody>' . $ledgerRows . '</tbody>

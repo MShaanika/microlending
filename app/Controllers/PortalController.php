@@ -19,6 +19,7 @@ use App\Models\RefundClaim;
 use App\Models\UploadRequirement;
 use App\Services\LoanStatementExcelExporter;
 use App\Services\LoanStatementService;
+use App\Services\LoanStatementSummary;
 
 class PortalController extends Controller
 {
@@ -86,10 +87,15 @@ class PortalController extends Controller
         // an original loan with released top-ups reads as one loan (combined figures and one schedule)
         $bundle = \App\Services\CombinedLoanService::forLoan($loan, $this->loans);
 
+        $shownLoan = $bundle ? $bundle['loan'] : $loan;
+        $schedule = $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id);
+        $ledger = $bundle ? $bundle['ledger'] : LoanStatementService::ledger((int) $id);
+
         $this->view('portal/loans/show', [
             'title' => 'Loan ' . $loan['loan_no'],
-            'loan' => $bundle ? $bundle['loan'] : $loan,
-            'schedule' => $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id),
+            'loan' => $shownLoan,
+            'schedule' => $schedule,
+            'summary' => LoanStatementSummary::forLoan($shownLoan, $schedule, $ledger, $bundle ? array_map('intval', array_column($bundle['tranches'], 'id')) : [(int) $loan['id']]),
         ]);
     }
 
@@ -110,14 +116,18 @@ class PortalController extends Controller
         }
 
         $bundle = \App\Services\CombinedLoanService::forLoan($loan, $this->loans);
+        $shownLoan = $bundle ? $bundle['loan'] : $loan;
+        $schedule = $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id);
+        $ledger = $bundle ? $bundle['ledger'] : LoanStatementService::ledger((int) $id);
 
         $this->view('portal/loans/invoice', [
             'title' => 'Invoice - ' . $loan['loan_no'],
-            'loan' => $bundle ? $bundle['loan'] : $loan,
-            'schedule' => $bundle ? $bundle['schedule'] : $this->loans->schedule((int) $id),
+            'loan' => $shownLoan,
+            'schedule' => $schedule,
             'borrower' => $this->borrowers->find($borrowerId),
             'company' => $this->companies->primary(),
-            'ledger' => $bundle ? $bundle['ledger'] : LoanStatementService::ledger((int) $id),
+            'ledger' => $ledger,
+            'summary' => LoanStatementSummary::forLoan($shownLoan, $schedule, $ledger, $bundle ? array_map('intval', array_column($bundle['tranches'], 'id')) : [(int) $loan['id']]),
         ]);
     }
 
@@ -139,7 +149,8 @@ class PortalController extends Controller
         $ledger = $bundle ? $bundle['ledger'] : LoanStatementService::ledger((int) $id);
         $company = $this->companies->primary();
 
-        $spreadsheet = LoanStatementExcelExporter::build($bundle ? $bundle['loan'] : $loan, $borrower, $schedule, $ledger, $company);
+        $shownLoan = $bundle ? $bundle['loan'] : $loan;
+        $spreadsheet = LoanStatementExcelExporter::build($shownLoan, $borrower, $schedule, $ledger, $company, LoanStatementSummary::forLoan($shownLoan, $schedule, $ledger, $bundle ? array_map('intval', array_column($bundle['tranches'], 'id')) : [(int) $loan['id']]));
 
         while (ob_get_level() > 0) {
             ob_end_clean();

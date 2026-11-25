@@ -8,6 +8,7 @@ use App\Models\Loan;
 use App\Services\CollexiaApiException;
 use App\Services\CollexiaEncrApiClient;
 use App\Services\CollexiaEncrDisbursementService;
+use App\Services\LoanReleaseService;
 use App\Support\CollexiaV3Codes;
 use PHPUnit\Framework\TestCase;
 
@@ -127,11 +128,11 @@ class CollexiaEncrDisbursementTest extends TestCase
 
     private function disbursement(array $over = []): array
     {
-        return $over + ['id' => 5, 'loan_id' => 8, 'borrower_id' => 4, 'amount' => '10000.00', 'encr_reference_no' => 'ER000008ABC123', 'encr_state' => 'Not Sent'];
+        return $over + ['id' => 5, 'loan_id' => 8, 'borrower_id' => 4, 'amount' => '10000.00', 'status' => 'Pending', 'encr_reference_no' => 'ER000008ABC123', 'encr_state' => 'Not Sent', 'encr_maybe_received' => 0];
     }
 
     /** @return array{0: CollexiaEncrDisbursementService, 1: \PHPUnit\Framework\MockObject\MockObject, 2: \PHPUnit\Framework\MockObject\MockObject} */
-    private function service(array $disbursement, bool $encrOn = true, ?array $bank = null): array
+    private function service(array $disbursement, bool $encrOn = true, ?array $bank = null, array $opts = []): array
     {
         $settings = $this->createMock(CollexiaSetting::class);
         $settings->method('encrEnabled')->willReturn($encrOn);
@@ -142,13 +143,20 @@ class CollexiaEncrDisbursementTest extends TestCase
         $loans = $this->createMock(Loan::class);
         $loans->method('disbursementById')->willReturn($disbursement);
         $loans->method('find')->willReturn(['loan_no' => 'LN-261021-475BFB']);
+        // the send is claimed under a row lock before it goes out, and its outcome written under one (no database here)
+        if (empty($opts['ownClaim'])) {
+            $loans->method('claimEncrSend')->willReturn(array_key_exists('claimed', $opts) ? $opts['claimed'] : $disbursement);
+        }
+        $loans->method('disbursementForUpdate')->willReturn($opts['locked'] ?? $disbursement);
+        $loans->method('transaction')->willReturnCallback(fn (callable $fn) => $fn(null));
 
         $borrowers = $this->createMock(Borrower::class);
         $borrowers->method('bankDetails')->willReturn($bank ?? ['bank_name' => 'FNB', 'account_number' => '634 722 174', 'account_type' => 'Savings']);
 
         $api = $this->createMock(CollexiaEncrApiClient::class);
+        $release = $this->createMock(LoanReleaseService::class);
 
-        return [new CollexiaEncrDisbursementService($settings, $api, $loans, $borrowers), $api, $loans];
+        return [new CollexiaEncrDisbursementService($settings, $api, $loans, $borrowers, $release), $api, $loans, $release];
     }
 
     public function testSuccessfulSendIsSubmittedNotPaid(): void
@@ -273,5 +281,184 @@ class CollexiaEncrDisbursementTest extends TestCase
         [$service, $api] = $this->service($this->disbursement());
         $api->expects($this->never())->method('transferInfo');
         $this->assertFalse($service->checkStatus(5, 'willemk')['ok']);
+    }
+
+    // --- waiting for Collexia: what is posted, and when ---
+
+    public function testTheSwitchOffMeansNoEnCrSoTheReleaseIsManual(): void
+    {
+        $settings = $this->createMock(CollexiaSetting::class);
+        $settings->method('encrEnabled')->willReturn(false);
+        $service = new CollexiaEncrDisbursementService($settings, $this->createMock(CollexiaEncrApiClient::class), $this->createMock(Loan::class), $this->createMock(Borrower::class), $this->createMock(LoanReleaseService::class));
+        $this->assertFalse($service->available(), 'with EnCr off the Release form offers no EnCr option and LoanController refuses pay_via_encr');
+    }
+
+    public function testCompletedHandsTheLoanToTheFinaliserWithCollexiasDate(): void
+    {
+        [$service, $api, , $release] = $this->service($this->disbursement(['encr_state' => 'Submitted']));
+        $api->method('transferInfo')->willReturn(['status' => 3, 'amountPaidOut' => 10000.00, 'responseDescription' => 'ok', 'statusDate' => '20261124']);
+        $release->expects($this->once())->method('finaliseEncrPayout')->with(5, 9, '2026-11-24')
+            ->willReturn(['finalised' => true, 'error' => false, 'message' => 'The loan is now released and posted.']);
+
+        $r = $service->checkStatus(5, 'willemk', 9);
+        $this->assertTrue($r['ok']);
+        $this->assertTrue($r['finalised']);
+    }
+
+    public function testAPostingFailureAfterCompletedIsReportedNotHidden(): void
+    {
+        [$service, $api, , $release] = $this->service($this->disbursement(['encr_state' => 'Submitted']));
+        $api->method('transferInfo')->willReturn(['status' => 3, 'amountPaidOut' => 10000.00]);
+        $release->method('finaliseEncrPayout')->willReturn(['finalised' => false, 'error' => true, 'message' => 'posting it failed: period closed']);
+
+        $r = $service->checkStatus(5, 'willemk', 9);
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('period closed', $r['message']);
+    }
+
+    public function testNothingButCompletedIsFinalised(): void
+    {
+        foreach ([1, 2, 6, 4, 5, 7] as $status) {
+            [$service, $api, , $release] = $this->service($this->disbursement(['encr_state' => 'Submitted']));
+            $api->method('transferInfo')->willReturn(['status' => $status]);
+            $release->expects($this->never())->method('finaliseEncrPayout');
+            $service->checkStatus(5, 'willemk', 9);
+        }
+    }
+
+    public function testAnOldPayoutPostedAtReleaseIsNotPostedAgain(): void
+    {
+        [$service, $api, , $release] = $this->service($this->disbursement(['encr_state' => 'Submitted', 'status' => 'Disbursed']));
+        $api->method('transferInfo')->willReturn(['status' => 3, 'amountPaidOut' => 10000.00]);
+        $release->expects($this->never())->method('finaliseEncrPayout');
+        $this->assertTrue($service->checkStatus(5, 'willemk', 9)['ok']);
+    }
+
+    public function testAServerErrorOnSendIsNotAClearNo(): void
+    {
+        [$service, $api, $loans] = $this->service($this->disbursement());
+        $api->method('transfer')->willThrowException(new CollexiaApiException([['rcoId' => 192, 'code' => '192', 'message' => 'Internal server error']], 500, 'Error'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_state'] === 'Not Sent' && $f['encr_maybe_received'] === 1));
+        $this->assertFalse($service->send(5, 'willemk')['ok']);
+    }
+
+    public function testANetworkFailureMayHaveReachedCollexiaButASwitchedOffClientSentNothing(): void
+    {
+        [$service, $api, $loans] = $this->service($this->disbursement());
+        $api->method('transfer')->willThrowException(new \RuntimeException('Failed to reach the Collexia API: timeout'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_maybe_received'] === 1));
+        $service->send(5, 'willemk');
+
+        [$service, $api, $loans] = $this->service($this->disbursement());
+        $api->method('transfer')->willThrowException(new \RuntimeException('The Collexia API integration is disabled (Collections > Debit Order API Settings).'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_maybe_received'] === 0));
+        $service->send(5, 'willemk');
+    }
+
+    public function testAPayeeRefusalKeepsWhatWasKnownAboutAnEarlierUnclearSend(): void
+    {
+        [$service, $api, $loans] = $this->service($this->disbursement(['encr_maybe_received' => 1]), true, ['bank_name' => 'Capitec', 'account_number' => '1', 'account_type' => 'Savings']);
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => !array_key_exists('encr_maybe_received', $f)));
+        $service->send(5, 'willemk');
+    }
+
+    public function testAPayoutIsClaimedBeforeItGoesOutAndNotSentWhenTheClaimIsRefused(): void
+    {
+        // Claim refused: set aside (paid another way / cancelled) or already moved on since the page was loaded.
+        [$service, $api, $loans] = $this->service($this->disbursement(), true, null, ['claimed' => null]);
+        $api->expects($this->never())->method('transfer');
+        $loans->expects($this->never())->method('updateDisbursementFields');
+        $r = $service->send(5, 'willemk');
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('no longer waiting to be sent', $r['message']);
+
+        // Claim granted: it is taken BEFORE the request goes out.
+        [$service, $api, $loans] = $this->service($this->disbursement(), true, null, ['ownClaim' => true]);
+        $order = [];
+        $loans->expects($this->once())->method('claimEncrSend')->with(5)->willReturnCallback(function () use (&$order) {
+            $order[] = 'claim';
+            return $this->disbursement();
+        });
+        $api->expects($this->once())->method('transfer')->willReturnCallback(function () use (&$order) {
+            $order[] = 'transfer';
+            return [];
+        });
+        $this->assertTrue($service->send(5, 'willemk')['ok']);
+        $this->assertSame(['claim', 'transfer'], $order);
+    }
+
+    public function testAClearRefusalOfARetryKeepsTheDoubtFromAnEarlierUnclearSend(): void
+    {
+        // The first attempt got a 5xx (flag set); the retry is refused with a validation error, not the duplicate code.
+        [$service, $api, $loans] = $this->service($this->disbursement(['encr_maybe_received' => 1]));
+        $api->method('transfer')->willThrowException(new CollexiaApiException([['rcoId' => 1001, 'code' => '1001', 'message' => 'Account Invalid']], 400, 'Transaction Failed'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_state'] === 'Not Sent' && $f['encr_maybe_received'] === 1));
+        $r = $service->send(5, 'willemk');
+        $this->assertStringContainsString('Check payout status', $r['message']);
+        $this->assertNotNull(LoanReleaseService::whyPayoutCannotBeAbandoned($this->disbursement(['encr_maybe_received' => 1])));
+
+        // A request our own client refused before sending does not clear it either.
+        [$service, $api, $loans] = $this->service($this->disbursement(['encr_maybe_received' => 1]));
+        $api->method('transfer')->willThrowException(new \RuntimeException('The Collexia API integration is disabled (Collections > Debit Order API Settings).'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_maybe_received'] === 1));
+        $service->send(5, 'willemk');
+
+        // With no earlier doubt, a clear refusal is a clear "not received".
+        [$service, $api, $loans] = $this->service($this->disbursement());
+        $api->method('transfer')->willThrowException(new CollexiaApiException([['rcoId' => 1001, 'code' => '1001', 'message' => 'Account Invalid']], 400, 'Transaction Failed'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_maybe_received'] === 0));
+        $service->send(5, 'willemk');
+    }
+
+    public function testARefusedAnswerIsNeverWrittenOverAPayoutSetAsideMeanwhile(): void
+    {
+        [$service, $api, $loans] = $this->service($this->disbursement(), true, null, ['locked' => $this->disbursement(['status' => 'Cancelled'])]);
+        $api->method('transfer')->willThrowException(new CollexiaApiException([['rcoId' => 1001, 'code' => '1001', 'message' => 'Account Invalid']], 400, 'Transaction Failed'));
+        $loans->expects($this->never())->method('updateDisbursementFields');
+        $r = $service->send(5, 'willemk');
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('set aside', $r['message']);
+    }
+
+    public function testAfterAnUnclearSendTheStatusCanBeCheckedAndANotFoundSettlesIt(): void
+    {
+        [$service, $api, $loans] = $this->service($this->disbursement(['encr_maybe_received' => 1]));
+        $api->expects($this->once())->method('transferInfo')->willThrowException(new CollexiaApiException([['code' => '404', 'message' => 'Transfer not found']], 404, 'Not found'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => $f['encr_maybe_received'] === 0));
+        $r = $service->checkStatus(5, 'willemk', 9);
+        $this->assertStringContainsString('never reached it', $r['message']);
+    }
+
+    public function testASetAsidePayoutIsNeverSentOrChecked(): void
+    {
+        [$service, $api] = $this->service($this->disbursement(['status' => 'Cancelled']));
+        $api->expects($this->never())->method('transfer');
+        $api->expects($this->never())->method('transferInfo');
+        $this->assertFalse($service->send(5, 'willemk')['ok']);
+        $this->assertFalse($service->checkStatus(5, 'willemk')['ok']);
+    }
+
+    public function testPayingAnotherWayOrCancellingIsOnlyAllowedWhenCollexiaWillCertainlyNotPay(): void
+    {
+        $d = $this->disbursement();
+        $this->assertNull(LoanReleaseService::whyPayoutCannotBeAbandoned($d), 'not sent, clear answer');
+        $this->assertNull(LoanReleaseService::whyPayoutCannotBeAbandoned(['encr_state' => 'Failed'] + $d));
+        $this->assertNotNull(LoanReleaseService::whyPayoutCannotBeAbandoned(['encr_state' => 'Submitted'] + $d));
+        $this->assertNotNull(LoanReleaseService::whyPayoutCannotBeAbandoned(['encr_state' => 'Completed'] + $d));
+        $this->assertNotNull(LoanReleaseService::whyPayoutCannotBeAbandoned(['encr_maybe_received' => 1] + $d), 'last send unclear');
+        $this->assertNotNull(LoanReleaseService::whyPayoutCannotBeAbandoned(['encr_state' => 'Weird'] + $d));
+        $this->assertNotNull(LoanReleaseService::whyPayoutCannotBeAbandoned(null));
+    }
+
+    public function testThePaidOnDateIsCollexiasWithinTheReleaseAndToday(): void
+    {
+        $today = date('Y-m-d');
+        $this->assertSame('2026-11-24', CollexiaEncrDisbursementService::dateFromCollexia('20261124'));
+        $this->assertNull(CollexiaEncrDisbursementService::dateFromCollexia('20261331'));
+        $this->assertNull(CollexiaEncrDisbursementService::dateFromCollexia(null));
+        $this->assertSame($today, LoanReleaseService::paidOnDate(null, '2020-01-01'));
+        $this->assertSame('2020-01-05', LoanReleaseService::paidOnDate('2020-01-05', '2020-01-01'));
+        $this->assertSame('2020-01-01', LoanReleaseService::paidOnDate('2019-12-31', '2020-01-01'), 'never before the release');
+        $this->assertSame($today, LoanReleaseService::paidOnDate('2999-01-01', '2020-01-01'), 'never in the future');
     }
 }

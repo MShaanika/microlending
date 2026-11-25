@@ -10,6 +10,13 @@ class Loan extends Model
     private const RELEASED_TRANCHES = "('Active','Current','Released','Completed')";
 
     /**
+     * Released with a Collexia EnCr payout, waiting for Collexia to confirm the money left
+     * (database/encr_awaiting_payout.sql). Nothing is posted and it is not disbursed: every
+     * "disbursed / open loan" query lists its statuses explicitly, so this one is left out.
+     */
+    public const STATUS_AWAITING_PAYOUT = 'Awaiting Payout';
+
+    /**
      * "Arrear", "Bad Debt", and "Bad Debt Recovery" are pseudo-statuses for
      * the $status filter -- they are NOT loans.loan_status values (which
      * stays the canonical lifecycle: Draft -> ... -> Active/Current ->
@@ -238,6 +245,34 @@ class Loan extends Model
             "SELECT * FROM loan_disbursements WHERE loan_id = ? AND status != 'Cancelled' ORDER BY id DESC LIMIT 1",
             [$loanId]
         );
+    }
+
+    /** Row-locked read of one disbursement; only meaningful inside an open transaction (see findForUpdate()). */
+    public function disbursementForUpdate(int $id): ?array
+    {
+        return $this->one("SELECT * FROM loan_disbursements WHERE id = ? FOR UPDATE", [$id]);
+    }
+
+    /**
+     * Claims an EnCr payout for sending, BEFORE the request goes to Collexia: under a row lock it checks the
+     * payout is still waiting to be sent and not set aside, and marks it "may have been received"
+     * (encr_maybe_received = 1). While the request is in flight "Pay out another way" and "Cancel release"
+     * are therefore refused (LoanReleaseService::whyPayoutCannotBeAbandoned()), and a payout set aside
+     * before the claim is never sent. Returns the row as it was before the claim, or null when it may not be sent.
+     */
+    public function claimEncrSend(int $id): ?array
+    {
+        return $this->transaction(function () use ($id) {
+            $row = $this->disbursementForUpdate($id);
+            if (!$row || empty($row['encr_reference_no']) || ($row['status'] ?? '') === 'Cancelled' || ($row['encr_state'] ?? '') !== 'Not Sent') {
+                return null;
+            }
+            $this->updateDisbursementFields($id, [
+                'encr_maybe_received' => 1,
+                'encr_last_message' => 'Being sent to Collexia (' . date('Y-m-d H:i:s') . ') -- wait for the answer before doing anything else with this loan.',
+            ]);
+            return $row;
+        });
     }
 
     public function updateDisbursementFields(int $id, array $data): bool

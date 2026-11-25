@@ -10,7 +10,7 @@ use App\Models\AccountingJournal;
  * One-time catch-up entry per loan, bringing loans disbursed under the old
  * method (interest recognized only on collection; NAMFISA levy/duty stamp
  * lumped into Loans Receivable) onto the new full-accrual method
- * (LoanController::postDisbursementAccounting() /
+ * (LoanReleaseService::postDisbursementAccounting() /
  * Payment::postCollectionAccounting()) without touching any historical
  * transaction.
  *

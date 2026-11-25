@@ -226,6 +226,8 @@ $router->post('/loans/{id}/release', [LoanController::class, 'release']);
 $router->get('/loans/{id}/activity', [LoanController::class, 'activity']);
 $router->post('/loans/{id}/encr/retry', [LoanController::class, 'encrRetry']);
 $router->post('/loans/{id}/encr/check', [LoanController::class, 'encrCheck']);
+$router->post('/loans/{id}/encr/pay-another-way', [LoanController::class, 'encrPayAnotherWay']);
+$router->post('/loans/{id}/encr/cancel-release', [LoanController::class, 'encrCancelRelease']);
 $router->get('/loans/{id}/topup-created', [LoanController::class, 'topupCreated']);
 $router->post('/loan-topups/{topupId}/reverse', [LoanController::class, 'reverseTopup']);
 $router->post('/loans/{id}/reverse-topup', [LoanController::class, 'reverseChildTopup']);

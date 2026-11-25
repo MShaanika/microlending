@@ -67,7 +67,8 @@ class OperationalReportService
             "SELECT COALESCE(SUM(ls.total_due),0) AS total_due, COALESCE(SUM(ls.total_paid),0) AS total_collected
              FROM loan_schedules ls
              JOIN loans l ON l.id = ls.loan_id
-             WHERE ls.due_date BETWEEN ? AND ?{$branchSql}"
+             WHERE ls.due_date BETWEEN ? AND ?{$branchSql}
+               AND l.loan_status <> 'Awaiting Payout'"
         );
         $stmt->execute($params);
         $totals = $stmt->fetch();
@@ -80,6 +81,7 @@ class OperationalReportService
              FROM loan_schedules ls
              JOIN loans l ON l.id = ls.loan_id
              WHERE ls.due_date BETWEEN ? AND ?{$branchSql}
+               AND l.loan_status <> 'Awaiting Payout'
              GROUP BY month_key, month_label ORDER BY month_key"
         );
         $trendStmt->execute($params);

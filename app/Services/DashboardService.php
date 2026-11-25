@@ -185,6 +185,7 @@ class DashboardService
              JOIN loans l ON l.id = ls.loan_id
              JOIN borrowers b ON b.id = l.borrower_id
              WHERE ls.status = 'Pending' AND ls.due_date BETWEEN ? AND ?{$branchSql}
+               AND l.loan_status <> 'Awaiting Payout'
              ORDER BY ls.due_date ASC
              LIMIT 50"
         );

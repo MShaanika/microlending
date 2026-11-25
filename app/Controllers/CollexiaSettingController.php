@@ -166,7 +166,7 @@ class CollexiaSettingController extends Controller
 
         $missing = $this->settings->missingForEncr();
         if (!\App\Services\CollexiaEncrDisbursementService::schemaReady()) {
-            $missing[] = 'database update (database/collexia_encr_disbursement.sql has not been applied)';
+            $missing[] = 'database update (database/collexia_encr_disbursement.sql and database/encr_awaiting_payout.sql must both be applied)';
         }
         if (!empty($missing)) {
             $this->settings->set('collexia_encr_enabled', 'off', $userId);

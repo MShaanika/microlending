@@ -186,27 +186,23 @@ class CombinedLoanService
     public static function mergeLedgers(array $tranches, array $ledgers): array
     {
         $events = [];
-        $opening = 0.0;
+        $opening = $levy = $stamp = 0.0;
+        $paidOut = false;
+        $disbursedOn = null;
         foreach ($ledgers as $loanId => $ledger) {
             $opening += (float) $ledger['opening_balance'];
+            $levy += (float) ($ledger['levy'] ?? 0);
+            $stamp += (float) ($ledger['stamp'] ?? 0);
+            $paidOut = $paidOut || !empty($ledger['paid_out']);
+            if (!empty($ledger['disbursed_on']) && ($disbursedOn === null || strcmp((string) $ledger['disbursed_on'], $disbursedOn) < 0)) {
+                $disbursedOn = (string) $ledger['disbursed_on'];
+            }
             foreach ($ledger['events'] as $event) {
                 $event['description'] = '[' . self::loanNo($tranches, (int) $loanId) . '] ' . $event['description'];
                 $events[] = $event;
             }
         }
-        usort($events, function ($a, $b) {
-            $dateCompare = strcmp((string) $a['date'], (string) $b['date']);
-            if ($dateCompare !== 0) {
-                return $dateCompare;
-            }
-            $rank = fn ($e) => match (true) {
-                $e['type'] === 'Opening' => 0,
-                $e['type'] === 'Interest' || $e['type'] === 'Fee' => 1,
-                $e['type'] === 'Penalty' => 2,
-                default => 3,
-            };
-            return $rank($a) <=> $rank($b);
-        });
+        usort($events, [LoanStatementService::class, 'compareEvents']);
         $running = 0.0;
         foreach ($events as &$event) {
             $running = round($running + $event['debit'] - $event['credit'], 2);
@@ -214,6 +210,9 @@ class CombinedLoanService
         }
         unset($event);
 
-        return ['opening_balance' => round($opening, 2), 'events' => $events, 'closing_balance' => $running];
+        return [
+            'opening_balance' => round($opening, 2), 'events' => $events, 'closing_balance' => $running,
+            'levy' => round($levy, 2), 'stamp' => round($stamp, 2), 'paid_out' => $paidOut, 'disbursed_on' => $disbursedOn,
+        ];
     }
 }

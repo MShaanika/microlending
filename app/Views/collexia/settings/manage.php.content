@@ -159,7 +159,7 @@ $statusBadge = [
       </p>
 
       <?php if (!$encrSchemaReady): ?>
-        <div class="alert alert-warning small">The database update for EnCr (<code>database/collexia_encr_disbursement.sql</code>) has not been applied yet, so EnCr cannot be switched on.</div>
+        <div class="alert alert-warning small">The database updates for EnCr (<code>database/collexia_encr_disbursement.sql</code> and <code>database/encr_awaiting_payout.sql</code>) have not both been applied yet, so EnCr cannot be switched on.</div>
       <?php elseif ($encrSwitchedOn && !empty($encrMissing)): ?>
         <div class="alert alert-warning small">EnCr is switched on but is missing: <?= e(implode(', ', $encrMissing)) ?>. It stays unavailable on the Release form until these are filled in.</div>
       <?php endif; ?>

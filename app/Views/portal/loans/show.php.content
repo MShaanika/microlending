@@ -22,12 +22,22 @@
         </div>
         <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
 
-        <p class="mb-1"><strong>Principal:</strong> <?= format_money($loan['principal_amount']) ?></p>
-        <p class="mb-1"><strong>Interest:</strong> <?= format_money($loan['interest_amount']) ?></p>
-        <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($loan['total_payable']) ?></p>
+        <p class="mb-1"><strong><?= e($summary['principal_label']) ?>:</strong> <?= format_money($summary['principal']) ?></p>
+        <?php if ($summary['charges'] > 0): ?>
+          <p class="mb-1 ps-3 text-muted small"><?= e($summary['paid_out'] ? '+ NAMFISA levy and stamp duty' : '+ NAMFISA levy and stamp duty (added when paid out)') ?>: <?= format_money($summary['charges']) ?></p>
+          <p class="mb-1"><strong><?= e($summary['opening_label']) ?>:</strong> <?= format_money($summary['opening_balance']) ?></p>
+        <?php endif; ?>
+        <p class="mb-1"><strong><?= e(ltrim($summary['interest_label'], '+ ')) ?>:</strong> <?= format_money($summary['interest']) ?></p>
+        <?php if ($summary['admin_fee'] > 0): ?>
+          <p class="mb-1"><strong>Admin fee:</strong> <?= format_money($summary['admin_fee']) ?></p>
+        <?php endif; ?>
+        <p class="mb-1"><strong>Total Payable:</strong> <?= format_money($summary['total_payable']) ?></p>
         <p class="mb-1"><strong>Term:</strong> <?= (int) $loan['term_months'] ?> months</p>
         <p class="mb-1"><strong>Start:</strong> <?= e($loan['start_date']) ?> &rarr; <strong>Maturity:</strong> <?= e($loan['maturity_date']) ?></p>
-        <p class="mb-3"><strong>Paid so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?></p>
+        <?php if (!empty($summary['disbursed_on'])): ?>
+          <p class="mb-1"><strong>Paid out on:</strong> <?= e($summary['disbursed_on']) ?></p>
+        <?php endif; ?>
+        <p class="mb-3"><strong>Paid so far:</strong> <?= format_money($totalPaid) ?> / <?= format_money($totalDue) ?><?= $summary['paid_out'] ? '' : ' <span class="text-muted small">(not paid out yet)</span>' ?></p>
 
         <div class="d-flex gap-2 flex-wrap">
           <?php if (in_array($loan['loan_status'], ['Active', 'Current'], true)): ?>

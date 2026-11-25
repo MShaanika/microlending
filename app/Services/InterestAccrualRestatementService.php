@@ -12,7 +12,7 @@ use App\Models\InterestAccrual;
  * income moved from cash-basis to accrual-basis recognition (see
  * InterestAccrualService and the PenaltyAccrualService change alongside it).
  * Before this change, EVERY loan had its whole-term interest booked as a
- * receivable at disbursement (LoanController::postDisbursementAccounting(),
+ * receivable at disbursement (LoanReleaseService::postDisbursementAccounting(),
  * pre-change) with the income side sitting in Deferred Interest Income
  * (2011) until collected -- this posts the one-time journal that recognizes
  * whatever portion of that deferred balance is properly earned by now, and
