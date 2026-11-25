@@ -186,6 +186,27 @@ class CollexiaEncrDisbursementTest extends TestCase
         $this->assertFalse($service->send(5, 'willemk')['ok']);
     }
 
+    public function testPayingTheClientFromTheirOwnAccountIsRefusedBeforeSending(): void
+    {
+        // Same number as the paying account (123456, bank id 64 = Bank Windhoek), written with spaces and a leading zero.
+        [$service, $api, $loans] = $this->service($this->disbursement(), true, ['bank_name' => 'Bank Windhoek', 'account_number' => '0123 456', 'account_type' => 'Savings']);
+        $api->expects($this->never())->method('transfer');
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(
+            fn ($f) => $f['encr_state'] === 'Not Sent' && str_contains($f['encr_last_message'], 'same account the payout is paid FROM')
+        ));
+        $r = $service->send(5, 'willemk');
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('Not sent to Collexia', $r['message']);
+        $this->assertStringNotContainsString('may not have reached', $r['message']);
+    }
+
+    public function testTheSameNumberAtAnotherBankIsAllowed(): void
+    {
+        [$service, $api] = $this->service($this->disbursement(), true, ['bank_name' => 'FNB', 'account_number' => '123456', 'account_type' => 'Savings']);
+        $api->expects($this->once())->method('transfer')->willReturn([]);
+        $this->assertTrue($service->send(5, 'willemk')['ok']);
+    }
+
     public function testRefusalLeavesItRetryableWithTheSameReference(): void
     {
         [$service, $api, $loans] = $this->service($this->disbursement());

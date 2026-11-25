@@ -93,6 +93,15 @@ class CollexiaEncrDisbursementService
             throw new \RuntimeException('The client\'s bank account type is blank or not Savings / Cheque / Current -- set it in the client\'s bank details first.');
         }
 
+        // Paying an account into itself: Collexia's UAT answered this with a bare "192 Internal server error"
+        // (sandbox, 24 Nov 2026), so refuse it here with a reason staff can act on.
+        $fromNo = preg_replace('/\s+/', '', (string) $this->settings->get('collexia_encr_from_account_no'));
+        if ($fromNo !== '' && ltrim($fromNo, '0') === ltrim($accountNo, '0')
+            && $banId === (int) $this->settings->get('collexia_encr_from_ban_id')) {
+            throw new \RuntimeException('The client\'s bank account (' . CollexiaV3Codes::BANK_IDS[$banId] . ', ending ' . substr($accountNo, -4)
+                . ') is the same account the payout is paid FROM. Correct the client\'s bank details, or pay this loan out another way.');
+        }
+
         return [
             'account_no' => $accountNo,
             'ban_id' => $banId,
@@ -152,9 +161,15 @@ class CollexiaEncrDisbursementService
             return $this->unsent($disbursementId, 'Collexia EnCr is switched off or not fully configured, so nothing was sent.');
         }
 
+        // Checked before anything goes out, so a bad payee is reported as "not sent" with its real reason.
+        try {
+            $payee = $this->resolvePayee((int) $d['borrower_id']);
+        } catch (\RuntimeException $e) {
+            return $this->unsent($disbursementId, 'Not sent to Collexia: ' . $e->getMessage());
+        }
+
         try {
             $loan = $this->loans->find((int) $d['loan_id']);
-            $payee = $this->resolvePayee((int) $d['borrower_id']);
 
             $this->api->transfer([
                 'remoteReferenceNo' => $d['encr_reference_no'],
