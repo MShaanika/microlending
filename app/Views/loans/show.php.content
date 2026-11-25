@@ -78,8 +78,8 @@
       <strong>Collexia has paid out <?= $waitAmount ?> (ref <?= e($waitRef) ?>), but the loan is not posted yet.</strong>
       <?= e($disbursement['encr_last_message'] ?? '') ?> Use "Check payout status" again to post it.
     <?php elseif ($waitFailed): ?>
-      <strong>The payout did not go through<?= !empty($disbursement['encr_last_message']) ? ': ' . e($disbursement['encr_last_message']) : '.' ?></strong>
-      Nothing was posted. <?= $waitState === 'Not Sent' ? 'Retry, pay another way, or cancel the release.' : 'Pay another way, or cancel the release (and release it again to try Collexia with a new reference).' ?>
+      <strong>The payout did not go through. Nothing was posted.</strong>
+      <?= !empty($disbursement['encr_last_message']) ? 'See the Collexia EnCr Payout box for what Collexia said and what to do next.' : ($waitState === 'Not Sent' ? 'Retry, pay another way, or cancel the release.' : 'Pay another way, or cancel the release (and release it again to try Collexia with a new reference).') ?>
     <?php else: ?>
       <strong>Waiting for Collexia to pay out <?= $waitAmount ?> (ref <?= e($waitRef) ?>). Nothing has been posted yet.</strong>
       The loan is released and posted (and the schedule starts counting) only once Collexia confirms the money has left -- use "Check payout status".
@@ -95,6 +95,11 @@
           <h4 class="card-title mb-0"><?= e($loan['loan_no']) ?></h4>
           <span class="badge bg-<?= $badge ?>"><?= e($loan['loan_status']) ?></span>
         </div>
+        <?php if (in_array($loan['loan_status'], ['Pending Approval', 'Approved', 'Awaiting Payout', 'Denied', 'Rejected', 'Cancelled'], true)): ?>
+        <div class="mb-2">
+          <span class="badge bg-secondary" title="Not paid out, so there is no payment, collection or credit status yet">Not paid out yet</span>
+        </div>
+        <?php else: ?>
         <div class="mb-2">
           <span class="badge bg-<?= $paymentStatusBadge ?>" title="Payment Status"><?= e($loan['payment_status']) ?></span>
           <?php if ($loan['payment_status'] === 'In Arrears'): ?>
@@ -103,6 +108,7 @@
           <span class="badge bg-<?= $collectionStatusBadge ?>" title="Collection Status"><?= e($loan['collection_status']) ?></span>
           <span class="badge bg-<?= $creditStatusBadge ?>" title="Credit Status"><?= e($loan['credit_status']) ?></span>
         </div>
+        <?php endif; ?>
         <p class="text-muted mb-3"><?= e($loan['product_name']) ?> &middot; <?= e($loan['plan_name']) ?></p>
 
         <p class="mb-1 text-muted small">Created by <?= e($loan['created_by_name'] ?: '—') ?> on <?= e(date('d M Y H:i', strtotime($loan['created_at']))) ?></p>

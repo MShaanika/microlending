@@ -273,7 +273,22 @@ class CollexiaEncrDisbursementService
             $r = $this->api->transferInfo($d['encr_reference_no'], $frontEndUserName, (int) $this->settings->get('collexia_encr_uac_id'));
         } catch (\Throwable $e) {
             // After a send with no clear answer: Collexia clearly saying it has nothing under this reference settles it -- it was never received.
-            if ($unclearSend && $e instanceof CollexiaApiException && in_array($e->httpStatus(), [400, 404, 422], true)) {
+            // Only a plain 404, or an error code Collexia has CONFIRMED means "no such payout", counts as proof. Any other
+            // refusal of the status request (e.g. UAT's "10587 GET TIN", 25 Nov 2026, meaning unconfirmed) proves nothing about
+            // the payout, so the doubt is kept: Retry stays safe (same reference), paying another way stays blocked.
+            $codes = $e instanceof CollexiaApiException ? array_map('strval', array_column($e->errors(), 'code')) : [];
+            $provenAbsent = $e instanceof CollexiaApiException
+                && ($e->httpStatus() === 404 || array_intersect($codes, CollexiaV3Codes::ENCR_NOT_FOUND_CODES));
+            if ($unclearSend && $e instanceof CollexiaApiException && !$provenAbsent) {
+                $message = 'Collexia could not report on payout ' . $d['encr_reference_no'] . ' (' . $e->getMessage() . '). That does not prove the payout was never received, '
+                    . 'so paying another way and cancelling stay blocked. "Retry payout" is safe (same reference -- Collexia refuses a duplicate). If this keeps happening, ask Collexia what this code means.';
+                $this->loans->updateDisbursementFields($disbursementId, [
+                    'encr_checked_at' => date('Y-m-d H:i:s'),
+                    'encr_last_message' => substr($message, 0, 500),
+                ]);
+                return ['ok' => false, 'message' => $message];
+            }
+            if ($unclearSend && $provenAbsent) {
                 $message = 'Collexia holds no payout under ' . $d['encr_reference_no'] . ' (' . $e->getMessage() . '), so the earlier attempt never reached it and nothing will be paid. Retry the payout, pay the loan another way, or cancel the release.';
                 $this->loans->updateDisbursementFields($disbursementId, [
                     'encr_maybe_received' => 0,

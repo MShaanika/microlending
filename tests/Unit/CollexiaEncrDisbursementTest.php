@@ -429,6 +429,18 @@ class CollexiaEncrDisbursementTest extends TestCase
         $this->assertStringContainsString('never reached it', $r['message']);
     }
 
+    public function testAnUnconfirmedRefusalOfTheStatusRequestKeepsTheDoubt(): void
+    {
+        // Collexia UAT answered "10587 GET TIN" (25 Nov 2026): not a confirmed "no such payout", so nothing is settled.
+        [$service, $api, $loans] = $this->service($this->disbursement(['encr_maybe_received' => 1]));
+        $api->expects($this->once())->method('transferInfo')->willThrowException(new CollexiaApiException([['code' => '10587', 'message' => 'GET TIN']], 400, 'Error'));
+        $loans->expects($this->once())->method('updateDisbursementFields')->with(5, $this->callback(fn ($f) => !array_key_exists('encr_maybe_received', $f)));
+        $r = $service->checkStatus(5, 'willemk', 9);
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('does not prove', $r['message']);
+        $this->assertStringNotContainsString('never reached it', $r['message']);
+    }
+
     public function testASetAsidePayoutIsNeverSentOrChecked(): void
     {
         [$service, $api] = $this->service($this->disbursement(['status' => 'Cancelled']));

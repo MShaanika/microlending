@@ -149,6 +149,9 @@ class CollexiaV3Codes
     /** EnCr error codes (spec Appendix B) that mean "Collexia already has this reference". */
     public const ENCR_DUPLICATE_CODES = ['10598', '10626'];
 
+    /** Error codes Collexia has confirmed mean "no payout under this reference" on /encr/info. Empty until confirmed in writing. */
+    public const ENCR_NOT_FOUND_CODES = [];
+
     /**
      * Best-effort mapping of a borrower's free-text bank name onto Collexia's
      * numeric BanId. Null when nothing matches -- the caller must refuse rather
